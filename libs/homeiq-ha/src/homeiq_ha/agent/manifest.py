@@ -38,6 +38,20 @@ class Area:
 
 
 @dataclass(frozen=True)
+class AreaRemoval:
+    """An area the manifest requires to NOT exist (e.g. an import artifact).
+
+    Removal only ever applies to an EMPTY area: the recipe refuses while any
+    device or entity is still assigned, so a stale removal row can never
+    orphan anything (TAP-5974; standing rule — never delete an area with
+    assigned devices).
+    """
+
+    area_id: str
+    reason: str
+
+
+@dataclass(frozen=True)
 class DeviceArea:
     device_id: str
     area_id: str
@@ -83,6 +97,7 @@ class OrganizationManifest:
     entity_labels: tuple[EntityLabels, ...]
     entity_aliases: tuple[EntityAliases, ...]
     helpers: tuple[Helper, ...]
+    areas_remove: tuple[AreaRemoval, ...] = ()
 
 
 def load_manifest(path: str | Path = DEFAULT_MANIFEST_PATH) -> OrganizationManifest:
@@ -99,6 +114,10 @@ def load_manifest(path: str | Path = DEFAULT_MANIFEST_PATH) -> OrganizationManif
         managed_label_prefixes=tuple(body.get("managed_label_prefixes") or ()),
         areas=tuple(
             Area(row["area_id"], row["name"]) for row in body.get("areas") or ()
+        ),
+        areas_remove=tuple(
+            AreaRemoval(row["area_id"], row.get("reason", ""))
+            for row in body.get("areas_remove") or ()
         ),
         device_areas=tuple(
             DeviceArea(row["device_id"], row["area_id"], row.get("reason", ""))
@@ -128,6 +147,7 @@ def load_manifest(path: str | Path = DEFAULT_MANIFEST_PATH) -> OrganizationManif
 __all__ = [
     "DEFAULT_MANIFEST_PATH",
     "Area",
+    "AreaRemoval",
     "DeviceArea",
     "EntityAliases",
     "EntityLabels",

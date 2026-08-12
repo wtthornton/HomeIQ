@@ -85,3 +85,83 @@ async def test_manifest_areas_are_created_before_assignment(sim):
 
     second = await recipe.apply(sim)
     assert second.change_count == 0
+
+
+# --- ManifestAreasRemoveRecipe (TAP-5974) ----------------------------------
+
+
+def _removal_manifest(**overrides: Any) -> OrganizationManifest:
+    from homeiq_ha.agent.manifest import AreaRemoval
+
+    return _manifest(
+        areas_remove=(AreaRemoval("tv", "Hue zone import artifact"),), **overrides
+    )
+
+
+@pytest.mark.asyncio
+async def test_areas_remove_deletes_an_empty_declared_area(sim):
+    from homeiq_ha.agent.recipes import ManifestAreasRemoveRecipe
+
+    sim.state["areas"].append({"area_id": "tv", "name": "TV"})
+    recipe = ManifestAreasRemoveRecipe(_removal_manifest())
+
+    check = await recipe.check(sim)
+    assert check.status is CheckStatus.NEEDS_APPLY
+
+    result = await recipe.apply(sim)
+    assert [c.target for c in result.changed] == ["area:tv"]
+    assert all(a["area_id"] != "tv" for a in sim.state["areas"])
+
+    verify = await recipe.verify(sim)
+    assert verify.ok
+
+
+@pytest.mark.asyncio
+async def test_areas_remove_blocks_while_devices_remain(sim):
+    from homeiq_ha.agent.recipes import ManifestAreasRemoveRecipe
+
+    sim.state["areas"].append({"area_id": "tv", "name": "TV"})
+    sim.state["devices"].append({"id": "devtv", "name": "TV strip", "area_id": "tv"})
+    recipe = ManifestAreasRemoveRecipe(_removal_manifest())
+
+    check = await recipe.check(sim)
+    assert check.status is CheckStatus.BLOCKED_ON_HUMAN
+    assert "tv" in check.details["occupied"]
+
+    result = await recipe.apply(sim)
+    assert result.changed == ()
+    assert any(a["area_id"] == "tv" for a in sim.state["areas"]), "occupied area must survive"
+
+
+@pytest.mark.asyncio
+async def test_areas_remove_blocks_while_entities_remain(sim):
+    from homeiq_ha.agent.recipes import ManifestAreasRemoveRecipe
+
+    sim.state["areas"].append({"area_id": "tv", "name": "TV"})
+    sim.state["entities"].append({"entity_id": "light.tv_strip", "area_id": "tv"})
+    recipe = ManifestAreasRemoveRecipe(_removal_manifest())
+
+    check = await recipe.check(sim)
+    assert check.status is CheckStatus.BLOCKED_ON_HUMAN
+
+    result = await recipe.apply(sim)
+    assert result.changed == ()
+
+
+@pytest.mark.asyncio
+async def test_areas_remove_satisfied_when_already_absent(sim):
+    from homeiq_ha.agent.recipes import ManifestAreasRemoveRecipe
+
+    recipe = ManifestAreasRemoveRecipe(_removal_manifest())
+    check = await recipe.check(sim)
+    assert check.status is CheckStatus.SATISFIED
+
+
+def test_areas_recipe_wanted_set_is_manifest_driven():
+    from homeiq_ha.agent.recipes import AreasRecipe, default_recipes
+
+    manifest = _manifest(areas=(Area("master_bedroom", "Master Bedroom"),))
+    recipes = default_recipes(manifest)
+    areas = next(r for r in recipes if isinstance(r, AreasRecipe))
+    assert areas.wanted == ("Master Bedroom",)
+    assert "Bedroom" not in areas.wanted, "hardcoded default must not resurrect removed areas"
