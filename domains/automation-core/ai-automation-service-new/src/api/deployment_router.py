@@ -245,21 +245,20 @@ async def deploy_compiled_automation(
     if not compiled_artifact:
         raise HTTPException(status_code=404, detail=f"Compiled artifact '{compiled_id}' not found")
 
-    # Determine ha_automation_id: explicit > lookup by template+area > new from HA
+    # Update ONLY on an explicit ha_automation_id. The old template+area
+    # lookup silently converted creates into updates: deploying the fan
+    # artifact with the id omitted matched the office lighting deployment,
+    # overwrote it as v2, and the rollback then removed the lighting
+    # automation from HA entirely (TAP-5992, observed live 2026-08-12).
     ha_automation_id = payload.ha_automation_id
     existing_deployment = None
 
-    if (
-        not ha_automation_id
-        and getattr(compiled_artifact, "template_id", None)
-        and getattr(compiled_artifact, "area_id", None)
-    ):
-        # Look up existing deployment for same template + area
+    if ha_automation_id:
+        # Chain the version history off the automation actually being updated.
         lookup_query = (
             select(Deployment)
             .where(
-                Deployment.template_id == compiled_artifact.template_id,
-                Deployment.area_id == compiled_artifact.area_id,
+                Deployment.ha_automation_id == ha_automation_id,
                 Deployment.status == "deployed",
             )
             .order_by(Deployment.deployed_at.desc())
@@ -268,10 +267,9 @@ async def deploy_compiled_automation(
         lookup_result = await db.execute(lookup_query)
         existing_deployment = lookup_result.scalar_one_or_none()
         if existing_deployment:
-            ha_automation_id = existing_deployment.ha_automation_id
             logger.info(
-                f"Found existing deployment for template={compiled_artifact.template_id}, "
-                f"area={compiled_artifact.area_id}: {ha_automation_id}"
+                f"Explicit update of {ha_automation_id} "
+                f"(prior deployment {existing_deployment.deployment_id})"
             )
 
     # Safety validation on compiled YAML before deployment
