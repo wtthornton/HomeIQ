@@ -714,7 +714,8 @@ def default_recipes(
         DevicesHaveAreasRecipe(),
         AddonRecipe("core_ssh", title="Terminal & SSH"),
         AddonRecipe("core_configurator", title="File editor"),
-        AddonRecipe("otbr", title="OpenThread Border Router"),
+        # Store slug read live 2026-08-11: NOT "otbr" (the store 404s on it).
+        AddonRecipe("core_openthread_border_router", title="OpenThread Border Router"),
         HACSBootstrapRecipe(),
         IntegrationRecipe("nws", title="National Weather Service"),
         TeamTrackerRecipe(),
