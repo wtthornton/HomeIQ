@@ -8,9 +8,12 @@ provenance:
     confidence: 0.86
   dispositions:
   - finding: low/discipline — design_notes count '40 devices not_applicable' vs actual
-    disposition: 'adopted: true arithmetic is 46 assigned + 41 not_applicable + 2 blocked_on_human = 89 devices,
-      verified deterministically against the inventory; the notes'' 40 was an off-by-one on the not_applicable-status
-      subset (judge counted the same 41).'
+    disposition: 'adopted: shipped arithmetic is 47 assigned (46 authored + 1 caller-disposition TV group device)
+      + 40 not_applicable + 2 blocked_on_human = 89 devices, verified deterministically against the inventory. The
+      judge''s off-by-one was real: the author''s design_notes said ''46 assigned / 40 not_applicable'', but the
+      authored output actually held 46 assigned / 41 not_applicable / 2 blocked — the wrong number in the notes
+      is the assigned/not_applicable split, corrected here after the TV disposition moved one row from not_applicable
+      to device_areas.'
   - finding: caller addition — Hue zone group device 'TV' left not_applicable by the author
     disposition: 'adopted with modification: assigned to living_room so the ''tv'' artifact area empties and areas_remove
       can apply; grouped-light entity stays usable. Owner decision 2026-08-12.'
@@ -20,6 +23,7 @@ provenance:
   inventory_artifact: .tapps-mcp/org-inventory-20260812T215552Z.json
   generated: '2026-08-12T22:17:08Z'
   supersedes_run: 379fcd101abc497fb957e502ef5c884b
+  manifest_version: 3
 manifest:
   managed_label_prefixes:
   - 'role:'
@@ -1069,15 +1073,17 @@ design_notes: 'Label taxonomy restricted to the three managed prefixes already i
   intended here. No new labels or prefixes were added since there was no fresh evidence to justify them.
 
 
-  Coverage: 46 physical devices assigned to areas (all Hue lights/sensors/buttons, WLED controllers, TVs, Inovelli
-  switches, Aqara sensor); 40 devices marked not_applicable (all Home Assistant service/integration devices, host
-  hardware — Pi, Bluetooth radio, Zigbee coordinator/stick, router, Hue Bridge — and all Hue-imported virtual Room/Zone/Service-Group
-  devices, including the ''tv'' room artifact per owner note); 2 devices blocked_on_human (unk_manufacturer/unk_model
-  sensor with zero naming evidence, and the HP Tango printer per explicit owner note). Device f40d284b9f1d2ba87dfd6594299968eb
-  (''Living Room Left Play'') was moved out of the fake ''tv'' area into living_room per owner instruction; device
-  4e917d72... (Aqara occupancy sensor, area_id null in registry) was assigned to office per the owner''s explicit
-  note retaining the prior office Aqara sensor placement — this is the one case where I placed a device despite
-  a null area_id, justified by direct owner instruction rather than inference.
+  Coverage (corrected caller-side after the TV group-device disposition; the authored text undercounted not_applicable
+  by one): 47 physical devices assigned to areas (all Hue lights/sensors/buttons, WLED controllers, TVs, Inovelli
+  switches, Aqara sensor); 40 devices marked not_applicable (plus 2 blocked_on_human = 89 total) (all Home Assistant
+  service/integration devices, host hardware — Pi, Bluetooth radio, Zigbee coordinator/stick, router, Hue Bridge
+  — and all Hue-imported virtual Room/Zone/Service-Group devices, including the ''tv'' room artifact per owner note);
+  2 devices blocked_on_human (unk_manufacturer/unk_model sensor with zero naming evidence, and the HP Tango printer
+  per explicit owner note). Device f40d284b9f1d2ba87dfd6594299968eb (''Living Room Left Play'') was moved out of
+  the fake ''tv'' area into living_room per owner instruction; device 4e917d72... (Aqara occupancy sensor, area_id
+  null in registry) was assigned to office per the owner''s explicit note retaining the prior office Aqara sensor
+  placement — this is the one case where I placed a device despite a null area_id, justified by direct owner instruction
+  rather than inference.
 
 
   No new areas needed — ''tv'' is explicitly not real and excluded; ''bedroom'' is being retired and untouched,
