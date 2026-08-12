@@ -225,3 +225,59 @@ async def test_scene_policy_silent_without_declared_policy(sim):
     recipe = ScenePolicyRecipe(_manifest())
     check = await recipe.check(sim)
     assert check.status is CheckStatus.SATISFIED
+
+
+# --- ManifestHelpersRecipe menu/type split (TAP-5976) ------------------------
+
+
+@pytest.mark.asyncio
+async def test_sensor_group_helper_keeps_type_as_the_aggregation_form_field(sim):
+    from homeiq_ha.agent.manifest import Helper
+    from homeiq_ha.agent.recipes import ManifestHelpersRecipe
+
+    manifest = _manifest(
+        helpers=(
+            Helper(
+                "group",
+                "backyard_temperature_group",
+                "Backyard Temperature",
+                {
+                    "menu": "sensor",
+                    "type": "mean",
+                    "entities": ["sensor.backyard_hue_outdoor_motion_sensor_1_temperature"],
+                    "ignore_non_numeric": True,
+                },
+                "outdoor temperature coverage",
+            ),
+        )
+    )
+    recipe = ManifestHelpersRecipe(manifest)
+    check = await recipe.check(sim)
+    assert check.status is CheckStatus.NEEDS_APPLY  # sensor.<slug> not in registry
+
+    await recipe.apply(sim)
+    assert sim.rest.writes == ["config_flow group"]
+    # domain derives from the menu branch, so verify looks for sensor.<slug>
+    assert ManifestHelpersRecipe._domain(manifest.helpers[0]) == "sensor"
+
+
+@pytest.mark.asyncio
+async def test_binary_sensor_group_helper_backward_compatible_without_menu(sim):
+    from homeiq_ha.agent.manifest import Helper
+    from homeiq_ha.agent.recipes import ManifestHelpersRecipe
+
+    manifest = _manifest(
+        helpers=(
+            Helper(
+                "group",
+                "backyard_presence_group",
+                "Backyard Presence",
+                {"type": "binary_sensor", "entities": ["binary_sensor.x"], "all": False},
+                "presence group",
+            ),
+        )
+    )
+    recipe = ManifestHelpersRecipe(manifest)
+    assert ManifestHelpersRecipe._domain(manifest.helpers[0]) == "binary_sensor"
+    await recipe.apply(sim)
+    assert sim.rest.writes == ["config_flow group"]

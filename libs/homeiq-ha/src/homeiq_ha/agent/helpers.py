@@ -44,12 +44,23 @@ class ManifestHelpersRecipe(Recipe):
         self.manifest = manifest
 
     @staticmethod
+    def _menu_choice(helper: Any) -> str:
+        """Which menu branch a menu-first flow takes.
+
+        Prefer an explicit ``menu`` config key; fall back to ``type`` for
+        backward compatibility. The distinction matters for sensor groups,
+        whose FORM also has a ``type`` field (the aggregation function) —
+        with only ``type`` available, declaring a mean-aggregated sensor
+        group was impossible (TAP-5976).
+        """
+        return str(helper.config.get("menu") or helper.config.get("type") or "")
+
+    @staticmethod
     def _domain(helper: Any) -> str:
         # A group of binary_sensors creates binary_sensor.<slug>; a template
-        # sensor creates sensor.<slug>, etc. The manifest's config carries the
-        # member type under "type" for menu-first handlers.
+        # sensor creates sensor.<slug>, etc.
         if helper.kind in ManifestHelpersRecipe._MENU_FIRST:
-            return str(helper.config.get("type") or helper.kind)
+            return ManifestHelpersRecipe._menu_choice(helper) or helper.kind
         return helper.kind
 
     async def _missing(self, ha: Any) -> list[Any]:
@@ -87,9 +98,15 @@ class ManifestHelpersRecipe(Recipe):
         for helper in await self._missing(ha):
             steps: list[dict[str, Any]] = []
             form = {"name": helper.name}
-            form.update({k: v for k, v in helper.config.items() if k != "type"})
-            if helper.kind in self._MENU_FIRST:
-                steps.append({"next_step_id": str(helper.config.get("type") or "")})
+            if helper.kind in self._MENU_FIRST and "menu" in helper.config:
+                # Explicit menu key: everything else (including "type", e.g.
+                # a sensor group's aggregation function) belongs to the form.
+                form.update({k: v for k, v in helper.config.items() if k != "menu"})
+                steps.append({"next_step_id": self._menu_choice(helper)})
+            else:
+                form.update({k: v for k, v in helper.config.items() if k != "type"})
+                if helper.kind in self._MENU_FIRST:
+                    steps.append({"next_step_id": self._menu_choice(helper)})
             steps.append(form)
             await ha.rest.run_config_flow(helper.kind, steps)
             created.append(
