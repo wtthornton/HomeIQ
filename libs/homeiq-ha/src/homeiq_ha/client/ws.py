@@ -129,6 +129,13 @@ class HAWebSocketClient:
         try:
             async for raw in self._ws:
                 message = json.loads(raw)
+                if message.get("type") != "result":
+                    # Subscription-style commands (zha/devices/permit) stream
+                    # event frames under the same id BEFORE their result;
+                    # resolving a command future with one made the permit call
+                    # report an empty "unknown" error while actually
+                    # succeeding (observed live 2026-08-12).
+                    continue
                 future = self._pending.pop(message.get("id", -1), None)
                 if future is not None and not future.done():
                     future.set_result(message)
@@ -180,7 +187,7 @@ class HAWebSocketClient:
             response = await asyncio.wait_for(
                 future, timeout if timeout is not None else self._command_timeout
             )
-        except (asyncio.TimeoutError, TimeoutError):
+        except TimeoutError:
             self._pending.pop(message_id, None)
             raise
 
@@ -252,9 +259,7 @@ class HAWebSocketClient:
         return await self.send_command("config/floor_registry/create", name=name, **fields)
 
     async def update_floor(self, floor_id: str, **changes: Any) -> dict[str, Any]:
-        return await self.send_command(
-            "config/floor_registry/update", floor_id=floor_id, **changes
-        )
+        return await self.send_command("config/floor_registry/update", floor_id=floor_id, **changes)
 
     async def delete_floor(self, floor_id: str) -> None:
         await self.send_command("config/floor_registry/delete", floor_id=floor_id)
@@ -266,9 +271,7 @@ class HAWebSocketClient:
         return await self.send_command("config/label_registry/create", name=name, **fields)
 
     async def update_label(self, label_id: str, **changes: Any) -> dict[str, Any]:
-        return await self.send_command(
-            "config/label_registry/update", label_id=label_id, **changes
-        )
+        return await self.send_command("config/label_registry/update", label_id=label_id, **changes)
 
     async def delete_label(self, label_id: str) -> None:
         await self.send_command("config/label_registry/delete", label_id=label_id)
@@ -283,9 +286,7 @@ class HAWebSocketClient:
             "config/category_registry/create", scope=scope, name=name, **fields
         )
 
-    async def update_category(
-        self, scope: str, category_id: str, **changes: Any
-    ) -> dict[str, Any]:
+    async def update_category(self, scope: str, category_id: str, **changes: Any) -> dict[str, Any]:
         return await self.send_command(
             "config/category_registry/update",
             scope=scope,
@@ -328,6 +329,4 @@ class HAWebSocketClient:
             command["data"] = payload
         # Wait slightly longer than the Supervisor does, so its own timeout
         # surfaces as a Supervisor error rather than a client-side abort.
-        return await self.send_command(
-            "supervisor/api", timeout=timeout + 30.0, fields=command
-        )
+        return await self.send_command("supervisor/api", timeout=timeout + 30.0, fields=command)
