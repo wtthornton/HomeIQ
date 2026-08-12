@@ -9,7 +9,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-DEVICE_INTELLIGENCE_URL = os.getenv("DEVICE_INTELLIGENCE_URL", "http://localhost:8019")
+DEVICE_INTELLIGENCE_URL = os.getenv("DEVICE_INTELLIGENCE_URL", "http://device-intelligence-service:8019")
 
 
 class HygieneIssueResponse(BaseModel):

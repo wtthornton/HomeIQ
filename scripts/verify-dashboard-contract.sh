@@ -119,6 +119,8 @@ read -r -d '' CONTRACT <<'EOF'
 /api/v1/events/search	404	http	data-api; POST-only (frontend sends POST+CSRF, verified 200 live TAP-5446) — a GET probe falls into /events/{event_id} with id="search" and 404s, which proves the events router is mounted; nginx CSRF-gates non-GET so this sweep stays GET-only
 /api/v1/integrations	200	http	data-api; shared integration router (TAP-5447), lists .env.{service} files from infrastructure/service-configs
 /api/v1/integrations/websocket/config	200	http	data-api; ConfigForm's route — needs the seeded .env.websocket in infrastructure/service-configs (see its README); unknown services 404 by design
+/api/v1/ha/game-status/VGK	200	http	data-api; TAP-5448 — answers no_game when sports_data holds no rows for the team, which is the honest empty state
+/api/v1/ha/game-context/VGK	200	http	data-api; TAP-5448 — same no_game semantics as game-status
 /api/devices	200	http	data-api
 /api/devices/{DEVICE_ID}	200	http	data-api; id resolved at runtime from /api/devices
 /api/entities	200	http	data-api

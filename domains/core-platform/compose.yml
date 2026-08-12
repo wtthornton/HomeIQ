@@ -121,6 +121,9 @@ services:
       - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
       - DATABASE_SCHEMA=core
+      # hygiene routes proxy to device-intelligence; the old localhost:8019
+      # fallback dialed the container's own loopback (TAP-5449)
+      - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8019
     volumes:
       # Per-service integration configs (.env.{service}) served and edited by
       # /api/v1/integrations/{service}/config; config_manager reads the

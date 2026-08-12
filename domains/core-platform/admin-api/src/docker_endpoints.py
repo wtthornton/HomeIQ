@@ -115,6 +115,8 @@ class DockerEndpoints:
 
                 return response
 
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"Error listing containers: {e}")
                 raise HTTPException(
@@ -144,6 +146,8 @@ class DockerEndpoints:
                     success=success, message=message, timestamp=datetime.now().isoformat()
                 )
 
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"Error starting container {service_name}: {e}")
                 raise HTTPException(
@@ -173,6 +177,8 @@ class DockerEndpoints:
                     success=success, message=message, timestamp=datetime.now().isoformat()
                 )
 
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"Error stopping container {service_name}: {e}")
                 raise HTTPException(
@@ -202,6 +208,8 @@ class DockerEndpoints:
                     success=success, message=message, timestamp=datetime.now().isoformat()
                 )
 
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"Error restarting container {service_name}: {e}")
                 raise HTTPException(
@@ -227,6 +235,8 @@ class DockerEndpoints:
                 )
                 return {"logs": logs}
 
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"Error getting logs for {service_name}: {e}")
                 raise HTTPException(
@@ -286,6 +296,8 @@ class DockerEndpoints:
 
                 return response
 
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"Error getting API keys: {e}")
                 raise HTTPException(
@@ -378,6 +390,8 @@ class DockerEndpoints:
                 key_status = self.api_key_service.get_api_key_status(service)
                 return {"service": service, "status": key_status.value}
 
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"Error getting API key status for {service}: {e}")
                 raise HTTPException(

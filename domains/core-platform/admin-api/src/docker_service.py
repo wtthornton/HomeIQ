@@ -108,6 +108,7 @@ class DockerService:
             "calendar-service": "homeiq-calendar",
             "smart-meter-service": "homeiq-smart-meter",
             "data-retention": "homeiq-data-retention",
+            "data-api": "homeiq-data-api",
         }
 
         # Project label for filtering containers
