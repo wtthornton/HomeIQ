@@ -116,6 +116,7 @@ read -r -d '' CONTRACT <<'EOF'
 /api/v1/events	200	http	data-api
 /api/v1/events/{EVENT_ID}	200	http	data-api; id resolved at runtime from /api/v1/events
 /api/v1/events/stats?period=24h	200	http	data-api
+/api/v1/events/search	404	http	data-api; POST-only (frontend sends POST+CSRF, verified 200 live TAP-5446) — a GET probe falls into /events/{event_id} with id="search" and 404s, which proves the events router is mounted; nginx CSRF-gates non-GET so this sweep stays GET-only
 /api/devices	200	http	data-api
 /api/devices/{DEVICE_ID}	200	http	data-api; id resolved at runtime from /api/devices
 /api/entities	200	http	data-api
