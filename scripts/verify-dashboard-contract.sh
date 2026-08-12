@@ -20,13 +20,11 @@
 #   CONTRACT_PACE        seconds between requests (default 1.1). admin-api rate
 #                        limits at 60 req/min with burst 20 — an unpaced sweep
 #                        produces false 429s.
-#   CONTRACT_TIMEOUT     per-request timeout in seconds (default 15). Raised from
-#                        10 because /api/v1/real-time-metrics answers at ~10.0s,
-#                        right on the old boundary, so the sweep reported a
-#                        curl-level 000 for an endpoint that does return 200.
-#                        That latency is a real performance problem worth fixing
-#                        on its own; the timeout here only stops it being
-#                        misreported as an unreachable route.
+#   CONTRACT_TIMEOUT     per-request timeout in seconds (default 10). Was
+#                        temporarily 15 while /api/v1/real-time-metrics sat at
+#                        ~10.0s waiting out a downstream aiohttp timeout; that
+#                        endpoint now runs its fan-out under a 1.5s budget
+#                        (TAP-5439), so the default is back at 10.
 #
 # Exit status: 0 when every endpoint matches its expected status, 1 otherwise.
 
@@ -35,7 +33,7 @@ set -uo pipefail
 BASE_URL="${1:-http://localhost:13000}"
 BASE_URL="${BASE_URL%/}"
 PACE="${CONTRACT_PACE:-1.1}"
-TIMEOUT="${CONTRACT_TIMEOUT:-15}"
+TIMEOUT="${CONTRACT_TIMEOUT:-10}"
 KEY="${DASHBOARD_API_KEY:-}"
 
 # path <TAB> expected-status <TAB> kind <TAB> rationale

@@ -5,6 +5,7 @@ their associated response-builder logic. Extracted from
 AdminAPIService to keep main.py under 300 lines.
 """
 
+import asyncio
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -125,14 +126,44 @@ async def _build_enhanced_health(
         }
 
 
+# Hard per-fetch budget for the dashboard's poll target. The three fetches
+# below fan out to a dozen downstream services whose aiohttp timeouts run
+# 5-15s; awaited sequentially, one hung service made the endpoint sit at a
+# round 10.0s (TAP-5439). A fetch that misses the budget degrades to its
+# fallback instead of stalling the poll loop.
+_RT_METRICS_BUDGET_SECONDS = 1.5
+
+_EMPTY_API_METRICS: dict[str, Any] = {
+    "active_calls": 0,
+    "api_metrics": [],
+    "inactive_apis": 0,
+    "error_apis": 0,
+    "total_apis": 0,
+}
+
+
+async def _bounded(coro: Any, fallback: Any) -> Any:
+    """Await coro under the metrics budget, degrading to fallback on timeout."""
+    try:
+        return await asyncio.wait_for(coro, _RT_METRICS_BUDGET_SECONDS)
+    except TimeoutError:
+        logger.warning(
+            "real-time-metrics fetch exceeded %.1fs budget; using fallback",
+            _RT_METRICS_BUDGET_SECONDS,
+        )
+        return fallback
+
+
 async def _build_real_time_metrics(
     stats_endpoints: StatsEndpoints,
 ) -> dict[str, Any]:
     """Build real-time metrics from stats endpoints."""
     try:
-        er = await stats_endpoints._get_current_event_rate()
-        api = await stats_endpoints._get_all_api_metrics()
-        ds = await stats_endpoints._get_active_data_sources()
+        er, api, ds = await asyncio.gather(
+            _bounded(stats_endpoints._get_current_event_rate(), 0.0),
+            _bounded(stats_endpoints._get_all_api_metrics(), dict(_EMPTY_API_METRICS)),
+            _bounded(stats_endpoints._get_active_data_sources(), []),
+        )
         return {
             "events_per_hour": er * 3600,
             "api_calls_active": api["active_calls"],
