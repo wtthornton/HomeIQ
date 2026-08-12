@@ -11,7 +11,6 @@ on:
       - 'compose*.yml'
       - '**/docker-compose*.yml'
       - '**/compose*.yml'
-      - 'infrastructure/backup/backup-scheduler.yml'
       - '.github/workflows/docker-build.yml'
   workflow_dispatch: {}
 
