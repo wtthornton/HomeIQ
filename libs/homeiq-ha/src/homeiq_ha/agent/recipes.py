@@ -425,6 +425,77 @@ class AreasRecipe(_RegistryNamesRecipe):
     registry = "area_registry"
 
 
+class ZigbeeMeshHealthRecipe(Recipe):
+    """Report-only per-device Zigbee mesh health (LQI + availability, TAP-5982).
+
+    Emits one row per ZHA device (name, ieee, lqi, available, last_seen) into
+    the audit so signal degradation is visible before it becomes a silent
+    outage — the SLZB coordinator dropped mid-pairing 2026-08-12 and nothing
+    reported it. Strictly report-only: never writes, never blocks, never
+    alerts (the coordinator watchdog owns alerting). When ZHA is absent or its
+    API errors, it degrades to SATISFIED with a note rather than crashing the
+    nightly audit.
+    """
+
+    name = "zigbee.mesh_health"
+    phase = PHASE_ORGANIZATION
+    description = "Per-device Zigbee mesh LQI and availability (report-only)"
+
+    #: Below this LQI a device is worth a human's attention (not an alert here).
+    WEAK_LQI = 30
+
+    async def check(self, ha: HAClient) -> CheckResult:
+        try:
+            devices = await ha.ws.send_command("zha/devices")
+        except Exception as exc:  # ZHA loaded but the API errored
+            return CheckResult(
+                CheckStatus.SATISFIED,
+                f"mesh health unavailable: {type(exc).__name__}",
+                {"error": str(exc)},
+            )
+        if not devices:
+            return CheckResult(CheckStatus.SATISFIED, "no ZHA mesh present")
+
+        rows = [
+            {
+                "name": d.get("user_given_name") or d.get("name") or d.get("model"),
+                "ieee": d.get("ieee"),
+                "lqi": d.get("lqi"),
+                "available": bool(d.get("available")),
+                "last_seen": d.get("last_seen"),
+                "is_coordinator": d.get("device_type") == "Coordinator",
+            }
+            for d in devices
+        ]
+        rows.sort(key=lambda r: (r["lqi"] is None, r["lqi"] if r["lqi"] is not None else 0))
+        unavailable = [r["ieee"] for r in rows if not r["available"]]
+        weak = [r["ieee"] for r in rows if isinstance(r["lqi"], int) and r["lqi"] < self.WEAK_LQI]
+        lqis = [r["lqi"] for r in rows if isinstance(r["lqi"], int)]
+        summary = (
+            f"{len(rows)} device(s); {len(unavailable)} unavailable; "
+            f"weakest LQI {min(lqis) if lqis else 'n/a'}"
+        )
+        return CheckResult(
+            CheckStatus.SATISFIED,
+            summary,
+            {
+                "device_count": len(rows),
+                "unavailable": unavailable,
+                "weak_lqi": weak,
+                "devices": rows,
+            },
+        )
+
+    async def plan(self, ha: HAClient) -> Plan:
+        return Plan(())
+
+    async def apply(self, ha: HAClient) -> ApplyResult:
+        return ApplyResult((), "report-only")
+
+    async def verify(self, ha: HAClient) -> VerifyResult:
+        return VerifyResult(True, "report-only")
+
+
 class ScenePolicyRecipe(Recipe):
     """Report-only scene governance (TAP-5975).
 
@@ -947,6 +1018,7 @@ def default_recipes(
             ),
         ),
         ZHARecipe(ZHA_SERIAL_PATH),
+        ZigbeeMeshHealthRecipe(),
     ]
     if manifest is not None:
         recipes.extend(
@@ -977,6 +1049,7 @@ __all__ = [
     "DevicesHaveAreasRecipe",
     "ManifestAreasRemoveRecipe",
     "ScenePolicyRecipe",
+    "ZigbeeMeshHealthRecipe",
     "FirstBackupRecipe",
     "FloorsRecipe",
     "HACSBootstrapRecipe",

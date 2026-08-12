@@ -280,3 +280,73 @@ async def test_binary_sensor_group_helper_backward_compatible_without_menu(sim):
     assert ManifestHelpersRecipe._domain(manifest.helpers[0]) == "binary_sensor"
     await recipe.apply(sim)
     assert sim.rest.writes == ["config_flow group"]
+
+
+# --- ZigbeeMeshHealthRecipe (TAP-5982) -------------------------------------
+
+
+class _MeshWs:
+    def __init__(self, devices):
+        self._devices = devices
+        self.writes = []
+
+    async def send_command(self, command_type, **kwargs):
+        if command_type == "zha/devices":
+            if isinstance(self._devices, Exception):
+                raise self._devices
+            return self._devices
+        self.writes.append(command_type)
+        return None
+
+
+class _MeshHA:
+    def __init__(self, devices):
+        self.ws = _MeshWs(devices)
+
+
+@pytest.mark.asyncio
+async def test_mesh_health_emits_one_row_per_device_sorted_by_lqi():
+    from homeiq_ha.agent.recipes import ZigbeeMeshHealthRecipe
+
+    ha = _MeshHA([
+        {"ieee": "00:1", "name": "Coordinator", "lqi": None, "available": True, "device_type": "Coordinator"},
+        {"ieee": "00:2", "name": "Strong", "lqi": 200, "available": True},
+        {"ieee": "00:3", "name": "Weak", "lqi": 12, "available": True},
+        {"ieee": "00:4", "name": "Dead", "lqi": 40, "available": False},
+    ])
+    result = await ZigbeeMeshHealthRecipe().check(ha)
+    assert result.status is CheckStatus.SATISFIED
+    d = result.details
+    assert d["device_count"] == 4
+    assert d["unavailable"] == ["00:4"]
+    assert d["weak_lqi"] == ["00:3"]
+    # rows sorted weakest-LQI first (None sinks to the end)
+    assert [r["ieee"] for r in d["devices"]] == ["00:3", "00:4", "00:2", "00:1"]
+    assert ha.ws.writes == [], "report-only: no writes"
+
+
+@pytest.mark.asyncio
+async def test_mesh_health_satisfied_when_no_zha_mesh():
+    from homeiq_ha.agent.recipes import ZigbeeMeshHealthRecipe
+
+    result = await ZigbeeMeshHealthRecipe().check(_MeshHA(None))
+    assert result.status is CheckStatus.SATISFIED
+    assert "no ZHA mesh" in result.summary
+
+
+@pytest.mark.asyncio
+async def test_mesh_health_degrades_on_api_error_not_crash():
+    from homeiq_ha.agent.recipes import ZigbeeMeshHealthRecipe
+
+    result = await ZigbeeMeshHealthRecipe().check(_MeshHA(RuntimeError("zha boom")))
+    assert result.status is CheckStatus.SATISFIED
+    assert "unavailable" in result.summary
+
+
+@pytest.mark.asyncio
+async def test_mesh_health_apply_is_noop(sim):
+    from homeiq_ha.agent.recipes import ZigbeeMeshHealthRecipe
+
+    r = ZigbeeMeshHealthRecipe()
+    assert (await r.apply(_MeshHA([]))).changed == ()
+    assert (await r.verify(_MeshHA([]))).ok
