@@ -81,3 +81,14 @@ def sanitize_flux_value(value: str | None, max_length: int = MAX_SANITIZED_LENGT
         return ""
 
     return sanitized
+
+
+def flux_time(dt) -> str:
+    """Render a UTC datetime as an RFC3339 Flux time literal.
+
+    ``datetime.isoformat()`` on an aware datetime emits ``+00:00``; the energy
+    queries appended a further ``Z``, and InfluxDB parsed ``+00:00`` as a
+    binary operator and the ``Z`` as an undefined identifier, 500ing every
+    energy route (TAP-5445).
+    """
+    return dt.strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
