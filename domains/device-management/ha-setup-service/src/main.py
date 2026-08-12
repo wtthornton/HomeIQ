@@ -1,7 +1,8 @@
 """HA Setup Service - Main FastAPI Application.
 
-Provides setup wizards, health monitoring, performance optimization
-and Zigbee2MQTT bridge management for Home Assistant environments.
+Provides health monitoring, performance optimization and setup validation
+for Home Assistant environments. Zigbee onboarding now lives in the
+libs/homeiq-ha init agent (ZHA recipe), not here.
 """
 
 from __future__ import annotations
@@ -20,10 +21,7 @@ from .monitoring_service import ContinuousHealthMonitor
 from .optimization_engine import PerformanceAnalysisEngine, RecommendationEngine
 from .routes_health import health_router
 from .routes_validation import optimization_router, validation_router
-from .routes_zigbee import bridge_router, setup_router
 from .validation_service import ValidationService
-from .zigbee_bridge_manager import ZigbeeBridgeManager
-from .zigbee_setup_wizard import Zigbee2MQTTSetupWizard as ZigbeeSetupWizard
 
 settings = get_settings()
 
@@ -73,8 +71,6 @@ async def _startup_services() -> None:
 
     app.state.performance_analyzer = PerformanceAnalysisEngine()
     app.state.recommendation_engine = RecommendationEngine()
-    app.state.bridge_manager = ZigbeeBridgeManager()
-    app.state.zigbee_setup_wizard = ZigbeeSetupWizard()
     app.state.validation_service = ValidationService()
 
 
@@ -115,18 +111,15 @@ app = create_app(
 )
 
 # Include extracted route modules
-app.include_router(bridge_router)
-app.include_router(setup_router)
 app.include_router(health_router)
 app.include_router(optimization_router)
 app.include_router(validation_router)
 
 
-# The generic /api/setup/wizard/* endpoints are gone along with the wizard
-# framework module. They fronted an MQTT wizard that declared five steps and
-# never implemented any of them, plus a second Zigbee2MQTT wizard competing
-# with the one behind /api/zigbee2mqtt/setup/*. That router is now the single
-# setup surface.
+# The Zigbee2MQTT wizard, bridge manager and their routers are gone: they
+# called two Home Assistant services that do not exist and hit WS-only
+# registries over REST (docs/ha-init-agent-design.md). Zigbee onboarding is
+# the libs/homeiq-ha init agent's ZHA recipe now.
 
 
 if __name__ == "__main__":
