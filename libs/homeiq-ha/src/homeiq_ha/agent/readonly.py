@@ -29,6 +29,8 @@ _READ_COMMANDS = frozenset(
         "get_config",
         "get_services",
         "auth/current_user",
+        "zha/devices",
+        "zha/device",
         "backup/info",
         "backup/config/info",
         "backup/agents/info",

@@ -106,6 +106,8 @@ class SimWs:
 
         if command_type == "supervisor/api":
             return await self._supervisor(args)
+        if command_type == "zha/devices":
+            return self.state.get("zha_devices", [])
 
         # Everything below writes.
         self.writes.append(command_type)
