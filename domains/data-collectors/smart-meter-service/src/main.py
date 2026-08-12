@@ -217,7 +217,9 @@ class SmartMeterService:
 
         self.cached_data = data
         self.last_fetch_time = datetime.now(UTC)
-        self.health_handler.last_successful_fetch = datetime.now(UTC)
+        # Deliberately NOT stamping health_handler.last_successful_fetch:
+        # mock data is a degraded mode, and a collector running on fabricated
+        # wattage must not read as ready (TAP-5903).
         self.health_handler.total_fetches += 1
 
         logger.debug("Using mock data")

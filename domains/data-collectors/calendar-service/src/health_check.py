@@ -33,6 +33,9 @@ class HealthCheckState:
     async def check_recent_fetch(self) -> bool:
         """Check if a successful fetch occurred within the last 30 minutes."""
         if not self.last_successful_fetch:
-            return True  # No fetch yet is OK during startup
+            # Startup grace is bounded: a never-fetching service must
+            # eventually go not-ready, not stay green forever (TAP-5903).
+            uptime = (datetime.now(UTC) - self.start_time).total_seconds()
+            return uptime <= 1800
         time_since_last = (datetime.now(UTC) - self.last_successful_fetch).total_seconds()
         return time_since_last <= 1800  # 30 minutes

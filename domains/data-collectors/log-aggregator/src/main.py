@@ -113,9 +113,14 @@ lifespan.on_shutdown(_shutdown, name="log-aggregator-cleanup")
 
 
 async def _check_docker() -> bool:
-    if _aggregator is None:
+    if _aggregator is None or _aggregator.docker_client is None:
         return False
-    return _aggregator.docker_client is not None
+    # Live probe, not a construction-time snapshot: a docker daemon that
+    # dies after startup must flip readiness (TAP-5903).
+    try:
+        return await asyncio.to_thread(_aggregator.docker_client.ping)
+    except Exception:
+        return False
 
 
 health = StandardHealthCheck(service_name="log-aggregator", version="1.0.0")

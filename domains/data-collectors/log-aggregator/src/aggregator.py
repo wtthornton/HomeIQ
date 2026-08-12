@@ -10,8 +10,9 @@ from datetime import UTC, datetime
 from typing import Any
 
 import docker
-from config import settings
 from homeiq_observability.logging_config import setup_logging
+
+from config import settings
 
 logger = setup_logging("log-aggregator")
 

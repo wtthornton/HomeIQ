@@ -808,8 +808,8 @@ _health = StandardHealthCheck(
     version=SERVICE_VERSION,
 )
 
-# Readiness (TAP-5903): sports data updates on game cadence, so the recency
-# bound is lenient (30 min x2); running-but-fetchless must still go not-ready.
+# Readiness (TAP-5903): bound recency to the service's own poll cadence
+# (min 5 min); running-but-fetchless must go not-ready.
 _READY_START = time.monotonic()
 
 
@@ -817,7 +817,7 @@ async def _check_recent_fetch() -> dict[str, Any]:
     if sports_service is None:
         return {"ok": False, "reason": "service not started"}
     last = sports_service.last_successful_fetch
-    interval = 1800
+    interval = max(getattr(sports_service, "poll_interval", 60) * 2, 300)
     if last is None:
         in_grace = (time.monotonic() - _READY_START) <= max(interval, 300)
         return {"ok": in_grace, "last_successful_fetch": None, "startup_grace": in_grace}

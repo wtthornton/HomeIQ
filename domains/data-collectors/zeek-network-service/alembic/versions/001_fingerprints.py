@@ -5,8 +5,8 @@ Revises:
 Create Date: 2026-03-16
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects.postgresql import INET
 
 revision = "001"
