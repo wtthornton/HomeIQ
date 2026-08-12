@@ -16,17 +16,26 @@ the host.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
-import ssl
-from types import TracebackType
-from typing import Any
+import random
+import time
+from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING, Any
 
-import websockets
-from websockets.asyncio.client import ClientConnection
+# The bare package lazy-loads submodules; connect() needs the submodule
+# genuinely imported at runtime.
+import websockets.asyncio.client
 
 from .errors import HAAuthError, HAClientClosed, HACommandError
 from .redaction import redact
+
+if TYPE_CHECKING:
+    import ssl
+    from types import TracebackType
+
+    from websockets.asyncio.client import ClientConnection
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +43,14 @@ logger = logging.getLogger(__name__)
 # far too short for the Supervisor endpoints that do real work.
 DEFAULT_COMMAND_TIMEOUT = 30.0
 SUPERVISOR_INSTALL_TIMEOUT = 900.0
+
+# Auto-reconnect backoff: first retry after DEFAULT_RECONNECT_DELAY seconds
+# (plus up to 30% jitter), doubling per attempt, capped at MAX_RECONNECT_DELAY.
+DEFAULT_RECONNECT_DELAY = 1.0
+MAX_RECONNECT_DELAY = 60.0
+DEFAULT_MAX_RECONNECT_ATTEMPTS = 10
+
+EventHandler = Callable[[dict[str, Any]], Awaitable[None]]
 
 
 class HAWebSocketClient:
@@ -51,6 +68,9 @@ class HAWebSocketClient:
         *,
         ssl_context: ssl.SSLContext | None = None,
         command_timeout: float = DEFAULT_COMMAND_TIMEOUT,
+        auto_reconnect: bool = False,
+        reconnect_delay: float = DEFAULT_RECONNECT_DELAY,
+        max_reconnect_attempts: int = DEFAULT_MAX_RECONNECT_ATTEMPTS,
     ) -> None:
         self._url = url
         self._token = token
@@ -61,6 +81,20 @@ class HAWebSocketClient:
         self._pending: dict[int, asyncio.Future[dict[str, Any]]] = {}
         self._reader: asyncio.Task[None] | None = None
         self._send_lock = asyncio.Lock()
+        # Event subscriptions survive reconnects: id -> (event_type, handler).
+        self._subscriptions: dict[int, tuple[str | None, EventHandler | None]] = {}
+        self._auto_reconnect = auto_reconnect
+        self._reconnect_delay = reconnect_delay
+        self._max_reconnect_attempts = max_reconnect_attempts
+        self._reconnect_task: asyncio.Task[None] | None = None
+        self._closing = False
+        # Connection metrics (shape kept compatible with the client this
+        # replaces in api-automation-edge, TAP-5440).
+        self._disconnect_count = 0
+        self._reconnect_count = 0
+        self._last_connect_time: float | None = None
+        self._last_disconnect_time: float | None = None
+        self._reconnect_latencies: list[float] = []
 
     # -- lifecycle ---------------------------------------------------------
 
@@ -101,17 +135,24 @@ class HAWebSocketClient:
             # `result` may echo the token back; never log it unredacted.
             raise HAAuthError(f"Authentication rejected: {redact(result)}")
 
+        self._closing = False
+        self._last_connect_time = time.time()
         self._reader = asyncio.create_task(self._read_loop())
         logger.info("Connected to Home Assistant WebSocket API (%s)", result.get("ha_version"))
 
     async def close(self) -> None:
         """Close the connection and fail any in-flight commands."""
+        self._closing = True
+        if self._reconnect_task is not None:
+            self._reconnect_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._reconnect_task
+            self._reconnect_task = None
+
         if self._reader is not None:
             self._reader.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._reader
-            except asyncio.CancelledError:
-                pass
             self._reader = None
 
         for future in self._pending.values():
@@ -122,6 +163,8 @@ class HAWebSocketClient:
         if self._ws is not None:
             await self._ws.close()
             self._ws = None
+        self._last_disconnect_time = time.time()
+        self._disconnect_count += 1
 
     async def _read_loop(self) -> None:
         """Dispatch incoming frames to whichever command is waiting on them."""
@@ -129,7 +172,11 @@ class HAWebSocketClient:
         try:
             async for raw in self._ws:
                 message = json.loads(raw)
-                if message.get("type") != "result":
+                message_type = message.get("type")
+                if message_type == "event":
+                    await self._dispatch_event(message)
+                    continue
+                if message_type != "result":
                     # Subscription-style commands (zha/devices/permit) stream
                     # event frames under the same id BEFORE their result;
                     # resolving a command future with one made the permit call
@@ -142,10 +189,86 @@ class HAWebSocketClient:
         except asyncio.CancelledError:
             raise
         except Exception as exc:  # connection dropped mid-flight
-            for future in self._pending.values():
-                if not future.done():
-                    future.set_exception(exc)
-            self._pending.clear()
+            self._handle_connection_loss(exc)
+        else:
+            # The server closed the socket cleanly (async-for exhausted):
+            # still a connection loss from the caller's point of view.
+            self._handle_connection_loss(HAClientClosed("Connection closed by server"))
+
+    async def _dispatch_event(self, message: dict[str, Any]) -> None:
+        """Run the subscription handler for one event frame.
+
+        Handlers run inline on the read loop, preserving event order. A
+        handler must NOT await a command on this same client (the command's
+        result frame cannot be read while the handler blocks the loop);
+        schedule such work with asyncio.create_task instead.
+        """
+        subscription = self._subscriptions.get(message.get("id", -1))
+        if subscription is None:
+            return
+        _event_type, handler = subscription
+        if handler is None:
+            return
+        try:
+            await handler(message.get("event") or {})
+        except Exception:
+            logger.exception(
+                "Event handler for subscription %s raised; subscription continues",
+                message.get("id"),
+            )
+
+    def _handle_connection_loss(self, exc: Exception) -> None:
+        """Fail in-flight commands and, if configured, start reconnecting."""
+        for future in self._pending.values():
+            if not future.done():
+                future.set_exception(exc)
+        self._pending.clear()
+        self._disconnect_count += 1
+        self._last_disconnect_time = time.time()
+        reconnect_running = self._reconnect_task is not None and not self._reconnect_task.done()
+        if self._auto_reconnect and not self._closing and not reconnect_running:
+            logger.warning("Connection lost (%s); reconnecting", exc)
+            self._reconnect_task = asyncio.create_task(self._reconnect_loop())
+
+    async def _reconnect_loop(self) -> None:
+        """Reconnect with jittered exponential backoff, then resubscribe."""
+        delay = self._reconnect_delay
+        for attempt in range(1, self._max_reconnect_attempts + 1):
+            await asyncio.sleep(delay + random.uniform(0, delay * 0.3))
+            started = time.monotonic()
+            try:
+                await self._reestablish()
+            except Exception:
+                logger.warning(
+                    "Reconnect attempt %d/%d failed",
+                    attempt,
+                    self._max_reconnect_attempts,
+                    exc_info=True,
+                )
+                delay = min(delay * 2, MAX_RECONNECT_DELAY)
+                continue
+            self._reconnect_count += 1
+            self._reconnect_latencies.append(time.monotonic() - started)
+            logger.info("Reconnected to Home Assistant after %d attempt(s)", attempt)
+            return
+        logger.error(
+            "Gave up reconnecting after %d attempts; call connect() to retry",
+            self._max_reconnect_attempts,
+        )
+
+    async def _reestablish(self) -> None:
+        """One reconnect attempt: fresh socket, then replay subscriptions."""
+        old_subscriptions = list(self._subscriptions.values())
+        self._subscriptions.clear()
+        if self._ws is not None:
+            with contextlib.suppress(Exception):
+                await self._ws.close()
+            self._ws = None
+        # The old reader task has already exited via the connection-loss path.
+        self._reader = None
+        await self.connect()
+        for event_type, handler in old_subscriptions:
+            await self.subscribe_events(event_type, handler)
 
     # -- command plumbing --------------------------------------------------
 
@@ -169,6 +292,19 @@ class HAWebSocketClient:
             HACommandError: Home Assistant answered ``success: false``.
         """
         payload = {**payload, **(fields or {})}
+        _, result = await self._send_and_wait(
+            command_type, payload, timeout if timeout is not None else self._command_timeout
+        )
+        return result
+
+    async def _send_and_wait(
+        self, command_type: str, payload: dict[str, Any], timeout: float
+    ) -> tuple[int, Any]:
+        """Send one command and return ``(message_id, result)``.
+
+        The message id doubles as the subscription id for subscription-style
+        commands, which is why it is surfaced here.
+        """
         if self._ws is None:
             raise HAClientClosed("Not connected — call connect() first")
 
@@ -184,9 +320,7 @@ class HAWebSocketClient:
             await self._ws.send(json.dumps(message))
 
         try:
-            response = await asyncio.wait_for(
-                future, timeout if timeout is not None else self._command_timeout
-            )
+            response = await asyncio.wait_for(future, timeout)
         except TimeoutError:
             self._pending.pop(message_id, None)
             raise
@@ -198,7 +332,74 @@ class HAWebSocketClient:
                 str(error.get("code", "unknown")),
                 str(error.get("message", "")),
             )
-        return response.get("result")
+        return message_id, response.get("result")
+
+    # -- event subscriptions -------------------------------------------------
+
+    async def subscribe_events(
+        self,
+        event_type: str | None = None,
+        handler: EventHandler | None = None,
+    ) -> int:
+        """Subscribe to Home Assistant events.
+
+        Args:
+            event_type: Event type to subscribe to (``None`` for all events).
+            handler: Async callback invoked with each event dict. Runs inline
+                on the read loop — see :meth:`_dispatch_event` for the rules.
+
+        Returns:
+            The subscription id (pass to :meth:`unsubscribe_events`). After an
+            auto-reconnect the subscription is replayed under a new id; the
+            handler keeps firing either way.
+        """
+        payload: dict[str, Any] = {}
+        if event_type is not None:
+            payload["event_type"] = event_type
+        subscription_id, _ = await self._send_and_wait(
+            "subscribe_events", payload, self._command_timeout
+        )
+        self._subscriptions[subscription_id] = (event_type, handler)
+        logger.info("Subscribed to events (type=%s, id=%d)", event_type, subscription_id)
+        return subscription_id
+
+    async def unsubscribe_events(self, subscription_id: int) -> None:
+        """Cancel one event subscription.
+
+        Ids from before an auto-reconnect are forgotten locally without a
+        server round-trip, since the server-side subscription died with the
+        old connection.
+        """
+        if self._subscriptions.pop(subscription_id, None) is None:
+            return
+        try:
+            await self.send_command("unsubscribe_events", subscription=subscription_id)
+        except (HAClientClosed, HACommandError):
+            # A dead connection or a server-rejected id both mean the
+            # server-side subscription no longer exists — which is the
+            # post-condition this method promises. Idempotent by design.
+            logger.debug("unsubscribe_events(%d) was already moot", subscription_id)
+
+    def get_metrics(self) -> dict[str, Any]:
+        """Connection metrics, shape-compatible with the retired
+        api-automation-edge client (TAP-5440)."""
+        average_latency = (
+            sum(self._reconnect_latencies) / len(self._reconnect_latencies)
+            if self._reconnect_latencies
+            else 0.0
+        )
+        connected = self._ws is not None
+        return {
+            "connected": connected,
+            "authenticated": connected,  # the handshake authenticates or fails
+            "disconnect_count": self._disconnect_count,
+            "reconnect_count": self._reconnect_count,
+            "subscriptions": len(self._subscriptions),
+            "last_connect_time": self._last_connect_time,
+            "last_disconnect_time": self._last_disconnect_time,
+            "avg_reconnect_latency": average_latency,
+            "reconnect_latencies": self._reconnect_latencies[-10:],
+        }
 
     # -- registries --------------------------------------------------------
     #

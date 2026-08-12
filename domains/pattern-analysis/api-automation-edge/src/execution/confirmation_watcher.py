@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from ..clients.ha_websocket_client import HAWebSocketClient
+    from homeiq_ha.client import HAWebSocketClient
 
 
 logger = logging.getLogger(__name__)
@@ -105,7 +105,7 @@ class ConfirmationWatcher:
                 error_message[0] = f"State changed to '{new_state}' but expected '{expected_state}'"
 
         # Subscribe to state_changed events
-        _sub_id = await self.websocket_client.subscribe_events(  # noqa: F841
+        sub_id = await self.websocket_client.subscribe_events(
             event_type="state_changed", handler=handler
         )
 
@@ -120,8 +120,10 @@ class ConfirmationWatcher:
                 logger.warning(f"Confirmation timeout for {entity_id}: {error_msg}")
                 return False, error_msg
         finally:
-            # Clean up subscription (would need to unsubscribe - simplified for now)
-            pass
+            # The shared client's unsubscribe is idempotent; the local client
+            # this replaced had no unsubscribe at all and leaked one
+            # server-side subscription per confirmation (TAP-5440).
+            await self.websocket_client.unsubscribe_events(sub_id)
 
     async def watch_action_confirmation(
         self, action: dict[str, Any], spec: dict[str, Any]

@@ -7,7 +7,8 @@ Epic B3: Subscribe to state_changed events for graph updates
 import logging
 from typing import Any
 
-from ..clients.ha_websocket_client import HAWebSocketClient
+from homeiq_ha.client import HAWebSocketClient
+
 from .entity_inventory import EntityInventory
 
 logger = logging.getLogger(__name__)
