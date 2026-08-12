@@ -19,7 +19,21 @@ from .backup import (
     available_agent_ids,
     wait_for_backup,
 )
+from .device_areas import ManifestDeviceAreasRecipe
+from .helpers import ManifestHelpersRecipe
+from .integration import IntegrationRecipe
+from .manifest import DEFAULT_MANIFEST_PATH, OrganizationManifest, load_manifest
+from .organization import (
+    ManifestEntityAliasesRecipe,
+    ManifestEntityLabelsRecipe,
+)
 from .recipe import (
+    PHASE_ADDONS,
+    PHASE_CORRECTNESS,
+    PHASE_HACS,
+    PHASE_INTEGRATIONS,
+    PHASE_ORGANIZATION,
+    PHASE_SAFETY,
     ApplyResult,
     Change,
     CheckResult,
@@ -28,18 +42,10 @@ from .recipe import (
     Recipe,
     VerifyResult,
 )
+from .zha import ZHA_SERIAL_PATH, ZHAFormationRefused, ZHARecipe
 
 if TYPE_CHECKING:
     from homeiq_ha.client import HAClient
-
-# Phase numbers, named so recipes read declaratively.
-PHASE_SAFETY = 1
-PHASE_CORRECTNESS = 2
-PHASE_ORGANIZATION = 3
-PHASE_ADDONS = 4
-PHASE_HACS = 5
-PHASE_INTEGRATIONS = 6
-
 
 # ---------------------------------------------------------------------------
 # Phase 1 — safety
@@ -116,17 +122,13 @@ class BackupScheduleRecipe(Recipe):
                 Change("set", "schedule.recurrence", schedule.get("recurrence"), self.recurrence)
             )
         if retention.get("copies") != self.copies:
-            changes.append(
-                Change("set", "retention.copies", retention.get("copies"), self.copies)
-            )
+            changes.append(Change("set", "retention.copies", retention.get("copies"), self.copies))
         # A schedule with no destination is not a backup. Home Assistant leaves
         # automatic_backups_configured false and never writes anything, so a
         # recipe that skipped this would report success over a home with no
         # backups at all.
         if set(configured) != set(target):
-            changes.append(
-                Change("set", "create_backup.agent_ids", list(configured), list(target))
-            )
+            changes.append(Change("set", "create_backup.agent_ids", list(configured), list(target)))
         return changes
 
     @staticmethod
@@ -375,9 +377,7 @@ class _RegistryNamesRecipe(Recipe):
         missing = await self._missing(ha)
         if not missing:
             return CheckResult(CheckStatus.SATISFIED, f"all {len(self.wanted)} present")
-        return CheckResult(
-            CheckStatus.NEEDS_APPLY, f"{len(missing)} missing", {"missing": missing}
-        )
+        return CheckResult(CheckStatus.NEEDS_APPLY, f"{len(missing)} missing", {"missing": missing})
 
     async def plan(self, ha: HAClient) -> Plan:
         return Plan(
@@ -527,9 +527,7 @@ class AddonRecipe(Recipe):
         changes: list[Change] = []
         addon = await self._installed(ha)
         if addon is None:
-            await ha.ws.supervisor_api(
-                f"/store/addons/{self.slug}/install", method="post"
-            )
+            await ha.ws.supervisor_api(f"/store/addons/{self.slug}/install", method="post")
             changes.append(Change("install add-on", self.slug, after="installed"))
         if self.start:
             addon = await self._installed(ha)
@@ -616,59 +614,6 @@ class HACSBootstrapRecipe(Recipe):
 # ---------------------------------------------------------------------------
 
 
-class IntegrationRecipe(Recipe):
-    """Ensure a core integration has a loaded config entry."""
-
-    phase = PHASE_INTEGRATIONS
-
-    def __init__(
-        self,
-        domain: str,
-        *,
-        title: str | None = None,
-        steps: tuple[dict[str, Any], ...] = ({},),
-    ) -> None:
-        self.domain = domain
-        self.title = title or domain
-        self.steps = steps
-        self.name = f"integrations.{domain}"
-        self.description = f"{self.title} integration configured"
-
-    async def _entries(self, ha: Any) -> list[dict[str, Any]]:
-        entries = await ha.rest.get_config_entries()
-        return [e for e in entries or [] if e.get("domain") == self.domain]
-
-    async def check(self, ha: HAClient) -> CheckResult:
-        entries = await self._entries(ha)
-        if any(entry.get("state") == "loaded" for entry in entries):
-            return CheckResult(CheckStatus.SATISFIED, f"{self.title} is loaded")
-        if entries:
-            return CheckResult(
-                CheckStatus.NEEDS_APPLY,
-                f"{self.title} entry exists but is {entries[0].get('state')}",
-            )
-        return CheckResult(CheckStatus.NEEDS_APPLY, f"{self.title} is not configured")
-
-    async def plan(self, ha: HAClient) -> Plan:
-        if await self._entries(ha):
-            return Plan()
-        return Plan((Change("configure integration", self.domain, after="loaded"),))
-
-    async def apply(self, ha: HAClient) -> ApplyResult:
-        if await self._entries(ha):
-            return ApplyResult((), f"{self.title} already has a config entry")
-        await ha.rest.run_config_flow(self.domain, list(self.steps))
-        return ApplyResult(
-            (Change("configure integration", self.domain, after="loaded"),),
-            f"{self.title} configured",
-        )
-
-    async def verify(self, ha: HAClient) -> VerifyResult:
-        entries = await self._entries(ha)
-        loaded = [e for e in entries if e.get("state") == "loaded"]
-        return VerifyResult(bool(loaded), f"{self.title}: {len(loaded)} loaded entry/entries")
-
-
 class TeamTrackerRecipe(IntegrationRecipe):
     """Team Tracker, with the entity_id trap asserted rather than trusted.
 
@@ -741,14 +686,25 @@ class TeamTrackerRecipe(IntegrationRecipe):
 # ---------------------------------------------------------------------------
 
 
-def default_recipes() -> list[Recipe]:
+def default_recipes(
+    manifest: OrganizationManifest | None = None,
+) -> list[Recipe]:
     """The recipe set from the design doc's priority list.
 
     Deliberately excludes anything the design marked "do not install" —
     superseded add-ons, redundant InfluxDB/Grafana, and protocol integrations
     with no hardware present.
+
+    Args:
+        manifest: The committed organization manifest. When ``None``, the
+            default path is loaded if it exists; without a manifest the
+            manifest-driven organization recipes are simply absent (the
+            report-only ones still run).
     """
-    return [
+    if manifest is None and DEFAULT_MANIFEST_PATH.exists():
+        manifest = load_manifest()
+
+    recipes: list[Recipe] = [
         BackupScheduleRecipe(),
         FirstBackupRecipe(),
         CoreConfigRecipe(currency="USD", country="US"),
@@ -762,7 +718,18 @@ def default_recipes() -> list[Recipe]:
         HACSBootstrapRecipe(),
         IntegrationRecipe("nws", title="National Weather Service"),
         TeamTrackerRecipe(),
+        ZHARecipe(ZHA_SERIAL_PATH),
     ]
+    if manifest is not None:
+        recipes.extend(
+            [
+                ManifestDeviceAreasRecipe(manifest),
+                ManifestEntityLabelsRecipe(manifest),
+                ManifestEntityAliasesRecipe(manifest),
+                ManifestHelpersRecipe(manifest),
+            ]
+        )
+    return recipes
 
 
 __all__ = [
@@ -772,6 +739,7 @@ __all__ = [
     "PHASE_INTEGRATIONS",
     "PHASE_ORGANIZATION",
     "PHASE_SAFETY",
+    "ZHA_SERIAL_PATH",
     "AddonRecipe",
     "AreasRecipe",
     "BackupScheduleRecipe",
@@ -782,6 +750,12 @@ __all__ = [
     "HACSBootstrapRecipe",
     "IntegrationRecipe",
     "LabelsRecipe",
+    "ManifestDeviceAreasRecipe",
+    "ManifestEntityAliasesRecipe",
+    "ManifestEntityLabelsRecipe",
+    "ManifestHelpersRecipe",
     "TeamTrackerRecipe",
+    "ZHAFormationRefused",
+    "ZHARecipe",
     "default_recipes",
 ]

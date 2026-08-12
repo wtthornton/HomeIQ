@@ -30,6 +30,16 @@ if TYPE_CHECKING:
     from homeiq_ha.client import HAClient
 
 
+# Phase numbers, named so recipes read declaratively. Phase 1 is the backup
+# gate and must succeed before any later phase applies.
+PHASE_SAFETY = 1
+PHASE_CORRECTNESS = 2
+PHASE_ORGANIZATION = 3
+PHASE_ADDONS = 4
+PHASE_HACS = 5
+PHASE_INTEGRATIONS = 6
+
+
 class CheckStatus(str, Enum):
     """Outcome of a recipe's read-only check."""
 

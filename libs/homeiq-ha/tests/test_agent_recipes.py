@@ -158,7 +158,9 @@ class SimWs:
         if command_type.endswith("_registry/update"):
             key = _registry_key(command_type)
             id_field = _registry_id_field(command_type)
-            target = args.pop(id_field)
+            # The live device-registry API takes device_id even though the
+            # registry entries themselves are keyed "id".
+            target = args.pop(id_field, None) or args.pop("device_id", None)
             for entry in self.state[key]:
                 if entry.get(id_field) == target:
                     entry.update(args)
@@ -192,7 +194,11 @@ class SimWs:
         return self.state["entities"]
 
     async def supervisor_api(
-        self, endpoint: str, *, method: str = "get", _payload: dict[str, Any] | None = None,
+        self,
+        endpoint: str,
+        *,
+        method: str = "get",
+        _payload: dict[str, Any] | None = None,
         timeout: float = 900,
     ) -> Any:
         return await self.send_command(
