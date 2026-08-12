@@ -60,8 +60,16 @@ async def _request_device_intelligence(
     payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     url = f"{DEVICE_INTELLIGENCE_URL}{path}"
+    # device-intelligence authenticates on X-API-Key; both services read the
+    # same API_KEY from the root .env, so inject it server-side (TAP-5449).
+    headers: dict[str, str] = {}
+    api_key = os.getenv("API_KEY")
+    if api_key:
+        headers["X-API-Key"] = api_key
     async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.request(method, url, params=params, json=payload)
+        response = await client.request(
+            method, url, params=params, json=payload, headers=headers
+        )
 
     if response.status_code >= 400:
         try:
