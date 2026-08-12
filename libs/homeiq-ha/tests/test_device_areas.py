@@ -245,7 +245,6 @@ async def test_sensor_group_helper_keeps_type_as_the_aggregation_form_field(sim)
                     "menu": "sensor",
                     "type": "mean",
                     "entities": ["sensor.backyard_hue_outdoor_motion_sensor_1_temperature"],
-                    "ignore_non_numeric": True,
                 },
                 "outdoor temperature coverage",
             ),

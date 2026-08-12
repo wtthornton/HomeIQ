@@ -23,7 +23,9 @@ provenance:
   - finding: sensor groups (TAP-5976) — Hue outdoor motion/temp/lux ungrouped
     disposition: 'adopted: six manifest helper groups (backyard/garage x presence/temperature/illuminance), single-member
       today by design — stable automation-facing aliases that grow. Remaining Hue motion/temp/lux enumeration: the
-      bridge brought exactly two motion sensors (outdoor 1=backyard, outdoor 2=garage); zero ungrouped remain.'
+      bridge brought exactly two motion sensors (outdoor 1=backyard, outdoor 2=garage); zero ungrouped remain. Slugs
+      are name-derived (HA mints the group entity_id from the friendly name, not a passed slug) so converge is idempotent
+      — a mismatched slug re-created dupes on the live home during authoring, since corrected.'
   inventory_artifact: .tapps-mcp/org-inventory-20260812T215552Z.json
   generated: '2026-08-12T22:17:08Z'
   supersedes_run: 379fcd101abc497fb957e502ef5c884b
@@ -889,7 +891,7 @@ manifest:
   entity_aliases: []
   helpers:
   - kind: group
-    slug: backyard_presence_group
+    slug: backyard_presence
     name: Backyard Presence
     config:
       type: binary_sensor
@@ -898,7 +900,7 @@ manifest:
       all: false
     reason: Outdoor presence for automations; grows as more backyard sensors join (TAP-5976).
   - kind: group
-    slug: garage_presence_group
+    slug: garage_presence
     name: Garage Presence
     config:
       type: binary_sensor
@@ -907,42 +909,38 @@ manifest:
       all: false
     reason: Outdoor presence for automations (TAP-5976).
   - kind: group
-    slug: backyard_temperature_group
+    slug: backyard_temperature
     name: Backyard Temperature
     config:
       menu: sensor
       type: mean
-      ignore_non_numeric: true
       entities:
       - sensor.backyard_hue_outdoor_motion_sensor_1_temperature
     reason: Environmental coverage; mean across members as sensors join (TAP-5976).
   - kind: group
-    slug: garage_temperature_group
+    slug: garage_temperature
     name: Garage Temperature
     config:
       menu: sensor
       type: mean
-      ignore_non_numeric: true
       entities:
       - sensor.garage_hue_outdoor_motion_sensor_2_temperature
     reason: Environmental coverage (TAP-5976).
   - kind: group
-    slug: backyard_illuminance_group
+    slug: backyard_illuminance
     name: Backyard Illuminance
     config:
       menu: sensor
       type: mean
-      ignore_non_numeric: true
       entities:
       - sensor.backyard_hue_outdoor_motion_sensor_1_illuminance
     reason: Lux coverage for light-level automations (TAP-5976).
   - kind: group
-    slug: garage_illuminance_group
+    slug: garage_illuminance
     name: Garage Illuminance
     config:
       menu: sensor
       type: mean
-      ignore_non_numeric: true
       entities:
       - sensor.garage_hue_outdoor_motion_sensor_2_illuminance
     reason: Lux coverage (TAP-5976).
