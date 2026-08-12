@@ -1,0 +1,3350 @@
+{
+ "areas": [
+  {
+   "area_id": "living_room",
+   "name": "Living Room"
+  },
+  {
+   "area_id": "kitchen",
+   "name": "Kitchen"
+  },
+  {
+   "area_id": "bedroom",
+   "name": "Bedroom"
+  },
+  {
+   "area_id": "office",
+   "name": "Office"
+  },
+  {
+   "area_id": "guest_room",
+   "name": "Guest Room"
+  },
+  {
+   "area_id": "family_room",
+   "name": "Family Room"
+  },
+  {
+   "area_id": "bar",
+   "name": "Bar"
+  },
+  {
+   "area_id": "dining_room",
+   "name": "Dining Room"
+  }
+ ],
+ "labels": [
+  {
+   "label_id": "role_primary_light",
+   "name": "role:primary-light"
+  },
+  {
+   "label_id": "area_office",
+   "name": "area:office"
+  },
+  {
+   "label_id": "class_wled_config",
+   "name": "class:wled-config"
+  },
+  {
+   "label_id": "role_presence",
+   "name": "role:presence"
+  },
+  {
+   "label_id": "class_diagnostic",
+   "name": "class:diagnostic"
+  },
+  {
+   "label_id": "area_living_room",
+   "name": "area:living_room"
+  },
+  {
+   "label_id": "area_kitchen",
+   "name": "area:kitchen"
+  },
+  {
+   "label_id": "critical",
+   "name": "critical"
+  },
+  {
+   "label_id": "exterior",
+   "name": "exterior"
+  }
+ ],
+ "devices": [
+  {
+   "device_id": "c4bd115486107572aa9ec60d5e4a5b65",
+   "name": "Sun",
+   "model": null,
+   "manufacturer": null,
+   "area_id": null,
+   "disabled": false,
+   "entry_type": "service"
+  },
+  {
+   "device_id": "ff0f9cea2bd547671580eb416131e0f6",
+   "name": "Home Assistant Core",
+   "model": "Home Assistant Core",
+   "manufacturer": "Home Assistant",
+   "area_id": null,
+   "disabled": false,
+   "entry_type": "service"
+  },
+  {
+   "device_id": "eecbfb7485fdd3e53f36a811f180e430",
+   "name": "Home Assistant Supervisor",
+   "model": "Home Assistant Supervisor",
+   "manufacturer": "Home Assistant",
+   "area_id": null,
+   "disabled": false,
+   "entry_type": "service"
+  },
+  {
+   "device_id": "3f67e2901e8533b9c2f7a27a50aa29be",
+   "name": "Home Assistant Host",
+   "model": "Home Assistant Host",
+   "manufacturer": "Home Assistant",
+   "area_id": null,
+   "disabled": false,
+   "entry_type": "service"
+  },
+  {
+   "device_id": "e2d5dc7d8f0fdaaaaaa5bfbd227585e7",
+   "name": "Home Assistant Operating System",
+   "model": "Home Assistant Operating System",
+   "manufacturer": "Home Assistant",
+   "area_id": null,
+   "disabled": false,
+   "entry_type": "service"
+  },
+  {
+   "device_id": "69cf190185b436efdaa71525b6a29225",
+   "name": "hci0 (2C:CF:67:25:3E:20)",
+   "model": "bcm43438-bt",
+   "manufacturer": "Raspberry Pi (Trading) Ltd",
+   "area_id": null,
+   "disabled": false,
+   "entry_type": null
+  },
+  {
+   "device_id": "6eebb4229176cf2e2762df8227624404",
+   "name": "50\" The Frame",
+   "model": "LS03F_PM",
+   "manufacturer": "Unknown manufacturer",
+   "area_id": "kitchen",
+   "disabled": false,
+   "entry_type": null
+  },
+  {
+   "device_id": "76515039f73758e4b4617638c6f75bcc",
+   "name": "Guest Room  TV",
+   "model": "SmartTV 4K",
+   "manufacturer": "Hisense",
+   "area_id": "guest_room",
+   "disabled": false,
+   "entry_type": null
+  },
+  {
+   "device_id": "f3e6ce5c09a0f2769d2bdeb32f92cecb",
+   "name": "Backup",
+   "model": "Home Assistant Backup",
+   "manufacturer": "Home Assistant",
+   "area_id": null,
+   "disabled": false,
+   "entry_type": "service"
+  },
+  {
+   "device_id": "fdb4c7facfe0f4afcd8ae23c8495854d",
+   "name": "Family Room TV",
+   "model": "BRAVIA 4K UR2",
+   "manufacturer": "Sony",
+   "area_id": "family_room",
+   "disabled": false,
+   "entry_type": null
+  },
+  {
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "name": "Dishes",
+   "model": "FOSS",
+   "manufacturer": "WLED",
+   "area_id": "dining_room",
+   "disabled": false,
+   "entry_type": null
+  },
+  {
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "name": "Living Room ",
+   "model": "FOSS",
+   "manufacturer": "WLED",
+   "area_id": "living_room",
+   "disabled": false,
+   "entry_type": null
+  },
+  {
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "name": "Kitchen Strip",
+   "model": "FOSS",
+   "manufacturer": "WLED",
+   "area_id": "kitchen",
+   "disabled": false,
+   "entry_type": null
+  },
+  {
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "name": "Office",
+   "model": "FOSS",
+   "manufacturer": "WLED",
+   "area_id": "office",
+   "disabled": false,
+   "entry_type": null
+  },
+  {
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "name": "Bar",
+   "model": "FOSS",
+   "manufacturer": "WLED",
+   "area_id": "bar",
+   "disabled": false,
+   "entry_type": null
+  },
+  {
+   "device_id": "b31551803e83759ead72bc28f4fd4233",
+   "name": "Google Translate en com",
+   "model": "Google Translate TTS",
+   "manufacturer": "Google",
+   "area_id": null,
+   "disabled": false,
+   "entry_type": "service"
+  },
+  {
+   "device_id": "b16918282ce7c164d156a298a39c8507",
+   "name": "Forecast",
+   "model": "Forecast",
+   "manufacturer": "Met.no",
+   "area_id": null,
+   "disabled": false,
+   "entry_type": "service"
+  },
+  {
+   "device_id": "e74b87c2aca1767d7645016abf5c9352",
+   "name": "Raspberry Pi",
+   "model": null,
+   "manufacturer": "Raspberry Pi",
+   "area_id": null,
+   "disabled": false,
+   "entry_type": null
+  },
+  {
+   "device_id": "cf5b9b1829179bc995415669c84235a9",
+   "name": "Raspberry Pi 5",
+   "model": "5",
+   "manufacturer": "Raspberry Pi",
+   "area_id": null,
+   "disabled": false,
+   "entry_type": null
+  },
+  {
+   "device_id": "ea207445db0926263b01d5c7297eb587",
+   "name": "Texas Instruments CC2652",
+   "model": "CC2652",
+   "manufacturer": "Texas Instruments",
+   "area_id": null,
+   "disabled": false,
+   "entry_type": null
+  },
+  {
+   "device_id": "edbdfedf33ca6814837fbf4337b90b0c",
+   "name": "[TV] Office Samsung TV",
+   "model": "UN65TU700DFXZA",
+   "manufacturer": "Samsung Electronics",
+   "area_id": null,
+   "disabled": false,
+   "entry_type": null
+  },
+  {
+   "device_id": "4b47a3b8894ef88edd1dde70d093e7a6",
+   "name": "50\" The Frame",
+   "model": "QN50LS03FAFXZA",
+   "manufacturer": "Samsung Electronics",
+   "area_id": null,
+   "disabled": false,
+   "entry_type": null
+  },
+  {
+   "device_id": "a364f8f5c02daad5342c8bcd23713f41",
+   "name": "Guest Room  TV",
+   "model": "Renderer",
+   "manufacturer": "SmartTV",
+   "area_id": null,
+   "disabled": false,
+   "entry_type": null
+  },
+  {
+   "device_id": "8683d987c920c0bd84052f5647274305",
+   "name": "SLZB-06P7-Coordinator",
+   "model": "SLZB-06p7",
+   "manufacturer": "SMLIGHT",
+   "area_id": null,
+   "disabled": false,
+   "entry_type": null
+  },
+  {
+   "device_id": "3388e37de3caa581f99dabc7b6134c22",
+   "name": "HP Tango",
+   "model": "Tango",
+   "manufacturer": "HP",
+   "area_id": null,
+   "disabled": false,
+   "entry_type": null
+  },
+  {
+   "device_id": "17d982b468074467d240c1b4d5f97a78",
+   "name": "Archer BE800",
+   "model": "Archer BE800",
+   "manufacturer": "TP-Link",
+   "area_id": null,
+   "disabled": false,
+   "entry_type": null
+  },
+  {
+   "device_id": "1e617ae65e9a354806c810e0f1f4bcfd",
+   "name": "50&quot; The Frame (QN50LS03FAFXZA)",
+   "model": null,
+   "manufacturer": "Samsung",
+   "area_id": null,
+   "disabled": false,
+   "entry_type": null
+  },
+  {
+   "device_id": "56067204941bc1358dcbd5927127a736",
+   "name": "Office Samsung TV (UN65TU700DFXZA)",
+   "model": null,
+   "manufacturer": "Samsung Electronics",
+   "area_id": null,
+   "disabled": false,
+   "entry_type": null
+  },
+  {
+   "device_id": "9b971d8434ca7d7648de195ea3298124",
+   "name": "File editor",
+   "model": "Home Assistant App",
+   "manufacturer": "Official apps",
+   "area_id": null,
+   "disabled": false,
+   "entry_type": "service"
+  },
+  {
+   "device_id": "fa48da3626b412a176d7e8b0eb593174",
+   "name": "Terminal & SSH",
+   "model": "Home Assistant App",
+   "manufacturer": "Official apps",
+   "area_id": null,
+   "disabled": false,
+   "entry_type": "service"
+  },
+  {
+   "device_id": "4e34924f4505493a355bcd81c4d11b5c",
+   "name": "Matter Server",
+   "model": "Home Assistant App",
+   "manufacturer": "Official apps",
+   "area_id": null,
+   "disabled": false,
+   "entry_type": "service"
+  },
+  {
+   "device_id": "2ed85ccb226fe34471358f18eba7535b",
+   "name": "Get HACS",
+   "model": "Home Assistant App",
+   "manufacturer": "Home Assistant Community Store",
+   "area_id": null,
+   "disabled": false,
+   "entry_type": "service"
+  }
+ ],
+ "entities": [
+  {
+   "entity_id": "binary_sensor.sun_solar_rising",
+   "device_id": "c4bd115486107572aa9ec60d5e4a5b65",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Solar rising",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.sun_next_dawn",
+   "device_id": "c4bd115486107572aa9ec60d5e4a5b65",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Next dawn",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.sun_next_dusk",
+   "device_id": "c4bd115486107572aa9ec60d5e4a5b65",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Next dusk",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.sun_next_midnight",
+   "device_id": "c4bd115486107572aa9ec60d5e4a5b65",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Next midnight",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.sun_next_noon",
+   "device_id": "c4bd115486107572aa9ec60d5e4a5b65",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Next noon",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.sun_next_rising",
+   "device_id": "c4bd115486107572aa9ec60d5e4a5b65",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Next rising",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.sun_next_setting",
+   "device_id": "c4bd115486107572aa9ec60d5e4a5b65",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Next setting",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.sun_solar_elevation",
+   "device_id": "c4bd115486107572aa9ec60d5e4a5b65",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Solar elevation",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.sun_solar_azimuth",
+   "device_id": "c4bd115486107572aa9ec60d5e4a5b65",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Solar azimuth",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.home_assistant_core_cpu_percent",
+   "device_id": "ff0f9cea2bd547671580eb416131e0f6",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "CPU percent",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.home_assistant_core_memory_percent",
+   "device_id": "ff0f9cea2bd547671580eb416131e0f6",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Memory percent",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.home_assistant_supervisor_cpu_percent",
+   "device_id": "eecbfb7485fdd3e53f36a811f180e430",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "CPU percent",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.home_assistant_supervisor_memory_percent",
+   "device_id": "eecbfb7485fdd3e53f36a811f180e430",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Memory percent",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.home_assistant_host_os_agent_version",
+   "device_id": "3f67e2901e8533b9c2f7a27a50aa29be",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "OS Agent version",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.home_assistant_host_apparmor_version",
+   "device_id": "3f67e2901e8533b9c2f7a27a50aa29be",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "AppArmor version",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.home_assistant_host_disk_total",
+   "device_id": "3f67e2901e8533b9c2f7a27a50aa29be",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Disk total",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.home_assistant_host_disk_used",
+   "device_id": "3f67e2901e8533b9c2f7a27a50aa29be",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Disk used",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.home_assistant_host_disk_free",
+   "device_id": "3f67e2901e8533b9c2f7a27a50aa29be",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Disk free",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.home_assistant_operating_system_version",
+   "device_id": "e2d5dc7d8f0fdaaaaaa5bfbd227585e7",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Version",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.home_assistant_operating_system_newest_version",
+   "device_id": "e2d5dc7d8f0fdaaaaaa5bfbd227585e7",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Newest version",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "update.home_assistant_supervisor_update",
+   "device_id": "eecbfb7485fdd3e53f36a811f180e430",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Update",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "update.home_assistant_core_update",
+   "device_id": "ff0f9cea2bd547671580eb416131e0f6",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Update",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "update.home_assistant_operating_system_update",
+   "device_id": "e2d5dc7d8f0fdaaaaaa5bfbd227585e7",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Update",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "media_player.50_the_frame",
+   "device_id": "6eebb4229176cf2e2762df8227624404",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": null,
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "media_player.guest_room_tv",
+   "device_id": "76515039f73758e4b4617638c6f75bcc",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": null,
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "event.backup_automatic_backup",
+   "device_id": "f3e6ce5c09a0f2769d2bdeb32f92cecb",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Automatic backup",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.backup_backup_manager_state",
+   "device_id": "f3e6ce5c09a0f2769d2bdeb32f92cecb",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Backup Manager state",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.backup_next_scheduled_automatic_backup",
+   "device_id": "f3e6ce5c09a0f2769d2bdeb32f92cecb",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Next scheduled automatic backup",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.backup_last_successful_automatic_backup",
+   "device_id": "f3e6ce5c09a0f2769d2bdeb32f92cecb",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Last successful automatic backup",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.backup_last_attempted_automatic_backup",
+   "device_id": "f3e6ce5c09a0f2769d2bdeb32f92cecb",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Last attempted automatic backup",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "media_player.family_room_tv",
+   "device_id": "fdb4c7facfe0f4afcd8ae23c8495854d",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": null,
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "button.dishes_restart",
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Restart",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "light.dishes",
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": null,
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "number.dishes_speed",
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Speed",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "number.dishes_intensity",
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Intensity",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "select.dishes_live_override",
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Live override",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "select.dishes_playlist",
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Playlist",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "select.dishes_preset",
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Preset",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "select.dishes_color_palette",
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Color palette",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.dishes_estimated_current",
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Estimated current",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.dishes_led_count",
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "LED count",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.dishes_max_current",
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Max current",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.dishes_uptime",
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Uptime",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.dishes_free_memory",
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Free memory",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.dishes_wi_fi_signal",
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Wi-Fi signal",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.dishes_wi_fi_rssi",
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Wi-Fi RSSI",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.dishes_wi_fi_channel",
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Wi-Fi channel",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.dishes_wi_fi_bssid",
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Wi-Fi BSSID",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.dishes_ip",
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "IP",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.dishes_nightlight",
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Nightlight",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.dishes_sync_send",
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Sync send",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.dishes_sync_receive",
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Sync receive",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.dishes_reverse",
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Reverse",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.dishes_freeze",
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Freeze",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "update.dishes_firmware",
+   "device_id": "ea01efb8a8137b4666a961294be9ac55",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Firmware",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "button.living_room_restart",
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "area_id": null,
+   "labels": [
+    "area_living_room",
+    "class_wled_config"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Restart",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "light.living_room",
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "area_id": null,
+   "labels": [
+    "area_living_room",
+    "role_primary_light"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": null,
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "number.living_room_speed",
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "area_id": null,
+   "labels": [
+    "area_living_room",
+    "class_wled_config"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Speed",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "number.living_room_intensity",
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "area_id": null,
+   "labels": [
+    "area_living_room",
+    "class_wled_config"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Intensity",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "select.living_room_live_override",
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "area_id": null,
+   "labels": [
+    "area_living_room",
+    "class_wled_config"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Live override",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "select.living_room_playlist",
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "area_id": null,
+   "labels": [
+    "area_living_room",
+    "class_wled_config"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Playlist",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "select.living_room_preset",
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "area_id": null,
+   "labels": [
+    "area_living_room",
+    "class_wled_config"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Preset",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "select.living_room_color_palette",
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "area_id": null,
+   "labels": [
+    "area_living_room",
+    "class_wled_config"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Color palette",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.living_room_estimated_current",
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "area_id": null,
+   "labels": [
+    "area_living_room",
+    "class_diagnostic"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Estimated current",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.living_room_led_count",
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "area_id": null,
+   "labels": [
+    "area_living_room",
+    "class_diagnostic"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "LED count",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.living_room_max_current",
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "area_id": null,
+   "labels": [
+    "area_living_room",
+    "class_diagnostic"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Max current",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.living_room_uptime",
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "area_id": null,
+   "labels": [
+    "area_living_room",
+    "class_diagnostic"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Uptime",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.living_room_free_memory",
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "area_id": null,
+   "labels": [
+    "area_living_room",
+    "class_diagnostic"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Free memory",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.living_room_wi_fi_signal",
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "area_id": null,
+   "labels": [
+    "area_living_room",
+    "class_diagnostic"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Wi-Fi signal",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.living_room_wi_fi_rssi",
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "area_id": null,
+   "labels": [
+    "area_living_room",
+    "class_diagnostic"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Wi-Fi RSSI",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.living_room_wi_fi_channel",
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "area_id": null,
+   "labels": [
+    "area_living_room",
+    "class_diagnostic"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Wi-Fi channel",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.living_room_wi_fi_bssid",
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "area_id": null,
+   "labels": [
+    "area_living_room",
+    "class_diagnostic"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Wi-Fi BSSID",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.living_room_ip",
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "area_id": null,
+   "labels": [
+    "area_living_room",
+    "class_diagnostic"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "IP",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.living_room_nightlight",
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "area_id": null,
+   "labels": [
+    "area_living_room",
+    "class_wled_config"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Nightlight",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.living_room_sync_send",
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "area_id": null,
+   "labels": [
+    "area_living_room",
+    "class_wled_config"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Sync send",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.living_room_sync_receive",
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "area_id": null,
+   "labels": [
+    "area_living_room",
+    "class_wled_config"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Sync receive",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.living_room_reverse",
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "area_id": null,
+   "labels": [
+    "area_living_room",
+    "class_wled_config"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Reverse",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.living_room_freeze",
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "area_id": null,
+   "labels": [
+    "area_living_room",
+    "class_wled_config"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Freeze",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "update.living_room_firmware",
+   "device_id": "4b05b88151eb852a9064458be6a7dd6e",
+   "area_id": null,
+   "labels": [
+    "area_living_room",
+    "class_diagnostic"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Firmware",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "button.kitchen_strip_restart",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_kitchen"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Restart",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "light.kitchen_strip_main",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_kitchen"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Main",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "light.kitchen_strip",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "area_kitchen",
+    "role_primary_light"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": null,
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "light.kitchen_strip_segment_1",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_kitchen"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Segment 1",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "number.kitchen_strip_speed",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_kitchen"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Speed",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "number.kitchen_strip_intensity",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_kitchen"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Intensity",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "number.kitchen_strip_segment_1_speed",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_kitchen"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Segment 1 speed",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "number.kitchen_strip_segment_1_intensity",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_kitchen"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Segment 1 intensity",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "select.kitchen_strip_live_override",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_kitchen"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Live override",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "select.kitchen_strip_playlist",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_kitchen"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Playlist",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "select.kitchen_strip_preset",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_kitchen"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Preset",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "select.kitchen_strip_color_palette",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_kitchen"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Color palette",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "select.kitchen_strip_segment_1_color_palette",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_kitchen"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Segment 1 color palette",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.kitchen_strip_estimated_current",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "area_kitchen",
+    "class_diagnostic"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Estimated current",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.kitchen_strip_led_count",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "area_kitchen",
+    "class_diagnostic"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "LED count",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.kitchen_strip_max_current",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "area_kitchen",
+    "class_diagnostic"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Max current",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.kitchen_strip_uptime",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "area_kitchen",
+    "class_diagnostic"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Uptime",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.kitchen_strip_free_memory",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "area_kitchen",
+    "class_diagnostic"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Free memory",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.kitchen_strip_wi_fi_signal",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "area_kitchen",
+    "class_diagnostic"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Wi-Fi signal",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.kitchen_strip_wi_fi_rssi",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "area_kitchen",
+    "class_diagnostic"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Wi-Fi RSSI",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.kitchen_strip_wi_fi_channel",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "area_kitchen",
+    "class_diagnostic"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Wi-Fi channel",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.kitchen_strip_wi_fi_bssid",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "area_kitchen",
+    "class_diagnostic"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Wi-Fi BSSID",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.kitchen_strip_ip",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "area_kitchen",
+    "class_diagnostic"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "IP",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.kitchen_strip_nightlight",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_kitchen"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Nightlight",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.kitchen_strip_sync_send",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_kitchen"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Sync send",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.kitchen_strip_sync_receive",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_kitchen"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Sync receive",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.kitchen_strip_reverse",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_kitchen"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Reverse",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.kitchen_strip_freeze",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_kitchen"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Freeze",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.kitchen_strip_segment_1_reverse",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_kitchen"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Segment 1 reverse",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.kitchen_strip_segment_1_freeze",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_kitchen"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Segment 1 freeze",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "update.kitchen_strip_firmware",
+   "device_id": "5b98e744dfb87e2acfd18fae91c1d9a3",
+   "area_id": null,
+   "labels": [
+    "area_kitchen",
+    "class_diagnostic"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Firmware",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "button.office_restart",
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Restart",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "light.office",
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "area_id": null,
+   "labels": [
+    "role_primary_light",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": null,
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "number.office_speed",
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Speed",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "number.office_intensity",
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Intensity",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "select.office_live_override",
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Live override",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "select.office_playlist",
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Playlist",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "select.office_preset",
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Preset",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "select.office_color_palette",
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Color palette",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.office_estimated_current",
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "area_id": null,
+   "labels": [
+    "class_diagnostic",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Estimated current",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.office_led_count",
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "area_id": null,
+   "labels": [
+    "class_diagnostic",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "LED count",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.office_max_current",
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "area_id": null,
+   "labels": [
+    "class_diagnostic",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Max current",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.office_uptime",
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "area_id": null,
+   "labels": [
+    "class_diagnostic",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Uptime",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.office_free_memory",
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "area_id": null,
+   "labels": [
+    "class_diagnostic",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Free memory",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.office_wi_fi_signal",
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "area_id": null,
+   "labels": [
+    "class_diagnostic",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Wi-Fi signal",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.office_wi_fi_rssi",
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "area_id": null,
+   "labels": [
+    "class_diagnostic",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Wi-Fi RSSI",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.office_wi_fi_channel",
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "area_id": null,
+   "labels": [
+    "class_diagnostic",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Wi-Fi channel",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.office_wi_fi_bssid",
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "area_id": null,
+   "labels": [
+    "class_diagnostic",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Wi-Fi BSSID",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.office_ip",
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "area_id": null,
+   "labels": [
+    "class_diagnostic",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "IP",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.office_nightlight",
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Nightlight",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.office_sync_send",
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Sync send",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.office_sync_receive",
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Sync receive",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.office_reverse",
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Reverse",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.office_freeze",
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "area_id": null,
+   "labels": [
+    "class_wled_config",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Freeze",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "update.office_firmware",
+   "device_id": "cbb188a2caac358e56879cd9ceb525ac",
+   "area_id": null,
+   "labels": [
+    "class_diagnostic",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Firmware",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "binary_sensor.rpi_power_status",
+   "device_id": "e74b87c2aca1767d7645016abf5c9352",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Power status",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "button.bar_restart",
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Restart",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "light.bar",
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": null,
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "number.bar_speed",
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Speed",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "number.bar_intensity",
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Intensity",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "select.bar_live_override",
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Live override",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "select.bar_playlist",
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Playlist",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "select.bar_preset",
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Preset",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "select.bar_color_palette",
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Color palette",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.bar_estimated_current",
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Estimated current",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.bar_led_count",
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "LED count",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.bar_max_current",
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Max current",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.bar_uptime",
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Uptime",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.bar_free_memory",
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Free memory",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.bar_wi_fi_signal",
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Wi-Fi signal",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.bar_wi_fi_rssi",
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Wi-Fi RSSI",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.bar_wi_fi_channel",
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Wi-Fi channel",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.bar_wi_fi_bssid",
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Wi-Fi BSSID",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.bar_ip",
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "IP",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.bar_nightlight",
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Nightlight",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.bar_sync_send",
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Sync send",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.bar_sync_receive",
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Sync receive",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.bar_reverse",
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Reverse",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.bar_freeze",
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Freeze",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "update.bar_firmware",
+   "device_id": "3fd8515e808982d653dd8fe7dded1ff8",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Firmware",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "person.tapps_house",
+   "device_id": null,
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Tapps House",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "todo.shopping_list",
+   "device_id": null,
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Shopping List",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "tts.google_translate_en_com",
+   "device_id": "b31551803e83759ead72bc28f4fd4233",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "weather.forecast_home",
+   "device_id": "b16918282ce7c164d156a298a39c8507",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Home",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "update.raspberry_pi_5_firmware",
+   "device_id": "cf5b9b1829179bc995415669c84235a9",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Firmware",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "input_boolean.office_presence_proxy",
+   "device_id": null,
+   "area_id": null,
+   "labels": [
+    "role_presence",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Office presence proxy",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "input_boolean.office_presence_proxy_2",
+   "device_id": null,
+   "area_id": null,
+   "labels": [
+    "role_presence",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Office presence proxy 2",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "binary_sensor.office_presence_1",
+   "device_id": null,
+   "area_id": null,
+   "labels": [
+    "role_presence",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Office presence 1",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "binary_sensor.office_presence_2",
+   "device_id": null,
+   "area_id": null,
+   "labels": [
+    "role_presence",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Office presence 2",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "binary_sensor.office_presence_group",
+   "device_id": null,
+   "area_id": null,
+   "labels": [
+    "role_presence",
+    "area_office"
+   ],
+   "aliases": [],
+   "name": null,
+   "original_name": "Office presence group",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "automation.office_presence_lighting",
+   "device_id": null,
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Office Presence Lighting",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "media_player.tv_office_samsung_tv",
+   "device_id": "edbdfedf33ca6814837fbf4337b90b0c",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "media_player.50_the_frame_2",
+   "device_id": "4b47a3b8894ef88edd1dde70d093e7a6",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "media_player.guest_room_tv_2",
+   "device_id": "a364f8f5c02daad5342c8bcd23713f41",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "binary_sensor.slzb_06p7_coordinator_ethernet",
+   "device_id": "8683d987c920c0bd84052f5647274305",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Ethernet",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "binary_sensor.slzb_06p7_coordinator_vpn",
+   "device_id": "8683d987c920c0bd84052f5647274305",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "VPN",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "binary_sensor.slzb_06p7_coordinator_wi_fi",
+   "device_id": "8683d987c920c0bd84052f5647274305",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Wi-Fi",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "binary_sensor.slzb_06p7_coordinator_internet",
+   "device_id": "8683d987c920c0bd84052f5647274305",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Internet",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "button.slzb_06p7_coordinator_core_restart",
+   "device_id": "8683d987c920c0bd84052f5647274305",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Core restart",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "button.slzb_06p7_coordinator_zigbee_restart",
+   "device_id": "8683d987c920c0bd84052f5647274305",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Zigbee restart",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "button.slzb_06p7_coordinator_zigbee_flash_mode",
+   "device_id": "8683d987c920c0bd84052f5647274305",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Zigbee flash mode",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.slzb_06p7_coordinator_connection_mode",
+   "device_id": "8683d987c920c0bd84052f5647274305",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Connection mode",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.slzb_06p7_coordinator_firmware_channel",
+   "device_id": "8683d987c920c0bd84052f5647274305",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Firmware channel",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.slzb_06p7_coordinator_core_chip_temp",
+   "device_id": "8683d987c920c0bd84052f5647274305",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Core chip temp",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.slzb_06p7_coordinator_zigbee_chip_temp",
+   "device_id": "8683d987c920c0bd84052f5647274305",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Zigbee chip temp",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.slzb_06p7_coordinator_ram_usage",
+   "device_id": "8683d987c920c0bd84052f5647274305",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "RAM usage",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.slzb_06p7_coordinator_filesystem_usage",
+   "device_id": "8683d987c920c0bd84052f5647274305",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Filesystem usage",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.slzb_06p7_coordinator_core_uptime",
+   "device_id": "8683d987c920c0bd84052f5647274305",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Core uptime",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.slzb_06p7_coordinator_zigbee_uptime",
+   "device_id": "8683d987c920c0bd84052f5647274305",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Zigbee uptime",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.slzb_06p7_coordinator_zigbee_type",
+   "device_id": "8683d987c920c0bd84052f5647274305",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Zigbee type",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.slzb_06p7_coordinator_disable_leds",
+   "device_id": "8683d987c920c0bd84052f5647274305",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Disable LEDs",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.slzb_06p7_coordinator_led_night_mode",
+   "device_id": "8683d987c920c0bd84052f5647274305",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "LED night mode",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.slzb_06p7_coordinator_auto_zigbee_update",
+   "device_id": "8683d987c920c0bd84052f5647274305",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Auto Zigbee update",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.slzb_06p7_coordinator_vpn_enabled",
+   "device_id": "8683d987c920c0bd84052f5647274305",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "VPN enabled",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "update.slzb_06p7_coordinator_core_firmware",
+   "device_id": "8683d987c920c0bd84052f5647274305",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Core firmware",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "update.slzb_06p7_coordinator_zigbee_firmware",
+   "device_id": "8683d987c920c0bd84052f5647274305",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Zigbee firmware",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.hp_tango_uptime",
+   "device_id": "3388e37de3caa581f99dabc7b6134c22",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Uptime",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.hp_tango_black_cartridge",
+   "device_id": "3388e37de3caa581f99dabc7b6134c22",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "black cartridge",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.hp_tango_tri_color_cartridge",
+   "device_id": "3388e37de3caa581f99dabc7b6134c22",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "tri-color cartridge",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.hp_tango",
+   "device_id": "3388e37de3caa581f99dabc7b6134c22",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": null,
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "binary_sensor.archer_be800_wan_status",
+   "device_id": "17d982b468074467d240c1b4d5f97a78",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "WAN status",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.archer_be800_data_received",
+   "device_id": "17d982b468074467d240c1b4d5f97a78",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Data received",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.archer_be800_data_sent",
+   "device_id": "17d982b468074467d240c1b4d5f97a78",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Data sent",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.archer_be800_packets_received",
+   "device_id": "17d982b468074467d240c1b4d5f97a78",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Packets received",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.archer_be800_packets_sent",
+   "device_id": "17d982b468074467d240c1b4d5f97a78",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Packets sent",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.archer_be800_uptime",
+   "device_id": "17d982b468074467d240c1b4d5f97a78",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Uptime",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.archer_be800_wan_status",
+   "device_id": "17d982b468074467d240c1b4d5f97a78",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "WAN status",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.archer_be800_download_speed",
+   "device_id": "17d982b468074467d240c1b4d5f97a78",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Download speed",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.archer_be800_upload_speed",
+   "device_id": "17d982b468074467d240c1b4d5f97a78",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Upload speed",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.archer_be800_download_speed_no_rollover_handling",
+   "device_id": "17d982b468074467d240c1b4d5f97a78",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Download speed (no rollover handling)",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.archer_be800_upload_speed_no_rollover_handling",
+   "device_id": "17d982b468074467d240c1b4d5f97a78",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Upload speed (no rollover handling)",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.archer_be800_packet_download_speed",
+   "device_id": "17d982b468074467d240c1b4d5f97a78",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Packet download speed",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.archer_be800_packet_upload_speed",
+   "device_id": "17d982b468074467d240c1b4d5f97a78",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Packet upload speed",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.archer_be800_packet_download_speed_no_rollover_handling",
+   "device_id": "17d982b468074467d240c1b4d5f97a78",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Packet download speed (no rollover handling)",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.archer_be800_packet_upload_speed_no_rollover_handling",
+   "device_id": "17d982b468074467d240c1b4d5f97a78",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Packet upload speed (no rollover handling)",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "media_player.50_the_frame_qn50ls03fafxza",
+   "device_id": "1e617ae65e9a354806c810e0f1f4bcfd",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": null,
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "remote.50_the_frame_qn50ls03fafxza",
+   "device_id": "1e617ae65e9a354806c810e0f1f4bcfd",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": null,
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "media_player.office_samsung_tv_un65tu700dfxza",
+   "device_id": "56067204941bc1358dcbd5927127a736",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": null,
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "remote.office_samsung_tv_un65tu700dfxza",
+   "device_id": "56067204941bc1358dcbd5927127a736",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": null,
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "binary_sensor.file_editor_running",
+   "device_id": "9b971d8434ca7d7648de195ea3298124",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Running",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "binary_sensor.terminal_ssh_running",
+   "device_id": "fa48da3626b412a176d7e8b0eb593174",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Running",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "binary_sensor.matter_server_running",
+   "device_id": "4e34924f4505493a355bcd81c4d11b5c",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Running",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "binary_sensor.get_hacs_running",
+   "device_id": "2ed85ccb226fe34471358f18eba7535b",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Running",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.file_editor_version",
+   "device_id": "9b971d8434ca7d7648de195ea3298124",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Version",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.file_editor_newest_version",
+   "device_id": "9b971d8434ca7d7648de195ea3298124",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Newest version",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.terminal_ssh_version",
+   "device_id": "fa48da3626b412a176d7e8b0eb593174",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Version",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.terminal_ssh_newest_version",
+   "device_id": "fa48da3626b412a176d7e8b0eb593174",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Newest version",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.matter_server_version",
+   "device_id": "4e34924f4505493a355bcd81c4d11b5c",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Version",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.matter_server_newest_version",
+   "device_id": "4e34924f4505493a355bcd81c4d11b5c",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Newest version",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.get_hacs_version",
+   "device_id": "2ed85ccb226fe34471358f18eba7535b",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Version",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.get_hacs_newest_version",
+   "device_id": "2ed85ccb226fe34471358f18eba7535b",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Newest version",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.file_editor_cpu_percent",
+   "device_id": "9b971d8434ca7d7648de195ea3298124",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "CPU percent",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.file_editor_memory_percent",
+   "device_id": "9b971d8434ca7d7648de195ea3298124",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Memory percent",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.terminal_ssh_cpu_percent",
+   "device_id": "fa48da3626b412a176d7e8b0eb593174",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "CPU percent",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.terminal_ssh_memory_percent",
+   "device_id": "fa48da3626b412a176d7e8b0eb593174",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Memory percent",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.matter_server_cpu_percent",
+   "device_id": "4e34924f4505493a355bcd81c4d11b5c",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "CPU percent",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.matter_server_memory_percent",
+   "device_id": "4e34924f4505493a355bcd81c4d11b5c",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Memory percent",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.get_hacs_cpu_percent",
+   "device_id": "2ed85ccb226fe34471358f18eba7535b",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "CPU percent",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.get_hacs_memory_percent",
+   "device_id": "2ed85ccb226fe34471358f18eba7535b",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Memory percent",
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.file_editor",
+   "device_id": "9b971d8434ca7d7648de195ea3298124",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": null,
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.terminal_ssh",
+   "device_id": "fa48da3626b412a176d7e8b0eb593174",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": null,
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.matter_server",
+   "device_id": "4e34924f4505493a355bcd81c4d11b5c",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": null,
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "switch.get_hacs",
+   "device_id": "2ed85ccb226fe34471358f18eba7535b",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": null,
+   "disabled": true,
+   "hidden": false
+  },
+  {
+   "entity_id": "update.file_editor_update",
+   "device_id": "9b971d8434ca7d7648de195ea3298124",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Update",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "update.terminal_ssh_update",
+   "device_id": "fa48da3626b412a176d7e8b0eb593174",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Update",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "update.matter_server_update",
+   "device_id": "4e34924f4505493a355bcd81c4d11b5c",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Update",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "update.get_hacs_update",
+   "device_id": "2ed85ccb226fe34471358f18eba7535b",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Update",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.archer_be800_external_ip",
+   "device_id": "17d982b468074467d240c1b4d5f97a78",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "External IP",
+   "disabled": false,
+   "hidden": false
+  },
+  {
+   "entity_id": "sensor.archer_be800_number_of_port_mapping_entries_ipv4",
+   "device_id": "17d982b468074467d240c1b4d5f97a78",
+   "area_id": null,
+   "labels": [],
+   "aliases": [],
+   "name": null,
+   "original_name": "Number of port mapping entries (IPv4)",
+   "disabled": true,
+   "hidden": false
+  }
+ ],
+ "helpers": [
+  "input_boolean.office_presence_proxy",
+  "input_boolean.office_presence_proxy_2"
+ ]
+}

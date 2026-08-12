@@ -1,388 +1,815 @@
 provenance:
-  authored_by: homeiq-ha-organization-author (AF project homeiq)
-  judged_by: homeiq-ha-organization-judge
-  workflow_run: 6030b847fb9d47a797a62074740c7813
-  run_cost_usd: 0.8272
+  authored_by: homeiq-ha-organization-author v2 (AF project homeiq)
+  judged_by: homeiq-ha-organization-judge v2
+  workflow_run: 379fcd101abc497fb957e502ef5c884b
   judge:
     pass: true
-    score: 78
-    confidence: 0.75
+    score: 90
+    confidence: 0.78
   dispositions:
-  - finding: high/completeness — claimed 5 Living Room WLED switch entities absent from entity_labels
-    disposition: 'REJECTED — factually incorrect: all 5 (switch.living_room_{nightlight,sync_send,sync_receive,reverse,freeze})
-      are present with exactly [''class:wled-config'',''area:living_room'']. Verified deterministically
-      against the author node output. Manifest unamended.'
-  - finding: low/discipline — kitchen_strip vs kitchen_strip_main primary-light choice
-    disposition: adopted keep-as-is (the judge's own stated acceptable option).
-  - finding: 'owner feedback 2026-08-12: name-derived rooms must not be asked; Bar is a room; infrastructure
-      is never a room question'
-    disposition: 'applied: areas guest_room/family_room/bar added and 3 devices assigned; 4 infrastructure
-      devices demoted to permanent not_applicable; AF author rule updated to match'
-  inventory_artifact: .tapps-mcp/org-inventory-20260811T233814Z.json
-  generated: '2026-08-11T23:42:46Z'
-  author_confidence: 0.78
-  updated: '2026-08-12T04:10:40Z'
+  - finding: low/correctness — DLNA Frame device assigned kitchen via model inference
+    disposition: 'adopted: owner stated 2026-08-12 the physical Frame TV is in the Kitchen; both registry
+      entries are that TV.'
+  - finding: low/discipline — Dishes retained in dining_room without name evidence
+    disposition: 'adopted: placement is the owner''s explicit chat answer 2026-08-12, stronger than name
+      evidence; provenance now recorded here.'
+  inventory_artifact: .tapps-mcp/org-inventory-20260812T060233Z.json
+  generated: '2026-08-12T06:09:14Z'
+  supersedes_run: 6030b847fb9d47a797a62074740c7813
 manifest:
   managed_label_prefixes:
   - 'role:'
   - 'class:'
   - 'area:'
   device_areas:
-  - device_id: 4b05b88151eb852a9064458be6a7dd6e
-    area_id: living_room
-    reason: Device name 'Living Room ' (WLED, model FOSS) directly names the area.
-  - device_id: 5b98e744dfb87e2acfd18fae91c1d9a3
-    area_id: kitchen
-    reason: Device name 'Kitchen Strip' (WLED, model FOSS) directly names the area.
-  - device_id: cbb188a2caac358e56879cd9ceb525ac
-    area_id: office
-    reason: Already assigned to office in inventory (device name 'Office'); restated for completeness,
-      no change.
-  - device_id: 76515039f73758e4b4617638c6f75bcc
-    area_id: guest_room
-    reason: 'Device name ''Guest Room  TV'' names the room (owner rule 2026-08-12: name-derived rooms
-      are created, not asked).'
-  - device_id: fdb4c7facfe0f4afcd8ae23c8495854d
-    area_id: family_room
-    reason: Device name 'Family Room TV' names the room (owner rule 2026-08-12).
-  - device_id: 3fd8515e808982d653dd8fe7dded1ff8
-    area_id: bar
-    reason: 'Owner confirmed 2026-08-12: Bar is a room; ''Bar'' WLED lives in it.'
-  - device_id: ea01efb8a8137b4666a961294be9ac55
-    area_id: dining_room
-    reason: 'Owner answer 2026-08-12: the Dishes WLED strip is in the Dining Room (area created on this
-      answer).'
   - device_id: 6eebb4229176cf2e2762df8227624404
     area_id: kitchen
-    reason: 'Owner answer 2026-08-12 (wizard export): the 50" Frame TV is in the Kitchen.'
+    reason: Existing area assignment; name '50" The Frame' matches Samsung Frame TV already placed in
+      kitchen.
+  - device_id: 76515039f73758e4b4617638c6f75bcc
+    area_id: guest_room
+    reason: Existing area assignment; device name 'Guest Room TV' names the room.
+  - device_id: fdb4c7facfe0f4afcd8ae23c8495854d
+    area_id: family_room
+    reason: Existing area assignment; device name 'Family Room TV' names the room.
+  - device_id: ea01efb8a8137b4666a961294be9ac55
+    area_id: dining_room
+    reason: Existing area assignment retained; device name 'Dishes' is the light-art title, not room evidence,
+      but current placement is not disturbed.
+  - device_id: 4b05b88151eb852a9064458be6a7dd6e
+    area_id: living_room
+    reason: Existing area assignment; WLED device named 'Living Room'.
+  - device_id: 5b98e744dfb87e2acfd18fae91c1d9a3
+    area_id: kitchen
+    reason: Existing area assignment; WLED device named 'Kitchen Strip'.
+  - device_id: cbb188a2caac358e56879cd9ceb525ac
+    area_id: office
+    reason: Existing area assignment; WLED device named 'Office'.
+  - device_id: 3fd8515e808982d653dd8fe7dded1ff8
+    area_id: bar
+    reason: Existing area assignment; WLED device named 'Bar'.
+  - device_id: edbdfedf33ca6814837fbf4337b90b0c
+    area_id: office
+    reason: Device name '[TV] Office Samsung TV' explicitly names Office.
+  - device_id: 4b47a3b8894ef88edd1dde70d093e7a6
+    area_id: kitchen
+    reason: Model QN50LS03FAFXZA matches the kitchen-placed 50" Frame (device 6eebb422...); same physical
+      TV surfaced via a second integration.
+  - device_id: a364f8f5c02daad5342c8bcd23713f41
+    area_id: guest_room
+    reason: Device name 'Guest Room TV' (DLNA renderer entry for the same guest room TV).
+  - device_id: 1e617ae65e9a354806c810e0f1f4bcfd
+    area_id: kitchen
+    reason: Name '50" The Frame (QN50LS03FAFXZA)' matches the kitchen Frame TV model.
+  - device_id: 56067204941bc1358dcbd5927127a736
+    area_id: office
+    reason: Name 'Office Samsung TV (UN65TU700DFXZA)' explicitly names Office; matches model of device
+      edbdfedf... already placed there.
   entity_labels:
-  - entity_id: light.living_room
+  - entity_id: button.bar_restart
+    labels:
+    - class:wled-config
+    - area:bar
+    reason: 'Config/utility entity on the Bar WLED device; matches the class:wled-config + area: pattern
+      already applied to sibling WLED devices.'
+  - entity_id: light.bar
     labels:
     - role:primary-light
-    - area:living_room
-    reason: Main WLED light entity for the Living Room device, mirrors office's light.office pattern.
+    - area:bar
+    reason: Primary light entity of the Bar WLED device, matching role:primary-light applied to other
+      WLED light entities.
+  - entity_id: number.bar_speed
+    labels:
+    - class:wled-config
+    - area:bar
+    reason: WLED effect config entity.
+  - entity_id: number.bar_intensity
+    labels:
+    - class:wled-config
+    - area:bar
+    reason: WLED effect config entity.
+  - entity_id: select.bar_live_override
+    labels:
+    - class:wled-config
+    - area:bar
+    reason: WLED effect config entity.
+  - entity_id: select.bar_playlist
+    labels:
+    - class:wled-config
+    - area:bar
+    reason: WLED effect config entity.
+  - entity_id: select.bar_preset
+    labels:
+    - class:wled-config
+    - area:bar
+    reason: WLED effect config entity.
+  - entity_id: select.bar_color_palette
+    labels:
+    - class:wled-config
+    - area:bar
+    reason: WLED effect config entity.
+  - entity_id: sensor.bar_estimated_current
+    labels:
+    - class:diagnostic
+    - area:bar
+    reason: WLED diagnostic sensor, matches class:diagnostic pattern.
+  - entity_id: sensor.bar_led_count
+    labels:
+    - class:diagnostic
+    - area:bar
+    reason: WLED diagnostic sensor.
+  - entity_id: sensor.bar_max_current
+    labels:
+    - class:diagnostic
+    - area:bar
+    reason: WLED diagnostic sensor.
+  - entity_id: sensor.bar_uptime
+    labels:
+    - class:diagnostic
+    - area:bar
+    reason: WLED diagnostic sensor.
+  - entity_id: sensor.bar_free_memory
+    labels:
+    - class:diagnostic
+    - area:bar
+    reason: WLED diagnostic sensor.
+  - entity_id: sensor.bar_wi_fi_signal
+    labels:
+    - class:diagnostic
+    - area:bar
+    reason: WLED diagnostic sensor.
+  - entity_id: sensor.bar_wi_fi_rssi
+    labels:
+    - class:diagnostic
+    - area:bar
+    reason: WLED diagnostic sensor.
+  - entity_id: sensor.bar_wi_fi_channel
+    labels:
+    - class:diagnostic
+    - area:bar
+    reason: WLED diagnostic sensor.
+  - entity_id: sensor.bar_wi_fi_bssid
+    labels:
+    - class:diagnostic
+    - area:bar
+    reason: WLED diagnostic sensor.
+  - entity_id: sensor.bar_ip
+    labels:
+    - class:diagnostic
+    - area:bar
+    reason: WLED diagnostic sensor.
+  - entity_id: switch.bar_nightlight
+    labels:
+    - class:wled-config
+    - area:bar
+    reason: WLED effect config entity.
+  - entity_id: switch.bar_sync_send
+    labels:
+    - class:wled-config
+    - area:bar
+    reason: WLED effect config entity.
+  - entity_id: switch.bar_sync_receive
+    labels:
+    - class:wled-config
+    - area:bar
+    reason: WLED effect config entity.
+  - entity_id: switch.bar_reverse
+    labels:
+    - class:wled-config
+    - area:bar
+    reason: WLED effect config entity.
+  - entity_id: switch.bar_freeze
+    labels:
+    - class:wled-config
+    - area:bar
+    reason: WLED effect config entity.
+  - entity_id: update.bar_firmware
+    labels:
+    - class:diagnostic
+    - area:bar
+    reason: WLED firmware update entity, diagnostic class.
+  - entity_id: button.dishes_restart
+    labels:
+    - class:wled-config
+    - area:dining_room
+    reason: Config entity on the Dishes WLED device (already area dining_room); matches sibling WLED taxonomy.
+  - entity_id: light.dishes
+    labels:
+    - role:primary-light
+    - area:dining_room
+    reason: Primary light entity of the Dishes WLED device.
+  - entity_id: number.dishes_speed
+    labels:
+    - class:wled-config
+    - area:dining_room
+    reason: WLED effect config entity.
+  - entity_id: number.dishes_intensity
+    labels:
+    - class:wled-config
+    - area:dining_room
+    reason: WLED effect config entity.
+  - entity_id: select.dishes_live_override
+    labels:
+    - class:wled-config
+    - area:dining_room
+    reason: WLED effect config entity.
+  - entity_id: select.dishes_playlist
+    labels:
+    - class:wled-config
+    - area:dining_room
+    reason: WLED effect config entity.
+  - entity_id: select.dishes_preset
+    labels:
+    - class:wled-config
+    - area:dining_room
+    reason: WLED effect config entity.
+  - entity_id: select.dishes_color_palette
+    labels:
+    - class:wled-config
+    - area:dining_room
+    reason: WLED effect config entity.
+  - entity_id: sensor.dishes_estimated_current
+    labels:
+    - class:diagnostic
+    - area:dining_room
+    reason: WLED diagnostic sensor.
+  - entity_id: sensor.dishes_led_count
+    labels:
+    - class:diagnostic
+    - area:dining_room
+    reason: WLED diagnostic sensor.
+  - entity_id: sensor.dishes_max_current
+    labels:
+    - class:diagnostic
+    - area:dining_room
+    reason: WLED diagnostic sensor.
+  - entity_id: sensor.dishes_uptime
+    labels:
+    - class:diagnostic
+    - area:dining_room
+    reason: WLED diagnostic sensor.
+  - entity_id: sensor.dishes_free_memory
+    labels:
+    - class:diagnostic
+    - area:dining_room
+    reason: WLED diagnostic sensor.
+  - entity_id: sensor.dishes_wi_fi_signal
+    labels:
+    - class:diagnostic
+    - area:dining_room
+    reason: WLED diagnostic sensor.
+  - entity_id: sensor.dishes_wi_fi_rssi
+    labels:
+    - class:diagnostic
+    - area:dining_room
+    reason: WLED diagnostic sensor.
+  - entity_id: sensor.dishes_wi_fi_channel
+    labels:
+    - class:diagnostic
+    - area:dining_room
+    reason: WLED diagnostic sensor.
+  - entity_id: sensor.dishes_wi_fi_bssid
+    labels:
+    - class:diagnostic
+    - area:dining_room
+    reason: WLED diagnostic sensor.
+  - entity_id: sensor.dishes_ip
+    labels:
+    - class:diagnostic
+    - area:dining_room
+    reason: WLED diagnostic sensor.
+  - entity_id: switch.dishes_nightlight
+    labels:
+    - class:wled-config
+    - area:dining_room
+    reason: WLED effect config entity.
+  - entity_id: switch.dishes_sync_send
+    labels:
+    - class:wled-config
+    - area:dining_room
+    reason: WLED effect config entity.
+  - entity_id: switch.dishes_sync_receive
+    labels:
+    - class:wled-config
+    - area:dining_room
+    reason: WLED effect config entity.
+  - entity_id: switch.dishes_reverse
+    labels:
+    - class:wled-config
+    - area:dining_room
+    reason: WLED effect config entity.
+  - entity_id: switch.dishes_freeze
+    labels:
+    - class:wled-config
+    - area:dining_room
+    reason: WLED effect config entity.
+  - entity_id: update.dishes_firmware
+    labels:
+    - class:diagnostic
+    - area:dining_room
+    reason: WLED firmware update entity, diagnostic class.
   - entity_id: button.living_room_restart
     labels:
-    - class:wled-config
     - area:living_room
-    reason: WLED restart control, config-class, device now in living_room area.
+    - class:wled-config
+    reason: 'Preserve pre-existing labeling now under managed prefixes area:/class: — omission would cause
+      recipe removal.'
+  - entity_id: light.living_room
+    labels:
+    - area:living_room
+    - role:primary-light
+    reason: Preserve pre-existing labeling under managed prefixes.
   - entity_id: number.living_room_speed
     labels:
-    - class:wled-config
     - area:living_room
-    reason: WLED effect-speed control, config-class per office pattern.
+    - class:wled-config
+    reason: Preserve pre-existing labeling.
   - entity_id: number.living_room_intensity
     labels:
-    - class:wled-config
     - area:living_room
-    reason: WLED effect-intensity control, config-class per office pattern.
+    - class:wled-config
+    reason: Preserve pre-existing labeling.
   - entity_id: select.living_room_live_override
     labels:
-    - class:wled-config
     - area:living_room
-    reason: WLED config selector, mirrors office select.office_live_override labeling.
+    - class:wled-config
+    reason: Preserve pre-existing labeling.
   - entity_id: select.living_room_playlist
     labels:
-    - class:wled-config
     - area:living_room
-    reason: WLED config selector, mirrors office select.office_playlist labeling.
+    - class:wled-config
+    reason: Preserve pre-existing labeling.
   - entity_id: select.living_room_preset
     labels:
-    - class:wled-config
     - area:living_room
-    reason: WLED config selector, mirrors office select.office_preset labeling.
+    - class:wled-config
+    reason: Preserve pre-existing labeling.
   - entity_id: select.living_room_color_palette
     labels:
-    - class:wled-config
     - area:living_room
-    reason: WLED config selector, mirrors office select.office_color_palette labeling.
-  - entity_id: switch.living_room_nightlight
-    labels:
     - class:wled-config
-    - area:living_room
-    reason: WLED config switch, mirrors office switch.office_nightlight labeling.
-  - entity_id: switch.living_room_sync_send
-    labels:
-    - class:wled-config
-    - area:living_room
-    reason: WLED config switch, mirrors office switch.office_sync_send labeling.
-  - entity_id: switch.living_room_sync_receive
-    labels:
-    - class:wled-config
-    - area:living_room
-    reason: WLED config switch, mirrors office switch.office_sync_receive labeling.
-  - entity_id: switch.living_room_reverse
-    labels:
-    - class:wled-config
-    - area:living_room
-    reason: WLED config switch, mirrors office switch.office_reverse labeling.
-  - entity_id: switch.living_room_freeze
-    labels:
-    - class:wled-config
-    - area:living_room
-    reason: WLED config switch, mirrors office switch.office_freeze labeling.
+    reason: Preserve pre-existing labeling.
   - entity_id: sensor.living_room_estimated_current
     labels:
-    - class:diagnostic
     - area:living_room
-    reason: WLED diagnostic sensor, mirrors office sensor.office_estimated_current labeling.
+    - class:diagnostic
+    reason: Preserve pre-existing labeling.
   - entity_id: sensor.living_room_led_count
     labels:
-    - class:diagnostic
     - area:living_room
-    reason: WLED diagnostic sensor, mirrors office sensor.office_led_count labeling.
+    - class:diagnostic
+    reason: Preserve pre-existing labeling.
   - entity_id: sensor.living_room_max_current
     labels:
-    - class:diagnostic
     - area:living_room
-    reason: WLED diagnostic sensor, mirrors office sensor.office_max_current labeling.
+    - class:diagnostic
+    reason: Preserve pre-existing labeling.
   - entity_id: sensor.living_room_uptime
     labels:
-    - class:diagnostic
     - area:living_room
-    reason: WLED diagnostic sensor (disabled), mirrors office sensor.office_uptime labeling.
+    - class:diagnostic
+    reason: Preserve pre-existing labeling.
   - entity_id: sensor.living_room_free_memory
     labels:
-    - class:diagnostic
     - area:living_room
-    reason: WLED diagnostic sensor (disabled), mirrors office sensor.office_free_memory labeling.
+    - class:diagnostic
+    reason: Preserve pre-existing labeling.
   - entity_id: sensor.living_room_wi_fi_signal
     labels:
-    - class:diagnostic
     - area:living_room
-    reason: WLED diagnostic sensor (disabled), mirrors office wifi-signal labeling.
+    - class:diagnostic
+    reason: Preserve pre-existing labeling.
   - entity_id: sensor.living_room_wi_fi_rssi
     labels:
-    - class:diagnostic
     - area:living_room
-    reason: WLED diagnostic sensor (disabled), mirrors office wifi-rssi labeling.
+    - class:diagnostic
+    reason: Preserve pre-existing labeling.
   - entity_id: sensor.living_room_wi_fi_channel
     labels:
-    - class:diagnostic
     - area:living_room
-    reason: WLED diagnostic sensor (disabled), mirrors office wifi-channel labeling.
+    - class:diagnostic
+    reason: Preserve pre-existing labeling.
   - entity_id: sensor.living_room_wi_fi_bssid
     labels:
-    - class:diagnostic
     - area:living_room
-    reason: WLED diagnostic sensor (disabled), mirrors office wifi-bssid labeling.
+    - class:diagnostic
+    reason: Preserve pre-existing labeling.
   - entity_id: sensor.living_room_ip
     labels:
-    - class:diagnostic
     - area:living_room
-    reason: WLED diagnostic sensor, mirrors office sensor.office_ip labeling.
+    - class:diagnostic
+    reason: Preserve pre-existing labeling.
+  - entity_id: switch.living_room_nightlight
+    labels:
+    - area:living_room
+    - class:wled-config
+    reason: Preserve pre-existing labeling.
+  - entity_id: switch.living_room_sync_send
+    labels:
+    - area:living_room
+    - class:wled-config
+    reason: Preserve pre-existing labeling.
+  - entity_id: switch.living_room_sync_receive
+    labels:
+    - area:living_room
+    - class:wled-config
+    reason: Preserve pre-existing labeling.
+  - entity_id: switch.living_room_reverse
+    labels:
+    - area:living_room
+    - class:wled-config
+    reason: Preserve pre-existing labeling.
+  - entity_id: switch.living_room_freeze
+    labels:
+    - area:living_room
+    - class:wled-config
+    reason: Preserve pre-existing labeling.
   - entity_id: update.living_room_firmware
     labels:
-    - class:diagnostic
     - area:living_room
-    reason: WLED firmware update entity, mirrors office update.office_firmware labeling.
-  - entity_id: light.kitchen_strip
-    labels:
-    - role:primary-light
-    - area:kitchen
-    reason: Main WLED light entity for the Kitchen Strip device, mirrors office's primary-light pattern.
-  - entity_id: light.kitchen_strip_main
-    labels:
-    - class:wled-config
-    - area:kitchen
-    reason: Named 'Main' sub-output of the WLED strip; treated as config rather than the primary handle
-      to avoid duplicate primary-light role on one device.
-  - entity_id: light.kitchen_strip_segment_1
-    labels:
-    - class:wled-config
-    - area:kitchen
-    reason: WLED segment sub-light, config-class, area follows device.
+    - class:diagnostic
+    reason: Preserve pre-existing labeling.
   - entity_id: button.kitchen_strip_restart
     labels:
     - class:wled-config
     - area:kitchen
-    reason: WLED restart control, config-class per office pattern.
+    reason: Preserve pre-existing labeling under managed prefixes.
+  - entity_id: light.kitchen_strip_main
+    labels:
+    - class:wled-config
+    - area:kitchen
+    reason: Preserve pre-existing labeling.
+  - entity_id: light.kitchen_strip
+    labels:
+    - area:kitchen
+    - role:primary-light
+    reason: Preserve pre-existing labeling.
+  - entity_id: light.kitchen_strip_segment_1
+    labels:
+    - class:wled-config
+    - area:kitchen
+    reason: Preserve pre-existing labeling.
   - entity_id: number.kitchen_strip_speed
     labels:
     - class:wled-config
     - area:kitchen
-    reason: WLED effect-speed control, config-class per office pattern.
+    reason: Preserve pre-existing labeling.
   - entity_id: number.kitchen_strip_intensity
     labels:
     - class:wled-config
     - area:kitchen
-    reason: WLED effect-intensity control, config-class per office pattern.
+    reason: Preserve pre-existing labeling.
   - entity_id: number.kitchen_strip_segment_1_speed
     labels:
     - class:wled-config
     - area:kitchen
-    reason: WLED segment speed control, config-class.
+    reason: Preserve pre-existing labeling.
   - entity_id: number.kitchen_strip_segment_1_intensity
     labels:
     - class:wled-config
     - area:kitchen
-    reason: WLED segment intensity control, config-class.
+    reason: Preserve pre-existing labeling.
   - entity_id: select.kitchen_strip_live_override
     labels:
     - class:wled-config
     - area:kitchen
-    reason: WLED config selector per office pattern.
+    reason: Preserve pre-existing labeling.
   - entity_id: select.kitchen_strip_playlist
     labels:
     - class:wled-config
     - area:kitchen
-    reason: WLED config selector per office pattern.
+    reason: Preserve pre-existing labeling.
   - entity_id: select.kitchen_strip_preset
     labels:
     - class:wled-config
     - area:kitchen
-    reason: WLED config selector per office pattern.
+    reason: Preserve pre-existing labeling.
   - entity_id: select.kitchen_strip_color_palette
     labels:
     - class:wled-config
     - area:kitchen
-    reason: WLED config selector per office pattern.
+    reason: Preserve pre-existing labeling.
   - entity_id: select.kitchen_strip_segment_1_color_palette
     labels:
     - class:wled-config
     - area:kitchen
-    reason: WLED segment config selector.
+    reason: Preserve pre-existing labeling.
+  - entity_id: sensor.kitchen_strip_estimated_current
+    labels:
+    - area:kitchen
+    - class:diagnostic
+    reason: Preserve pre-existing labeling.
+  - entity_id: sensor.kitchen_strip_led_count
+    labels:
+    - area:kitchen
+    - class:diagnostic
+    reason: Preserve pre-existing labeling.
+  - entity_id: sensor.kitchen_strip_max_current
+    labels:
+    - area:kitchen
+    - class:diagnostic
+    reason: Preserve pre-existing labeling.
+  - entity_id: sensor.kitchen_strip_uptime
+    labels:
+    - area:kitchen
+    - class:diagnostic
+    reason: Preserve pre-existing labeling.
+  - entity_id: sensor.kitchen_strip_free_memory
+    labels:
+    - area:kitchen
+    - class:diagnostic
+    reason: Preserve pre-existing labeling.
+  - entity_id: sensor.kitchen_strip_wi_fi_signal
+    labels:
+    - area:kitchen
+    - class:diagnostic
+    reason: Preserve pre-existing labeling.
+  - entity_id: sensor.kitchen_strip_wi_fi_rssi
+    labels:
+    - area:kitchen
+    - class:diagnostic
+    reason: Preserve pre-existing labeling.
+  - entity_id: sensor.kitchen_strip_wi_fi_channel
+    labels:
+    - area:kitchen
+    - class:diagnostic
+    reason: Preserve pre-existing labeling.
+  - entity_id: sensor.kitchen_strip_wi_fi_bssid
+    labels:
+    - area:kitchen
+    - class:diagnostic
+    reason: Preserve pre-existing labeling.
+  - entity_id: sensor.kitchen_strip_ip
+    labels:
+    - area:kitchen
+    - class:diagnostic
+    reason: Preserve pre-existing labeling.
   - entity_id: switch.kitchen_strip_nightlight
     labels:
     - class:wled-config
     - area:kitchen
-    reason: WLED config switch per office pattern.
+    reason: Preserve pre-existing labeling.
   - entity_id: switch.kitchen_strip_sync_send
     labels:
     - class:wled-config
     - area:kitchen
-    reason: WLED config switch per office pattern.
+    reason: Preserve pre-existing labeling.
   - entity_id: switch.kitchen_strip_sync_receive
     labels:
     - class:wled-config
     - area:kitchen
-    reason: WLED config switch per office pattern.
+    reason: Preserve pre-existing labeling.
   - entity_id: switch.kitchen_strip_reverse
     labels:
     - class:wled-config
     - area:kitchen
-    reason: WLED config switch per office pattern.
+    reason: Preserve pre-existing labeling.
   - entity_id: switch.kitchen_strip_freeze
     labels:
     - class:wled-config
     - area:kitchen
-    reason: WLED config switch per office pattern.
+    reason: Preserve pre-existing labeling.
   - entity_id: switch.kitchen_strip_segment_1_reverse
     labels:
     - class:wled-config
     - area:kitchen
-    reason: WLED segment config switch.
+    reason: Preserve pre-existing labeling.
   - entity_id: switch.kitchen_strip_segment_1_freeze
     labels:
     - class:wled-config
     - area:kitchen
-    reason: WLED segment config switch.
-  - entity_id: sensor.kitchen_strip_estimated_current
-    labels:
-    - class:diagnostic
-    - area:kitchen
-    reason: WLED diagnostic sensor per office pattern.
-  - entity_id: sensor.kitchen_strip_led_count
-    labels:
-    - class:diagnostic
-    - area:kitchen
-    reason: WLED diagnostic sensor per office pattern.
-  - entity_id: sensor.kitchen_strip_max_current
-    labels:
-    - class:diagnostic
-    - area:kitchen
-    reason: WLED diagnostic sensor per office pattern.
-  - entity_id: sensor.kitchen_strip_uptime
-    labels:
-    - class:diagnostic
-    - area:kitchen
-    reason: WLED diagnostic sensor (disabled) per office pattern.
-  - entity_id: sensor.kitchen_strip_free_memory
-    labels:
-    - class:diagnostic
-    - area:kitchen
-    reason: WLED diagnostic sensor (disabled) per office pattern.
-  - entity_id: sensor.kitchen_strip_wi_fi_signal
-    labels:
-    - class:diagnostic
-    - area:kitchen
-    reason: WLED diagnostic sensor (disabled) per office pattern.
-  - entity_id: sensor.kitchen_strip_wi_fi_rssi
-    labels:
-    - class:diagnostic
-    - area:kitchen
-    reason: WLED diagnostic sensor (disabled) per office pattern.
-  - entity_id: sensor.kitchen_strip_wi_fi_channel
-    labels:
-    - class:diagnostic
-    - area:kitchen
-    reason: WLED diagnostic sensor (disabled) per office pattern.
-  - entity_id: sensor.kitchen_strip_wi_fi_bssid
-    labels:
-    - class:diagnostic
-    - area:kitchen
-    reason: WLED diagnostic sensor (disabled) per office pattern.
-  - entity_id: sensor.kitchen_strip_ip
-    labels:
-    - class:diagnostic
-    - area:kitchen
-    reason: WLED diagnostic sensor per office pattern.
+    reason: Preserve pre-existing labeling.
   - entity_id: update.kitchen_strip_firmware
     labels:
-    - class:diagnostic
     - area:kitchen
-    reason: WLED firmware update entity per office pattern.
+    - class:diagnostic
+    reason: Preserve pre-existing labeling.
+  - entity_id: button.office_restart
+    labels:
+    - class:wled-config
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: light.office
+    labels:
+    - role:primary-light
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: number.office_speed
+    labels:
+    - class:wled-config
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: number.office_intensity
+    labels:
+    - class:wled-config
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: select.office_live_override
+    labels:
+    - class:wled-config
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: select.office_playlist
+    labels:
+    - class:wled-config
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: select.office_preset
+    labels:
+    - class:wled-config
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: select.office_color_palette
+    labels:
+    - class:wled-config
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: sensor.office_estimated_current
+    labels:
+    - class:diagnostic
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: sensor.office_led_count
+    labels:
+    - class:diagnostic
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: sensor.office_max_current
+    labels:
+    - class:diagnostic
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: sensor.office_uptime
+    labels:
+    - class:diagnostic
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: sensor.office_free_memory
+    labels:
+    - class:diagnostic
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: sensor.office_wi_fi_signal
+    labels:
+    - class:diagnostic
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: sensor.office_wi_fi_rssi
+    labels:
+    - class:diagnostic
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: sensor.office_wi_fi_channel
+    labels:
+    - class:diagnostic
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: sensor.office_wi_fi_bssid
+    labels:
+    - class:diagnostic
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: sensor.office_ip
+    labels:
+    - class:diagnostic
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: switch.office_nightlight
+    labels:
+    - class:wled-config
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: switch.office_sync_send
+    labels:
+    - class:wled-config
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: switch.office_sync_receive
+    labels:
+    - class:wled-config
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: switch.office_reverse
+    labels:
+    - class:wled-config
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: switch.office_freeze
+    labels:
+    - class:wled-config
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: update.office_firmware
+    labels:
+    - class:diagnostic
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: input_boolean.office_presence_proxy
+    labels:
+    - role:presence
+    - area:office
+    reason: Preserve pre-existing labeling; existing helper feeding office presence group.
+  - entity_id: input_boolean.office_presence_proxy_2
+    labels:
+    - role:presence
+    - area:office
+    reason: Preserve pre-existing labeling; existing helper feeding office presence group.
+  - entity_id: binary_sensor.office_presence_1
+    labels:
+    - role:presence
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: binary_sensor.office_presence_2
+    labels:
+    - role:presence
+    - area:office
+    reason: Preserve pre-existing labeling.
+  - entity_id: binary_sensor.office_presence_group
+    labels:
+    - role:presence
+    - area:office
+    reason: Preserve pre-existing labeling.
   entity_aliases: []
   helpers: []
   not_applicable:
   - scope: device
     id: c4bd115486107572aa9ec60d5e4a5b65
     status: not_applicable
-    reason: Sun integration is a virtual/service device, not a physical device with a room.
+    reason: entry_type 'service'; Sun integration, virtual.
   - scope: device
     id: ff0f9cea2bd547671580eb416131e0f6
     status: not_applicable
-    reason: Home Assistant Core is a software/service device (entry_type=service).
+    reason: entry_type 'service'; Home Assistant Core.
   - scope: device
     id: eecbfb7485fdd3e53f36a811f180e430
     status: not_applicable
-    reason: Home Assistant Supervisor is a software/service device (entry_type=service).
+    reason: entry_type 'service'; Home Assistant Supervisor.
   - scope: device
     id: 3f67e2901e8533b9c2f7a27a50aa29be
     status: not_applicable
-    reason: Home Assistant Host is a software/service device (entry_type=service).
+    reason: entry_type 'service'; Home Assistant Host.
   - scope: device
     id: e2d5dc7d8f0fdaaaaaa5bfbd227585e7
     status: not_applicable
-    reason: Home Assistant Operating System is a software/service device (entry_type=service).
+    reason: entry_type 'service'; Home Assistant Operating System.
   - scope: device
     id: f3e6ce5c09a0f2769d2bdeb32f92cecb
     status: not_applicable
-    reason: Backup is a software/service device (entry_type=service, manufacturer Home Assistant).
+    reason: entry_type 'service'; Backup integration.
   - scope: device
     id: b31551803e83759ead72bc28f4fd4233
     status: not_applicable
-    reason: Google Translate TTS is a cloud service integration device (entry_type=service).
+    reason: entry_type 'service'; Google Translate TTS, cloud service.
   - scope: device
     id: b16918282ce7c164d156a298a39c8507
     status: not_applicable
-    reason: Met.no Forecast is a cloud weather service device (entry_type=service).
+    reason: entry_type 'service'; Met.no weather forecast service.
+  - scope: device
+    id: 9b971d8434ca7d7648de195ea3298124
+    status: not_applicable
+    reason: entry_type 'service'; File editor HA App.
+  - scope: device
+    id: fa48da3626b412a176d7e8b0eb593174
+    status: not_applicable
+    reason: entry_type 'service'; Terminal & SSH HA App.
+  - scope: device
+    id: 4e34924f4505493a355bcd81c4d11b5c
+    status: not_applicable
+    reason: entry_type 'service'; Matter Server HA App.
+  - scope: device
+    id: 2ed85ccb226fe34471358f18eba7535b
+    status: not_applicable
+    reason: entry_type 'service'; Get HACS HA App.
   - scope: device
     id: 69cf190185b436efdaa71525b6a29225
     status: not_applicable
-    reason: Bluetooth adapter on the Pi host — infrastructure, not a room device (owner rule 2026-08-12).
+    reason: Bluetooth radio (bcm43438-bt) on the host Raspberry Pi — infrastructure, not a placeable room
+      device.
   - scope: device
     id: e74b87c2aca1767d7645016abf5c9352
     status: not_applicable
-    reason: Raspberry Pi host hardware — infrastructure, not a room device (owner rule 2026-08-12).
+    reason: Raspberry Pi host hardware — infrastructure.
   - scope: device
     id: cf5b9b1829179bc995415669c84235a9
     status: not_applicable
-    reason: Raspberry Pi 5 host hardware — infrastructure, not a room device (owner rule 2026-08-12).
+    reason: Raspberry Pi 5 host hardware — infrastructure.
   - scope: device
     id: ea207445db0926263b01d5c7297eb587
     status: not_applicable
-    reason: Zigbee coordinator radio — infrastructure, not a room device (owner rule 2026-08-12).
+    reason: Texas Instruments CC2652 — Zigbee radio stick, infrastructure.
+  - scope: device
+    id: 8683d987c920c0bd84052f5647274305
+    status: not_applicable
+    reason: SLZB-06P7 Zigbee coordinator — infrastructure hardware, not a room device.
+  - scope: device
+    id: 17d982b468074467d240c1b4d5f97a78
+    status: not_applicable
+    reason: Archer BE800 — network router, infrastructure.
+  - scope: device
+    id: 3388e37de3caa581f99dabc7b6134c22
+    status: blocked_on_human
+    reason: HP Tango printer has no room-naming evidence in name or model; needs human confirmation of
+      physical location.
   areas:
   - area_id: guest_room
     name: Guest Room
@@ -392,31 +819,37 @@ manifest:
     name: Bar
   - area_id: dining_room
     name: Dining Room
-design_notes: 'Label taxonomy: three managed prefixes. role: marks functional purpose (role:primary-light
-  for the WLED device''s main light entity, matching existing role:primary-light and role:presence usage).
-  class: marks entity category within a device (class:wled-config for control/config entities, class:diagnostic
-  for read-only telemetry/status entities) — mirrors the existing class:wled-config / class:diagnostic
-  split already present on the Office WLED device''s entities. area: mirrors the device''s assigned area
-  onto its entities, matching the existing area:office pattern used across Office''s entities and the
-  office presence helpers/automation. I only added labels/areas for the two newly-assigned WLED devices
-  (Living Room, Kitchen Strip); Office''s entities already carry correct labels and were left untouched
-  (additive-only, no need to restate). Kitchen''s two extra light entities (light.kitchen_strip_main,
-  light.kitchen_strip_segment_1) were kept off role:primary-light to avoid two "primary" lights on one
-  device — light.kitchen_strip (the bare/base entity) is the primary handle, consistent with light.office
-  and light.living_room naming.
+design_notes: 'Label taxonomy: three managed prefixes carried forward from the existing scheme already
+  present on the living_room/kitchen/office WLED devices and the office presence sensors — role: (functional
+  role, e.g. role:primary-light, role:presence), class: (entity class, e.g. class:wled-config, class:diagnostic),
+  area: (soft area tag mirroring the device''s area_id, used because these entities are virtual per-device
+  children rather than physically placed themselves). No new prefixes invented. Because these three prefixes
+  are now declared as managed (fully reconciled by recipes), every entity currently carrying a role:/class:/area:
+  label had to be re-listed in entity_labels — an omission would read as a removal — hence the large ''preserve
+  pre-existing labeling'' block for living_room, kitchen, and office WLED entities and the office presence
+  sensors. The Bar and Dishes WLED devices had zero labels despite matching every other WLED device 1:1
+  in entity shape; extended the identical taxonomy to their entities using device name/model evidence
+  (area:bar, area:dining_room) for consistency.
 
 
-  Coverage split (20 physical/service devices total): 3 assigned to device_areas (Living Room WLED → living_room,
-  Kitchen Strip WLED → kitchen, Office WLED → office [restated, already correct]); 7 not_applicable/not_applicable
-  (Sun, HA Core, HA Supervisor, HA Host, HA OS, Backup, Google Translate, Met.no Forecast — all entry_type=service);
-  10 not_applicable/blocked_on_human (Bluetooth adapter, "50\" The Frame" TV, Guest Room TV, Family Room
-  TV, Dishes WLED, Bar WLED, Raspberry Pi, Raspberry Pi 5, CC2652 radio) — each lacks a name/model that
-  maps to an existing area slug (Guest Room and Family Room aren''t in the areas list; Dishes/Bar name
-  objects, not rooms; the three compute/radio devices carry no location hint at all).
+  Coverage: 32 devices total. device_areas: 13 devices with area assignment (7 already correctly placed
+  and reaffirmed: kitchen Frame, guest room TV, family room TV, Dishes WLED/dining_room retained as-is,
+  living_room/kitchen/office/bar WLED; 6 newly assigned from clear name evidence — two duplicate-integration
+  entries for the kitchen Frame TV, one duplicate for the guest room TV, and two Samsung TV integration
+  duplicates mapped to office from ''[TV] Office Samsung TV'' / ''Office Samsung TV (UN65TU700DFXZA)'').
+  not_applicable: 18 devices — 12 HA integration/service entries (entry_type ''service'': Sun, Core, Supervisor,
+  Host, OS, Backup, Google Translate, Met.no Forecast, File editor, Terminal & SSH, Matter Server, Get
+  HACS) and 6 physical infrastructure devices (Bluetooth radio, 2x Raspberry Pi host boards, Zigbee radio
+  stick, Zigbee coordinator, network router) — none are placeable room devices. blocked_on_human: 1 device
+  (HP Tango printer) — ''HP Tango'' names a product line, not a room, and no other evidence (model/manufacturer)
+  indicates placement, so per the owner''s 2026-08-12 rule this is a genuine unknown rather than a lazy
+  punt. Total 13 + 18 + 1 = 32, matching device count exactly.
 
 
-  No new helpers needed — the two office presence proxy input_booleans already exist and are correctly
-  labeled/aliased in the inventory; nothing in this manifest references a helper that doesn''t already
-  exist. No entity_aliases proposed: none of the untouched entities had ambiguous or missing voice-friendly
-  names that warranted an addition, and I avoided inventing aliases without a clear naming signal. Zero
-  entity_id changes proposed, consistent with the additive-only / no-rename constraint.'
+  Helper prerequisites: none needed. The two office presence proxy input_booleans already exist in the
+  inventory''s helpers list and are only being re-labeled (role:presence, area:office) to preserve their
+  existing labeling under the now-managed role:/area: prefixes — no new helper creation required.
+
+
+  Explicitly not touched: entity_id values (zero renames proposed), and any alias proposals — none of
+  the entity names contain ambiguity that aliases would resolve, so entity_aliases is empty.'
