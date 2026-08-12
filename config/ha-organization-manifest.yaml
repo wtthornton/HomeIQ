@@ -48,6 +48,10 @@ manifest:
   - device_id: 3fd8515e808982d653dd8fe7dded1ff8
     area_id: bar
     reason: 'Owner confirmed 2026-08-12: Bar is a room; ''Bar'' WLED lives in it.'
+  - device_id: ea01efb8a8137b4666a961294be9ac55
+    area_id: dining_room
+    reason: 'Owner answer 2026-08-12: the Dishes WLED strip is in the Dining Room (area created on this
+      answer).'
   entity_labels:
   - entity_id: light.living_room
     labels:
@@ -370,11 +374,6 @@ manifest:
     reason: '''50" The Frame'' TV has no room name in its device name and no matching area exists; a person
       must pick the room.'
   - scope: device
-    id: ea01efb8a8137b4666a961294be9ac55
-    status: blocked_on_human
-    reason: '''Dishes'' WLED device name references an object/appliance, not a room; a person must confirm
-      which area (e.g. kitchen) it belongs to.'
-  - scope: device
     id: e74b87c2aca1767d7645016abf5c9352
     status: not_applicable
     reason: Raspberry Pi host hardware — infrastructure, not a room device (owner rule 2026-08-12).
@@ -393,6 +392,8 @@ manifest:
     name: Family Room
   - area_id: bar
     name: Bar
+  - area_id: dining_room
+    name: Dining Room
 design_notes: 'Label taxonomy: three managed prefixes. role: marks functional purpose (role:primary-light
   for the WLED device''s main light entity, matching existing role:primary-light and role:presence usage).
   class: marks entity category within a device (class:wled-config for control/config entities, class:diagnostic
