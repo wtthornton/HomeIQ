@@ -1,7 +1,7 @@
 # Session handoff
-**Updated:** 2026-08-13T20:25:00Z
-**Git:** 71f02a96 (feat/tap-5431-local-calendar — PUSHED; draft PR #83 open, merge owner-gated)
-**Linear P0:** Sub-goal 4 — Wave 8 MCP server (epic TAP-5282, Urgent)
+**Updated:** 2026-08-13T20:45:00Z
+**Git:** 90c6e626 (feat/tap-5431-local-calendar — PUSHED; draft PR #83 open, merge owner-gated)
+**Linear P0:** TAP-5293 — scaffold the homeiq MCP server (Wave 8 continues)
 
 ## Resume-as (standing instruction)
 - Re-enter the drain loop: `Read prompts/homeiq-backlog-drain.md in full, then execute it as a goal loop — run the Loop section repeatedly until Done-when holds, printing the SCORE line every iteration. Establish preconditions per Sub-goal 0; work sub-goals in order; do not stop unless an Autonomy hard-stop fires.` Linear must be authenticated (`/mcp`).
@@ -14,8 +14,8 @@
 - Floors moved: homeiq-ha **246**, ha-setup-service **60**; libs suites all green (55/246/61/10/683/86).
 
 ## Open / next
-- Close TAP-6037 on verifier PASS (verifier running at handoff time).
-- **Sub-goal 4 — Wave 8 MCP server** (epic TAP-5282 Urgent; stories 5292→5297 in id order; 5292 tool catalogue gates everything). REQUIRED before code: MCP server SDK lookup. Reconcile TAP-5298/TAP-5322 credential-move duplicate BEFORE Wave 9.
+- TAP-6037 CLOSED (verifier PASS). TAP-5292 CLOSED (2-round verifier; catalogue v1.1.1 at docs/mcp/homeiq-mcp-tools.schema.json is NORMATIVE — TAP-5297 pins list_tools against it).
+- **TAP-5293 next**: scaffold homeiq MCP server — mcp SDK `MCPServer` + `streamable_http_app()` at `/mcp`, bearer auth, `/health`; implementation notes in the catalogue md (state dict→string projection, truncate+flag budgets). TAP-6071 (High, filed this run: five shadowed /api/devices routes) should land before/with TAP-5294 — `detect_anomalies` power kind depends on it. TAP-6066 (undeclared imports audit) also queued. Reconcile TAP-5298/TAP-5322 credential-move duplicate BEFORE Wave 9.
 - Then Sub-goals 5-8 per prompts/homeiq-backlog-drain.md.
 
 ## Blockers / owner actions (batched hard-stop report)
