@@ -107,10 +107,19 @@ class DevicesHaveAreasRecipe(Recipe):
     phase = PHASE_ORGANIZATION
     description = "Every device is assigned to an area"
 
-    async def _unassigned(self, ha: Any) -> list[str]:
+    async def _unassigned(self, ha: Any) -> list[dict[str, str]]:
+        """Unassigned devices as ``{id, name}`` pairs.
+
+        The id is what ``/answers`` and the manifest consume (registry ids,
+        never display names — a name posted as a device_id can never
+        converge); the name is what the wizard shows the person.
+        """
         devices = await ha.ws.send_command("config/device_registry/list")
         return [
-            device.get("name_by_user") or device.get("name") or device["id"]
+            {
+                "id": device["id"],
+                "name": device.get("name_by_user") or device.get("name") or device["id"],
+            }
             for device in devices or []
             if not device.get("area_id") and not device.get("disabled_by")
         ]

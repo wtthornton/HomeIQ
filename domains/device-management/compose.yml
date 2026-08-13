@@ -332,6 +332,9 @@ services:
     # appuser is uid 1001; the repo's config/ files are 1000:1000 mode 664.
     # Joining group 1000 makes the bind-mounted manifest writable without
     # changing the user (which would break ha_setup_data ownership).
+    # Files the CONTAINER creates there (e.g. init-triage.json) are
+    # 1001:1001 mode 664 — group-writable by the code's own chmod, but the
+    # host user edits them via the API or sudo, not in place.
     group_add:
       - "1000"
     # Cross-domain: depends on core-platform/data-api, core-platform/admin-api

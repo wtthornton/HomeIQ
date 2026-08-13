@@ -232,3 +232,10 @@ async def test_hacs_start_surfaces_already_configured_abort(sim: SimHA) -> None:
     result = await start_hacs(sim)
     assert result["step_type"] == "abort"
     assert result["reason"] == "already_configured"
+
+
+async def test_permit_rejects_out_of_range_duration_in_the_lib_too(sim: SimHA) -> None:
+    """The route mirrors upstream's 0-254; the primitive enforces it as well."""
+    with pytest.raises(ValueError, match="0-254"):
+        await open_permit_window(sim, duration=255)
+    assert not any(c[0] == PERMIT_COMMAND for c in sim.ws.calls)

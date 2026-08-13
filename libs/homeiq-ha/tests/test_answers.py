@@ -130,7 +130,7 @@ async def test_unwritable_manifest_is_a_typed_item_not_a_500(sim: SimHA, manifes
     manifest_path.parent.chmod(0o555)
     try:
         result = await apply_answers(
-            sim, Answers(device_areas=(("devNew", "Den"),)), list, manifest_path=manifest_path
+            sim, Answers(device_areas=(("dev5", "Den"),)), list, manifest_path=manifest_path
         )
     finally:
         manifest_path.parent.chmod(0o755)
@@ -181,3 +181,24 @@ async def test_team_entity_matching_is_anchored(sim: SimHA, manifest_path):
     # The lakers entity did NOT short-circuit it; the flow ran and made team_tracker_la.
     assert item["status"] == "converged"
     assert item["evidence"]["entity_ids"] == ["sensor.team_tracker_la"]
+
+
+@pytest.mark.asyncio
+async def test_unknown_device_id_is_rejected_before_the_manifest_write(
+    sim: SimHA, manifest_path
+):
+    """A display name (or any non-registry id) posted as device_id must
+    become a typed failure and leave the manifest byte-identical — a junk
+    row would be sticky and could never converge (Wave 7 panel finding)."""
+    before = manifest_path.read_text()
+    result = await apply_answers(
+        sim,
+        Answers(device_areas=(("Sun", "Office"),)),
+        list,
+        manifest_path=manifest_path,
+    )
+    by_id = {i["id"]: i for i in result["items"]}
+    assert by_id["device_area:Sun"]["status"] == "failed"
+    assert by_id["device_area:Sun"]["evidence"]["reason"] == "unknown_device_id"
+    assert by_id["manifest"]["status"] == "skipped"
+    assert manifest_path.read_text() == before

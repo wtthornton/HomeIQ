@@ -9,8 +9,14 @@ from __future__ import annotations
 
 import logging
 import sys
+from typing import TYPE_CHECKING
 
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
+
+if TYPE_CHECKING:
+    from fastapi import Request
 
 from .config import get_settings
 from .database import init_db
@@ -20,7 +26,7 @@ from .integration_checker import IntegrationHealthChecker
 from .monitoring_service import ContinuousHealthMonitor
 from .optimization_engine import PerformanceAnalysisEngine, RecommendationEngine
 from .routes_health import health_router
-from .routes_init import init_router, page_router
+from .routes_init import init_router, page_router, write_router
 from .routes_validation import optimization_router, validation_router
 from .validation_service import ValidationService
 
@@ -108,12 +114,35 @@ app = create_app(
     description="Automated setup, health monitoring, and optimization for Home Assistant",
     lifespan=lifespan.handler,
     health_check=health,
-    cors_origins=settings.get_cors_origins_list(),
+    # The wizard page is served same-origin from this service; nothing
+    # legitimate calls it cross-origin, so never fall back to the shared
+    # ["*"] default — an explicit operator-configured list or nothing.
+    cors_origins=settings.get_cors_origins_list() if settings.cors_origins else [],
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def _redacted_validation_error(
+    _request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """422s without echoing submitted values.
+
+    Pydantic's default payload includes each offending ``input`` verbatim —
+    which returns a typed secret to the caller (and any response log) when
+    a field name is misspelled, e.g. ``backup_pass`` instead of
+    ``backup_password``. Locations and error types are kept; values are not.
+    """
+    errors = [
+        {k: v for k, v in error.items() if k not in ("input", "ctx")}
+        for error in exc.errors()
+    ]
+    return JSONResponse(status_code=422, content={"detail": errors})
+
 
 # Include extracted route modules
 app.include_router(health_router)
 app.include_router(init_router)
+app.include_router(write_router)
 app.include_router(page_router)
 app.include_router(optimization_router)
 app.include_router(validation_router)

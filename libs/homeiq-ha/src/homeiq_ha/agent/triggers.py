@@ -90,8 +90,14 @@ async def open_permit_window(ha: HAClient, duration: int = 60) -> dict[str, Any]
 
     Idempotent-safe: firing again while a window is open restarts it with
     the new duration (upstream behaviour), so the wizard can offer "extend".
+
+    The route mirrors the bound too; enforcing it here as well means no
+    future caller of this primitive can forward an unbounded window.
     """
-    await ha.ws.send_command(PERMIT_COMMAND, duration=int(duration))
+    duration = int(duration)
+    if not 0 <= duration <= PERMIT_MAX_DURATION:
+        raise ValueError(f"duration must be 0-{PERMIT_MAX_DURATION}, got {duration}")
+    await ha.ws.send_command(PERMIT_COMMAND, duration=duration)
     opened_at = datetime.now(tz=UTC)
     closes_at = opened_at + timedelta(seconds=duration)
     return {

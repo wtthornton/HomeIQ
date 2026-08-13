@@ -318,3 +318,7 @@ ha-baseline*.json
 */**/.tapps-mcp/
 .tapps-mcp/sessions/
 .tapps-mcp/metrics/
+
+# Runtime state on the config bind mount: flow keys embed hardware
+# identity (MACs/serials) that must never enter a public repo history.
+config/init-triage.json

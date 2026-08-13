@@ -140,3 +140,50 @@ def test_queue_untouched_when_nothing_deferred(monkeypatch: Any) -> None:
     body = _client().get("/api/v1/init/queue").json()
     assert len(body["items"]) == 3
     assert "deferred_count" not in body
+
+
+# -- security: same-origin guard + 422 redaction (Wave 7 panel) ------------
+
+
+def test_cross_origin_post_is_refused_with_403() -> None:
+    resp = _client().post(
+        "/api/v1/init/pairing/permit",
+        json={"duration": 5},
+        headers={"Origin": "https://evil.example"},
+    )
+    assert resp.status_code == 403
+
+
+def test_same_origin_post_passes_the_guard(monkeypatch: Any) -> None:
+    from src import routes_init
+
+    _patch_ha(monkeypatch)
+
+    async def _fake_permit(ha: Any, duration: int = 60) -> dict[str, Any]:
+        return {"opened": True, "duration": duration}
+
+    monkeypatch.setattr(routes_init, "open_permit_window", _fake_permit)
+    resp = _client().post(
+        "/api/v1/init/pairing/permit",
+        json={"duration": 5},
+        headers={"Origin": "http://testserver"},
+    )
+    assert resp.status_code == 200
+
+
+def test_read_only_queue_is_not_origin_guarded(monkeypatch: Any) -> None:
+    _patch_queue(monkeypatch, deferred=set())
+    resp = _client().get(
+        "/api/v1/init/queue", headers={"Origin": "https://evil.example"}
+    )
+    assert resp.status_code == 200
+
+
+def test_422_never_echoes_submitted_values() -> None:
+    """A typo'd secret field name must not return the typed value."""
+    resp = _client().post(
+        "/api/v1/init/answers", json={"backup_pass": "supersecret-echo-probe"}
+    )
+    assert resp.status_code == 422
+    assert "supersecret-echo-probe" not in resp.text
+    assert resp.json()["detail"][0]["type"] == "extra_forbidden"

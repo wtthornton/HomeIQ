@@ -33,5 +33,8 @@ async def test_unassigned_devices_are_a_human_decision_not_a_guess(sim):
     result = await DevicesHaveAreasRecipe().check(sim)
     assert result.status is CheckStatus.BLOCKED_ON_HUMAN
     assert len(result.details["unassigned"]) == 19
+    # {id, name} pairs: the id is what /answers consumes (a display name
+    # posted as a device_id could never converge), the name is displayed.
+    assert result.details["unassigned"][0] == {"id": "dev0", "name": "WLED 0"}
     # Nothing is inferred from device names.
     assert (await DevicesHaveAreasRecipe().apply(sim)).change_count == 0

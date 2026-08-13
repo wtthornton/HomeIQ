@@ -152,6 +152,37 @@ async def _drive_team_flow(ha: HAClient, team: dict[str, str]) -> _Item:
     )
 
 
+async def _validated_device_areas(
+    ha: HAClient, device_areas: Sequence[tuple[str, str]]
+) -> tuple[list[tuple[str, str]], list[_Item]]:
+    """Split answers into registry-valid pairs and typed failures.
+
+    A display name (or any unknown id) posted as a device_id would land as
+    a junk manifest row that no converge can ever match — refused up front
+    instead (Wave 7 panel finding).
+    """
+    known_ids = {
+        d.get("id") for d in await ha.ws.send_command("config/device_registry/list") or []
+    }
+    valid: list[tuple[str, str]] = []
+    failures: list[_Item] = []
+    for device_id, area in device_areas:
+        if device_id in known_ids:
+            valid.append((device_id, area))
+        else:
+            failures.append(
+                _Item(
+                    f"device_area:{device_id}",
+                    "failed",
+                    {
+                        "reason": "unknown_device_id",
+                        "hint": "device_id must be a registry id, not a display name",
+                    },
+                )
+            )
+    return valid, failures
+
+
 async def apply_answers(
     ha: HAClient,
     answers: Answers,
@@ -164,12 +195,12 @@ async def apply_answers(
     ``recipes_factory`` is invoked AFTER the manifest merge so the converge
     runs over the manifest the wizard just extended, not a stale load.
     """
-    items: list[_Item] = []
+    valid_areas, items = await _validated_device_areas(ha, answers.device_areas)
 
     reason = f"wizard submission {datetime.now(UTC).date().isoformat()}"
     try:
         merged = merge_device_areas_into_manifest(
-            manifest_path, answers.device_areas, reason=reason
+            manifest_path, valid_areas, reason=reason
         )
         items.append(
             _Item(
@@ -201,7 +232,7 @@ async def apply_answers(
         d.get("id"): d.get("area_id")
         for d in await ha.ws.send_command("config/device_registry/list") or []
     }
-    for device_id, area_name in answers.device_areas:
+    for device_id, area_name in valid_areas:
         area_id = _slugify(area_name)
         ok = area_id in registry_areas and devices.get(device_id) == area_id
         items.append(

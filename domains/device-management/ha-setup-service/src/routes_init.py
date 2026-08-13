@@ -11,7 +11,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
 from homeiq_ha.agent import HAInitAgent
 from homeiq_ha.agent.answers import Answers, apply_answers
@@ -33,7 +33,33 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
+async def same_origin_only(request: Request) -> None:
+    """Refuse cross-origin browser POSTs to state-changing init endpoints.
+
+    Browsers always attach ``Origin`` to cross-origin (and fetch) POSTs; a
+    value whose host differs from the request's own ``Host`` is a drive-by
+    attempt (the wizard page is served same-origin from this service, and
+    CORS is not offered). Requests without an Origin header — curl, server
+    -to-server — pass untouched.
+    """
+    origin = request.headers.get("origin")
+    if not origin:
+        return
+    host = origin.split("://", 1)[-1].split("/", 1)[0]
+    if host != request.headers.get("host"):
+        raise HTTPException(status_code=403, detail="cross-origin request refused")
+
+
 init_router = APIRouter(prefix="/api/v1/init", tags=["init-agent"])
+
+#: State-changing endpoints hang off this router instead, so every POST
+#: carries the same-origin guard without repeating it per route.
+write_router = APIRouter(
+    prefix="/api/v1/init",
+    tags=["init-agent"],
+    dependencies=[Depends(same_origin_only)],
+)
 
 #: The LAN wizard page (TAP-5944) lives outside the API prefix at /setup.
 page_router = APIRouter(tags=["init-agent"])
@@ -141,10 +167,12 @@ async def queue(show_all: bool = False) -> dict[str, Any]:
     try:
         async with HAClient.from_env() as ha:
             payload = await build_queue(ha, default_recipes())
+        # Inside the envelope: a hand-corrupted store file must surface as
+        # a diagnosable 502, not an anonymous 500.
+        deferred = _TRIAGE_STORE.keys()
     except Exception as exc:
         logger.exception("init queue failed")
         raise HTTPException(status_code=502, detail=f"queue failed: {exc}") from exc
-    deferred = _TRIAGE_STORE.keys()
     if not show_all and deferred:
         kept = [i for i in payload["items"] if i.get("triage_key") not in deferred]
         payload["deferred_count"] = len(payload["items"]) - len(kept)
@@ -152,7 +180,7 @@ async def queue(show_all: bool = False) -> dict[str, Any]:
     return payload
 
 
-@init_router.post("/answers")
+@write_router.post("/answers")
 async def answers(body: AnswersRequest) -> dict[str, Any]:
     """Ingest one wizard submission, converge (backup-gated), verify by read-back.
 
@@ -187,7 +215,7 @@ class PermitRequest(BaseModel):
     duration: int = Field(default=60, ge=0, le=PERMIT_MAX_DURATION)
 
 
-@init_router.post("/pairing/permit")
+@write_router.post("/pairing/permit")
 async def pairing_permit(body: PermitRequest | None = None) -> dict[str, Any]:
     """Open a bounded ZHA join window; the response states when it closes.
 
@@ -203,7 +231,7 @@ async def pairing_permit(body: PermitRequest | None = None) -> dict[str, Any]:
         raise HTTPException(status_code=502, detail=f"permit failed: {exc}") from exc
 
 
-@init_router.post("/flows/{flow_id}/start")
+@write_router.post("/flows/{flow_id}/start")
 async def flow_start(flow_id: str) -> dict[str, Any]:
     """Advance a readiness flow to its human-readable step (PIN, code).
 
@@ -228,7 +256,7 @@ class DecisionRequest(BaseModel):
     decision: Literal["add", "ignore", "later"]
 
 
-@init_router.post("/flows/{flow_id}/decision")
+@write_router.post("/flows/{flow_id}/decision")
 async def flow_decision(flow_id: str, body: DecisionRequest) -> dict[str, Any]:
     """Apply one add / ignore / later decision; outcomes are read-back verified.
 
@@ -245,7 +273,7 @@ async def flow_decision(flow_id: str, body: DecisionRequest) -> dict[str, Any]:
         raise HTTPException(status_code=502, detail=f"decision failed: {exc}") from exc
 
 
-@init_router.post("/hacs/start")
+@write_router.post("/hacs/start")
 async def hacs_start() -> dict[str, Any]:
     """Begin HACS onboarding, surfacing the GitHub device code and URL."""
     try:
@@ -256,7 +284,7 @@ async def hacs_start() -> dict[str, Any]:
         raise HTTPException(status_code=502, detail=f"hacs start failed: {exc}") from exc
 
 
-@init_router.post("/converge")
+@write_router.post("/converge")
 async def converge(body: ConvergeRequest | None = None) -> dict[str, Any]:
     """Backup-gated plan+apply+verify run.
 

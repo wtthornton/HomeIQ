@@ -92,13 +92,16 @@ function el(tag, attrs = {}, ...children) {
 function areaWidget(item) {
   const box = el("div", { class: "choices" });
   for (const device of item.decision.devices) {
+    // Devices arrive as {id, name}: the registry id is what /answers and
+    // the manifest consume; the display name is only ever shown. Posting a
+    // name as device_id could never converge (server rejects it too).
     const select = el("select", {
-      onchange: (e) => { state.areas[device] = e.target.value; persist(); },
+      onchange: (e) => { state.areas[device.id] = e.target.value; persist(); },
     }, el("option", { value: "", text: "— leave unassigned —" }));
     for (const area of item.decision.options)
       select.append(el("option", { value: area, text: area,
-        selected: state.areas[device] === area ? "" : null }));
-    box.append(el("div", { class: "row" }, el("span", { text: device }), select));
+        selected: state.areas[device.id] === area ? "" : null }));
+    box.append(el("div", { class: "row" }, el("span", { text: device.name }), select));
   }
   return box;
 }
@@ -196,7 +199,7 @@ function contract() {
   const body = {
     device_areas: Object.entries(state.areas)
       .filter(([, area]) => area)
-      .map(([name, area]) => ({ device_id: name, area })),
+      .map(([id, area]) => ({ device_id: id, area })),
     addon_options: Object.entries(state.addons)
       .filter(([, options]) => Object.values(options).some(Boolean))
       .map(([slug, options]) => ({ slug, options })),
@@ -231,7 +234,10 @@ async function submit() {
     status.textContent = "Done — queue refreshes with live truth.";
     loadQueue();
   } catch (err) {
-    status.innerHTML = `<span class="err">Submit failed: ${err.message}</span>`;
+    // el()/textContent, never innerHTML: err.message carries server detail
+    // text, which can embed HA-supplied strings — not trusted markup.
+    status.replaceChildren(
+      el("span", { class: "err", text: `Submit failed: ${err.message}` }));
   }
 }
 
@@ -240,8 +246,9 @@ async function loadQueue() {
     const response = await fetch("api/v1/init/queue");
     render(await response.json());
   } catch (err) {
-    document.getElementById("queue").innerHTML =
-      `<p class="err">Queue unavailable: ${err.message}</p>`;
+    const queueBox = document.getElementById("queue");
+    queueBox.replaceChildren(
+      el("p", { class: "err", text: `Queue unavailable: ${err.message}` }));
   }
 }
 

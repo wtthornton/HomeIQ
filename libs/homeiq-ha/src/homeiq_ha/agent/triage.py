@@ -50,8 +50,10 @@ class LaterStore:
     """Durable set of flow keys deferred with ``later``.
 
     Backed by one JSON file on the gateway's bind-mounted ``config/`` dir,
-    so deferrals survive restarts and are git-visible like the manifest.
-    Writes are atomic (tmp + replace) — a crash never truncates the store.
+    so deferrals survive restarts. Runtime state, deliberately gitignored:
+    flow keys embed hardware identity (MACs, serials via ``unique_id``)
+    that must never land in the repo's history. Writes are atomic
+    (tmp + replace) — a crash never truncates the store.
     """
 
     def __init__(self, path: Path) -> None:
@@ -70,6 +72,9 @@ class LaterStore:
         tmp.write_text(
             json.dumps({"later": sorted(keys)}, indent=2) + "\n", encoding="utf-8"
         )
+        # Group-writable to match the bind-mount convention (the container
+        # umask would otherwise land 644 and lock the host group out).
+        tmp.chmod(0o664)
         tmp.replace(self._path)
 
     def keys(self) -> set[str]:
