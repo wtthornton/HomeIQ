@@ -41,8 +41,12 @@ for row in "${rows[@]}"; do
   fi
 done
 
-if [[ ${#documented[@]} -eq 0 ]]; then
-  echo "::error file=$README::could not parse any workflow names from the auto-trigger table"
+# Floor backstop: the table held 20 names when this check landed; a parse
+# yielding far fewer means table surgery (or a parser break) silently
+# shrank enforcement — fail loudly instead of quietly checking less.
+MIN_DOCUMENTED=15
+if [[ ${#documented[@]} -lt $MIN_DOCUMENTED ]]; then
+  echo "::error file=$README::only ${#documented[@]} workflow names parsed from the auto-trigger table (floor $MIN_DOCUMENTED) — table edit or parser break?"
   exit 1
 fi
 

@@ -10,12 +10,16 @@
 #       sh : if [[ "${STACK_REFRESH:-0}" == "1" ]]; then
 #       ps1: if ($env:STACK_REFRESH -eq "1") {
 #     A loosened conditional (e.g. -ne "__never__") is NOT recognized, so
-#     flags inside it are flagged. Known limit: a textually identical guard
-#     with different runtime semantics cannot exist, so this closes the
-#     guard-neutering class as far as a static check can.
+#     flags inside it are flagged.
 #   - A literal flag is legal only on a refresh-variable assignment line
-#     INSIDE that branch (sh: until its matching fi, nesting-aware;
-#     ps1: until brace depth returns to zero).
+#     inside that branch. sh tracks if/fi as words across `;`-separated
+#     segments (one-liner `if ...; then ...; fi` included) and skips
+#     heredoc bodies; ps1 tracks brace depth.
+#   - Known limits of the static approach, deliberate: a `#` or an
+#     unbalanced brace inside a quoted string literal confuses the
+#     stripper/depth counter, and code after a closing `fi` on the same
+#     line is still counted as in-branch. These need a real parser; the
+#     check targets accidental drift, and every ordinary idiom is handled.
 #
 # Usage: check-stack-refresh-optin.sh [file ...]
 #   Defaults to scripts/start-stack.sh and scripts/start-stack.ps1.
@@ -25,19 +29,43 @@ fail=0
 
 check_sh() {
   awk '
-    { line = $0; sub(/#.*$/, "", line) }
-    in_guard && line ~ /^[[:space:]]*if[[:space:]]/ { nest++ }
-    !in_guard && line ~ /if[[:space:]]+\[\[[[:space:]]+"\$\{STACK_REFRESH:-0\}"[[:space:]]+==[[:space:]]+"1"[[:space:]]+\]\]/ {
-      in_guard = 1; nest = 0; next
+    function wcount(s, re,   n, tmp) {
+      tmp = s; n = 0
+      while (match(tmp, re)) { n++; tmp = substr(tmp, RSTART + RLENGTH) }
+      return n
     }
-    in_guard && line ~ /^[[:space:]]*fi([;[:space:]]|$)/ {
-      if (nest > 0) nest--; else in_guard = 0
-      next
-    }
-    line ~ /--pull always|--force-recreate/ {
-      if (!in_guard || line !~ /refresh_flags=/) {
-        printf "::error file=%s,line=%d::forced-refresh flag outside the sanctioned STACK_REFRESH branch: %s\n", FILENAME, FNR, $0
-        bad = 1
+    {
+      raw = $0
+      if (in_heredoc) {
+        stripped = raw; sub(/^[[:space:]]*/, "", stripped)
+        if (stripped == hd_end) in_heredoc = 0
+        next
+      }
+      line = raw; sub(/#.*$/, "", line)
+      if (match(line, /<<-?['\''"]?[A-Za-z_][A-Za-z_0-9]*/)) {
+        hd_end = substr(line, RSTART, RLENGTH)
+        sub(/<<-?['\''"]?/, "", hd_end)
+        in_heredoc = 1
+        # the rest of this line still gets evaluated below
+      }
+      # Regexes as strings: a /regex/ constant passed as a function
+      # argument degrades to a boolean match against $0 in awk.
+      nif = wcount(line, "(^|[;&|[:space:]])if([[:space:]]|$)")
+      nfi = wcount(line, "(^|[;[:space:]])fi([;[:space:]]|$)")
+      here = in_guard
+      if (!in_guard && line ~ /if[[:space:]]+\[\[[[:space:]]+"\$\{STACK_REFRESH:-0\}"[[:space:]]+==[[:space:]]+"1"[[:space:]]+\]\]/) {
+        here = 1
+        depth = nif - nfi
+        in_guard = (depth > 0)
+      } else if (in_guard) {
+        depth += nif - nfi
+        if (depth <= 0) in_guard = 0
+      }
+      if (line ~ /--pull always|--force-recreate/) {
+        if (!here || line !~ /refresh_flags=/) {
+          printf "::error file=%s,line=%d::forced-refresh flag outside the sanctioned STACK_REFRESH branch: %s\n", FILENAME, FNR, $0
+          bad = 1
+        }
       }
     }
     END { exit bad }
@@ -50,6 +78,7 @@ check_ps1() {
     !in_guard && line ~ /if[[:space:]]*\(\$env:STACK_REFRESH[[:space:]]+-eq[[:space:]]+"1"\)[[:space:]]*\{/ {
       in_guard = 1
       depth = gsub(/\{/, "{", line) - gsub(/\}/, "}", line)
+      if (depth <= 0) in_guard = 0
       next
     }
     in_guard {
