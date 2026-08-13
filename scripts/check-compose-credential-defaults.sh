@@ -16,24 +16,37 @@ CRED='(PASSWORD|SECRET|TOKEN|API_KEY|CREDENTIAL)'
 
 files=$(git ls-files 'domains/*/compose.yml' 'docker-compose*.yml' 'domains/*/*/docker-compose*.yml' 'simulation/docker-compose*.yml')
 
-# Two bad shapes, detected directly:
-#   a) ${CRED_NAME:-nonempty}  — fallback default (a default starting with
+# Four bad shapes, detected directly (case-insensitive names):
+#   a) ${CRED_NAME:-nonempty}   — fallback default (a default starting with
 #      `${` is a nested interpolation, not a committed value: allowed)
-#   b) CRED_NAME=literal       — baked value (values starting with `$` are
-#      interpolations: allowed)
-SHAPE_A="\\\$\{[A-Z0-9_]*${CRED}[A-Z0-9_]*:-[^}\$][^}]*\}"
-SHAPE_B="^[[:space:]]*-?[[:space:]]*[A-Z0-9_]*${CRED}[A-Z0-9_]*=[^\$[:space:]]"
+#   b) CRED_NAME=literal        — baked env-list value (values starting
+#      with `$` are interpolations: allowed)
+#   c) scheme://user:literal@   — credentials baked inside a connection
+#      URL: flags an authority that is entirely literal (contains a colon
+#      and no interpolation before the @). A URL whose user OR password is
+#      interpolated contains `$` and is not flagged — the one unhandled
+#      edge is a literal password paired with an interpolated user.
+#   d) CRED_NAME: literal       — mapping-style environment blocks
+SHAPE_A="\\\$\{[A-Za-z0-9_]*${CRED}[A-Za-z0-9_]*:-[^}\$][^}]*\}"
+SHAPE_B="^[[:space:]]*-?[[:space:]]*[A-Za-z0-9_]*${CRED}[A-Za-z0-9_]*=[^\$[:space:]]"
+SHAPE_C="[a-z+]+://[^@\$[:space:]]+:[^@\$[:space:]]+@"
+SHAPE_D="^[[:space:]]+[A-Za-z0-9_]*${CRED}[A-Za-z0-9_]*:[[:space:]]+[^\$[:space:]]"
 
 fail=0
 while IFS=: read -r file ln content; do
   [[ -z "$file" ]] && continue
-  name=$(grep -oE "[A-Z0-9_]*${CRED}[A-Z0-9_]*" <<<"$content" | head -1)
-  [[ "$name" =~ (EXPIRE|EXPIRY|TTL|_FILE|_PATH|HEADER) ]] && continue
-  value=$(sed -E 's/^[^=]*(:-|=)//' <<<"$content")
-  [[ "$value" =~ ^(true|false|[0-9]+)\}?$ ]] && continue
-  echo "::error file=${file},line=${ln}::non-empty credential default for ${name} — use \${${name}:?} and set the value in .env"
+  name=$(grep -oiE "[A-Z0-9_]*${CRED}[A-Z0-9_]*" <<<"$content" | head -1)
+  [[ "${name:-URL_EMBEDDED}" == "URL_EMBEDDED" ]] || {
+    [[ "${name^^}" =~ (EXPIRE|EXPIRY|TTL|_FILE|_PATH|HEADER) ]] && continue
+    value=$(sed -E 's/^[^=:]*(:-|=|:[[:space:]]+)//' <<<"$content")
+    [[ "$value" =~ ^(true|false|[0-9]+)\}?$ ]] && continue
+  }
+  echo "::error file=${file},line=${ln}::committed credential value (${name:-inside a connection URL}) — interpolate from .env with \${VAR:?}"
   fail=1
-done < <({ grep -nE "$SHAPE_A" $files; grep -nE "$SHAPE_B" $files; } 2>/dev/null \
+done < <({ grep -inE "$SHAPE_A" $files /dev/null
+           grep -inE "$SHAPE_B" $files /dev/null
+           grep -nE  "$SHAPE_C" $files /dev/null
+           grep -inE "$SHAPE_D" $files /dev/null; } 2>/dev/null \
           | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' | sort -u || true)
 
 if [[ $fail -ne 0 ]]; then
