@@ -101,3 +101,57 @@ async def test_unknown_blocked_kind_degrades_to_acknowledge(sim: SimHA):
     (item,) = payload["items"]
     assert item["decision"] == {"type": "acknowledge"}
     assert item["human_action"] == "do the thing"
+
+
+@pytest.mark.asyncio
+async def test_backup_blocked_rows_get_machine_derived_schemas(sim: SimHA):
+    """The secret-vs-acknowledge split keys on details.encryption_key_set,
+    never on summary prose (verifier gap A: rewording the summary must not
+    flip the wizard from a secret prompt to an acknowledge button)."""
+    from homeiq_ha.agent.recipes import BackupScheduleRecipe, FirstBackupRecipe
+
+    # With NO backup destination at all, both recipes block on the missing
+    # location; schema must be the acknowledge/add-location kind.
+    sim.state["backup_agents"] = []
+    payload = await build_queue(sim, [BackupScheduleRecipe(), FirstBackupRecipe()])
+    schedule, first = payload["items"]
+    assert schedule["decision"] == {"type": "acknowledge", "action": "add_backup_location"}
+    assert first["decision"] == {"type": "acknowledge", "action": "add_backup_location"}
+
+    # With a destination + schedule but NO encryption key, the schedule row
+    # blocks with encryption_key_set: False -> write-only secret schema.
+    sim.state["backup_agents"] = [{"agent_id": "backup.local"}]
+    sim.state["backup_config"]["schedule"]["recurrence"] = "daily"
+    sim.state["backup_config"]["retention"]["copies"] = 7
+    sim.state["backup_config"]["create_backup"]["agent_ids"] = ["backup.local"]
+    payload = await build_queue(sim, [BackupScheduleRecipe()])
+    (item,) = payload["items"]
+    assert item["decision"] == {
+        "type": "secret",
+        "field": "backup_password",
+        "write_only": True,
+    }
+    assert sim.writes == []
+
+
+@pytest.mark.asyncio
+async def test_pin_dependent_handlers_are_readiness_flagged(sim: SimHA):
+    """apple_tv / androidtv_remote / braviatv show a code ON the device —
+    the wizard must tell the person to be standing there (verifier gap B)."""
+    sim.state["flow_progress"] = [
+        {"flow_id": f, "handler": h, "context": {"source": "zeroconf"}}
+        for f, h in [
+            ("a", "apple_tv"),
+            ("b", "androidtv_remote"),
+            ("c", "braviatv"),
+            ("d", "heos"),
+        ]
+    ]
+    payload = await build_queue(sim, [])
+    flags = {i["handler"]: i["readiness"] for i in payload["items"]}
+    assert flags == {
+        "apple_tv": True,
+        "androidtv_remote": True,
+        "braviatv": True,
+        "heos": False,
+    }

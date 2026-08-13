@@ -35,6 +35,9 @@ READINESS_HANDLERS = {
     "homekit_controller": "HomeKit PIN entry from the device label",
     "matter": "Matter pairing code from the device label",
     "hacs": "GitHub device-code authorization in a browser",
+    "apple_tv": "PIN displayed on the Apple TV screen",
+    "androidtv_remote": "Pairing code displayed on the TV screen",
+    "braviatv": "PIN displayed on the TV screen",
 }
 
 
@@ -55,10 +58,16 @@ def _decision_for_audit_row(
             "options": area_names,
         }
     if outcome.name == "safety.backup_schedule":
-        if "encryption" in (outcome.check.summary or ""):
+        # Machine-readable discriminators, never the summary prose. The
+        # check's details carry both facts; no destination blocks first.
+        if not details.get("agent_ids"):
+            return {"type": "acknowledge", "action": "add_backup_location"}
+        if details.get("encryption_key_set") is False:
             # Write-only secret: accepted by the wizard, set via
             # backup/config/update, never persisted or echoed (TAP-5942).
             return {"type": "secret", "field": "backup_password", "write_only": True}
+        return {"type": "acknowledge"}
+    if outcome.name == "safety.first_backup":
         return {"type": "acknowledge", "action": "add_backup_location"}
     if outcome.name == "organization.scene_policy":
         return {
