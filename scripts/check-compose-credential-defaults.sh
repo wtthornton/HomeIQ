@@ -62,7 +62,7 @@ done < <({ grep -inE "$SHAPE_A" $files /dev/null
 # a baked value is a committed working credential. Same name-level contract:
 # print names and locations, never values. An interpolation value (`$...`)
 # is allowed; anything else non-empty on a credential-shaped name fails.
-env_files=$(git ls-files 'infrastructure/env.*' | grep -v '\.example$' || true)
+env_files=$(git ls-files 'infrastructure/env.*' || true)
 if [[ -n "$env_files" ]]; then
   while IFS=: read -r file ln content; do
     [[ -z "$file" ]] && continue
