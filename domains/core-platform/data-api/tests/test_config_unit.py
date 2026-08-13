@@ -304,16 +304,44 @@ class TestConfigManagerTemplate:
 class TestIsSensitiveKey:
     def test_token_is_sensitive(self):
         mgr = ConfigManager(config_dir=".")
-        assert mgr._is_sensitive_key("HA_TOKEN") is True
+        assert mgr._is_sensitive("HA_TOKEN") is True
 
     def test_api_key_is_sensitive(self):
         mgr = ConfigManager(config_dir=".")
-        assert mgr._is_sensitive_key("DATA_API_KEY") is True
+        assert mgr._is_sensitive("DATA_API_KEY") is True
 
     def test_password_is_sensitive(self):
         mgr = ConfigManager(config_dir=".")
-        assert mgr._is_sensitive_key("db_password") is True
+        assert mgr._is_sensitive("db_password") is True
 
     def test_url_is_not_sensitive(self):
         mgr = ConfigManager(config_dir=".")
-        assert mgr._is_sensitive_key("HA_URL") is False
+        assert mgr._is_sensitive("HA_URL") is False
+
+
+class TestEmbeddedValueCredentials:
+    """TAP-6007: a URL userinfo credential makes a VALUE sensitive
+    regardless of its key name — the key patterns alone let a DSN under an
+    innocent key (POSTGRES_URL) through in cleartext."""
+
+    def test_dsn_value_is_sensitive_under_an_innocent_key(self):
+        mgr = ConfigManager(config_dir=".")
+        assert mgr._is_sensitive("POSTGRES_URL", "postgresql://homeiq:livepw@db:5432/x") is True
+
+    def test_dsn_value_is_masked_on_sanitize(self):
+        mgr = ConfigManager(config_dir=".")
+        out = mgr.sanitize_config({"POSTGRES_URL": "postgresql://homeiq:livepw@db:5432/x"})
+        assert out["POSTGRES_URL"] == "********"
+        assert "livepw" not in str(out)
+
+    def test_dsn_write_is_rejected_when_secret_writes_disabled(self, tmp_path):
+        mgr = ConfigManager(config_dir=str(tmp_path))
+        mgr.allow_secret_writes = False
+        (tmp_path / ".env.svc").write_text("A=1\n")
+        with pytest.raises(PermissionError):
+            mgr.write_config("svc", {"DB_URL": "postgresql://u:pw@h:5432/d"})
+
+    def test_credential_free_url_is_not_sensitive(self):
+        mgr = ConfigManager(config_dir=".")
+        assert mgr._is_sensitive("HA_URL", "http://homeassistant:8123") is False
+        assert mgr._is_sensitive("BROKER", "mqtt://broker:1883") is False
