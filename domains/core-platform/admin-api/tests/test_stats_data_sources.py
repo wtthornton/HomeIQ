@@ -1,67 +1,62 @@
 """
 Unit tests for stats endpoint data source discovery
 Story 24.1: Fix Hardcoded Monitoring Metrics
+TAP-5994: the old code mocked a `query` method that never existed on the
+real client, so these tests passed while production returned [] forever.
+Mocks are now spec-locked to InfluxDBQueryClient and exercise the real
+`list_active_measurements` contract.
 """
 
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent / ".."))
 
+from homeiq_data.influxdb_query_client import InfluxDBQueryClient
 from homeiq_observability.monitoring import StatsEndpoints
+
+
+def _stats_with_client(**client_attrs) -> StatsEndpoints:
+    stats = StatsEndpoints()
+    stats.use_influxdb = True
+    # spec= pins the real client surface: a renamed/removed method makes
+    # these tests error instead of green-lighting a phantom call again.
+    client = AsyncMock(spec=InfluxDBQueryClient)
+    client.is_connected = True
+    for name, value in client_attrs.items():
+        setattr(client, name, value)
+    stats.influxdb_client = client
+    return stats
 
 
 @pytest.mark.asyncio
 async def test_get_active_data_sources_from_influxdb():
-    """Test that data sources are queried from InfluxDB instead of hardcoded"""
-    stats = StatsEndpoints()
-    stats.use_influxdb = True
+    """Data sources come from the client's real measurement listing."""
+    stats = _stats_with_client()
+    stats.influxdb_client.list_active_measurements.return_value = [
+        "home_assistant_events"
+    ]
 
-    # Mock InfluxDB client
-    mock_client = AsyncMock()
-    mock_client.is_connected = True
-    stats.influxdb_client = mock_client
-
-    # Mock query result
-    mock_record = MagicMock()
-    mock_record.values = {"_value": "home_assistant_events"}
-    mock_table = MagicMock()
-    mock_table.records = [mock_record]
-    mock_client.query = AsyncMock(return_value=[mock_table])
-
-    # Call the method
     result = await stats._get_active_data_sources()
 
-    # Verify InfluxDB was queried
-    mock_client.query.assert_called_once()
-    query = mock_client.query.call_args[0][0]
-    assert "schema.measurements" in query
-
-    # Verify result contains discovered measurements
-    assert len(result) > 0
-    assert "home_assistant_events" in result
+    stats.influxdb_client.list_active_measurements.assert_awaited_once()
+    assert result == ["home_assistant_events"]
 
 
 @pytest.mark.asyncio
 async def test_get_active_data_sources_influxdb_error():
-    """Test that errors in data source discovery are handled gracefully"""
-    stats = StatsEndpoints()
-    stats.use_influxdb = True
+    """Errors degrade to [] (with a warning), never hardcoded values."""
+    stats = _stats_with_client()
+    stats.influxdb_client.list_active_measurements.side_effect = Exception(
+        "Query failed"
+    )
 
-    # Mock InfluxDB client to raise error
-    mock_client = AsyncMock()
-    mock_client.is_connected = True
-    mock_client.query = AsyncMock(side_effect=Exception("Query failed"))
-    stats.influxdb_client = mock_client
-
-    # Call the method
     result = await stats._get_active_data_sources()
 
-    # Should return empty list on error, not hardcoded values
     assert result == []
     assert result != ["home_assistant", "weather_api", "sports_api"]
 
@@ -72,43 +67,24 @@ async def test_get_active_data_sources_influxdb_disconnected():
     stats = StatsEndpoints()
     stats.use_influxdb = False
 
-    # Call the method
     result = await stats._get_active_data_sources()
 
-    # Should return empty list when InfluxDB unavailable
     assert result == []
 
 
 @pytest.mark.asyncio
 async def test_get_active_data_sources_not_hardcoded():
     """Regression test: Ensure data sources are NOT hardcoded"""
-    stats = StatsEndpoints()
-    stats.use_influxdb = True
-
-    # Mock InfluxDB client with different measurements
-    mock_client = AsyncMock()
-    mock_client.is_connected = True
-
-    # Mock different measurements
-    mock_records = [
-        MagicMock(values={"_value": "sports_data"}),
-        MagicMock(values={"_value": "weather_data"}),
-        MagicMock(values={"_value": "energy_data"}),
+    stats = _stats_with_client()
+    stats.influxdb_client.list_active_measurements.return_value = [
+        "energy_data",
+        "sports_data",
+        "weather_data",
     ]
-    mock_table = MagicMock()
-    mock_table.records = mock_records
-    mock_client.query = AsyncMock(return_value=[mock_table])
-    stats.influxdb_client = mock_client
 
-    # Call the method
     result = await stats._get_active_data_sources()
 
-    # Should return discovered measurements, not hardcoded list
     assert result != ["home_assistant", "weather_api", "sports_api"]
     assert "sports_data" in result
     assert "weather_data" in result
     assert "energy_data" in result
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
