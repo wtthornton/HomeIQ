@@ -22,12 +22,33 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  actions: read # regression-checks job reads workflow states (TAP-5291)
 
 concurrency:
   group: quality-gate-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # TAP-5291: fail when either defect from the 2026-08-10 measurement
+  # regresses — forced-refresh flags becoming start-stack defaults again,
+  # or documented auto-trigger workflows disabled at the GitHub API level.
+  regression-checks:
+    name: Regression checks (TAP-5291)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: start-stack refresh flags are opt-in only
+        run: bash scripts/check-stack-refresh-optin.sh
+
+      - name: documented workflows are enabled at the API level
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/check-workflow-enablement.sh
+
   quality-gate:
     name: TAPPS Quality Gate
     runs-on: ubuntu-latest
