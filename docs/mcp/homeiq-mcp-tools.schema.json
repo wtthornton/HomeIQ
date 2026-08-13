@@ -1,6 +1,6 @@
 {
   "$comment": "HomeIQ MCP tool contract (TAP-5292). Machine-readable source of truth; docs/mcp/homeiq-mcp-tool-catalogue.md is the human view. TAP-5297 contract tests pin this file against the running server's list_tools output.",
-  "catalogue_version": "1.1.0",
+  "catalogue_version": "1.1.1",
   "tools": [
     {
       "name": "get_entity_history",
@@ -174,13 +174,17 @@
                   "type": [
                     "string",
                     "null"
-                  ]
+                  ],
+                  "description": "PROJECTED: upstream stores a state dict; the server extracts its 'state' key",
+                  "maxLength": 255
                 },
                 "new_state": {
                   "type": [
                     "string",
                     "null"
-                  ]
+                  ],
+                  "description": "PROJECTED: upstream stores a state dict; the server extracts its 'state' key",
+                  "maxLength": 255
                 }
               },
               "required": [
@@ -277,13 +281,17 @@
                   "type": [
                     "string",
                     "null"
-                  ]
+                  ],
+                  "description": "PROJECTED: upstream stores a state dict; the server extracts its 'state' key",
+                  "maxLength": 255
                 },
                 "new_state": {
                   "type": [
                     "string",
                     "null"
-                  ]
+                  ],
+                  "description": "PROJECTED: upstream stores a state dict; the server extracts its 'state' key",
+                  "maxLength": 255
                 }
               },
               "required": [
@@ -570,7 +578,8 @@
                 "type": "array",
                 "items": {
                   "type": "string"
-                }
+                },
+                "maxItems": 32
               }
             },
             "required": [
@@ -757,7 +766,8 @@
                   "type": "array",
                   "items": {
                     "type": "string"
-                  }
+                  },
+                  "maxItems": 30
                 }
               },
               "required": [
@@ -782,7 +792,7 @@
     },
     {
       "name": "get_entity_state",
-      "description": "Last OBSERVED state of one entity from the event store, with its timestamp. HomeIQ observes HA; this is the most recent recorded state change, not a live HA read \u2014 check 't' for staleness.",
+      "description": "Last OBSERVED state of one entity from the event store, with its timestamp. HomeIQ observes HA; this is the most recent recorded state change within the hours window (default 24), not a live HA read \u2014 check 't' for staleness.",
       "annotations": {
         "readOnlyHint": true
       },
@@ -796,6 +806,13 @@
             "minLength": 3,
             "maxLength": 255,
             "description": "HA entity id, e.g. light.office_go"
+          },
+          "hours": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8760,
+            "default": 24,
+            "description": "How far back to look for the newest event"
           }
         },
         "required": [
@@ -815,7 +832,7 @@
               "null"
             ],
             "maxLength": 255,
-            "description": "null when no event for this entity is stored in the window searched"
+            "description": "PROJECTED from the newest stored event's state dict ('state' key); null when no event for this entity exists within the hours window"
           },
           "t": {
             "type": [
@@ -1143,7 +1160,8 @@
                   "type": "array",
                   "items": {
                     "type": "string"
-                  }
+                  },
+                  "maxItems": 20
                 },
                 "area": {
                   "type": [

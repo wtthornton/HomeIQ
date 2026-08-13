@@ -5,7 +5,7 @@
 integration. Changing a shape here is a contract change: bump `catalogue_version`
 and update the contract tests (TAP-5297) in the same commit.
 
-**catalogue_version:** 1.1.0
+**catalogue_version:** 1.1.1
 
 **Normative schemas:** `docs/mcp/homeiq-mcp-tools.schema.json` — every tool's
 full JSON Schema (draft 2020-12, metaschema-validated) lives there; this
@@ -42,8 +42,12 @@ tools. On any divergence, the JSON file wins.
 | InfluxDB (via data-api only) | — | the MCP server never queries InfluxDB directly |
 
 Backing paths below are FULL mount paths (data-api mounts its Events, Energy
-and Automation-Analytics routers under `/api/v1` — `_app_setup.py:106-118`;
+and Automation-Analytics routers under `/api/v1` — `_app_setup.py:106-138`;
 decorator strings alone 404).
+
+State fields are PROJECTIONS: data-api stores `old_state`/`new_state` as
+dicts; the MCP server extracts the `state` key into the bounded strings these
+schemas declare (implementation note for TAP-5294).
 
 The MCP server is a thin schema-enforcing facade; it owns no data. The
 data-api HTTP surface keeps serving the health dashboard unchanged (epic
@@ -143,7 +147,7 @@ Areas with entity counts and domains present.
 Last OBSERVED state of one entity, with its timestamp.
 - **Backing:** data-api `GET /api/v1/events?entity_id=...&limit=1` (latest stored event)
 - **Annotations:** `readOnlyHint: true` · **Budget:** 4 KB
-- **Input:** `{entity_id: string (required)}`
+- **Input:** `{entity_id: string (required), hours: int 1..8760 = 24}`
 - **Output:** `{entity_id, state: string|null, t: date-time|null, source: "last_observed_event"}`
 - Note: HomeIQ observes HA through the event store — this is the most recent
   *recorded* state change, not a live HA read; agents must check `t` for
@@ -231,9 +235,9 @@ predicted device failures.
 | search_events / get_recent_events | 32 KB | 200 |
 | trace_automation | 16 KB | depth 10 |
 | list_devices | 48 KB | 300 |
-| get_device | 24 KB | — |
+| get_device | 24 KB | 500 entities |
 | list_entities | 48 KB | 500 |
-| list_areas | 8 KB | — |
+| list_areas | 8 KB | 100 areas |
 | get_entity_state | 4 KB | — |
 | get_automation_stats | 24 KB | 100 |
 | list_patterns / list_synergies | 32 KB | 100 / 50 |
