@@ -119,9 +119,6 @@ class DockerService:
             "data-api": "homeiq-data-api",
         }
 
-        # Project label for filtering containers
-        self.project_label = "com.docker.compose.project=homeiq"
-
     async def list_containers(self) -> list[ContainerInfo]:
         """
         List all project containers with their status
