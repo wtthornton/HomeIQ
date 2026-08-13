@@ -108,6 +108,8 @@ class SimWs:
             return True, self.state.get("zha_devices", [])
         if command_type == "config_entries/flow/progress":
             return True, self.state.get("flow_progress", [])
+        if command_type == "hacs/repositories/list":
+            return True, self.state.get("hacs_repositories", [])
         return False, None
 
     def _write(self, command_type: str, args: dict[str, Any]) -> Any:
@@ -134,6 +136,12 @@ class SimWs:
                     "title": args.get("title"),
                 }
             )
+            return None
+        if command_type == "hacs/repository/download":
+            # Mirror HACS: download flips installed; loading needs a restart.
+            for repo in self.state.get("hacs_repositories", []):
+                if str(repo.get("id")) == str(args.get("repository")):
+                    repo["installed"] = True
             return None
         if command_type == "backup/config/update":
             return self._backup_config_update(args)
@@ -295,11 +303,19 @@ class SimRest:
     ) -> dict[str, Any]:
         self.writes.append(f"flow_advance {flow_id}")
         self.state.setdefault("flow_inputs", []).append(dict(user_input))
-        step = dict(self.state.get("flow_next_step") or {"type": "create_entry"})
-        if step.get("type") == "create_entry" and user_input.get("name"):
-            # Mirror HA: the created entity_id derives from the name.
-            slug = re.sub(r"[^a-z0-9]+", "_", str(user_input["name"]).lower()).strip("_")
-            self.state["entities"].append({"entity_id": f"sensor.{slug}"})
+        queue = self.state.get("flow_steps")
+        if queue:
+            # Scripted multi-step flow: each advance pops the next step.
+            step = dict(queue.pop(0))
+        else:
+            step = dict(self.state.get("flow_next_step") or {"type": "create_entry"})
+            if step.get("type") == "create_entry" and user_input.get("name"):
+                # Mirror HA: the created entity_id derives from the name.
+                slug = re.sub(r"[^a-z0-9]+", "_", str(user_input["name"]).lower()).strip("_")
+                self.state["entities"].append({"entity_id": f"sensor.{slug}"})
+        for entity in step.pop("add_entities", []):
+            # Scripted side effect: entities the completing step materialises.
+            self.state["entities"].append(dict(entity))
         result = step.get("result")
         if step.get("type") == "create_entry" and isinstance(result, dict):
             # Mirror HA: a completed flow's entry becomes readable back.
@@ -338,6 +354,17 @@ class SimRest:
 
     async def get_config_entries(self) -> list[dict[str, Any]]:
         return await self.request("GET", "/api/config/config_entries/entry")
+
+    async def get_states(self) -> list[dict[str, Any]]:
+        return self.state.get("states", [])
+
+    async def check_config(self) -> dict[str, Any]:
+        return dict(self.state.get("check_config") or {"result": "valid"})
+
+    async def call_service(self, domain: str, service: str, **data: Any) -> Any:
+        self.writes.append(f"service {domain}.{service}")
+        self.state.setdefault("service_calls", []).append((domain, service, data))
+        return {}
 
     async def run_config_flow(self, domain: str, _steps: list[dict[str, Any]], **_c: Any) -> Any:
         self.writes.append(f"config_flow {domain}")
