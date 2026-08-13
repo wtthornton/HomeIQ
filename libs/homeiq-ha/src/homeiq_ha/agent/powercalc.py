@@ -96,15 +96,33 @@ class PowercalcRecipe(Recipe):
             and str(e.get("entity_id", "")).endswith("_power")
         ]
 
+    async def _reporting(self, ha: Any) -> tuple[list[str], list[str]]:
+        """Power sensors that exist, and the subset carrying a number.
+
+        A sensor for an unavailable light exists but reports nothing — it
+        satisfies no one (observed live 2026-08-13:
+        sensor.bottom_of_stairs_power stuck 'unavailable').
+        """
+        powered = await self._power_entities(ha)
+        states = {
+            s.get("entity_id"): s.get("state") for s in await ha.rest.get_states()
+        }
+        return powered, [eid for eid in powered if _is_number(states.get(eid))]
+
     async def check(self, ha: HAClient) -> CheckResult:
         entry = await self._loaded_entry(ha)
         if entry is not None:
-            powered = await self._power_entities(ha)
-            if powered:
+            powered, reporting = await self._reporting(ha)
+            if reporting:
                 return CheckResult(
                     CheckStatus.SATISFIED,
-                    f"Powercalc loaded with {len(powered)} power sensor(s)",
-                    {"entity_ids": powered},
+                    f"Powercalc loaded, {len(reporting)} power sensor(s) reporting",
+                    {"entity_ids": powered, "reporting": reporting},
+                )
+            if powered:
+                return CheckResult(
+                    CheckStatus.NEEDS_APPLY,
+                    f"power sensor(s) {powered} exist but none reports a number",
                 )
             return CheckResult(
                 CheckStatus.NEEDS_APPLY,
@@ -155,18 +173,19 @@ class PowercalcRecipe(Recipe):
             await self._restart(ha)
             changes.append(Change("restart", "homeassistant", after="restarted"))
 
-        if not await self._power_entities(ha):
+        _, reporting = await self._reporting(ha)
+        if not reporting:
             changes.extend(await self._ensure_power_sensor(ha))
 
-        powered = await self._power_entities(ha)
-        if not powered:
+        powered, reporting = await self._reporting(ha)
+        if not reporting:
             raise HAClientError(
-                "Powercalc applied but no powercalc-platform *_power sensor "
-                "exists in the entity registry — refusing to report success"
+                f"Powercalc applied but no power sensor reports a number "
+                f"(existing: {powered}) — refusing to report success"
             )
         return ApplyResult(
             tuple(changes),
-            f"Powercalc live with power sensor(s): {powered}",
+            f"Powercalc live with reporting power sensor(s): {reporting}",
         )
 
     async def _restart(self, ha: Any) -> None:
@@ -293,11 +312,8 @@ class PowercalcRecipe(Recipe):
         """Poll until any powercalc power sensor carries a numeric state."""
         deadline = asyncio.get_running_loop().time() + self.power_state_timeout
         while True:
-            powered = await self._power_entities(ha)
-            states = {
-                s.get("entity_id"): s.get("state") for s in await ha.rest.get_states()
-            }
-            if any(_is_number(states.get(eid)) for eid in powered):
+            _, reporting = await self._reporting(ha)
+            if reporting:
                 return True
             if asyncio.get_running_loop().time() > deadline:
                 return False
@@ -425,15 +441,9 @@ class PowercalcRecipe(Recipe):
         entry = await self._loaded_entry(ha)
         if entry is None:
             return VerifyResult(False, "no loaded Powercalc config entry")
-        powered = await self._power_entities(ha)
+        powered, reporting = await self._reporting(ha)
         if not powered:
             return VerifyResult(False, "Powercalc loaded but no power sensor")
-        states = {s.get("entity_id"): s.get("state") for s in await ha.rest.get_states()}
-        reporting = [
-            eid
-            for eid in powered
-            if _is_number(states.get(eid))
-        ]
         return VerifyResult(
             bool(reporting),
             f"power sensor(s) reporting a numeric state: {reporting}"

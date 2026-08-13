@@ -69,6 +69,22 @@ async def test_powercalc_check_distinguishes_download_from_flow(sim):
 
 
 @pytest.mark.asyncio
+async def test_powercalc_check_refuses_a_sensor_that_reports_nothing(sim):
+    sim.state["config_entries"].append(
+        {"entry_id": "pc1", "domain": "powercalc", "state": "loaded"}
+    )
+    sim.state["entities"].append(
+        {"entity_id": "sensor.dead_light_power", "platform": "powercalc"}
+    )
+    sim.state["states"] = [{"entity_id": "sensor.dead_light_power", "state": "unavailable"}]
+
+    result = await powercalc_recipe().check(sim)
+
+    assert result.status is CheckStatus.NEEDS_APPLY
+    assert "none reports a number" in result.summary
+
+
+@pytest.mark.asyncio
 async def test_powercalc_apply_downloads_restarts_and_confirms_discovery(sim):
     sim.state["states"] = list(POWER_OK)
     sim.state["hacs_repositories"] = [dict(POWERCALC_REPO)]
@@ -90,6 +106,7 @@ async def test_powercalc_apply_downloads_restarts_and_confirms_discovery(sim):
 
 @pytest.mark.asyncio
 async def test_powercalc_second_apply_reports_zero_changes(sim):
+    sim.state["states"] = list(POWER_OK)
     sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
     sim.state["config_entries"].append(
         {"entry_id": "pc1", "domain": "powercalc", "state": "loaded"}
