@@ -69,7 +69,10 @@
 
 <script>
 "use strict";
-const LS_KEY = "homeiq-setup-answers"; // secrets are deliberately never put here
+// v2: state.areas keys changed from display names to registry ids — the
+// version bump retires stale name-keyed saves from pre-fix visits.
+// Secrets are deliberately never put here.
+const LS_KEY = "homeiq-setup-answers-v2";
 const state = { areas: {}, addons: {}, triage: {}, teams: [], scenes: {} };
 
 function loadSaved() {

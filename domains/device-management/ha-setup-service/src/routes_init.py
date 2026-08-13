@@ -55,6 +55,12 @@ init_router = APIRouter(prefix="/api/v1/init", tags=["init-agent"])
 
 #: State-changing endpoints hang off this router instead, so every POST
 #: carries the same-origin guard without repeating it per route.
+#:
+#: Deliberate deferral (Wave 7 panel): these POSTs carry no API-key auth.
+#: The guard closes the browser drive-by vector; a LAN host with curl can
+#: still call them, matching the wizard's trust model (the page itself is
+#: served unauthenticated on this LAN port and would otherwise need key
+#: distribution). Revisit alongside the auth.py key gate if that changes.
 write_router = APIRouter(
     prefix="/api/v1/init",
     tags=["init-agent"],
