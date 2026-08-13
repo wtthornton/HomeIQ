@@ -944,6 +944,29 @@ manifest:
       entities:
       - sensor.garage_hue_outdoor_motion_sensor_2_illuminance
     reason: Lux coverage (TAP-5976).
+  - kind: template
+    slug: total_power
+    name: Total Power
+    config:
+      menu: sensor
+      state: >-
+        {{ expand('sensor.bottom_of_stairs_power', 'sensor.living_room_left_play_power')
+           | map(attribute='state') | map('float', 0) | sum | round(2) }}
+      unit_of_measurement: W
+      device_class: power
+      state_class: measurement
+    reason: Alias for the entity id smart-meter-service probes (home_assistant.py:106-133);
+      sums the Powercalc per-light power sensors, unavailable members read 0. Extend the
+      list as triage confirms more Powercalc discoveries (TAP-5431).
+  - kind: utility_meter
+    slug: daily_energy
+    name: Daily Energy
+    config:
+      source: sensor.living_room_left_play_energy
+      cycle: daily
+    reason: Alias with honest daily-reset semantics for the id smart-meter-service probes;
+      a raw template mirror of Powercalc's monotonic total would inflate daily readings
+      (TAP-5431).
   not_applicable:
   - scope: device
     id: c4bd115486107572aa9ec60d5e4a5b65

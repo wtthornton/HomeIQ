@@ -40,6 +40,11 @@ class ManifestHelpersRecipe(Recipe):
     #: Handlers whose flows open with a type-selection menu.
     _MENU_FIRST = frozenset({"group", "template"})
 
+    #: Handlers whose created entity lands in a different domain than the
+    #: flow handler (a utility_meter entry creates sensor.<slug>, so keying
+    #: existence on utility_meter.<slug> would re-create it every converge).
+    _CREATED_DOMAIN = {"utility_meter": "sensor"}
+
     def __init__(self, manifest: OrganizationManifest) -> None:
         self.manifest = manifest
 
@@ -61,7 +66,7 @@ class ManifestHelpersRecipe(Recipe):
         # sensor creates sensor.<slug>, etc.
         if helper.kind in ManifestHelpersRecipe._MENU_FIRST:
             return ManifestHelpersRecipe._menu_choice(helper) or helper.kind
-        return helper.kind
+        return ManifestHelpersRecipe._CREATED_DOMAIN.get(helper.kind, helper.kind)
 
     async def _missing(self, ha: Any) -> list[Any]:
         entities = await ha.ws.send_command("config/entity_registry/list")
