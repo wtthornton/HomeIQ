@@ -17,11 +17,14 @@ REDACTED = "***REDACTED***"
 _SECRET_KEYS = frozenset(
     {
         "access_token",
+        "api_key",
         "api_password",
         "client_secret",
         "encryption_key",
+        "network_key",
         "password",
         "refresh_token",
+        "secret",
         "token",
     }
 )

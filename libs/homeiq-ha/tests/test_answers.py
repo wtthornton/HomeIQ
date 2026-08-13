@@ -40,36 +40,6 @@ def manifest_path(tmp_path):
     return path
 
 
-def test_merge_appends_rows_and_preserves_every_other_byte(manifest_path):
-    before = manifest_path.read_text()
-    added = merge_device_areas_into_manifest(
-        manifest_path, [("dev1", "Guest Room"), ("dev2", "Office")], reason="wizard submission 2026-08-13"
-    )
-    assert added == {"areas_added": ["guest_room"], "device_areas_added": ["dev1", "dev2"]}
-
-    manifest = load_manifest(manifest_path)
-    assert {a.area_id for a in manifest.areas} == {"office", "guest_room"}
-    rows = {d.device_id: d for d in manifest.device_areas}
-    assert rows["dev1"].area_id == "guest_room"
-    assert rows["dev1"].reason == "wizard submission 2026-08-13"
-    assert rows["dev2"].area_id == "office"
-
-    after = manifest_path.read_text()
-    # Everything that existed before is still there, byte-for-byte, in order.
-    for line in before.splitlines():
-        assert line in after
-    assert "# a leading comment that surgery must never disturb" in after
-    assert after.endswith("design_notes: 'trailing key that marks the end of the manifest mapping'\n")
-
-
-def test_merge_is_idempotent_byte_identical(manifest_path):
-    merge_device_areas_into_manifest(manifest_path, [("dev1", "Guest Room")], reason="r")
-    first = manifest_path.read_text()
-    added = merge_device_areas_into_manifest(manifest_path, [("dev1", "Guest Room")], reason="r")
-    assert added == {"areas_added": [], "device_areas_added": []}
-    assert manifest_path.read_text() == first
-
-
 @pytest.mark.asyncio
 async def test_apply_answers_converges_and_verifies_by_read_back(sim: SimHA, manifest_path):
     from homeiq_ha.agent.device_areas import ManifestDeviceAreasRecipe
@@ -152,3 +122,62 @@ async def test_addon_options_land_and_addon_starts(sim: SimHA, manifest_path):
     assert by_id["addon:otbr"]["status"] == "converged"
     assert sim.state["addon_info"]["otbr"]["options"]["device"] == "/dev/ttyUSB0"
     assert next(a["state"] for a in sim.state["addons"] if a["slug"] == "otbr") == "started"
+
+
+@pytest.mark.asyncio
+async def test_unwritable_manifest_is_a_typed_item_not_a_500(sim: SimHA, manifest_path):
+    manifest_path.chmod(0o444)
+    manifest_path.parent.chmod(0o555)
+    try:
+        result = await apply_answers(
+            sim, Answers(device_areas=(("devNew", "Den"),)), list, manifest_path=manifest_path
+        )
+    finally:
+        manifest_path.parent.chmod(0o755)
+        manifest_path.chmod(0o644)
+    item = next(i for i in result["items"] if i["id"] == "manifest")
+    assert item["status"] == "failed"
+    assert "Error" in item["evidence"]["error"]
+
+
+@pytest.mark.asyncio
+async def test_team_flow_first_step_create_entry_never_advances(sim: SimHA, manifest_path):
+    """Verifier finding: a flow whose FIRST step is create_entry was being
+    advanced anyway. Now it verifies by entity read-back and never advances;
+    with no marker entity visible the item honestly reports failed."""
+    sim.state["flow_first_step"] = {"type": "create_entry", "title": "VGK"}
+    result = await apply_answers(
+        sim, Answers(teams=({"team_id": "VGK"},)), list, manifest_path=manifest_path
+    )
+    item = next(i for i in result["items"] if i["id"] == "team:vgk")
+    assert item["status"] == "failed"
+    assert "flow_inputs" not in sim.state, "no advance on an already-created entry"
+
+
+@pytest.mark.asyncio
+async def test_team_flow_first_step_abort_is_a_typed_failure(sim: SimHA, manifest_path):
+    sim.state["flow_first_step"] = {"type": "abort", "reason": "single_instance_allowed"}
+    result = await apply_answers(
+        sim, Answers(teams=({"team_id": "VGK"},)), list, manifest_path=manifest_path
+    )
+    item = next(i for i in result["items"] if i["id"] == "team:vgk")
+    assert item["status"] == "failed"
+    assert "single_instance_allowed" in item["evidence"]["error"]
+    assert "flow_inputs" not in sim.state
+
+
+@pytest.mark.asyncio
+async def test_team_entity_matching_is_anchored(sim: SimHA, manifest_path):
+    """'la' must not match team_tracker_lakers (verifier finding)."""
+    sim.state["entities"].append({"entity_id": "sensor.team_tracker_lakers"})
+    sim.state["flow_first_step"] = {
+        "type": "form", "flow_id": "t2",
+        "data_schema": [{"name": "team_id"}, {"name": "name"}],
+    }
+    result = await apply_answers(
+        sim, Answers(teams=({"team_id": "LA"},)), list, manifest_path=manifest_path
+    )
+    item = next(i for i in result["items"] if i["id"] == "team:la")
+    # The lakers entity did NOT short-circuit it; the flow ran and made team_tracker_la.
+    assert item["status"] == "converged"
+    assert item["evidence"]["entity_ids"] == ["sensor.team_tracker_la"]

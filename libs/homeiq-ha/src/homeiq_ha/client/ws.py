@@ -53,6 +53,18 @@ DEFAULT_MAX_RECONNECT_ATTEMPTS = 10
 EventHandler = Callable[[dict[str, Any]], Awaitable[None]]
 
 
+def _frame_logger() -> logging.Logger:
+    """The websockets library's frame logger, pinned above DEBUG.
+
+    Raw frames contain unredacted secrets (the backup encryption key rides
+    ``backup/config/info`` responses in plaintext); homeiq's own send-path
+    logging goes through :func:`~homeiq_ha.client.redaction.redact` instead.
+    """
+    frame_logger = logging.getLogger("homeiq_ha.client.ws.frames")
+    frame_logger.setLevel(logging.INFO)
+    return frame_logger
+
+
 def _is_log_endpoint(endpoint: str) -> bool:
     """Supervisor endpoints that return plain journald text, not JSON.
 
@@ -137,6 +149,10 @@ class HAWebSocketClient:
             ping_timeout=10,
             close_timeout=10,
             max_size=None,  # entity registry listings exceed the 1 MiB default
+            # The library's own DEBUG frame logging ("< %s") would bypass
+            # redact() and print raw frames — backup/config/info carries the
+            # encryption key in plaintext. Pin its logger above DEBUG.
+            logger=_frame_logger(),
         )
 
         greeting = json.loads(await self._ws.recv())

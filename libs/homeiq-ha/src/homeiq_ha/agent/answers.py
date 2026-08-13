@@ -28,19 +28,24 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from .backup import backup_taker
 from .engine import HAInitAgent
-from .manifest import DEFAULT_MANIFEST_PATH, load_manifest
+from .manifest import DEFAULT_MANIFEST_PATH
+from .manifest_edit import merge_device_areas_into_manifest
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
+    from pathlib import Path
 
     from homeiq_ha.client import HAClient
 
     from .recipe import Recipe
+
+def _slugify(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
+
 
 #: Substring sports-api filters on; wizard-created team sensors must carry it.
 TEAM_MARKER = "team_tracker"
@@ -54,77 +59,6 @@ class Answers:
     addon_options: tuple[tuple[str, dict[str, Any]], ...] = ()  # (slug, options)
     teams: tuple[dict[str, str], ...] = ()  # flow-field values per team
     backup_password: str | None = None
-
-
-def _slugify(name: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
-
-
-def _append_block_list_rows(text: str, section: str, rows: list[str]) -> str:
-    """Insert formatted rows at the end of one 2-space-indented block list.
-
-    Locates ``  <section>:`` under ``manifest:`` and inserts before the next
-    sibling key (or top-level key), leaving every other byte — comments,
-    provenance, formatting — untouched.
-    """
-    lines = text.splitlines(keepends=True)
-    start = next(
-        (i for i, line in enumerate(lines) if line.rstrip("\n") == f"  {section}:"),
-        None,
-    )
-    if start is None:
-        raise ValueError(f"manifest has no '  {section}:' section to extend")
-    end = len(lines)
-    for i in range(start + 1, len(lines)):
-        stripped = lines[i].rstrip("\n")
-        # Next sibling ('  key:') or top-level ('key:') line ends the section;
-        # list items ('  - ') and their continuations are deeper-indented.
-        if stripped and not stripped.startswith(("  -", "    ", "#", "  #")):
-            end = i
-            break
-    return "".join(lines[:end]) + "".join(rows) + "".join(lines[end:])
-
-
-def merge_device_areas_into_manifest(
-    path: str | Path, device_areas: Sequence[tuple[str, str]], *, reason: str
-) -> dict[str, Any]:
-    """Append wizard-chosen areas + device_areas rows; skip rows already present.
-
-    Returns what was added so the caller can report it. Zero additions leaves
-    the file byte-identical (idempotency).
-    """
-    path = Path(path)
-    manifest = load_manifest(path)
-    known_areas = {a.area_id for a in manifest.areas}
-    known_devices = {d.device_id for d in manifest.device_areas}
-
-    new_area_rows: list[str] = []
-    new_device_rows: list[str] = []
-    added_areas: list[str] = []
-    added_devices: list[str] = []
-    for device_id, area_name in device_areas:
-        area_id = _slugify(area_name)
-        if area_id not in known_areas:
-            known_areas.add(area_id)
-            added_areas.append(area_id)
-            new_area_rows.append(f"  - area_id: {area_id}\n    name: {area_name}\n")
-        if device_id not in known_devices:
-            known_devices.add(device_id)
-            added_devices.append(device_id)
-            new_device_rows.append(
-                f"  - device_id: {device_id}\n"
-                f"    area_id: {area_id}\n"
-                f"    reason: {reason}\n"
-            )
-
-    if new_area_rows or new_device_rows:
-        text = path.read_text()
-        if new_area_rows:
-            text = _append_block_list_rows(text, "areas", new_area_rows)
-        if new_device_rows:
-            text = _append_block_list_rows(text, "device_areas", new_device_rows)
-        path.write_text(text)
-    return {"areas_added": added_areas, "device_areas_added": added_devices}
 
 
 @dataclass
@@ -171,12 +105,10 @@ async def _apply_addon_options(ha: HAClient, slug: str, options: dict[str, Any])
 
 
 async def _team_entities(ha: HAClient, team_slug: str) -> list[str]:
+    # Anchored: 'la' must not match team_tracker_lakers (verifier finding).
+    pattern = re.compile(rf"{TEAM_MARKER}_{re.escape(team_slug)}(?![a-z0-9])")
     entities = await ha.ws.send_command("config/entity_registry/list") or []
-    return [
-        e["entity_id"]
-        for e in entities
-        if TEAM_MARKER in e.get("entity_id", "") and team_slug in e.get("entity_id", "")
-    ]
+    return [e["entity_id"] for e in entities if pattern.search(e.get("entity_id", ""))]
 
 
 async def _drive_team_flow(ha: HAClient, team: dict[str, str]) -> _Item:
@@ -188,6 +120,12 @@ async def _drive_team_flow(ha: HAClient, team: dict[str, str]) -> _Item:
         return _Item(item_id, "skipped", {"entity_ids": existing})
 
     step = await ha.rest.start_config_flow("teamtracker")
+    first_kind = ha.rest.classify_flow_step(step)
+    if first_kind == "abort":
+        return _Item(item_id, "failed", {"error": f"flow aborted: {step.get('reason')}"})
+    if first_kind == "create_entry":
+        verified = await _team_entities(ha, team_slug)
+        return _Item(item_id, "converged" if verified else "failed", {"entity_ids": verified})
     flow_id = step.get("flow_id")
     schema_fields = {str(f.get("name")) for f in step.get("data_schema") or []}
     # Fill only fields the flow itself declares — never assume the schema.
@@ -229,16 +167,22 @@ async def apply_answers(
     items: list[_Item] = []
 
     reason = f"wizard submission {datetime.now(UTC).date().isoformat()}"
-    merged = merge_device_areas_into_manifest(
-        manifest_path, answers.device_areas, reason=reason
-    )
-    items.append(
-        _Item(
-            "manifest",
-            "converged" if (merged["areas_added"] or merged["device_areas_added"]) else "skipped",
-            merged,
+    try:
+        merged = merge_device_areas_into_manifest(
+            manifest_path, answers.device_areas, reason=reason
         )
-    )
+        items.append(
+            _Item(
+                "manifest",
+                "converged"
+                if (merged["areas_added"] or merged["device_areas_added"])
+                else "skipped",
+                merged,
+            )
+        )
+    except OSError as exc:
+        # An unwritable mount must be a diagnosable item, never a 500.
+        items.append(_Item("manifest", "failed", {"error": f"{type(exc).__name__}: {exc}"}))
 
     if answers.backup_password:
         items.append(await _set_backup_password(ha, answers.backup_password))
@@ -275,6 +219,10 @@ async def apply_answers(
             "wrote_nothing": report.wrote_nothing,
             "halted_reason": report.halted_reason,
             "blocked_on_human": report.blocked_on_human,
+            "outcomes": [
+                {"name": o.name, "status": o.check.status.value, "error": o.error}
+                for o in report.outcomes
+            ],
         },
     }
 
@@ -284,4 +232,4 @@ __all__ = [
     "Answers",
     "apply_answers",
     "merge_device_areas_into_manifest",
-]
+]  # merge re-exported from .manifest_edit for callers

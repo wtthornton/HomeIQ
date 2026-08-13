@@ -8,9 +8,11 @@ them over HTTP and serializes the report.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
 from homeiq_ha.agent import HAInitAgent
 from homeiq_ha.agent.answers import Answers, apply_answers
 from homeiq_ha.agent.backup import backup_taker
@@ -25,6 +27,17 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 init_router = APIRouter(prefix="/api/v1/init", tags=["init-agent"])
+
+#: The LAN wizard page (TAP-5944) lives outside the API prefix at /setup.
+page_router = APIRouter(tags=["init-agent"])
+
+_WIZARD_PAGE = Path(__file__).parent / "static" / "setup_wizard.html"
+
+
+@page_router.get("/setup", include_in_schema=False)
+async def setup_page() -> FileResponse:
+    """The setup wizard: one self-contained page, no external assets."""
+    return FileResponse(_WIZARD_PAGE, media_type="text/html")
 
 
 class ConvergeRequest(BaseModel):
