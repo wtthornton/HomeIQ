@@ -1,0 +1,453 @@
+{
+  "$comment": "HomeIQ MCP tool contract (TAP-5292). Machine-readable source of truth; docs/mcp/homeiq-mcp-tool-catalogue.md is the human view. TAP-5297 contract tests pin this file against the running server's list_tools output.",
+  "catalogue_version": "1.0.0",
+  "tools": [
+    {
+      "name": "get_entity_history",
+      "description": "Entity state history over a bounded window, optionally downsampled to N-minute mean buckets.",
+      "annotations": {"readOnlyHint": true},
+      "max_response_bytes": 65536,
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "entity_id": {"type": "string", "minLength": 3, "maxLength": 255},
+          "hours": {"type": "integer", "minimum": 1, "maximum": 720, "default": 24},
+          "start_time": {"type": "string", "format": "date-time"},
+          "end_time": {"type": "string", "format": "date-time"},
+          "downsample_minutes": {"type": "integer", "minimum": 0, "maximum": 1440, "default": 0},
+          "limit": {"type": "integer", "minimum": 1, "maximum": 1000, "default": 500}
+        },
+        "required": ["entity_id"]
+      },
+      "output_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "entity_id": {"type": "string"},
+          "points": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+            "properties": {"t": {"type": "string", "format": "date-time"}, "state": {"type": "string"}, "value": {"type": ["number", "null"]}},
+            "required": ["t", "state"]}},
+          "count": {"type": "integer", "minimum": 0},
+          "truncated": {"type": "boolean"},
+          "hint": {"type": "string"}
+        },
+        "required": ["entity_id", "points", "count", "truncated"]
+      }
+    },
+    {
+      "name": "search_events",
+      "description": "Text search over stored Home Assistant events by entity id and event type.",
+      "annotations": {"readOnlyHint": true},
+      "max_response_bytes": 32768,
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "query": {"type": "string", "minLength": 1, "maxLength": 200},
+          "hours": {"type": "integer", "minimum": 1, "maximum": 8760, "default": 24},
+          "limit": {"type": "integer", "minimum": 1, "maximum": 200, "default": 50}
+        },
+        "required": ["query"]
+      },
+      "output_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "events": {"type": "array", "items": {"$ref": "#/$defs/event_row"}},
+          "count": {"type": "integer", "minimum": 0},
+          "truncated": {"type": "boolean"}
+        },
+        "required": ["events", "count", "truncated"]
+      }
+    },
+    {
+      "name": "get_recent_events",
+      "description": "Recent Home Assistant events filtered by entity, type, device, area, and window.",
+      "annotations": {"readOnlyHint": true},
+      "max_response_bytes": 32768,
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "entity_id": {"type": "string"},
+          "event_type": {"type": "string"},
+          "device_id": {"type": "string"},
+          "area_id": {"type": "string"},
+          "hours": {"type": "integer", "minimum": 1, "maximum": 168, "default": 1},
+          "limit": {"type": "integer", "minimum": 1, "maximum": 200, "default": 50},
+          "offset": {"type": "integer", "minimum": 0, "default": 0}
+        }
+      },
+      "output_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "events": {"type": "array", "items": {"$ref": "#/$defs/event_row"}},
+          "count": {"type": "integer", "minimum": 0},
+          "offset": {"type": "integer", "minimum": 0},
+          "truncated": {"type": "boolean"}
+        },
+        "required": ["events", "count", "truncated"]
+      }
+    },
+    {
+      "name": "trace_automation",
+      "description": "Follow an event context-id chain to see what triggered what.",
+      "annotations": {"readOnlyHint": true},
+      "max_response_bytes": 16384,
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "context_id": {"type": "string", "minLength": 1, "maxLength": 64},
+          "max_depth": {"type": "integer", "minimum": 1, "maximum": 10, "default": 5}
+        },
+        "required": ["context_id"]
+      },
+      "output_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "chain": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+            "properties": {"depth": {"type": "integer"}, "context_id": {"type": "string"}, "t": {"type": "string", "format": "date-time"}, "entity_id": {"type": "string"}, "event_type": {"type": "string"}, "state": {"type": "string"}},
+            "required": ["depth", "context_id", "t", "entity_id", "event_type"]}},
+          "count": {"type": "integer", "minimum": 0},
+          "truncated": {"type": "boolean"}
+        },
+        "required": ["chain", "count", "truncated"]
+      }
+    },
+    {
+      "name": "list_devices",
+      "description": "Device inventory with filters; summary rows only.",
+      "annotations": {"readOnlyHint": true},
+      "max_response_bytes": 49152,
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "manufacturer": {"type": "string"},
+          "model": {"type": "string"},
+          "area_id": {"type": "string"},
+          "platform": {"type": "string"},
+          "device_category": {"type": "string"},
+          "limit": {"type": "integer", "minimum": 1, "maximum": 300, "default": 100}
+        }
+      },
+      "output_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "devices": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+            "properties": {"device_id": {"type": "string"}, "name": {"type": "string"}, "manufacturer": {"type": ["string", "null"]}, "model": {"type": ["string", "null"]}, "area_id": {"type": ["string", "null"]}, "integration": {"type": ["string", "null"]}, "entity_count": {"type": "integer"}},
+            "required": ["device_id", "name", "entity_count"]}},
+          "count": {"type": "integer", "minimum": 0},
+          "truncated": {"type": "boolean"}
+        },
+        "required": ["devices", "count", "truncated"]
+      }
+    },
+    {
+      "name": "get_device",
+      "description": "One device in full: metadata, entities, labels.",
+      "annotations": {"readOnlyHint": true},
+      "max_response_bytes": 24576,
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {"device_id": {"type": "string", "minLength": 1}},
+        "required": ["device_id"]
+      },
+      "output_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "device": {"type": "object", "additionalProperties": false,
+            "properties": {"device_id": {"type": "string"}, "name": {"type": "string"}, "manufacturer": {"type": ["string", "null"]}, "model": {"type": ["string", "null"]}, "sw_version": {"type": ["string", "null"]}, "area_id": {"type": ["string", "null"]}, "integration": {"type": ["string", "null"]}, "labels": {"type": "array", "items": {"type": "string"}}},
+            "required": ["device_id", "name"]},
+          "entities": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+            "properties": {"entity_id": {"type": "string"}, "domain": {"type": "string"}, "device_class": {"type": ["string", "null"]}, "disabled": {"type": "boolean"}},
+            "required": ["entity_id", "domain", "disabled"]}},
+          "entity_count": {"type": "integer", "minimum": 0}
+        },
+        "required": ["device", "entities", "entity_count"]
+      }
+    },
+    {
+      "name": "list_entities",
+      "description": "Entity registry with filters (domain, area, device, label).",
+      "annotations": {"readOnlyHint": true},
+      "max_response_bytes": 49152,
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "domain": {"type": "string"},
+          "area_id": {"type": "string"},
+          "device_id": {"type": "string"},
+          "label": {"type": "string"},
+          "limit": {"type": "integer", "minimum": 1, "maximum": 500, "default": 200}
+        }
+      },
+      "output_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "entities": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+            "properties": {"entity_id": {"type": "string"}, "domain": {"type": "string"}, "device_id": {"type": ["string", "null"]}, "area_id": {"type": ["string", "null"]}, "friendly_name": {"type": ["string", "null"]}, "device_class": {"type": ["string", "null"]}, "disabled": {"type": "boolean"}},
+            "required": ["entity_id", "domain", "disabled"]}},
+          "count": {"type": "integer", "minimum": 0},
+          "truncated": {"type": "boolean"}
+        },
+        "required": ["entities", "count", "truncated"]
+      }
+    },
+    {
+      "name": "list_areas",
+      "description": "Areas with entity counts and the domains present in each.",
+      "annotations": {"readOnlyHint": true},
+      "max_response_bytes": 8192,
+      "input_schema": {"type": "object", "additionalProperties": false, "properties": {}},
+      "output_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "areas": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+            "properties": {"area_id": {"type": "string"}, "name": {"type": "string"}, "entity_count": {"type": "integer"}, "domains": {"type": "array", "items": {"type": "string"}}},
+            "required": ["area_id", "name", "entity_count", "domains"]}},
+          "count": {"type": "integer", "minimum": 0}
+        },
+        "required": ["areas", "count"]
+      }
+    },
+    {
+      "name": "get_automation_stats",
+      "description": "Automation execution analytics: overview, per-automation detail, or problem lists.",
+      "annotations": {"readOnlyHint": true},
+      "max_response_bytes": 24576,
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "automation_id": {"type": "string"},
+          "view": {"type": "string", "enum": ["overview", "list", "errors", "slow", "inactive"], "default": "overview"},
+          "limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 25}
+        }
+      },
+      "output_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "view": {"type": "string"},
+          "overview": {"type": "object", "additionalProperties": false,
+            "properties": {"total_automations": {"type": "integer"}, "total_executions": {"type": "integer"}, "error_rate_percent": {"type": "number"}, "avg_success_rate": {"type": "number"}},
+            "required": ["total_automations", "total_executions"]},
+          "automations": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+            "properties": {"automation_id": {"type": "string"}, "alias": {"type": ["string", "null"]}, "enabled": {"type": "boolean"}, "total_executions": {"type": "integer"}, "success_rate": {"type": ["number", "null"]}, "avg_duration_seconds": {"type": ["number", "null"]}, "total_errors": {"type": "integer"}, "last_triggered": {"type": ["string", "null"], "format": "date-time"}},
+            "required": ["automation_id", "enabled", "total_executions", "total_errors"]}},
+          "count": {"type": "integer", "minimum": 0},
+          "truncated": {"type": "boolean"}
+        },
+        "required": ["view", "truncated"]
+      }
+    },
+    {
+      "name": "list_patterns",
+      "description": "Detected behavioral patterns with confidence filters and a stats rollup.",
+      "annotations": {"readOnlyHint": true},
+      "max_response_bytes": 32768,
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "pattern_type": {"type": "string"},
+          "device_id": {"type": "string"},
+          "min_confidence": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.5},
+          "limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 50}
+        }
+      },
+      "output_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "patterns": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+            "properties": {"id": {"type": "integer"}, "pattern_type": {"type": "string"}, "device_id": {"type": ["string", "null"]}, "confidence": {"type": "number"}, "occurrences": {"type": "integer"}, "summary": {"type": "string"}},
+            "required": ["id", "pattern_type", "confidence", "occurrences", "summary"]}},
+          "stats": {"type": "object", "additionalProperties": false,
+            "properties": {"total_patterns": {"type": "integer"}, "by_type": {"type": "object"}, "avg_confidence": {"type": "number"}, "unique_devices": {"type": "integer"}},
+            "required": ["total_patterns", "avg_confidence"]},
+          "count": {"type": "integer", "minimum": 0},
+          "truncated": {"type": "boolean"}
+        },
+        "required": ["patterns", "stats", "count", "truncated"]
+      }
+    },
+    {
+      "name": "list_synergies",
+      "description": "Cross-device automation opportunities from rule-based graph analysis.",
+      "annotations": {"readOnlyHint": true},
+      "max_response_bytes": 32768,
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "synergy_type": {"type": "string"},
+          "min_confidence": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.5},
+          "area": {"type": "string"},
+          "limit": {"type": "integer", "minimum": 1, "maximum": 50, "default": 20}
+        }
+      },
+      "output_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "synergies": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+            "properties": {"synergy_id": {"type": "string"}, "synergy_type": {"type": "string"}, "devices": {"type": "array", "items": {"type": "string"}}, "area": {"type": ["string", "null"]}, "impact_score": {"type": "number"}, "confidence": {"type": "number"}, "complexity": {"type": ["string", "integer"]}, "explanation": {"type": "string"}},
+            "required": ["synergy_id", "synergy_type", "devices", "impact_score", "confidence"]}},
+          "stats": {"type": "object", "additionalProperties": false,
+            "properties": {"total_synergies": {"type": "integer"}, "avg_impact_score": {"type": "number"}, "avg_confidence": {"type": "number"}},
+            "required": ["total_synergies"]},
+          "count": {"type": "integer", "minimum": 0},
+          "truncated": {"type": "boolean"}
+        },
+        "required": ["synergies", "stats", "count", "truncated"]
+      }
+    },
+    {
+      "name": "get_energy_summary",
+      "description": "Whole-home energy snapshot: current power, daily kWh, peak, top consumers, carbon.",
+      "annotations": {"readOnlyHint": true},
+      "max_response_bytes": 16384,
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {"top_n": {"type": "integer", "minimum": 1, "maximum": 20, "default": 10}}
+      },
+      "output_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "current_power_w": {"type": ["number", "null"]},
+          "daily_kwh": {"type": ["number", "null"]},
+          "peak_power_w": {"type": ["number", "null"]},
+          "peak_time": {"type": ["string", "null"], "format": "date-time"},
+          "average_power_w": {"type": ["number", "null"]},
+          "top_consumers": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+            "properties": {"entity_id": {"type": "string"}, "average_power_on_w": {"type": ["number", "null"]}, "estimated_daily_kwh": {"type": ["number", "null"]}},
+            "required": ["entity_id"]}},
+          "carbon": {"type": ["object", "null"], "additionalProperties": false,
+            "properties": {"grams_per_kwh": {"type": "number"}, "source": {"type": "string"}},
+            "required": ["grams_per_kwh"]}
+        },
+        "required": ["current_power_w", "daily_kwh", "top_consumers"]
+      }
+    },
+    {
+      "name": "get_energy_correlations",
+      "description": "State-change to power-delta correlations computed by the energy pipeline.",
+      "annotations": {"readOnlyHint": true},
+      "max_response_bytes": 32768,
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "entity_id": {"type": "string"},
+          "domain": {"type": "string"},
+          "hours": {"type": "integer", "minimum": 1, "maximum": 168, "default": 24},
+          "min_delta_w": {"type": "number", "minimum": 0, "default": 5},
+          "limit": {"type": "integer", "minimum": 1, "maximum": 200, "default": 100}
+        }
+      },
+      "output_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "correlations": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+            "properties": {"t": {"type": "string", "format": "date-time"}, "entity_id": {"type": "string"}, "domain": {"type": "string"}, "state": {"type": "string"}, "previous_state": {"type": ["string", "null"]}, "power_delta_w": {"type": "number"}, "power_delta_pct": {"type": ["number", "null"]}},
+            "required": ["t", "entity_id", "domain", "state", "power_delta_w"]}},
+          "count": {"type": "integer", "minimum": 0},
+          "truncated": {"type": "boolean"}
+        },
+        "required": ["correlations", "count", "truncated"]
+      }
+    },
+    {
+      "name": "get_device_energy_impact",
+      "description": "Per-device consumption estimate derived from energy correlations.",
+      "annotations": {"readOnlyHint": true},
+      "max_response_bytes": 4096,
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {"entity_id": {"type": "string", "minLength": 3}},
+        "required": ["entity_id"]
+      },
+      "output_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "entity_id": {"type": "string"},
+          "domain": {"type": "string"},
+          "average_power_on_w": {"type": ["number", "null"]},
+          "average_power_off_w": {"type": ["number", "null"]},
+          "total_state_changes": {"type": "integer", "minimum": 0},
+          "estimated_daily_kwh": {"type": ["number", "null"]},
+          "estimated_monthly_cost": {"type": ["number", "null"]}
+        },
+        "required": ["entity_id", "domain", "total_state_changes"]
+      }
+    },
+    {
+      "name": "get_device_health",
+      "description": "Device health scores: fleet summary or one device with factor breakdown and trend.",
+      "annotations": {"readOnlyHint": true},
+      "max_response_bytes": 32768,
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "device_id": {"type": "string"},
+          "min_score": {"type": "integer", "minimum": 0, "maximum": 100},
+          "health_status": {"type": "string", "enum": ["healthy", "degraded", "critical"]},
+          "include_trend": {"type": "boolean", "default": false},
+          "trend_days": {"type": "integer", "minimum": 1, "maximum": 30, "default": 7},
+          "limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 50}
+        }
+      },
+      "output_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "summary": {"type": "object", "additionalProperties": false,
+            "properties": {"total": {"type": "integer"}, "healthy": {"type": "integer"}, "degraded": {"type": "integer"}, "critical": {"type": "integer"}, "avg_score": {"type": "number"}},
+            "required": ["total", "avg_score"]},
+          "devices": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+            "properties": {"device_id": {"type": "string"}, "overall_score": {"type": "number"}, "health_status": {"type": "string"}},
+            "required": ["device_id", "overall_score", "health_status"]}},
+          "device": {"type": "object", "additionalProperties": false,
+            "properties": {"device_id": {"type": "string"}, "overall_score": {"type": "number"}, "health_status": {"type": "string"}, "factor_scores": {"type": "object"}, "trend": {"type": "array", "items": {"type": "object", "additionalProperties": false, "properties": {"t": {"type": "string", "format": "date-time"}, "score": {"type": "number"}}, "required": ["t", "score"]}}},
+            "required": ["device_id", "overall_score", "health_status"]},
+          "truncated": {"type": "boolean"}
+        },
+        "required": ["truncated"]
+      }
+    },
+    {
+      "name": "detect_anomalies",
+      "description": "Anomaly surface: power anomalies and ML-predicted device failure risk.",
+      "annotations": {"readOnlyHint": true},
+      "max_response_bytes": 32768,
+      "input_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "kind": {"type": "string", "enum": ["power", "failure_risk", "all"], "default": "all"},
+          "hours": {"type": "integer", "minimum": 1, "maximum": 168, "default": 24},
+          "min_probability": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.5},
+          "risk_level": {"type": "string", "enum": ["low", "medium", "high"]},
+          "limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 50}
+        }
+      },
+      "output_schema": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "power_anomalies": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+            "properties": {"entity_id": {"type": "string"}, "t": {"type": "string", "format": "date-time"}, "observed_w": {"type": "number"}, "expected_w": {"type": ["number", "null"]}, "severity": {"type": "string"}},
+            "required": ["entity_id", "t", "observed_w", "severity"]}},
+          "failure_predictions": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+            "properties": {"device_id": {"type": "string"}, "failure_probability": {"type": "number"}, "risk_level": {"type": "string"}, "top_recommendation": {"type": ["string", "null"]}},
+            "required": ["device_id", "failure_probability", "risk_level"]}},
+          "counts": {"type": "object", "additionalProperties": false,
+            "properties": {"power": {"type": "integer"}, "failure_risk": {"type": "integer"}},
+            "required": ["power", "failure_risk"]},
+          "truncated": {"type": "boolean"}
+        },
+        "required": ["counts", "truncated"]
+      }
+    }
+  ],
+  "$defs": {
+    "event_row": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "t": {"type": "string", "format": "date-time"},
+        "entity_id": {"type": "string"},
+        "event_type": {"type": "string"},
+        "old_state": {"type": ["string", "null"]},
+        "new_state": {"type": ["string", "null"]}
+      },
+      "required": ["t", "entity_id", "event_type"]
+    }
+  }
+}
