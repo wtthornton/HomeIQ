@@ -198,15 +198,20 @@ class PowercalcRecipe(Recipe):
         defaulted, so it can be driven empty without guessing anything.
         """
         changes: list[Change] = []
-        # Abort leftover user-source flows first: a previously failed attempt
-        # leaves its flow open holding the global-config unique_id, and every
-        # later attempt then aborts already_in_progress (observed live
-        # 2026-08-13). Only discovery-source flows are confirmable.
-        for stale in await self._powercalc_flows(ha, source="user"):
-            await ha.rest.abort_config_flow(stale["flow_id"])
-        flows = await self._powercalc_flows(ha, discovery_only=True)
+        flows = await self._powercalc_flows(ha)
         if not flows:
-            await self._create_global_entry(ha)
+            try:
+                await self._create_global_entry(ha)
+            except HAFlowError as err:
+                if "already_in_progress" not in str(err):
+                    raise
+                # A previously failed attempt left its user flow open holding
+                # the global-config unique_id (observed live 2026-08-13). The
+                # flow/progress WS command filters source=="user" flows
+                # server-side, so the debris cannot be enumerated and aborted
+                # — but in-progress flows do not survive a core restart.
+                await self._restart(ha)
+                await self._create_global_entry(ha)
             changes.append(
                 Change(
                     "configure integration",
@@ -218,21 +223,11 @@ class PowercalcRecipe(Recipe):
         changes.append(await self._confirm_discovery(ha, flows[0]["flow_id"]))
         return changes
 
-    async def _powercalc_flows(
-        self, ha: Any, *, source: str | None = None, discovery_only: bool = False
-    ) -> list[dict[str, Any]]:
+    async def _powercalc_flows(self, ha: Any) -> list[dict[str, Any]]:
+        # Only discovery-source flows arrive here: HA's flow/progress WS
+        # handler hides user-source flows server-side.
         flows = await ha.ws.send_command("config_entries/flow/progress")
-        picked = []
-        for flow in flows or []:
-            if flow.get("handler") != "powercalc":
-                continue
-            flow_source = (flow.get("context") or {}).get("source")
-            if source is not None and flow_source != source:
-                continue
-            if discovery_only and flow_source == "user":
-                continue
-            picked.append(flow)
-        return picked
+        return [f for f in flows or [] if f.get("handler") == "powercalc"]
 
     async def _create_global_entry(self, ha: Any) -> None:
         """Drive the user flow's global_configuration branch, defaults only."""

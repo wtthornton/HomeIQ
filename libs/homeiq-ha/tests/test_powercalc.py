@@ -194,14 +194,14 @@ async def test_powercalc_apply_raises_when_discovery_never_appears(sim):
 
 
 @pytest.mark.asyncio
-async def test_powercalc_aborts_stale_user_flows_before_starting(sim):
+async def test_powercalc_restarts_and_retries_on_already_in_progress(sim):
     sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
-    sim.state["flow_progress"] = [
-        {"flow_id": "stale1", "handler": "powercalc", "context": {"source": "user"}},
-    ]
     sim.state["flow_first_step"] = PC_MENU
     sim.state["flow_current_step"] = {"type": "form", "flow_id": "pf1", "data_schema": []}
     sim.state["flow_steps"] = [
+        # First attempt hits invisible user-flow debris.
+        {"type": "abort", "flow_id": "gc1", "reason": "already_in_progress"},
+        # Retry after the restart clears it.
         {
             "type": "create_entry",
             "result": {"entry_id": "gc1", "domain": "powercalc", "state": "loaded"},
@@ -210,9 +210,10 @@ async def test_powercalc_aborts_stale_user_flows_before_starting(sim):
         dict(PC_DONE),
     ]
 
-    await powercalc_recipe().apply(sim)
+    result = await powercalc_recipe().apply(sim)
 
-    assert "flow_abort stale1" in sim.rest.writes
+    assert ("homeassistant", "restart", {}) in sim.state["service_calls"]
+    assert "sensor.office_light_power" in result.summary
 
 
 @pytest.mark.asyncio
@@ -220,10 +221,10 @@ async def test_powercalc_aborts_its_own_flow_on_failure(sim):
     sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
     sim.state["flow_first_step"] = PC_MENU
     sim.state["flow_steps"] = [
-        {"type": "abort", "flow_id": "gc1", "reason": "already_in_progress"},
+        {"type": "abort", "flow_id": "gc1", "reason": "not_allowed"},
     ]
 
-    with pytest.raises(HAFlowError, match="already_in_progress"):
+    with pytest.raises(HAFlowError, match="not_allowed"):
         await powercalc_recipe().apply(sim)
 
     assert "flow_abort gc1" in sim.rest.writes
