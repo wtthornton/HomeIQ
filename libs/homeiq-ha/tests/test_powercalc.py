@@ -241,17 +241,56 @@ async def test_powercalc_apply_refuses_a_menu_without_global_configuration(sim):
 
 
 @pytest.mark.asyncio
-async def test_powercalc_apply_refuses_a_form_needing_human_facts(sim):
+async def test_powercalc_refuses_when_every_discovery_needs_human_facts(sim):
     sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
-    sim.state["flow_progress"] = [{"flow_id": "pf1", "handler": "powercalc"}]
+    sim.state["flow_progress"] = [
+        {
+            "flow_id": "pf1",
+            "handler": "powercalc",
+            "context": {"title_placeholders": {"name": "Office - WLED"}},
+        }
+    ]
     sim.state["flow_current_step"] = {
         "type": "form",
         "flow_id": "pf1",
-        "data_schema": [{"name": "entity_id", "required": True}],
+        "data_schema": [{"name": "voltage", "required": True}],
     }
 
-    with pytest.raises(HAFlowError, match="entity_id"):
+    with pytest.raises(HAClientError, match="Office - WLED.*voltage"):
         await powercalc_recipe().apply(sim)
+
+
+@pytest.mark.asyncio
+async def test_powercalc_skips_blocked_flows_and_confirms_the_next(sim):
+    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
+    sim.state["flow_progress"] = [
+        {
+            "flow_id": "wled1",
+            "handler": "powercalc",
+            "context": {"title_placeholders": {"name": "Office - WLED"}},
+        },
+        {
+            "flow_id": "hue1",
+            "handler": "powercalc",
+            "context": {"title_placeholders": {"name": "Office Go - Philips Hue"}},
+        },
+    ]
+    sim.state["flow_current_steps"] = {
+        "wled1": {
+            "type": "form",
+            "flow_id": "wled1",
+            "data_schema": [{"name": "voltage", "required": True}],
+        },
+        "hue1": {"type": "form", "flow_id": "hue1", "data_schema": []},
+    }
+    sim.state["flow_steps"] = [dict(PC_DONE)]
+
+    result = await powercalc_recipe().apply(sim)
+
+    assert "sensor.office_light_power" in result.summary
+    # The blocked WLED flow was skipped, not advanced.
+    assert "flow_advance wled1" not in sim.rest.writes
+    assert "flow_advance hue1" in sim.rest.writes
 
 
 @pytest.mark.asyncio

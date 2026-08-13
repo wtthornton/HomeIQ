@@ -234,8 +234,31 @@ class PowercalcRecipe(Recipe):
                 )
             )
             flows = await self._wait_for_discovery(ha)
-        changes.append(await self._confirm_discovery(ha, flows[0]["flow_id"]))
+        changes.append(await self._confirm_any_discovery(ha, flows))
         return changes
+
+    async def _confirm_any_discovery(
+        self, ha: Any, flows: list[dict[str, Any]]
+    ) -> Change:
+        """Confirm the first discovery flow that needs no human facts.
+
+        Observed live 2026-08-13: WLED profiles require ``voltage`` while
+        Hue LUT profiles confirm on defaults alone — the confirmable one is
+        not necessarily first. Flows that block stay in the wizard triage
+        queue where they belong.
+        """
+        blocked: dict[str, str] = {}
+        for flow in flows:
+            title = (flow.get("context") or {}).get("title_placeholders") or {}
+            label = str(title.get("name") or flow["flow_id"])
+            try:
+                return await self._confirm_discovery(ha, flow["flow_id"])
+            except HAFlowError as err:
+                blocked[label] = str(err)
+        raise HAClientError(
+            "every powercalc discovery flow needs input the agent must not "
+            f"guess: {blocked}"
+        )
 
     async def _powercalc_flows(self, ha: Any) -> list[dict[str, Any]]:
         # Only discovery-source flows arrive here: HA's flow/progress WS

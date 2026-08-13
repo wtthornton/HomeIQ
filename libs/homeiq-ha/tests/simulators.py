@@ -338,9 +338,15 @@ class SimRest:
         ]
 
     async def get_config_flow(self, flow_id: str) -> dict[str, Any]:
-        """Current-step re-render (a read), scripted via state['flow_current_step']."""
+        """Current-step re-render (a read).
+
+        Scripted via state['flow_current_steps'] (per flow_id) falling back
+        to state['flow_current_step'] (one shared step).
+        """
+        per_flow = self.state.get("flow_current_steps") or {}
         return dict(
-            self.state.get("flow_current_step")
+            per_flow.get(flow_id)
+            or self.state.get("flow_current_step")
             or {"type": "form", "flow_id": flow_id, "data_schema": []}
         )
 
