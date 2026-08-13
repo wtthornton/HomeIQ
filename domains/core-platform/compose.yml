@@ -243,6 +243,11 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ../../infrastructure:/app/infrastructure:rw
       - ../../docker-compose.yml:/app/docker-compose.yml:ro
+    # The socket is root:docker on the host; joining the docker group by
+    # GID is what lets the non-root container user read it (TAP-5999 —
+    # without this the client init fails and docker routes answer 503).
+    group_add:
+      - "${DOCKER_GID:-984}"
     environment:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - LOG_FILE_PATH=${LOG_FILE_PATH:-/app/logs}

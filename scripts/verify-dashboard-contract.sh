@@ -106,7 +106,7 @@ read -r -d '' CONTRACT <<'EOF'
 /api/v1/docker/containers	200	http	admin-api
 /api/v1/docker/api-keys	200	http	admin-api
 /api/v1/docker/containers/admin-api/stats	200	http	admin-api; only compose-managed names resolve, others are a deliberate 400
-/api/v1/docker/containers/admin-api/logs?tail=10	200	http	admin-api; returns mock text while the docker socket is unreadable, but the route is live
+/api/v1/docker/containers/admin-api/logs?tail=10	200	http	admin-api; real container logs — socket readable via group_add docker GID (TAP-5999); with the socket unavailable this answers 503, never fabricated 200s
 /api/v1/alerts	200	http	data-api
 /api/v1/alerts/active	200	http	data-api
 /api/v1/alerts/summary	200	http	data-api
@@ -122,7 +122,7 @@ read -r -d '' CONTRACT <<'EOF'
 /api/v1/ha/game-status/VGK	200	http	data-api; TAP-5448 — answers no_game when sports_data holds no rows for the team, which is the honest empty state
 /api/v1/ha/game-context/VGK	200	http	data-api; TAP-5448 — same no_game semantics as game-status
 /api/v1/hygiene/issues	200	http	data-api proxies device-intelligence with server-side X-API-Key (TAP-5449); empty list is a valid state
-/api/v1/docker/containers/data-api/logs?tail=10	200	http	admin-api; data-api added to the managed-container mapping (TAP-5450) — returns mock text while the docker socket is unreadable (same condition as the admin-api row above)
+/api/v1/docker/containers/data-api/logs?tail=10	200	http	admin-api; data-api added to the managed-container mapping (TAP-5450) — real logs since TAP-5999 (socket readable; unavailable socket answers 503)
 /api/v1/docker/containers/not-a-service/logs?tail=10	400	http	admin-api; unmanaged names are a deliberate 400, no longer shadowed into a 500 (TAP-5450)
 /api/v1/energy/circuits	200	http	data-api; TAP-5445 — Flux time literals fixed, all energy routes green
 /api/v1/energy/correlations	200	http	data-api; TAP-5445
