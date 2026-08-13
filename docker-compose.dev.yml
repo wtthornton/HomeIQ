@@ -10,10 +10,10 @@ services:
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
       - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_USERNAME:-admin}
-      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD:-admin123}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD:?required}
       - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG:-homeiq}
       - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN:?required}
       - TZ=America/Los_Angeles
     volumes:
       - influxdb_data_dev:/var/lib/influxdb2
@@ -36,11 +36,11 @@ services:
     command: ["python", "-m", "src.main"]
     environment:
       - HOME_ASSISTANT_URL=http://ha-simulator:8123
-      - HOME_ASSISTANT_TOKEN=dev_simulator_token
+      - HOME_ASSISTANT_TOKEN=${HOME_ASSISTANT_TOKEN:?required}
       - NABU_CASA_URL=${NABU_CASA_URL:-}
       - NABU_CASA_TOKEN=${NABU_CASA_TOKEN}
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
       - DATA_API_URL=http://data-api:8006
@@ -85,7 +85,7 @@ services:
       - DATA_API_HOST=0.0.0.0
       - DATA_API_PORT=8006
       - INFLUXDB_URL=http://host.docker.internal:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
       - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
@@ -113,7 +113,7 @@ services:
       - WEATHER_API_KEY=${WEATHER_API_KEY}
       - WEATHER_API_URL=${WEATHER_API_URL:-https://api.openweathermap.org/data/2.5}
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
       - LOG_LEVEL=DEBUG
@@ -150,7 +150,7 @@ services:
       - API_PORT=8004
       - WEBSOCKET_INGESTION_URL=http://websocket-ingestion:8000
       - INFLUXDB_URL=http://host.docker.internal:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
       - TZ=America/Los_Angeles
@@ -181,7 +181,7 @@ services:
       - "8080:8080"
     environment:
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
       - LOG_LEVEL=DEBUG
@@ -243,7 +243,7 @@ services:
       - "8123:8123"
     environment:
       - SIMULATOR_PORT=8123
-      - SIMULATOR_AUTH_TOKEN=dev_simulator_token
+      - SIMULATOR_AUTH_TOKEN=${SIMULATOR_AUTH_TOKEN:?required}
       - SIMULATOR_HA_VERSION=2025.10.1
       - SIMULATOR_LOG_LEVEL=INFO
       - TZ=America/Los_Angeles

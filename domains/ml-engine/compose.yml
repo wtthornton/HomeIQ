@@ -151,7 +151,7 @@ services:
       - RAG_OPENVINO_SERVICE_URL=http://openvino-service:8019
       - RAG_LOG_LEVEL=${LOG_LEVEL:-INFO}
       - RAG_CORS_ORIGINS=http://localhost:3000,http://localhost:3001
-      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq
       - DATABASE_SCHEMA=rag
       - OTLP_ENDPOINT=http://jaeger:4317
     volumes:
@@ -194,7 +194,7 @@ services:
       - ../../infrastructure/env.ai-automation
     environment:
       # Fallback to API_KEY for local dev when AI_CORE_API_KEY not in .env
-      - AI_CORE_API_KEY=${AI_CORE_API_KEY:-${API_KEY:-homeiq-dev-ai-core-key}}
+      - AI_CORE_API_KEY=${AI_CORE_API_KEY:-${API_KEY:?required}}
       - OPENVINO_SERVICE_URL=http://openvino-service:8019
       - ML_SERVICE_URL=http://ml-service:8020
       - NER_SERVICE_URL=http://ner-service:8031
@@ -242,7 +242,7 @@ services:
     env_file:
       - ../../.env
     environment:
-      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq
       - DATABASE_SCHEMA=automation
       - TRAINING_SCRIPT_PATH=/app/scripts/train_soft_prompt.py
       - SOFT_PROMPT_MODEL_DIR=/app/models/soft_prompts
@@ -291,7 +291,7 @@ services:
       - DEVICE_INTELLIGENCE_PORT=${DEVICE_INTELLIGENCE_PORT:-8019}
       - DEVICE_INTELLIGENCE_HOST=${DEVICE_INTELLIGENCE_HOST:-0.0.0.0}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq
       - DATABASE_SCHEMA=devices
       - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-http://homeassistant:8123}}
       - HA_WS_URL=${HA_WS_URL:-}

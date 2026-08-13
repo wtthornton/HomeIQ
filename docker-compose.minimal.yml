@@ -9,10 +9,10 @@ services:
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
       - DOCKER_INFLUXDB_INIT_USERNAME=admin
-      - DOCKER_INFLUXDB_INIT_PASSWORD=admin123
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD:?required}
       - DOCKER_INFLUXDB_INIT_ORG=homeiq
       - DOCKER_INFLUXDB_INIT_BUCKET=home_assistant_events
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=homeiq-token
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN:?required}
     volumes:
       - influxdb_data:/var/lib/influxdb2
 
@@ -27,11 +27,10 @@ services:
       - DATA_API_HOST=0.0.0.0
       - DATA_API_PORT=8006
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=homeiq-token
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
       - INFLUXDB_ORG=homeiq
       - INFLUXDB_BUCKET=home_assistant_events
       - ENABLE_AUTH=false
-    volumes:
     depends_on:
       influxdb:
         condition: service_healthy
@@ -45,7 +44,7 @@ services:
       - "8001:8001"
     environment:
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=homeiq-token
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
       - INFLUXDB_ORG=homeiq
       - INFLUXDB_BUCKET=home_assistant_events
       - DATA_API_URL=http://data-api:8006
@@ -66,7 +65,7 @@ services:
       - "8003:8004"
     environment:
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=homeiq-token
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
       - INFLUXDB_ORG=homeiq
       - INFLUXDB_BUCKET=home_assistant_events
       - DATA_API_URL=http://data-api:8006

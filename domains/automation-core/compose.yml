@@ -29,7 +29,7 @@ services:
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5.2-codex}
       - AI_AUTOMATION_API_KEY=${API_KEY:-}
       - DATA_API_KEY=${API_KEY:-}
-      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq
       - DATABASE_SCHEMA=agent
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     # Cross-group depends_on removed (data-api in core, device-intelligence in ml-engine)
@@ -80,7 +80,7 @@ services:
       - OPENAI_YAML_MODEL=${OPENAI_YAML_MODEL:-gpt-5.2-codex}
       - OPENAI_REASONING_EFFORT=high
       - OPENAI_TIMEOUT=90
-      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq
       - DATABASE_SCHEMA=automation
       - SERVICE_PORT=8025
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -125,7 +125,7 @@ services:
     env_file:
       - ../../.env
     environment:
-      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq
       - DATABASE_SCHEMA=automation
       - DATA_API_URL=http://data-api:8006
       - HA_URL=${HA_HTTP_URL:-}
@@ -304,7 +304,7 @@ services:
       - HA_HTTP_URL=${HA_HTTP_URL:-http://homeassistant:8123}
       - HA_TOKEN=${HA_TOKEN}
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
       - DATA_API_URL=http://data-api:8006

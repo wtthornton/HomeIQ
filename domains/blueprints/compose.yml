@@ -19,7 +19,7 @@ services:
     env_file:
       - ../../.env
     environment:
-      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq
       - DATABASE_SCHEMA=blueprints
       - GITHUB_TOKEN=${GITHUB_TOKEN:-}
       - SERVICE_PORT=8031
@@ -60,7 +60,7 @@ services:
     env_file:
       - ../../.env
     environment:
-      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq
       - DATABASE_SCHEMA=blueprints
       - BLUEPRINT_INDEX_URL=http://blueprint-index:8031
       - DATA_API_URL=http://data-api:8006
@@ -147,7 +147,7 @@ services:
     environment:
       - ENABLE_AUTOMATION_MINER=true
       - MINER_DB_PATH=data/automation_miner.db
-      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq
       - DATABASE_SCHEMA=blueprints
       - DISCOURSE_BASE_URL=https://community.home-assistant.io
       - DISCOURSE_MIN_LIKES=${DISCOURSE_MIN_LIKES:-300}
