@@ -80,8 +80,8 @@ class EventSearch(BaseModel):
     fields: list[str] = ["entity_id", "event_type", "attributes"]
     limit: int = Field(default=100, ge=1, le=1000)
     #: How far back to search. The store keeps events indefinitely, so the
-    #: window is a caller-visible knob (disclosed in the response), not a
-    #: silent 24h narrowing (TAP-5997).
+    #: window is a caller-visible request field (in the OpenAPI schema),
+    #: not a silent 24h narrowing (TAP-5997).
     hours: int = Field(default=24, ge=1, le=8760)
 
 
