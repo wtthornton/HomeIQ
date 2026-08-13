@@ -40,6 +40,7 @@ def powercalc_recipe() -> PowercalcRecipe:
     return PowercalcRecipe(
         restart_timeout=1.0,
         restart_poll_interval=0.0,
+        restart_min_wait=0.0,
         discovery_timeout=0.05,
         discovery_poll_interval=0.0,
     )

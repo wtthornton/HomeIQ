@@ -250,6 +250,12 @@ class SimWs:
     async def list_entities(self) -> list[dict[str, Any]]:
         return self.state["entities"]
 
+    async def close(self) -> None:
+        self.state.setdefault("ws_reconnects", []).append("close")
+
+    async def connect(self) -> None:
+        self.state.setdefault("ws_reconnects", []).append("connect")
+
     async def supervisor_api(
         self,
         endpoint: str,
@@ -348,6 +354,8 @@ class SimRest:
     async def request(self, method: str, path: str, **_kwargs: Any) -> Any:
         if method.upper() != "GET":
             self.writes.append(f"{method.upper()} {path}")
+        if path == "/api/config":
+            return {"state": "RUNNING"}
         if path == "/api/config/config_entries/entry":
             return self.state["config_entries"]
         if method.upper() == "DELETE" and path.startswith("/api/config/config_entries/entry/"):
