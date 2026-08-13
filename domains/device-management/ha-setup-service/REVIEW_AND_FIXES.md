@@ -974,7 +974,7 @@ Currently, some health check endpoints both read status AND write to the databas
 
 - `bridge_endpoints.py` - entire file is dead code (router never registered)
 - `health_service.py:_calculate_health_score` - dead method replaced by `scoring_algorithm.py`
-- `health_service.py:_check_zigbee2mqtt_integration` - method defined but never called from `_check_integrations`
+- `health_service.py:_check_zigbee2mqtt_integration` - method defined but never called from `_check_integrations` — **resolved 2026-08-13 (TAP-5921):** deleted along with `integration_checker.py:check_zigbee2mqtt_integration` and the scoring filter
 
 ### A7. Add Request Rate Limiting
 
