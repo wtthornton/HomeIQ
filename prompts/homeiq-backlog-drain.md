@@ -1,22 +1,25 @@
-# HomeIQ backlog drain — urgent fixes first, then empty the open Linear backlog
+# HomeIQ backlog drain — resume at TAP-5431, then empty the open Linear backlog
 
-> Generated 2026-08-13 by the `orchestration-prompt` skill; **rewritten same day
-> against a live Linear read (59 open issues; 57 after TAP-5944/5945 closed with
-> verifier evidence).** Successor to `prompts/homeiq-backlog-burndown.md` (kept as
-> the Wave 1–6 history and measurement record). Wave 7 is two stories from done;
-> Wave 1's epic is still open in Linear despite being functionally met; eight
-> defect issues were filed after the burndown table was written. This prompt
-> resumes at the exact frontier and drains everything that remains.
+> Generated 2026-08-13 by the `orchestration-prompt` skill; **rewrite #2, same
+> day, against a live Linear read (50 open issues, 12 Urgent).** Successor to
+> `prompts/homeiq-backlog-burndown.md` (Wave 1–6 history and measurement record).
+> Rewrite #1's Sub-goals 1–3 are COMPLETE: Wave 7 (epic TAP-5942) closed, Wave 1
+> (epic TAP-5281) closed, six defects (5993/5994/5997/5999/6007/6027) closed with
+> verifier evidence — never redo them (brain keys `burndown-*`). **PR #82 is
+> MERGED (`b934a7ec`)** — all new work branches off `master`. Four follow-up
+> defects (6034–6037) were filed during the defect batch and join the queue.
 >
 > **This is a multi-run loop.** One ~6-hour session finishes a sub-goal or two.
 > Re-enter it until the backlog is empty. Each sub-goal is a resumable checkpoint.
 
 ## Prerequisites / Wayfind gate
 
-- **Route clear? Yes.** Ordering locked by the predecessor prompt, the user's
-  2026-08-12 priority agreement, and the 2026-08-13 live re-read; all remaining
-  chunks are execute / verify / fix. If genuinely new decide work surfaces
-  mid-drain, stop that sub-goal and surface it; do not guess.
+- **Route clear? Yes.** Ordering locked by the predecessor prompts, the user's
+  2026-08-12 priority agreement, and the 2026-08-13 live re-reads; all remaining
+  chunks are execute / verify / fix. Two known decide-shaped traps are called out
+  inline (TAP-5430 write mechanism, TAP-6018 quirk split) — surface them, don't
+  guess. If genuinely new decide work surfaces mid-drain, stop that sub-goal and
+  surface it.
 - **Resume recall (cold start):** `tapps_memory(action="search", query="burndown wave checkpoint")`
   — the CLI form is broken in this project (`MemoryStore requires a Postgres
   private_backend`); always use the MCP tool.
@@ -26,21 +29,22 @@
 - **Goal loop (recommended):**
   `Read prompts/homeiq-backlog-drain.md in full, then execute it as a goal loop — run the Loop section repeatedly until Done-when holds, printing the SCORE line every iteration. Establish your own preconditions per Sub-goal 0; work sub-goals in order; do not stop unless an Autonomy hard-stop fires.`
 - **Durable:** save the same line as a Routine (one sub-goal per run) so it survives the terminal.
+- Linear must be authenticated (`/mcp` first if in doubt).
 
 ## Objective
 
-Finish Wave 7, close out Wave 1's lingering epic, burn the post-burndown defect
-batch, then drain the remaining backlog in dependency order — MCP surface →
-genome/safety gate → HA front door → destructive data-plane collapse — every
-closure carrying independent-verifier evidence.
+Land the two surviving ha-init-agent recipes (TAP-5431, TAP-5430), burn the
+2026-08-13 follow-up defect batch, then drain the remaining backlog in dependency
+order — MCP surface → genome/safety gate → HA front door → destructive
+data-plane collapse — every closure carrying independent-verifier evidence.
 
-## The live backlog (read 2026-08-13 via `linear-read` — 57 open after 5944/5945 closed)
+## The live backlog (read 2026-08-13 evening via `linear-read` — 50 open)
 
 | Sub-goal | Group | Open issues (priority) |
 |---|---|---|
-| 1 | Wave 7 finish — wizard epic TAP-5942 (High) | 5946 (H) · 5947 (H) · epic close |
-| 2 | Wave 1 closeout — epic TAP-5281 (**Urgent**, functionally met 2026-08-10) | 5291 (H) · epic close (5287 canceled, 5288/5289/5290 Done) |
-| 3 | Post-burndown defect batch (filed 2026-08-12) | **5993 (H — 32 hardcoded compose credentials)** · 5430 (H — recorder/http/automation-editor recipes) · 5431 (M) · 5994 (M) · 5997 (M) · 5999 (M) · 6007 (M) · 6027 (M) |
+| 1 | P0 resume — TAP-5431 (M) | Local Calendar config entry · Powercalc via HACS (unblocked) · power-sensor template aliases |
+| 2 | TAP-5430 (H) | recorder + http hardening recipes ONLY (automation editor already delivered — acceptance box checked on the ticket) |
+| 3 | Follow-up defect batch (filed 2026-08-13) | **6036 (H — committed creds in tracked env files)** · 6034 (H — wizard page wiring) · 6035 (M — DNS-rebinding guard) · 6037 (M — libs test suites never run in CI) |
 | 4 | Wave 8 — MCP server, epic TAP-5282 (**Urgent**) | 5292 (U) · 5293 (U) · 5294 (U) · 5295 (U) · 5296 (U) · 5297 (H) |
 | 5 | Wave 9a — genome, epic TAP-5285 (H) | 5311 · 5312 · **5313 (U)** · 5314 · 5315 · 5316 · 5317 · **5318 (U)** |
 | 6 | Wave 9b — safety gate, epic TAP-5286 (H) | **5319 (U)** · **5320 (U)** · 5321 (H) · **5322 (U)** · 5323 (M) · 5325 (M) |
@@ -48,9 +52,9 @@ closure carrying independent-verifier evidence.
 | 8 | Wave 11 — data-plane collapse, epic TAP-5283 (**In Progress**) — destructive, last | **5298 (U)** · 5299 · 5300 (started) · 5301 · 5302 (started) · 5303 (M) · 5304 (M) · 5910 |
 | standing | Wave 4 — office presence physical, epic TAP-5977 (H), HUMAN-BLOCKED | 5978 · 5979 · 5980 · 6018 (FP1E custom quirk) — re-check once per run, then skip |
 
-13 open issues are **Urgent**. TAP-5992 (deploy-overwrite defect) closed Done
-2026-08-13 — its interim always-pass-explicit-id rule is retired, but explicit
-ids remain good practice.
+12 open issues are **Urgent** (5292–5296, 5298, 5313, 5318–5320, 5322, plus epic
+5282). Closed work is closed: epics 5281/5942/5405/5413/5973/5981/5985 and every
+defect listed in the header are Done with evidence on the tickets — never reopen.
 
 ## Done-when (ground truth, not narration)
 
@@ -58,20 +62,23 @@ The backlog is empty when **every** clause holds. A single run satisfies the
 clauses it reached; paste the artifacts for those and the current SCORE line for
 the rest.
 
-1. **Wave 7** — TAP-5946 (readiness triggers for pairing, PIN flows, HACS) and
-   TAP-5947 (discovery triage applies add/ignore/later decisions) closed with
-   evidence; a full answers→converge→verify round-trip runs against a staged
-   answer set (paste one driven flow); the 3-verifier wave panel passed
-   (majority); epic TAP-5942 closed. TAP-5944/5945 are already Done
-   (2026-08-13, verifier evidence on the tickets) — never reopen.
-2. **Wave 1 closeout** — TAP-5291 closed-with-evidence or re-scoped (comment
-   naming the 2026-08-10 measurement), epic TAP-5281 closed. The measured state
-   still holds: `start-stack.sh` free of `--pull always --force-recreate`,
-   `gh workflow list --all` showing ≥18/19 documented workflows `active`.
-3. **Defect batch** — each of 5993/5430/5431/5994/5997/5999/6007/6027 pastes a
-   verified fix **or** a recorded re-scope/removal reason (a correct removal is
-   a pass). 5993 first: zero hardcoded credential defaults remaining in domain
-   compose files (paste the sweep), with services still starting via `--env-file`.
+1. **TAP-5431** — a Local Calendar config entry exists with its `calendar.*`
+   entity id **asserted by the recipe from a live flow, never assumed**;
+   `CALENDAR_ENTITIES` names it and `calendar-service` stops logging the
+   not-found warning (paste the log check); Powercalc is installed via HACS and
+   ≥1 light reports power (paste the state); template aliases exist for the
+   power/energy ids `home_assistant.py:106-133` probes; a second `apply` reports
+   zero changes (paste it).
+2. **TAP-5430** — `http.login_attempts_threshold: 5` and a shortened
+   `recorder.purge_keep_days` with update-domain/signal-strength exclusions are
+   applied **through recipes**, SQLite retained; `check` reports SATISFIED
+   without writes on an already-matching instance; second `apply` reports zero
+   changes. The automation-editor clause is already delivered — do not redo it.
+3. **Defect batch** — each of 6034/6035/6036/6037 pastes a verified fix **or** a
+   recorded re-scope/removal reason (a correct removal is a pass). 6036 first:
+   zero committed credential **values** in tracked env files (paste the sweep at
+   key-name level — never print the values being removed), **AND** every touched
+   service still starts via the documented path (paste one `up -d` + health).
 4. **Wave 8** — the `homeiq` MCP server answers `/health`; a pasted tool call
    returns real data for ≥1 query tool and ≥1 analytics tool; contract tests pin
    the schemas; `homeiq` registered in the AgentForge overlay MCP registry.
@@ -88,8 +95,9 @@ the rest.
 8. **Wave 4 (standing)** — remains human-blocked unless the user clears it;
    each run re-checks `get_issue(TAP-6018)` once and records state.
 9. **Always** — `.venv/bin/python -m pytest libs/homeiq-ha -q` → **0 failed**,
-   pass count ≥ **194**; ha-setup-service tree → 0 failed, pass count ≥ **34**
-   (run the two trees SEPARATELY — combining them breaks collection);
+   pass count ≥ **222**; ha-setup-service tree → 0 failed, pass count ≥ **56**
+   (run the two trees SEPARATELY — combining them breaks collection); admin-api
+   tree ≥ **393**; data-api search suite ≥ **6** when touched;
    `git status --short` clean at each story gate; every cited TAP id confirmed
    by `get_issue` (ids are workspace-sequential — verify the `project` field).
 
@@ -103,18 +111,23 @@ the rest.
      once and tell the user to re-authorize via `/mcp`. Do NOT fall back to raw
      Linear API calls and do NOT burn the run on code-only work while closures
      pile up (2026-08-13 lost a closure step to exactly this).
-   - Brain recall: `tapps_memory(action="search", query="burndown wave 7")` and
-     `"homeiq backlog burndown"`. Verified outcomes live under `burndown-wave-*`
-     keys — **never redo a verified wave.**
+   - Brain recall: `tapps_memory(action="search", query="burndown wave checkpoint")`
+     and `"homeiq backlog drain"`. Verified outcomes live under `burndown-*`
+     keys — **never redo a verified wave or closed defect.**
    - **🔴 Single-writer check:** `git status --short` twice ~30 s apart;
      `git log --oneline -3` for foreign commits. A dirty tree you did not create
-     is a hard-stop. Never `git checkout` while another writer is active.
-   - **Branch base:** `gh pr view 82 --json state | jq .state`. OPEN → branch off
-     `feat/ha-init-agent-activation`'s tip and record the deviation; MERGED →
-     work from master. Merging PR #82 is a human decision — hard-stop ask, once.
+     is a hard-stop — EXCEPT a lone modified `.tapps-mcp/session-handoff.md`,
+     which session tooling rewrites routinely and is not a foreign-writer signal.
+     Never `git checkout` while another writer is active.
+   - **Branch base: `master`.** PR #82 MERGED as `b934a7ec`
+     (`git merge-base --is-ancestor` confirms the old feature tip is contained).
+     `git fetch origin master` and branch each story/wave off `origin/master`;
+     the old `feat/ha-init-agent-activation` branch is dead — never commit to it.
+     Old pre-rewrite hashes 9ff4f658 / d6eac06a are DEAD (history rewritten
+     2026-08-13, triage-store scrub).
    - Test runner: `/home/wtthornton/code/HomeIQ/.venv/bin/python -m pytest`;
      trees run SEPARATELY (both expose a `tests` package). Record start counts;
-     enforce no-shrink against those.
+     enforce no-shrink against floors 222 (homeiq-ha) / 56 (ha-setup-service).
    - Stack + smoke: healthy-container count; `curl :8024/health` → 200;
      `curl :8024/setup` → 200; `curl -s :8024/api/v1/init/queue | jq '.items|length'`
      (key is `items` — `.queue` silently returns 0; count is live-derived and
@@ -134,48 +147,73 @@ the rest.
      `.env` at startup — `missing-bearer` after a key rotation means restart the
      server, not a bad key.
    - proof: session_start returned; Linear plugin loaded (or hard-stop recorded);
-     brain recall pasted; single-writer clean; PR #82 state pasted; smoke set
-     pasted (health/setup/queue/422); audit fetched.
+     brain recall pasted; single-writer clean; branch-off-master confirmed; smoke
+     set pasted (health/setup/queue/422); audit fetched.
 
-1. **Finish Wave 7 (epic TAP-5942).**
-   - **TAP-5946 — readiness triggers for pairing, PIN flows, and HACS**
-     (`get_issue` first for full acceptance). Context from the 2026-08-12 manual
-     run: the pairing-permit protocol (`zha/devices/permit` with explicit
-     `duration=N`; root-cause anchor `ws.py:200-206`) is the reference; physical
-     button presses are readiness gates — surface and wait, never simulate.
-     Required lookup before code: `tapps_lookup_docs` on the HA ZHA websocket
-     API surface.
-   - **TAP-5947 — discovery triage applies add/ignore/later decisions**
-     (`get_issue` first). Verify `config_entries/ignore_flow` semantics — "the
-     flow stays ignored across restart" is a correct negative and a pass.
-   - **Epic gate:** one full answers→converge→verify round-trip against a staged
-     answer set (a no-op set must yield `wrote_nothing: true`; a real one
-     converges and read-back verifies), then the 3-verifier panel (correctness ·
-     security/no-residue · reproducibility), majority rules. Close 5946, 5947,
-     epic 5942 via `linear-issue`.
+1. **TAP-5431 — Local Calendar, Powercalc, power-sensor template aliases (P0).**
+   `get_issue(TAP-5431)` first for full acceptance. LARGE, live-HA-apply.
+   - **Order: reversible code first.** Author the three `IntegrationRecipe`
+     subclasses (base at `recipes.py:619-668`; copy the `TeamTrackerRecipe`
+     pattern at `recipes.py:672-735` — it asserts the resulting `entity_id`
+     instead of trusting the documented default) with offline tests, THEN apply
+     live through the gateway.
+   - **Local Calendar:** read the config-flow schema **from a LIVE flow** —
+     never guess the field name; that trap is why TeamTrackerRecipe exists.
+     `run_config_flow` raises `HAHumanGateRequired` on ANY `progress` step, but
+     not every progress step is a human gate — distinguish poll-able progress
+     from genuine human gates.
+   - **Powercalc:** install via HACS (unblocked 2026-08-12 — `hacs.bootstrap:
+     satisfied`, Team Tracker already installed through it). The install may
+     force an HA restart — that is an apply; route it through the gateway
+     converge path, never a raw restart call.
+   - **Template aliases follow Powercalc** (they only make sense once a power
+     source exists): satisfy the literal entity-id matching at
+     `domains/data-collectors/smart-meter-service/src/adapters/home_assistant.py:106-133`;
+     the calendar entity feeds `domains/data-collectors/calendar-service/src/main.py:119-120`.
+   - Design-doc row 3.8 stays accurate: `calendar-service` does NOT hard-fail
+     without a calendar entity — the symptom is an inert collector.
+   - Close via `linear-issue` with verifier evidence.
 
-2. **Wave 1 closeout (epic TAP-5281, Urgent).** TAP-5291 (regression checks:
-   start-stack refresh opt-in + CI workflow enablement) — build it small or
-   re-scope with a comment naming the 2026-08-10 measurement; re-verify the
-   measured state still holds (`start-stack.sh` flags, `gh workflow list`
-   states). Then close the epic. Do not re-litigate the refuted claims
-   (build-context sweep was measured correct; 5287 is canceled).
+2. **TAP-5430 — recorder + http hardening recipes (remaining scope ONLY).**
+   `get_issue(TAP-5430)` first. The automation-editor clause was delivered
+   before the re-scope (live deploys work since 2026-08-12) — do not redo it.
+   - Both file-access add-ons are installed and running (`addons.core_ssh` +
+     `addons.core_configurator` satisfied in the nightly audit) — the phase-4
+     blocker is gone.
+   - **CHECK `docs/ha-init-agent-design.md` rows 3.5/3.6 for the
+     remote-YAML-write mechanism before building.** If the mechanism is
+     undecided there, surface it as decide-work and stop this sub-goal — do not
+     guess a write path into `/config`.
+   - `http.login_attempts_threshold` → 5 (default `-1` disables IP banning
+     entirely even though `ip_ban_enabled` defaults true). `recorder` →
+     shortened `purge_keep_days` + exclusions for update-domain and
+     signal-strength noise; SQLite retained, no MariaDB. Reconcile with the
+     existing recorder scoring at
+     `domains/device-management/ha-setup-service/src/optimization_engine.py:167`.
+   - New recipes join `default_recipes` at `recipes.py:760-770`. Idempotency and
+     SATISFIED-without-writes are acceptance clauses — paste both.
 
-3. **Post-burndown defect batch (urgent fixes).** In order:
-   - **TAP-5993 (High, security):** 32 hardcoded credential defaults across
-     domain compose files. Root-cause fix: required env vars without baked
-     defaults (`${VAR:?}` or documented `--env-file` requirement), never
-     committed values. Paired clause: every touched service still starts via
-     the documented path (paste one `up -d` + health).
-   - **TAP-5430 (High):** recorder/http/automation-editor recipes needing file
-     access — re-read the ticket against PR #82's landed engine before building.
-   - **Mediums, cheapest-first:** 6027 (BackupScheduleRecipe summary contradicts
-     its own detail — likely a one-liner), 5431 (Local Calendar / Powercalc /
-     power-sensor aliases), 5994 (`data_sources_active` query method never
-     existed), 5997 (event search federates to services lacking the endpoint —
-     a correct fix may be removal), 5999 (admin-api docker socket unreadable →
-     mock mode), 6007 (sensitive-key predicate misses embedded credentials).
-     Each: fix-with-evidence or re-scope-with-reason via `linear-issue`.
+3. **Follow-up defect batch (filed 2026-08-13).** In order:
+   - **TAP-6036 (High, security):** committed credential values in tracked
+     `env.test`/`env.prod`-style files. Root-cause fix: required env vars
+     without baked values, documented `--env-file` path. Work at key-name
+     level — the fix must never print the real values it removes. Paired
+     clause: every touched service still starts (paste one `up -d` + health).
+     Note on the ticket that rotation of previously-committed values is
+     owner-gated (recorded on TAP-5993's trail) — record, don't execute.
+   - **TAP-6034 (High):** wire `setup_wizard.html` to the readiness-trigger and
+     triage-decision backends that TAP-5946/5947 delivered. Frontend work —
+     `tapps_quick_check` does not gate HTML/JS; validate behaviorally (drive the
+     wizard against the live gateway and paste the round-trip).
+   - **TAP-6035 (Medium):** DNS-rebinding guard for the same-origin check in
+     `routes_init.py` — validate the Host header against an allowlist, not
+     origin-vs-request equality alone. Lookup first: current (2026) guidance on
+     DNS-rebinding defenses for LAN services.
+   - **TAP-6037 (Medium):** shared-lib test suites (`libs/*`) never run on
+     push/PR. Wire them into CI with `uv`/venv — NOT `pip install tapps-mcp`
+     (no installable dist exists; see CLAUDE.md "CI Integration" — that red is
+     upstream and out of scope).
+   - Each: fix-with-evidence or re-scope-with-reason via `linear-issue`.
 
 4. **Wave 8 — MCP server (epic TAP-5282, Urgent; 5292→5297 in id order).**
    Required lookup before code: MCP server SDK docs. The tool catalogue + JSON
@@ -240,14 +278,14 @@ today.
   real error, inspect state, recall prior failures) → hypothesis → fix → retry
   *with something changed*. ≤3 validation rounds per story, then escalate once,
   then stop with a concise diagnosis. Never weaken a contract to go green.
-- **Record:** `tapps_memory(action="save", key="burndown-wave-<n>-<story>",
+- **Record:** `tapps_memory(action="save", key="burndown-<subgoal>-<story>",
   tier="pattern", value="<outcome incl. what failed and why>")`. On fail, the
   structured handoff: completed · undone · commands+exit codes · issues found.
 - **Context hygiene:** prune stale reads each iteration; targeted grep over full
   re-Read; compact state summary forward, never raw transcripts; delegate noisy
   multi-file reads to `Explore` and keep only the summary.
 - **Print every iteration:**
-  `SCORE: subgoal <s>/8 · open issues <n>/57 · containers <n> healthy · pytest <fail> failures (<libs>+<svc>) · iteration <i>/45`
+  `SCORE: subgoal <s>/8 · open issues <n>/50 · containers <n> healthy · pytest <fail> failures (<libs>+<svc>) · iteration <i>/45`
 - **Repeat or stop:** until Done-when holds; caps **45 iterations** AND **1.5M
   output tokens per run**. Hitting a cap mid-sub-goal is a normal stop — record
   the checkpoint; the next run resumes from it.
@@ -261,16 +299,17 @@ today.
   lost run). Never weaken `BackupGateNotSatisfied`. **Absolute never-do:** ZHA
   network formation on the loaded entry, removing paired devices, deleting areas
   with assigned devices, uninstalling loaded integrations. Anything else outside
-  the gateway: hard-stop.
+  the gateway: hard-stop. A Powercalc-forced HA restart counts as an apply —
+  gateway path only.
 - **No green-by-deletion — every downward count is paired:** containers ≤15 **but
-  every retired capability proven reachable**; credential defaults → 0 **but
-  every touched service still starts via the documented path**.
+  every retired capability proven reachable**; committed credential values → 0
+  **but every touched service still starts via the documented path**.
 - **Caps must not fire on correct behavior:** a deny-list refusal is a pass · a
   budget gate holding is a pass · an honest `blocked_on_human` row is a pass · a
   verified zero-change second apply is the success signature of convergence · a
-  422 on an off-contract body is the contract working · an ignored flow staying
-  ignored (5947) is a pass · removing a federation call to a nonexistent
-  endpoint (5997) can be the correct fix.
+  422 on an off-contract body is the contract working · a SATISFIED-without-
+  writes `check` on a matching instance (5430) is a pass · removing a dead call
+  path can be the correct fix.
 - **Independent verification:** creator ≠ verifier; ground-truth proof; no
   cheap-model verdict gates an irreversible step; re-derive load-bearing
   conclusions from returned evidence, not subagent narration (AF judges
@@ -280,20 +319,23 @@ today.
   only. Check `git status` after any `general-purpose` fan-out.
 - **Research grant:** web access, `tapps_research`, `tapps_lookup_docs`
   (Context7-backed, cache-first, free to repeat). **Required lookups before
-  first code touching each surface:** ZHA websocket API (`zha/devices/permit`,
-  Sub-goal 1) · `config_entries/ignore_flow` semantics (Sub-goal 1) · HA
-  automation schema (2024.10+ plural `triggers:/conditions:/actions:`) ·
-  label/area registry semantics (labels store slug ids; match by name OR slug or
-  re-applies mint `<slug>_2` dupes) · MCP server SDK (Sub-goal 4) · AF workflow
-  traps (`kind: task`; `$input` refs — literal `{{input}}` passes through;
-  terminal state `complete`; `output_schema` on the workflow node; publish
-  agents before workflows or 422).
+  first code touching each surface:** HA config-flow WS API + Local Calendar
+  flow shape (Sub-goal 1 — then read the schema from a LIVE flow) · HACS
+  install flow for Powercalc (Sub-goal 1) · HA template-sensor schema
+  (2024.10+ plural `triggers:/conditions:/actions:` where applicable) · HA
+  `http:`/`recorder:` option semantics (Sub-goal 2) · DNS-rebinding defenses
+  for LAN services (6035) · MCP server SDK (Sub-goal 4) · AF workflow traps
+  (`kind: task`; `$input` refs — literal `{{input}}` passes through; terminal
+  state `complete`; `output_schema` on the workflow node; publish agents before
+  workflows or 422) · label/area registry semantics (labels store slug ids;
+  match by name OR slug or re-applies mint `<slug>_2` dupes).
 - **Secrets:** `.env` gitignored and read-denied — work at key-name level
   (`.env.backup-pre-new-ha-20260801` holds the only copy of several
   credentials). `backup/config/info` returns the HA encryption key in plaintext
   — never log it, never paste it into Linear. Credential moves into the AF vault
-  are moves, never copies. TAP-5993's fix removes defaults; it must never print
-  the real values it replaces.
+  are moves, never copies. 6036's fix removes values; it must never print the
+  real values it replaces. Rotation of previously-committed creds is owner-gated
+  — record, never execute.
 - **Scope:** `/home/wtthornton/code/HomeIQ` only; Linear team
   `TappsCodingAgents`, project `HomeIQ`, assignee `Claude Agent`
   (`9083b7a1-3fd3-479b-98f1-1f8a782ae10a`). Cross-project writes forbidden.
@@ -304,11 +346,11 @@ today.
   `state="open"` never reaches the plugin; the PostToolUse hook auto-populates
   the snapshot cache after `list_issues`) · per-edit `tapps_quick_check` adopted
   for `src/` Python, **overridden to story-gate batching** for tests,
-  TypeScript, YAML, shell, markdown · new Python modules small and re-exported
-  from hubs (MI is length-dominated past ~800 lines; name-matched
-  `test_<module>.py` is what test-coverage detects) · Stop-hook completion gate:
-  run `tapps_validate_changed` + `tapps_checklist` before ending any session
-  with code edits.
+  TypeScript, YAML, shell, markdown, HTML (6034 validates behaviorally) · new
+  Python modules small and re-exported from hubs (MI is length-dominated past
+  ~800 lines; name-matched `test_<module>.py` is what test-coverage detects) ·
+  Stop-hook completion gate: run `tapps_validate_changed` + `tapps_checklist`
+  before ending any session with code edits.
 - **Discipline:** root-cause not workarounds; no green-by-suppression;
   right-sized; durable over expedient; match repo conventions; no silent scope
   creep. If the correct fix is out of scope, stop and say so.
@@ -319,13 +361,14 @@ today.
 - Irreversible/outward → produce the reversible precursor (branch + draft PR,
   staged diff) and keep going. **A draft PR is not a stop.**
 - **Hard-stop once (batched, with a recommendation) only for:** Linear plugin
-  unauthenticated (Sub-goal 0) · any HA write outside the gateway converge path ·
-  ZHA formation / device removal / integration uninstall · deleting any service
-  in Sub-goal 8 · merging PR #82 (or any merge to `master`) · force-push ·
-  deleting un-recreatable data · a write outside this repo's team/project ·
-  physical-world steps (sensor placement, switch wiring, pairing buttons —
-  surface as readiness gates, never simulate) · a genuinely ambiguous decision
-  where a wrong guess is expensive.
+  unauthenticated (Sub-goal 0) · any HA write outside the gateway converge path
+  (incl. a Powercalc-forced restart) · ZHA formation / device removal /
+  integration uninstall · deleting any service in Sub-goal 8 · any merge to
+  `master` · force-push · deleting un-recreatable data · credential rotation ·
+  a write outside this repo's team/project · physical-world steps (sensor
+  placement, switch wiring, pairing buttons — surface as readiness gates, never
+  simulate) · a genuinely ambiguous decision where a wrong guess is expensive
+  (the TAP-5430 write-mechanism question if design rows 3.5/3.6 don't settle it).
 
 ## Failure handling
 
@@ -333,8 +376,8 @@ Diagnose, don't repeat. Read the real error → inspect state → recall prior
 failures → specific hypothesis → change something → retry. ≤3 distinct
 strategies per story, then one escalation, then stop with a concise diagnosis
 naming what was tried and why each failed. Expected-fail is the design —
-verification rarely passes first try (the 2026-08-13 verifier found 2 real gaps
-in "done" work); scope a narrow fix sub-goal from the verifier's gaps.
+verification rarely passes first try (the 2026-08-13 verifier panels found real
+gaps twice in "done" work); scope a narrow fix sub-goal from the verifier's gaps.
 
 ## Unverified assumptions
 
@@ -342,48 +385,57 @@ Confirm each before depending on it.
 
 - **Waves 8–11 dependency claims** are issue-body-based, not build-verified —
   re-read each epic before starting it.
-- **TAP-5430/5431 residual scope** — both were re-scoped by TAP-5991 against
-  PR #82; read the re-scope comments before building.
 - **TAP-5300/5302 In-Progress state** — started 2026-08-11; read their branches
-  and comments before continuing (another session's partial work may exist).
+  and comments before continuing (another session's partial work may exist, and
+  it predates the history rewrite).
 - **TAP-6018 (Wave 4 gate)** — a custom ZHA quirk is code; if the ticket's
   blocker turns out to be authoring the quirk rather than physical placement,
   re-scope it into agent-workable + human-gated halves. Re-check once per run.
+- **TAP-6034 scope** — filed from the wizard epic's verifier round; `get_issue`
+  for the concrete wiring list before estimating.
+- **Post-merge deploy state** — master now carries the 31-commit branch; the
+  running containers may predate the merge. Sub-goal 0's deploy-freshness gate
+  is the check, not an assumption of freshness.
 
 ## Context
 
 - Repo: `/home/wtthornton/code/HomeIQ` · Linear `TappsCodingAgents` / `HomeIQ` ·
   assignee `Claude Agent` · brain project `homeiq`.
+- **Git state at rewrite (2026-08-13 evening):** PR #82 MERGED as `b934a7ec`;
+  `feat/ha-init-agent-activation` tip `c2c35577` fully contained in
+  `origin/master`; new work branches off `master`. History rewrite note: old
+  hashes 9ff4f658 / d6eac06a are DEAD (triage-store scrub, TAP-5942).
 - **Host-port overrides:** dashboard **13000**, admin-api **18004**, websocket
   **18001**, postgres **15432**, retention **18080**, carbon **18010**, OTLP
   **14317/14318**, jaeger **16687**, ai-automation-ui **13001**, init gateway
   **8024**.
-- **Wave-7 state (2026-08-13):** TAP-5943/5944/5945 Done (5944/5945 closed with
-  adversarial-verifier evidence on the tickets; contract hardened `6d8e5bab`).
-  Floors: homeiq-ha **194**, ha-setup-service **34**.
+- **Test floors (2026-08-13):** homeiq-ha **222**, ha-setup-service **56**
+  (trees SEPARATE), admin-api **393**, data-api search **6**.
 - **Live HA (2026-08-12 verified):** ZHA on SLZB-06P7 at `192.168.1.121:6638`,
   entry `01KZSE6SJ789RGEFCBRBA0VHDG`; 3 Inovelli Blue switches + Aqara
   multi-sensor placed and manifested; 1 stalled-interview device (ieee …c0:f4);
   Hue Bridge Pro `192.168.1.170` (296 entities / 50 devices / 19 areas); HACS +
-  Team Tracker live; backups nightly 04:48 (24 exist as of 2026-08-13);
-  init-gateway audit cron 03:15 → `.tapps-mcp/init-audit-<date>.json`; audit at
-  rewrite time: 20 recipes, 1 blocked_on_human (`organization.device_areas`).
-- **Prompt lineage (reviewed 2026-08-13):** supersedes
-  `homeiq-backlog-burndown.md` (Wave 1–6 history + measurements live there);
-  which superseded `ha-init-agent-activation.md` (completed 20/20) and
-  `ha-office-presence-lighting.md` (completed 24/24).
-  `ci-pipeline-full-repair.md` complete (merged `f3cacfbe`);
-  `close-ha-and-dashboard-epics.md` / `close-unblocked-post-5405-work.md`
-  superseded. `tapps-mcp-defects-from-homeiq-2026-08-02.md` is a handoff owned
-  by the TappsMCP repo — out of scope here.
+  Team Tracker live (Powercalc installable now); file-access add-ons
+  `core_ssh` + `core_configurator` installed and running; backups nightly 04:48;
+  init-gateway audit cron 03:15 → `.tapps-mcp/init-audit-<date>.json`.
+- **InfluxDB reality (documented 2026-08-13):** all event data lives in
+  `home_assistant_events` (365d); the declared per-type buckets are empty —
+  see `docs/operations/influxdb-retention.md` and brain memory
+  `influxdb-buckets-declared-vs-actual`. The sports_data 90d retention change
+  is a NO-OP; `REVOKE CONNECT ... FROM PUBLIC` on postgres is owner-gated.
+- **Prompt lineage (reviewed 2026-08-13):** this file's rewrite #1 drained
+  Sub-goals 1–3 (Wave 7, Wave 1 closeout, 6-defect batch) — history and
+  evidence on the tickets and under brain keys `burndown-*`. Supersedes
+  `homeiq-backlog-burndown.md` (Wave 1–6 history + measurements live there).
+  `tapps-mcp-defects-from-homeiq-2026-08-02.md` is a handoff owned by the
+  TappsMCP repo — out of scope here.
   `tapps-brain-defects-from-homeiq-2026-08-02.md` is self-marked SUPERSEDED —
   never execute it.
 - **Known CI blocker, not fixable here:** TappsMCP has no installable dist (see
-  CLAUDE.md "CI Integration") — upstream fix.
+  CLAUDE.md "CI Integration") — upstream fix. TAP-6037 must work around it with
+  `uv`/venv, not wait on it.
 - Evidence: `docs/ha-init-agent-design.md` · `.tapps-mcp/session-handoff.md` ·
-  brain keys `burndown-wave-*` (incl. `burndown-wave-7-5944-5945-verified`).
-- PR #82: https://github.com/wtthornton/HomeIQ/pull/82 — manifest engine, init
-  gateway, ZHA recipe, backup gating. Merge is the human's call.
+  brain keys `burndown-*`.
 
 ## Run-as
 
