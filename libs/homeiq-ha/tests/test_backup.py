@@ -44,8 +44,9 @@ async def test_backup_schedule_is_idempotent(sim):
 
 @pytest.mark.asyncio
 async def test_a_missing_encryption_key_is_a_human_gate_not_an_endless_diff(sim):
-    """backup/config/update cannot set the encryption key, so treating it as
-    appliable drift would make the recipe re-apply forever."""
+    """The API can set the key (backup/config/update accepts
+    create_backup.password) but only a person may custody it — treating it
+    as appliable drift would make the recipe re-apply forever."""
     recipe = BackupScheduleRecipe(recurrence="daily", copies=7)
     await recipe.apply(sim)
 
@@ -54,8 +55,12 @@ async def test_a_missing_encryption_key_is_a_human_gate_not_an_endless_diff(sim)
     assert result.status is CheckStatus.BLOCKED_ON_HUMAN
     assert result.details["encryption_key_set"] is False
     assert "emergency kit" in (result.human_action or "")
-    # The appliable half has converged.
-    assert (await recipe.verify(sim)).ok
+    # The appliable half has converged — and verify() says exactly that,
+    # scoping its claim and disclosing the missing key (TAP-6027 class).
+    verified = await recipe.verify(sim)
+    assert verified.ok
+    assert "appliable" in verified.summary
+    assert "encryption key still needs a person" in verified.summary
 
 
 @pytest.mark.asyncio

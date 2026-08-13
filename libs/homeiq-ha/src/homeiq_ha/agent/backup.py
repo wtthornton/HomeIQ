@@ -337,14 +337,26 @@ class BackupScheduleRecipe(Recipe):
     async def verify(self, ha: HAClient) -> VerifyResult:
         config = await self._config(ha)
         remaining = [c.describe() for c in self._drift(config, await self._available(ha))]
+        key_set = not self._needs_encryption_key(config)
+        # Same honesty rule as check() (TAP-6027): verify() only gates on the
+        # drift apply() can fix — the key is human-gated — so its summary
+        # must scope its claim and disclose a missing key, not overclaim
+        # "matches intent" over details carrying encryption_key_set: false.
+        if remaining:
+            summary = f"still drifted: {remaining}"
+        elif key_set:
+            summary = "appliable backup settings match intent"
+        else:
+            summary = (
+                "appliable backup settings match intent "
+                "(encryption key still needs a person)"
+            )
         return VerifyResult(
             not remaining,
-            "backup configuration matches intent"
-            if not remaining
-            else f"still drifted: {remaining}",
+            summary,
             {
                 "remaining": remaining,
-                "encryption_key_set": not self._needs_encryption_key(config),
+                "encryption_key_set": key_set,
                 "automatic_backups_configured": config.get("automatic_backups_configured"),
             },
         )
