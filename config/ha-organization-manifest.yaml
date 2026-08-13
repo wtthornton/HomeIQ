@@ -1123,6 +1123,61 @@ manifest:
       them read-only. The manifest neither regenerates nor drift-flags them — the bridge (edited via the Hue app)
       is their source of truth. Any future scene from another platform trips the scene-policy recipe's blocked_on_human
       until it gets its own stance row (TAP-5975).
+  # TAP-5987 — multi-tap gesture catalogue (owner-selection surface, NOT a deployment).
+  # Gesture names are the HA device-automation triggers each switch actually exposes
+  # (read live 2026-08-12 via device_automation/trigger/list; every switch also offers
+  # Config/Aux subtypes and press/hold/release, catalogued on request). `options` are
+  # candidates; NOTHING is wired until the owner replaces `selected: null` with a choice —
+  # deployment then happens as a separate, owner-approved change through the converge path.
+  switch_gestures:
+  - {device_id: 5c61fc36807180b2157d6c566047acee, device_name: Office Light Dimmer, gesture: remote_button_double_press/Up,
+     options: [office lights to 100% cool white (work mode), all office devices on (lights + WLED)], selected: null}
+  - {device_id: 5c61fc36807180b2157d6c566047acee, device_name: Office Light Dimmer, gesture: remote_button_double_press/Down,
+     options: [office lights 20% warm (wind-down), office lights off + WLED off], selected: null}
+  - {device_id: 5c61fc36807180b2157d6c566047acee, device_name: Office Light Dimmer, gesture: remote_button_triple_press/Up,
+     options: [meeting mode - lights bright + fan medium, toggle WLED accent strip], selected: null}
+  - {device_id: 5c61fc36807180b2157d6c566047acee, device_name: Office Light Dimmer, gesture: remote_button_triple_press/Down,
+     options: [office everything off (lights + fan + WLED), pause office presence automation 1h], selected: null}
+  - {device_id: 5c61fc36807180b2157d6c566047acee, device_name: Office Light Dimmer, gesture: remote_button_quadruple_press/Up,
+     options: [toggle bar lights remotely, backyard lights on 10 min], selected: null}
+  - {device_id: 5c61fc36807180b2157d6c566047acee, device_name: Office Light Dimmer, gesture: remote_button_quadruple_press/Down,
+     options: [whole-house lights off, unassigned - reserve], selected: null}
+  - {device_id: 5c61fc36807180b2157d6c566047acee, device_name: Office Light Dimmer, gesture: remote_button_quintuple_press/Up,
+     options: [unassigned - reserve, LED-bar test notification], selected: null}
+  - {device_id: 5c61fc36807180b2157d6c566047acee, device_name: Office Light Dimmer, gesture: remote_button_quintuple_press/Down,
+     options: [unassigned - reserve], selected: null}
+  - {device_id: 8ca5cb27ac5aaa9d2e3502f918b675b9, device_name: Office Fan Switch, gesture: remote_button_double_press/Up,
+     options: [fan to max, fan on + resume presence-comfort automation], selected: null}
+  - {device_id: 8ca5cb27ac5aaa9d2e3502f918b675b9, device_name: Office Fan Switch, gesture: remote_button_double_press/Down,
+     options: [fan off + pause presence-comfort automation 1h, fan to low], selected: null}
+  - {device_id: 8ca5cb27ac5aaa9d2e3502f918b675b9, device_name: Office Fan Switch, gesture: remote_button_triple_press/Up,
+     options: [toggle presence-comfort automation on/off (LED confirms), fan breeze mode], selected: null}
+  - {device_id: 8ca5cb27ac5aaa9d2e3502f918b675b9, device_name: Office Fan Switch, gesture: remote_button_triple_press/Down,
+     options: [office everything off (fan + lights), unassigned - reserve], selected: null}
+  - {device_id: 8ca5cb27ac5aaa9d2e3502f918b675b9, device_name: Office Fan Switch, gesture: remote_button_quadruple_press/Up,
+     options: [unassigned - reserve], selected: null}
+  - {device_id: 8ca5cb27ac5aaa9d2e3502f918b675b9, device_name: Office Fan Switch, gesture: remote_button_quadruple_press/Down,
+     options: [unassigned - reserve], selected: null}
+  - {device_id: 8ca5cb27ac5aaa9d2e3502f918b675b9, device_name: Office Fan Switch, gesture: remote_button_quintuple_press/Up,
+     options: [unassigned - reserve], selected: null}
+  - {device_id: 8ca5cb27ac5aaa9d2e3502f918b675b9, device_name: Office Fan Switch, gesture: remote_button_quintuple_press/Down,
+     options: [unassigned - reserve], selected: null}
+  - {device_id: 409926f92a13f393ad8b72399a5c5e5c, device_name: Bar Light Dimmer, gesture: remote_button_double_press/Up,
+     options: [bar lights 100% (entertaining), bar lights + living room on], selected: null}
+  - {device_id: 409926f92a13f393ad8b72399a5c5e5c, device_name: Bar Light Dimmer, gesture: remote_button_double_press/Down,
+     options: [bar lights 25% warm (ambiance), bar lights off], selected: null}
+  - {device_id: 409926f92a13f393ad8b72399a5c5e5c, device_name: Bar Light Dimmer, gesture: remote_button_triple_press/Up,
+     options: [game-day mode - VGK/Raiders LED-bar effect via Team Tracker, movie mode - bar dim + living room dim], selected: null}
+  - {device_id: 409926f92a13f393ad8b72399a5c5e5c, device_name: Bar Light Dimmer, gesture: remote_button_triple_press/Down,
+     options: [downstairs lights off, unassigned - reserve], selected: null}
+  - {device_id: 409926f92a13f393ad8b72399a5c5e5c, device_name: Bar Light Dimmer, gesture: remote_button_quadruple_press/Up,
+     options: [backyard + garage lights on 10 min, unassigned - reserve], selected: null}
+  - {device_id: 409926f92a13f393ad8b72399a5c5e5c, device_name: Bar Light Dimmer, gesture: remote_button_quadruple_press/Down,
+     options: [whole-house lights off, unassigned - reserve], selected: null}
+  - {device_id: 409926f92a13f393ad8b72399a5c5e5c, device_name: Bar Light Dimmer, gesture: remote_button_quintuple_press/Up,
+     options: [unassigned - reserve], selected: null}
+  - {device_id: 409926f92a13f393ad8b72399a5c5e5c, device_name: Bar Light Dimmer, gesture: remote_button_quintuple_press/Down,
+     options: [unassigned - reserve], selected: null}
 design_notes: 'Label taxonomy restricted to the three managed prefixes already in use (role:, class:, area:) per
   owner instruction — no new prefixes minted. role:primary-light marks each WLED controller''s main light entity;
   class:wled-config / class:diagnostic separate WLED tuning entities from telemetry/diagnostic ones; area:* mirrors

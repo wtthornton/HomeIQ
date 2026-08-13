@@ -107,6 +107,27 @@ class Helper:
 
 
 @dataclass(frozen=True)
+class SwitchGesture:
+    """One selectable multi-tap slot on a paired switch (TAP-5987).
+
+    A catalogue row, not a deployment: ``options`` are candidate actions for
+    the owner to choose between, and ``selected`` stays ``None`` until the
+    owner signs one off in the committed manifest. No recipe consumes these
+    rows while ``selected`` is ``None``, so committing the catalogue wires
+    nothing. ``gesture`` names the HA device-automation trigger the switch
+    actually exposes (``<type>/<subtype>``, e.g.
+    ``remote_button_double_press/Up`` — read live from
+    ``device_automation/trigger/list``, HA 2026.8.1).
+    """
+
+    device_id: str
+    device_name: str
+    gesture: str
+    options: tuple[str, ...]
+    selected: str | None = None
+
+
+@dataclass(frozen=True)
 class OrganizationManifest:
     managed_label_prefixes: tuple[str, ...]
     areas: tuple[Area, ...]
@@ -116,6 +137,7 @@ class OrganizationManifest:
     helpers: tuple[Helper, ...]
     areas_remove: tuple[AreaRemoval, ...] = ()
     scene_policy: tuple[ScenePolicyRule, ...] = ()
+    switch_gestures: tuple[SwitchGesture, ...] = ()
 
 
 def load_manifest(path: str | Path = DEFAULT_MANIFEST_PATH) -> OrganizationManifest:
@@ -163,6 +185,16 @@ def load_manifest(path: str | Path = DEFAULT_MANIFEST_PATH) -> OrganizationManif
             )
             for row in body.get("helpers") or ()
         ),
+        switch_gestures=tuple(
+            SwitchGesture(
+                row["device_id"],
+                row.get("device_name", ""),
+                row["gesture"],
+                tuple(row.get("options") or ()),
+                row.get("selected"),
+            )
+            for row in body.get("switch_gestures") or ()
+        ),
     )
 
 
@@ -176,5 +208,6 @@ __all__ = [
     "EntityLabels",
     "Helper",
     "OrganizationManifest",
+    "SwitchGesture",
     "load_manifest",
 ]
