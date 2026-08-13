@@ -1,75 +1,58 @@
-# Session handoff
+# Session Handoff — HomeIQ backlog burndown (2026-08-12)
 
-**Updated:** 2026-08-11T00:40:00Z
-**Git:** master == origin/master, clean. Work merged in `d1764362` (PR #74); the
-commit carrying this handoff sits one above it.
-**Linear P0:** TAP-5434 open, but only on its blocked criterion
+Branch `feat/ha-init-agent-activation` (PR #82, draft). All work committed and
+pushed. `git log origin/…..HEAD` = 0 unpushed. Live stack: 58 healthy
+containers. Test floors green: homeiq-ha 155, homeiq-memory 61,
+homeiq-resilience health 24, admin-api 386, data-api suites at baseline.
 
-> Session 9: closed the actionable half of session 8's Open list via PR #74.
-> Theme continued: gates that report a result while measuring something else.
+## Done this run (25 stories, each adversarially verified)
 
-## Done — PR #74, merged as `d1764362` (5 commits)
+- **Wave 1** (build/CI): TAP-5287 canceled (repo-root contexts refuted), 5288
+  (start-stack.ps1 parity), 5289 (compose-parse CI guard), 5290, 5291 re-scoped.
+- **Wave 2** (operational honesty, ALL closed): 5437 (memory enum bind), 5438
+  (patterns tables), 5439 (real-time-metrics 10s→15ms), 5440 (shared ws client
+  + edge migration + event-shape fix), 5445 (Flux time literals), 5446, 5447,
+  5448, 5449, 5450, 5902 (env preflight guard), 5992 (deploy explicit-id +
+  rollback N-1), 5434 capstone (contract 36→98 rows, 0 deviations). 3-verifier
+  wave panel unanimous.
+- **Wave 3** (Hue absorption, epic 5973 + 5974/5975/5976 DONE): manifest v3, 89
+  devices/17 areas, bedroom+tv artifact areas removed via empty-guarded recipe,
+  190 scenes bridge_owned, 6 outdoor sensor groups. Converged live, zero-change
+  second apply.
+- **Wave 5**: TAP-5982 DONE (report-only mesh-health recipe, live LQI rows).
 
-- **`4eb9e118` TAP-5434 absolute-URL criterion.** Six `VITE_*_URL || localhost:PORT`
-  fetches. Five unreachable — `9c170ff2` (Feb 26, app consolidation) dropped the
-  Synergies tab; `SynergiesTab` + `AnalyticsDashboard` deleted, 1105 lines. The
-  sixth pointed at the **wrong service**: port 8019 is device-health-monitor,
-  device-intelligence is 8028. Now behind `/device-intelligence/` nginx location
-  injecting `X-API-Key` (that service wants X-API-Key, not Bearer).
-- **`ad36e4e9` validator checked 1 of 31.** `set -e` + `((WARNINGS++))` — post-
-  increment returns 1 when the counter is 0. Two more once it ran: the missing-
-  script check had **never fired** (sed needed quotes real lines lack), and the
-  `curl -f` warning fired only on correct code.
-- **`25e82af5`** CLAUDE.md documented an impossible install (all 3 paths verified
-  failing in a clean venv). **`0d2666a3`** dependabot rationale +
-  `upgrade_skip_files`. **`c015fa32`** dangling docs.
+## Blocked / filed
 
-## Open
+- **Wave 4 (office presence) BLOCKED on TAP-6018**: the Aqara FP1E
+  `lumi.sensor_occupy.agl8` has no ZHA quirk on HA 2026.8.1 (fully updated), so
+  no occupancy entity. Gateway can't install a custom quirk (HA-host file
+  access). TAP-6018 filed, blocks 5978/5979/5980. Office stays on input_boolean
+  proxies (not faked, not demoted). Owner to pursue custom quirk later.
+- Filed follow-ups: TAP-5993 (compose credential defaults), 5994
+  (data_sources_active always []), 5997 (event search facade), 5999 (docker
+  mock mode), 6007 (config_manager sensitive-key predicate), 6018 (FP1E quirk).
 
-- **TAP-5434's 88-row target** — blocked on ~20 families at 500/no-route.
-- **TAP-5876** (TappsMCP Platform): `docs-mcp>=0.1.0` resolved by uv-only
-  `[tool.uv.sources]`; an unrelated package owns that name on PyPI. Latent only
-  because resolution dies earlier on unpublished `tapps-core`.
-- **CI is red and always has been.** 12 of 24 checks fail on master. `ci` matrix =
-  12 ruff errors in `health-dashboard/scripts/generate-icons*.py`. Quality Gate /
-  E2E / Cross-Group failed on **every** master commit since Aug 2025.
-- **Session 8's "18 workflows verified by real runs" meant they RUN, not PASS.**
+## Next (Wave 5 remaining, both software, unblocked)
 
-## Corrections to the previous handoff
+- **TAP-5983** — coordinator watchdog: ZHA `setup_retry` / SLZB unreachable →
+  ALERT (routes_init.py). Highest-value; needs a staged-test alert as proof.
+- **TAP-5984** — WS `/core/logs` passthrough returns parseable text or documents
+  the REST fallback (ws.py:300-340).
+Then the Wave-5 completion panel, then Wave 6 (switch comfort 5985 group),
+Wave 7 (wizard 5942), Waves 8-11.
 
-1. **TAP-5433 and TAP-5424 were already Done** (Aug 2) — 2 of 3 P0 ids were stale.
-2. **The TappsMCP blocker is not tapps-core's hatchling force-include.** At
-   v3.12.65 it is setuptools rejecting the root's flat layout (uv workspace, no
-   `[project]`). "Cross-project" still holds; the cause was wrong.
-3. Validator count is **31** workflow files, not 33.
+## Key mechanics learned this run
 
-## Next (P0) — pick one
-
-1. **Fix the `ci` ruff failures** — 12 errors in two icon scripts. Turns 7 of 12
-   failing checks green.
-2. **Provision the two DB gaps** TAP-5434 names (absent `memory` schema, absent
-   `patterns` table); each probably wants its own issue.
-3. **`/api/v1/real-time-metrics` answers at ~10.0s** — real perf defect.
-
-## Blockers
-
-- **Shared tree — `tapps-mcp-6c` writes here.** `git status --short` twice ~30s
-  apart before editing; stage explicit paths, never `git add -A`.
-
-## Verify
-
-- `git status --porcelain` clean; master == origin/master @ `d1764362`
-- `bash scripts/verify-dashboard-contract.sh` → 80/80, 0 deviations
-- `bash scripts/check-dashboard-contract-coverage.sh` → no new uncovered, 5 gaps
-- `bash scripts/validate-github-workflows.sh` → 31/31, 0 errors 0 warnings
-- `docker ps --filter name=homeiq --format '{{.Status}}' | grep -c '(healthy)'` → 58
-
-## Quirks that cost time
-
-- **`gh pr checks` piped into anything loses the exit code** — `$?` is the pipe's
-  tail. Redirect to a file, check separately.
-- **`tapps_validate_config` calls nginx.conf a "websocket" config** and returns
-  Python asyncio advice. Use `docker exec homeiq-dashboard nginx -t`.
-- **One-service deploy needs `--env-file .env`**; also recreates its dependency
-  containers, not just the target.
-- **`.dockerignore:72` excludes `docs/`.**
+- Live HA reads/writes via the gateway container: `docker exec -i
+  homeiq-setup-service python -` with `homeiq_ha.client` (has HA_WS_URL/HA_TOKEN).
+- HA writes only through gateway converge `:8024/api/v1/init/converge {"phase":N}`.
+  Owner granted broad HA action this session for the ZHA diagnosis.
+- The audit runs recipes through a read-only proxy (`readonly.py` `_READ_COMMANDS`
+  allowlist) — new read commands must be added there.
+- New recipes go in small modules re-exported from the recipes hub
+  (`diagnostics.py`); recipes.py is pre-existing gate debt at ~930 lines.
+- AF org agents need `max_budget_usd: 3.5`; workflow via
+  `scripts/af.sh publish` + the org-author workflow (base http://localhost:8010).
+- HA group helpers mint entity_id from the friendly NAME, not a passed slug —
+  manifest helper slug must equal the name-derived id or converge mints dupes.
+- ai-automation tests: `TEST_DATABASE_URL=postgresql+asyncpg://homeiq_test_ci:homeiq-test-only@localhost:15432/homeiq_test`.
