@@ -5,7 +5,7 @@
 integration. Changing a shape here is a contract change: bump `catalogue_version`
 and update the contract tests (TAP-5297) in the same commit.
 
-**catalogue_version:** 1.0.0
+**catalogue_version:** 1.1.0
 
 **Normative schemas:** `docs/mcp/homeiq-mcp-tools.schema.json` — every tool's
 full JSON Schema (draft 2020-12, metaschema-validated) lives there; this
@@ -41,6 +41,10 @@ tools. On any divergence, the JSON file wins.
 | device-intelligence-service | HTTP | health scores, failure predictions |
 | InfluxDB (via data-api only) | — | the MCP server never queries InfluxDB directly |
 
+Backing paths below are FULL mount paths (data-api mounts its Events, Energy
+and Automation-Analytics routers under `/api/v1` — `_app_setup.py:106-118`;
+decorator strings alone 404).
+
 The MCP server is a thin schema-enforcing facade; it owns no data. The
 data-api HTTP surface keeps serving the health dashboard unchanged (epic
 acceptance), and capability retirement (Wave 11) later re-points backings
@@ -48,14 +52,14 @@ without changing these contracts.
 
 ---
 
-## Tool catalogue — 16 tools
+## Tool catalogue — 17 tools
 
 ### Group 1 — Entity history & events (data-api)
 
 #### 1. `get_entity_history`
-Entity state history over a bounded window, optionally downsampled.
-- **Backing:** data-api `POST /mcp/tools/query_device_history` + `GET /events`
-- **Annotations:** `readOnlyHint: true` · **Budget:** 64 KB / 1000 points
+Entity state history over a bounded window, optionally downsampled. Time precedence: `start_time`/`end_time` (dependent pair) override `hours`.
+- **Backing:** data-api `POST /mcp/tools/query_device_history` + `GET /api/v1/events`
+- **Annotations:** `readOnlyHint: true` · **Budget:** 64 KB / 500 points
 - **Input:**
 ```json
 {"type": "object", "additionalProperties": false,
@@ -66,7 +70,7 @@ Entity state history over a bounded window, optionally downsampled.
    "end_time": {"type": "string", "format": "date-time"},
    "downsample_minutes": {"type": "integer", "minimum": 0, "maximum": 1440, "default": 0,
      "description": "0 = raw rows (capped); N = mean per N-minute bucket"},
-   "limit": {"type": "integer", "minimum": 1, "maximum": 1000, "default": 500}},
+   "limit": {"type": "integer", "minimum": 1, "maximum": 500, "default": 500}},
  "required": ["entity_id"]}
 ```
 - **Output:**
@@ -86,21 +90,21 @@ Entity state history over a bounded window, optionally downsampled.
 
 #### 2. `search_events`
 Text search over stored HA events (entity ids and event types).
-- **Backing:** data-api `POST /events/search` (TAP-5997 hardened path)
+- **Backing:** data-api `POST /api/v1/events/search` (TAP-5997 hardened path)
 - **Annotations:** `readOnlyHint: true` · **Budget:** 32 KB / 200 events
 - **Input:** `{query: string (1..200 chars, required), hours: int 1..8760 = 24, limit: int 1..200 = 50}`
 - **Output:** `{events: [{t, entity_id, event_type, old_state?, new_state?}], count, truncated}`
 
 #### 3. `get_recent_events`
 Filtered recent events (entity, type, device, area, category, window).
-- **Backing:** data-api `GET /events`
+- **Backing:** data-api `GET /api/v1/events`
 - **Annotations:** `readOnlyHint: true` · **Budget:** 32 KB / 200 events
 - **Input:** `{entity_id?, event_type?, device_id?, area_id?, hours: int 1..168 = 1, limit: int 1..200 = 50, offset: int >= 0 = 0}`
 - **Output:** same event row shape as `search_events`, plus `offset`.
 
 #### 4. `trace_automation`
 Follow a context-id chain to see what triggered what.
-- **Backing:** data-api `GET /events/automation-trace/{context_id}`
+- **Backing:** data-api `GET /api/v1/events/automation-trace/{context_id}`
 - **Annotations:** `readOnlyHint: true` · **Budget:** 16 KB / depth 10
 - **Input:** `{context_id: string (required), max_depth: int 1..10 = 5}`
 - **Output:** `{chain: [{depth, context_id, t, entity_id, event_type, state?}], count, truncated}`
@@ -115,7 +119,7 @@ Device inventory with filters; summary rows only.
 - **Output:** `{devices: [{device_id, name, manufacturer?, model?, area_id?, integration?, entity_count}], count, truncated}`
 
 #### 6. `get_device`
-One device in full: metadata, entities, health rollup.
+One device in full: metadata, entities, labels.
 - **Backing:** data-api `GET /api/devices/{id}` + `/api/entities/by-device/{id}`
 - **Annotations:** `readOnlyHint: true` · **Budget:** 24 KB
 - **Input:** `{device_id: string (required)}`
@@ -135,16 +139,26 @@ Areas with entity counts and domains present.
 - **Input:** `{}` (no parameters)
 - **Output:** `{areas: [{area_id, name, entity_count, domains: [string]}], count}`
 
-#### 9. `get_automation_stats`
+#### 9. `get_entity_state`
+Last OBSERVED state of one entity, with its timestamp.
+- **Backing:** data-api `GET /api/v1/events?entity_id=...&limit=1` (latest stored event)
+- **Annotations:** `readOnlyHint: true` · **Budget:** 4 KB
+- **Input:** `{entity_id: string (required)}`
+- **Output:** `{entity_id, state: string|null, t: date-time|null, source: "last_observed_event"}`
+- Note: HomeIQ observes HA through the event store — this is the most recent
+  *recorded* state change, not a live HA read; agents must check `t` for
+  staleness. A live read belongs to HA's own MCP integration, not this server.
+
+#### 10. `get_automation_stats`
 Automation execution analytics: overview, per-automation detail, or problem list.
-- **Backing:** data-api `GET /automations`, `/automations/stats/overview`, `/automations/{id}`
+- **Backing:** data-api `GET /api/v1/automations`, `/api/v1/automations/stats/overview`, `/api/v1/automations/stats/{errors,slow,inactive}`, `/api/v1/automations/{id}`
 - **Annotations:** `readOnlyHint: true` · **Budget:** 24 KB / 100 rows
 - **Input:** `{automation_id?: string, view: enum["overview","list","errors","slow","inactive"] = "overview", limit: int 1..100 = 25}`
 - **Output:** `{view, overview?: {total_automations, total_executions, error_rate_percent, avg_success_rate}, automations?: [{automation_id, alias, enabled, total_executions, success_rate, avg_duration_seconds, total_errors, last_triggered?}], count?, truncated}`
 
 ### Group 3 — Pattern detection (ai-pattern-service)
 
-#### 10. `list_patterns`
+#### 11. `list_patterns`
 Detected behavioral patterns with confidence filters; stats rollup included.
 - **Backing:** `GET /api/v1/patterns/list` + `/api/v1/patterns/stats`
 - **Annotations:** `readOnlyHint: true` · **Budget:** 32 KB / 100 rows
@@ -153,7 +167,7 @@ Detected behavioral patterns with confidence filters; stats rollup included.
 - Note: `summary` is a server-built one-liner from pattern metadata — raw
   metadata blobs stay out of agent context.
 
-#### 11. `list_synergies`
+#### 12. `list_synergies`
 Cross-device automation opportunities (rule-based graph analysis).
 - **Backing:** `GET /api/v1/synergies/list` + `/statistics`
 - **Annotations:** `readOnlyHint: true` · **Budget:** 32 KB / 50 rows
@@ -162,40 +176,43 @@ Cross-device automation opportunities (rule-based graph analysis).
 
 ### Group 4 — Energy (data-api, fed by energy-correlator)
 
-#### 12. `get_energy_summary`
+#### 13. `get_energy_summary`
 Whole-home energy snapshot: current, daily, peak, top consumers.
-- **Backing:** data-api `GET /energy/statistics` + `/energy/top-consumers`
+- **Backing:** data-api `GET /api/v1/energy/statistics` + `/api/v1/energy/top-consumers` + `/api/v1/energy/carbon-intensity/current`
 - **Annotations:** `readOnlyHint: true` · **Budget:** 16 KB / 20 consumers
 - **Input:** `{top_n: int 1..20 = 10}`
 - **Output:** `{current_power_w, daily_kwh, peak_power_w, peak_time?, average_power_w, top_consumers: [{entity_id, average_power_on_w, estimated_daily_kwh}], carbon?: {grams_per_kwh, source}}`
 
-#### 13. `get_energy_correlations`
+#### 14. `get_energy_correlations`
 State-change ↔ power-delta correlations (the energy-correlator's output).
-- **Backing:** data-api `GET /energy/correlations`
+- **Backing:** data-api `GET /api/v1/energy/correlations`
 - **Annotations:** `readOnlyHint: true` · **Budget:** 32 KB / 200 rows
 - **Input:** `{entity_id?, domain?, hours: int 1..168 = 24, min_delta_w: number >= 0 = 5, limit: int 1..200 = 100}`
 - **Output:** `{correlations: [{t, entity_id, domain, state, previous_state?, power_delta_w, power_delta_pct?}], count, truncated}`
 
-#### 14. `get_device_energy_impact`
+#### 15. `get_device_energy_impact`
 Per-device consumption estimate derived from correlations.
-- **Backing:** data-api `GET /energy/device-impact/{entity_id}`
+- **Backing:** data-api `GET /api/v1/energy/device-impact/{entity_id}`
 - **Annotations:** `readOnlyHint: true` · **Budget:** 4 KB
 - **Input:** `{entity_id: string (required)}`
 - **Output:** `{entity_id, domain, average_power_on_w?, average_power_off_w?, total_state_changes, estimated_daily_kwh?, estimated_monthly_cost?}`
 
 ### Group 5 — Device health & anomaly detection (device-intelligence + data-api)
 
-#### 15. `get_device_health`
+#### 16. `get_device_health`
 Health scores: fleet summary or one device with factor breakdown and trend.
 - **Backing:** device-intelligence `GET /api/health/scores`, `/api/health/scores/{id}`, `/api/health/trends/{id}`
 - **Annotations:** `readOnlyHint: true` · **Budget:** 32 KB / 100 rows
 - **Input:** `{device_id?: string, min_score?: int 0..100, health_status?: enum["healthy","degraded","critical"], include_trend: boolean = false, trend_days: int 1..30 = 7, limit: int 1..100 = 50}`
 - **Output:** `{summary?: {total, healthy, degraded, critical, avg_score}, devices?: [{device_id, overall_score, health_status}], device?: {device_id, overall_score, health_status, factor_scores: object, trend?: [{t, score}]}, truncated}`
 
-#### 16. `detect_anomalies`
+#### 17. `detect_anomalies`
 Anomaly surface across the two production detectors: power anomalies and
 predicted device failures.
-- **Backing:** data-api `GET /api/devices/power-anomalies` + device-intelligence `GET /api/predictions/failures`
+- **Backing:** data-api `GET /api/devices/power-anomalies` **(currently SHADOWED
+  in production by the `/api/devices/{device_id}` matcher registered first —
+  TAP-6071 must land before TAP-5294 implements `kind: power`)** +
+  device-intelligence `GET /api/predictions/failures`
 - **Annotations:** `readOnlyHint: true` · **Budget:** 32 KB / 100 rows
 - **Input:** `{kind: enum["power","failure_risk","all"] = "all", hours: int 1..168 = 24, min_probability: number 0..1 = 0.5, risk_level?: enum["low","medium","high"], limit: int 1..100 = 50}`
 - **Output:** `{power_anomalies?: [{entity_id, t, observed_w, expected_w?, severity}], failure_predictions?: [{device_id, failure_probability, risk_level, top_recommendation?}], counts: {power: integer, failure_risk: integer}, truncated}`
@@ -210,13 +227,14 @@ predicted device failures.
 
 | Tool | Budget | Row cap |
 |---|---|---|
-| get_entity_history | 64 KB | 1000 |
+| get_entity_history | 64 KB | 500 |
 | search_events / get_recent_events | 32 KB | 200 |
 | trace_automation | 16 KB | depth 10 |
 | list_devices | 48 KB | 300 |
 | get_device | 24 KB | — |
 | list_entities | 48 KB | 500 |
 | list_areas | 8 KB | — |
+| get_entity_state | 4 KB | — |
 | get_automation_stats | 24 KB | 100 |
 | list_patterns / list_synergies | 32 KB | 100 / 50 |
 | get_energy_summary | 16 KB | 20 |
@@ -233,10 +251,10 @@ tested by TAP-5297 contract tests.
 
 | Epic domain | Tools |
 |---|---|
-| Entity history | get_entity_history, get_recent_events, search_events, trace_automation |
+| Entity history | get_entity_history, get_recent_events, search_events, trace_automation, get_entity_state |
 | Pattern detection | list_patterns, list_synergies |
 | Energy correlation | get_energy_correlations, get_energy_summary, get_device_energy_impact |
-| Device health | get_device_health, list_devices, get_device |
+| Device health | get_device_health |
 | Anomaly detection | detect_anomalies (+ failure predictions within it) |
 
 ## Comparison against the "opencode" inventory — recorded limitation
@@ -254,13 +272,16 @@ owner confirms the reference is a recorded follow-up on TAP-5292.
 | Capability category (analogue) | HomeIQ v1 position | Deliberate? |
 |---|---|---|
 | Live device control (turn_on/off, service calls) | **Absent** | Yes — HomeIQ's HA *writes* flow through the init-gateway converge path and the Wave 10 HA integration, never through this read surface. |
-| State/entity/area reads | Covered (Group 2) | — |
+| State/entity/area reads | Covered (Group 2) — current state is `get_entity_state` with **last-observed** semantics (HomeIQ is an observer; a live HA read belongs to HA's own MCP integration) | — |
 | Automation config CRUD | **Absent** (read-only stats + trace only) | Yes — automation deploys belong to `ai-automation-service-new`'s gateway (TAP-5992 semantics), not an MCP write tool, until the per-tool grant mechanism ships. |
 | History / statistics | Covered (Group 1) — and deeper than the analogue (context-id tracing) | — |
 | Diagnostics / health | Covered (Group 5) — plus ML failure prediction the analogue lacks | — |
 | Analytics (patterns, synergies, energy correlation) | Covered (Groups 3-4) — **HomeIQ's differentiator; no public HA MCP server offers these** | — |
 | Config/registry mutation (rename, enable/disable) | **Absent** | Yes — same grant gate as above. |
 | Camera/media, backup management, add-on control | **Absent** | Yes — out of epic scope; HA's official MCP integration covers generic control. |
+| Template rendering, logbook/error-log retrieval | **Absent** | Yes — debugging-HA capabilities; HA-side MCP servers own them. |
+| Notifications / TTS / Assist-conversation | **Absent** | Yes — outbound actions, blocked by the same write-grant gate as control. |
+| MCP resources & prompts (analogue ships 13 / 6) | **Absent** | Yes — v1 is tools-only; resources/prompts considered after the first gene consumers exist. |
 
 Net position: v1 trades breadth of *control* tools for depth of *analytics*
 tools, because control is already owned by governed HomeIQ paths and analytics
