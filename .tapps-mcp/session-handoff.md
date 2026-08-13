@@ -4,7 +4,7 @@
 **Linear P0:** TAP-5944 + TAP-5945 (closure only — work done + verified)
 
 ## Resume-as (re-enter the goal loop — the standing instruction)
-- Next session re-enters the multi-run loop, not just the P0: paste/execute — `Read prompts/homeiq-backlog-burndown.md in full, then execute it as a goal loop — run the Loop section repeatedly until Done-when holds, printing the SCORE line every iteration. Establish your own preconditions per Wave 0; work the lowest-numbered unfinished wave only; do not stop unless an Autonomy hard-stop fires.`
+- Next session re-enters the multi-run loop via the NEW drain prompt (supersedes burndown): paste/execute — `Read prompts/homeiq-backlog-drain.md in full, then execute it as a goal loop — run the Loop section repeatedly until Done-when holds, printing the SCORE line every iteration. Establish your own preconditions per Sub-goal 0; work sub-goals in order; do not stop unless an Autonomy hard-stop fires.` **Linear must be authenticated (`/mcp`) — Sub-goal 0 probes this first and hard-stops if not.**
 - Loop state: Waves 1–3, 5, 6 DONE + verified (never redo; brain keys `burndown-wave-*`). Wave 4 HUMAN-BLOCKED on TAP-6018 (skip 5978/5979/5980). Current = Wave 7 (epic TAP-5942): 5943 Done; **5944/5945 verifier-passed after gap fixes (commit 6d8e5bab) — Linear closure pending plugin auth**; then 5946, 5947, wave panel, close epic; then Waves 8–11. ~37/61 closed (+2 ready to close).
 
 ## Done

@@ -1,5 +1,10 @@
 # HomeIQ backlog burndown — all open epics, dependency-ordered
 
+> **SUPERSEDED 2026-08-13 by `prompts/homeiq-backlog-drain.md`** — use that as the
+> entry point for all future runs. This file remains the authoritative record of
+> the Wave 1–6 history, the 2026-08-12 78-issue backlog table, and the Wave-1
+> measurement evidence.
+>
 > Generated 2026-08-01; **updated 2026-08-12** after re-reading the complete open backlog
 > (78 open issues) and the physical-layer day: ZHA live on the SLZB-06P7, 3 Inovelli Blue
 > switches joined, Hue Bridge Pro paired (296 entities, 19 areas), HACS + Team Tracker
