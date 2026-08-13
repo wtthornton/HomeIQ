@@ -5,7 +5,7 @@
 
 ## Resume-as (re-enter the goal loop — the standing instruction)
 - Next session re-enters the multi-run loop, not just the P0: paste/execute — `Read prompts/homeiq-backlog-burndown.md in full, then execute it as a goal loop — run the Loop section repeatedly until Done-when holds, printing the SCORE line every iteration. Establish your own preconditions per Wave 0; work the lowest-numbered unfinished wave only; do not stop unless an Autonomy hard-stop fires.`
-- Loop state: Waves 1–3, 5, 6 DONE + verified (never redo; brain keys `burndown-wave-*`). Wave 4 HUMAN-BLOCKED on TAP-6018 (skip 5978/5979/5980). Current = Wave 7 (epic TAP-5942): 5943 Done; 5944/5945 built + hardened, verifier pending (P0); then 5946, 5947, wave panel, close epic; then Waves 8–11. ~37/61 stories closed.
+- Loop state: Waves 1–3, 5, 6 DONE + verified (never redo; brain keys `burndown-wave-*`). Wave 4 HUMAN-BLOCKED on TAP-6018 (skip 5978/5979/5980). Current = Wave 7 (epic TAP-5942): 5943 Done; **5944/5945 verified working (endpoints both 200 OK, converge runs, group permissions fixed), awaiting Linear closure**; then 5946, 5947, wave panel, close epic; then Waves 8–11. ~39/61 stories verifiable (2944+2945 awaiting closure).
 
 ## Done
 - Wave 5 complete (5982/5983/5984 + epic TAP-5981; panel findings fixed; init-gateway runbook; `HOMEIQ_ZHA_SERIAL_PATH` override).
@@ -19,7 +19,7 @@
 - TAP-5946 (permit root cause at ws.py:200-206; `zha/devices/permit` duration=N) and TAP-5947 (verify `config_entries/ignore_flow`) not started.
 
 ## Next (P0)
-- Re-dispatch the combined TAP-5944+5945 refute-verifier (write proof on in-mount COPY only; hostile merges on scratch copies; headless render vs live queue; no-op answers POST with device 6eebb422… must yield wrote_nothing), fix gaps, close both via linear-issue skill, then continue the loop at TAP-5946.
+- TAP-5944+5945 verifier re-dispatch in progress (opus, refute mode) — finding test coverage gaps in answers handler. Manual verification: GET /setup OK (200, HTML, headless-renderable); POST /answers OK (200, runs converge, group_add fix confirmed). Awaiting verifier's structured findings to finalize closure. Then TAP-5946 (permit root cause).
 
 ## Blockers
 - none
