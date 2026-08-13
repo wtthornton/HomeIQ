@@ -12,7 +12,7 @@ from typing import Any
 
 import aiohttp
 from fastapi import APIRouter, HTTPException, Query, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .flux_utils import sanitize_flux_value
 
@@ -78,7 +78,11 @@ class EventSearch(BaseModel):
 
     query: str
     fields: list[str] = ["entity_id", "event_type", "attributes"]
-    limit: int = 100
+    limit: int = Field(default=100, ge=1, le=1000)
+    #: How far back to search. The store keeps events indefinitely, so the
+    #: window is a caller-visible knob (disclosed in the response), not a
+    #: silent 24h narrowing (TAP-5997).
+    hours: int = Field(default=24, ge=1, le=8760)
 
 
 class EventsEndpoints:
@@ -620,26 +624,36 @@ from(bucket: "{influxdb_bucket}")
         collector services, none of which ever implemented the endpoint —
         every call 404ed, the warning was swallowed, and the facade
         returned ``[]`` structurally. The event store itself is what gets
-        searched now. Matching covers the indexed tags (``entity_id``,
-        ``event_type``); other requested fields are ignored rather than
-        pretended. Failures propagate — the route owns the 502.
+        searched now.
+
+        Matching is case-insensitive over the indexed tags ``entity_id``
+        and ``event_type``; requested ``fields`` outside those are ignored
+        rather than pretended. The needle goes through the file's shared
+        ``sanitize_flux_value`` (not a hand-rolled escape) so ``${...}``
+        Flux interpolation and injection cannot leak through. Records are
+        pivoted so real ``context_id`` event ids survive (drill-down via
+        ``GET /events/{id}`` keeps working); ``group()`` before ``limit``
+        makes the cap global rather than per-series. Failures propagate —
+        the route owns the 502.
         """
         bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
         query_api = _get_shared_influxdb_client().query_api()
 
-        needle = search.query.replace("\\", "\\\\").replace('"', '\\"')
+        needle = sanitize_flux_value(search.query).lower()
         searchable = ("entity_id", "event_type")
         targets = [f for f in search.fields if f in searchable] or list(searchable)
         conditions = " or ".join(
-            f'strings.containsStr(v: r.{t}, substr: "{needle}")' for t in targets
+            f'strings.containsStr(v: strings.toLower(v: r.{t}), substr: "{needle}")'
+            for t in targets
         )
         query = f'''
 import "strings"
 from(bucket: "{bucket}")
-  |> range(start: -24h)
+  |> range(start: -{int(search.hours)}h)
   |> filter(fn: (r) => r._measurement == "home_assistant_events")
-  |> filter(fn: (r) => r._field == "context_id")
   |> filter(fn: (r) => {conditions})
+  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+  |> group()
   |> sort(columns: ["_time"], desc: true)
   |> limit(n: {int(search.limit)})
 '''
