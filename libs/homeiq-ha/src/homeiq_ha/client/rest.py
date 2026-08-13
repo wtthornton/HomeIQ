@@ -142,6 +142,15 @@ class HARestClient:
             "POST", f"/api/config/config_entries/flow/{flow_id}", json=user_input
         )
 
+    async def get_config_flow(self, flow_id: str) -> dict[str, Any]:
+        """Re-render a running flow's current step without submitting it.
+
+        HA core's ``FlowManagerResourceView.get`` calls
+        ``async_configure(flow_id)`` with no user input, which re-invokes the
+        current step handler in show-form mode — nothing advances.
+        """
+        return await self.request("GET", f"/api/config/config_entries/flow/{flow_id}")
+
     async def abort_config_flow(self, flow_id: str) -> None:
         await self.request("DELETE", f"/api/config/config_entries/flow/{flow_id}")
 

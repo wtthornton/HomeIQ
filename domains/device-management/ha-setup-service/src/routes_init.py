@@ -17,9 +17,15 @@ from homeiq_ha.agent import HAInitAgent
 from homeiq_ha.agent.answers import Answers, apply_answers
 from homeiq_ha.agent.backup import backup_taker
 from homeiq_ha.agent.recipes import default_recipes
+from homeiq_ha.agent.triggers import (
+    PERMIT_MAX_DURATION,
+    advance_to_readiness,
+    open_permit_window,
+    start_hacs,
+)
 from homeiq_ha.agent.wizard import build_queue
 from homeiq_ha.client import HAClient
-from pydantic import BaseModel, ConfigDict, SecretStr
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 if TYPE_CHECKING:
     from homeiq_ha.agent.engine import RunReport
@@ -155,6 +161,60 @@ async def answers(body: AnswersRequest) -> dict[str, Any]:
     except Exception as exc:
         logger.exception("init answers failed")
         raise HTTPException(status_code=502, detail=f"answers failed: {exc}") from exc
+
+
+class PermitRequest(BaseModel):
+    """TAP-5946: explicit, bounded join-window length (upstream range 0-254).
+
+    ``duration`` is always forwarded explicitly — the window's length is
+    stated, never inherited from a server default. 0 closes an open window.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    duration: int = Field(default=60, ge=0, le=PERMIT_MAX_DURATION)
+
+
+@init_router.post("/pairing/permit")
+async def pairing_permit(body: PermitRequest | None = None) -> dict[str, Any]:
+    """Open a bounded ZHA join window; the response states when it closes.
+
+    Idempotent-safe: re-triggering restarts the window with the new
+    duration (upstream ZHA behaviour) — an extend, never an error.
+    """
+    body = body or PermitRequest()
+    try:
+        async with HAClient.from_env() as ha:
+            return await open_permit_window(ha, duration=body.duration)
+    except Exception as exc:
+        logger.exception("pairing permit failed")
+        raise HTTPException(status_code=502, detail=f"permit failed: {exc}") from exc
+
+
+@init_router.post("/flows/{flow_id}/start")
+async def flow_start(flow_id: str) -> dict[str, Any]:
+    """Advance a discovered flow to its human-readable step (PIN, code).
+
+    Never completes the flow — it stops at the first step needing
+    human-held knowledge and returns that step's placeholders and fields.
+    """
+    try:
+        async with HAClient.from_env() as ha:
+            return await advance_to_readiness(ha, flow_id)
+    except Exception as exc:
+        logger.exception("flow start failed")
+        raise HTTPException(status_code=502, detail=f"flow start failed: {exc}") from exc
+
+
+@init_router.post("/hacs/start")
+async def hacs_start() -> dict[str, Any]:
+    """Begin HACS onboarding, surfacing the GitHub device code and URL."""
+    try:
+        async with HAClient.from_env() as ha:
+            return await start_hacs(ha)
+    except Exception as exc:
+        logger.exception("hacs start failed")
+        raise HTTPException(status_code=502, detail=f"hacs start failed: {exc}") from exc
 
 
 @init_router.post("/converge")

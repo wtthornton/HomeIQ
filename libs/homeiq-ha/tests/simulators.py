@@ -282,6 +282,13 @@ class SimRest:
     async def abort_config_flow(self, flow_id: str) -> None:
         self.writes.append(f"flow_abort {flow_id}")
 
+    async def get_config_flow(self, flow_id: str) -> dict[str, Any]:
+        """Current-step re-render (a read), scripted via state['flow_current_step']."""
+        return dict(
+            self.state.get("flow_current_step")
+            or {"type": "form", "flow_id": flow_id, "data_schema": []}
+        )
+
     @staticmethod
     def classify_flow_step(step: dict[str, Any]) -> str:
         # The production classifier, so tests exercise real semantics.
