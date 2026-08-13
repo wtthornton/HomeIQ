@@ -50,7 +50,7 @@ HomeIQ is an **API-first platform** designed for Home Automation data management
 |---------|------|----------|---------|
 | **Admin API** | 8004 | `http://localhost:8004` | System monitoring, Docker management |
 | **Data API** | 8006 | `http://localhost:8006` | Feature data (events, devices, sports, analytics) |
-| **AI Automation** | 8024 | `http://localhost:8024` | Automation suggestions & conversational AI |
+| **HA Setup / Init Gateway** | 8024 | `http://localhost:8024` | HA init-agent audit (read-only) & converge (backup-gated); see `docs/operations/init-gateway.md` |
 | **AI Pattern Service** | 8020/8034 | `http://localhost:8034` | Pattern detection, synergy analysis, blueprint opportunities |
 | **Blueprint Index** | 8031 | `http://localhost:8031` | Blueprint indexing and search (NEW) |
 | **HA AI Agent** | 8030 | `http://localhost:8030` | Tier 1 Context Injection for Home Assistant AI Agent [Epic AI-19] |

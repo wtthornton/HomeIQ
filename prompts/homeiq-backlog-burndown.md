@@ -366,7 +366,8 @@ Confirm each before depending on it.
   GitHub-authed; Team Tracker live (Golden Knights NHL, Raiders NFL). Backups: 6 exist,
   nightly 04:48, daily/7. Init gateway :8024; nightly audit cron 03:15 →
   `.tapps-mcp/init-audit-<date>.json`. Audit at update time: 13 sat / 3 blocked / 0
-  needs-apply (pre-Hue-absorption).
+  needs-apply (pre-Hue-absorption; 2026-08-13: 19 sat / 1 blocked of 20 — the recipe
+  set grows, verify counts against the live audit rather than these snapshots).
 - **Coordinator outage 2026-08-12 (Wave 5's origin):** SLZB dropped off the network
   after a reboot; nothing alerted — ZHA sat in `setup_retry` silently. Recovery was a
   30s power-cycle. LQI/watchdog/alerting is the fix, not ZHA config changes.

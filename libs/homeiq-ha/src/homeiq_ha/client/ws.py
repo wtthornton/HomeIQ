@@ -58,8 +58,14 @@ def _is_log_endpoint(endpoint: str) -> bool:
 
     Covers ``/core/logs``, ``/supervisor/logs``, ``/host/logs``,
     ``/addons/<slug>/logs`` and their sub-paths (``/host/logs/boots/0``).
+    Two collection endpoints under ``/host/logs`` return JSON, not text —
+    ``/host/logs/boots`` and ``/host/logs/identifiers`` (verified live
+    2026-08-13, HA 2026.8.1) — so those pass through to the WS passthrough,
+    while their entry sub-paths (``.../boots/0``) are text and stay blocked.
     """
     path = endpoint.split("?", 1)[0].rstrip("/")
+    if path.endswith(("/logs/boots", "/logs/identifiers")):
+        return False
     return path.endswith("/logs") or "/logs/" in path
 
 

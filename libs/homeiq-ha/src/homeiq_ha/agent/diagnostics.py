@@ -99,7 +99,9 @@ class ZigbeeMeshHealthRecipe(Recipe):
     reported it. Strictly report-only: never writes, never blocks, never
     alerts (the coordinator watchdog owns alerting). When ZHA is absent or its
     API errors, it degrades to SATISFIED with a note rather than crashing the
-    nightly audit.
+    nightly audit. Field names in the ``zha/devices`` payload
+    (``user_given_name``/``lqi``/``last_seen``/``device_type``) are as of
+    HA 2026.8.1, verified live 2026-08-12.
     """
 
     name = "zigbee.mesh_health"
@@ -177,20 +179,27 @@ class ZigbeeCoordinatorWatchdogRecipe(Recipe):
     2. the coordinator's TCP socket not accepting connections.
 
     The probe connects and immediately closes without sending a byte — the
-    SLZB-06 accepts up to 5 concurrent TCP clients and only concurrent *data*
-    corrupts the stream, so probing never disturbs ZHA's live session. It is
-    a raw socket read outside the HA API, so the audit's read-only proxy does
-    not see it; it is inherently read-only. When no zha entry exists at all
-    there is nothing to watch (that is :class:`~.zha.ZHARecipe`'s finding),
-    so the recipe reports ``NOT_APPLICABLE`` without probing.
+    SLZB-06 series (deployed unit: SLZB-06p7) accepts up to 5 concurrent TCP
+    clients on the Zigbee socket and only concurrent *data* corrupts the
+    stream (SMLIGHT manual, "Zigbee2MQTT / ZHA settings"; verified live
+    2026-08-13 on HA 2026.8.1: probe accepted while ZHA held its session,
+    mesh unaffected). It is a raw socket read outside the HA API, so the
+    audit's read-only proxy does not see it; it is inherently read-only.
+    When no zha entry exists at all there is nothing to watch (that is
+    :class:`~.zha.ZHARecipe`'s finding), so the recipe reports
+    ``NOT_APPLICABLE`` without probing.
     """
 
     name = "zigbee.coordinator_watchdog"
     phase = PHASE_ORGANIZATION
     description = "ZHA config entry loaded and Zigbee coordinator reachable"
 
-    #: Entry states that mean the integration is stuck, not merely starting.
-    ALERT_STATES = frozenset({"setup_retry", "setup_error", "migration_error", "failed_unload"})
+    #: The only entry states that do NOT alert: healthy, or transiently
+    #: starting up. Everything else — setup_retry, setup_error,
+    #: migration_error, failed_unload, and also not_loaded (a disabled or
+    #: unloaded entry means every Zigbee device is dead) — is alert-worthy,
+    #: including states future HA versions may add. (HA 2026.8.1 state names.)
+    HEALTHY_STATES = frozenset({"loaded", "setup_in_progress"})
     #: Domains whose entries watch this coordinator (zha + the SLZB's own
     #: smlight integration — both sat in setup_retry during the outage).
     WATCHED_DOMAINS = frozenset({"zha", "smlight"})
@@ -217,7 +226,7 @@ class ZigbeeCoordinatorWatchdogRecipe(Recipe):
                 {"entries": watched},
             )
 
-        stuck = [e for e in watched if e["state"] in self.ALERT_STATES]
+        stuck = [e for e in watched if e["state"] not in self.HEALTHY_STATES]
         reachable, probe_detail = await self._probe_coordinator()
         details = {
             "entries": watched,
@@ -247,7 +256,8 @@ class ZigbeeCoordinatorWatchdogRecipe(Recipe):
                 human_action = (
                     "The coordinator socket answers, so the radio link is up — "
                     "reload the stuck config entries from Settings → Devices & "
-                    "Services (or restart Home Assistant if reload loops)."
+                    "Services (re-enable them first if deliberately disabled; "
+                    "restart Home Assistant if reload loops)."
                 )
             return CheckResult(
                 CheckStatus.BLOCKED_ON_HUMAN,

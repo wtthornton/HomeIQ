@@ -260,6 +260,15 @@ async def test_supervisor_api_still_forwards_non_log_endpoints():
     try:
         await client.supervisor_api("/addons")
         assert ws.sent[-1]["endpoint"] == "/addons"
+        # /host/logs/boots and /host/logs/identifiers are JSON collection
+        # endpoints (verified live, HA 2026.8.1) — the guard must let them
+        # through, while their text entry sub-paths stay blocked.
+        await client.supervisor_api("/host/logs/boots")
+        assert ws.sent[-1]["endpoint"] == "/host/logs/boots"
+        await client.supervisor_api("/host/logs/identifiers")
+        assert ws.sent[-1]["endpoint"] == "/host/logs/identifiers"
+        with pytest.raises(ValueError, match="get_supervisor_logs"):
+            await client.supervisor_api("/host/logs/boots/0")
     finally:
         await client.close()
 

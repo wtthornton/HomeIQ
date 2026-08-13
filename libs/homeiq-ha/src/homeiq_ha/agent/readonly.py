@@ -8,6 +8,11 @@ write — the call never reaches Home Assistant.
 
 A recipe with a buggy ``check()`` therefore fails loudly during an audit
 instead of quietly mutating someone's home.
+
+One audited call bypasses this proxy by nature: the coordinator watchdog's
+TCP reachability probe (:class:`~.diagnostics.ZigbeeCoordinatorWatchdogRecipe`)
+opens a raw socket outside the HA API. It connects and closes without sending
+a byte, so it is read-only by construction rather than by proxy enforcement.
 """
 
 from __future__ import annotations

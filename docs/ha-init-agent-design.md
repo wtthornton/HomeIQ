@@ -1,8 +1,13 @@
 # HA Init/Setup Agent — Design & Priority Plan
 
-**Status:** Design for review. **Nothing has been executed against Home Assistant.**
-**Target instance:** HA 2026.7.4, HAOS/Supervised, Raspberry Pi (aarch64), Supervisor 2026.07.5, `192.168.1.80:8123`
-**Date:** 2026-08-01
+**Status:** Executed and live. The engine has converged the real instance repeatedly
+since 2026-08-11 through the init gateway (`:8024`, PR #82); the recipe set has grown
+past this document (20 audit outcomes as of 2026-08-13, including report-only Zigbee
+diagnostics and a coordinator watchdog). Treat the sections below as the founding
+design, not a current inventory — the code (`libs/homeiq-ha/src/homeiq_ha/agent/`)
+and `docs/operations/init-gateway.md` are current.
+**Target instance:** HA 2026.7.4 at design time (2026.8.1 as of 2026-08-13), HAOS/Supervised, Raspberry Pi (aarch64), `192.168.1.80:8123`
+**Date:** 2026-08-01 (currency note updated 2026-08-13)
 
 ---
 
@@ -208,7 +213,7 @@ Legend: 🤖 fully automatable · 🔶 automatable with one human step · 👤 m
 | **Auto-Backup (HACS)** | Superseded by core Backup — scheduling, retention, off-site agents all absorbed. |
 | **MariaDB add-on** | Official docs now favor SQLite; 164 entities is nowhere near the threshold. Adds a second failure domain. |
 | **InfluxDB / Grafana add-ons** | **Redundant — HomeIQ already runs both externally.** |
-| **Mosquitto / Zigbee2MQTT / ZHA / Z-Wave JS** | Zero devices of those protocols. Install when hardware arrives. (2026 guidance: prefer **ZHA** unless you already run MQTT.) |
+| **Mosquitto / Zigbee2MQTT / ZHA / Z-Wave JS** | Zero devices at design time; install when hardware arrives. (2026 guidance: prefer **ZHA** unless you already run MQTT.) *Superseded 2026-08-11: ZHA is live on an SMLIGHT SLZB-06p7 (`socket://192.168.1.121:6638`) with mesh-health and coordinator-watchdog audit recipes.* |
 | **Frigate** | Requires MQTT *and* cameras. Two blockers. |
 | **Alexa Media Player** | Core shipped `alexa_devices` in 2025.6. |
 | **Average (HACS)** | ☠️ Abandoned — last commit 2025-01, open crash bug. Use core Min/Max or Statistics helpers. |
@@ -251,7 +256,8 @@ Legend: 🤖 fully automatable · 🔶 automatable with one human step · 👤 m
 Phase 0  Preflight ......... verify token, admin, WS, supervisor/api reachable       🤖
 Phase 1  SAFETY ............ backups configured + first backup verified + kit saved  🔶  ← gate
 Phase 2  Correctness ....... currency, recorder, http hardening, update policy       🤖
-Phase 3  Organization ...... floors, areas, labels, device assignment                🤖
+Phase 3  Organization ...... floors, areas, labels, device assignment,
+                             report-only diagnostics (scenes, zigbee mesh, watchdog)  🤖
 Phase 4  Add-ons ........... OTBR, SSH, Studio Code Server                           🤖
 Phase 5  HACS bootstrap .... Get HACS add-on → GitHub device code → onboard          🔶  ← gate
 Phase 6  Integrations ...... Team Tracker, Powercalc, + selected P5                  🤖

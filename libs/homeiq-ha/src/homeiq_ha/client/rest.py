@@ -108,12 +108,14 @@ class HARestClient:
     async def get_supervisor_logs(self, endpoint: str = "/core/logs") -> str:
         """Supervisor-managed logs as text, via the core's ``/api/hassio`` proxy.
 
-        The supported log path (TAP-5984): the WS ``supervisor/api``
-        passthrough JSON-decodes every Supervisor response, so text log
-        endpoints (``/core/logs``, ``/supervisor/logs``, ``/addons/<slug>/logs``)
-        always fail there with an opaque ``unknown_error``. The REST proxy
-        forwards the journald text untouched, and :meth:`request` already
-        returns non-JSON bodies as ``str``.
+        The supported log path (TAP-5984, verified live 2026-08-13 on
+        HA 2026.8.1): the WS ``supervisor/api`` passthrough JSON-decodes
+        every Supervisor response, so text log endpoints (``/core/logs``,
+        ``/supervisor/logs``, ``/addons/<slug>/logs``) always fail there
+        with an opaque ``unknown_error``. The REST proxy forwards the
+        journald text untouched (ANSI color codes included — strip them
+        before machine-parsing), and :meth:`request` already returns
+        non-JSON bodies as ``str``.
 
         Args:
             endpoint: Supervisor log path, e.g. ``/core/logs`` or

@@ -11,6 +11,7 @@ documentation — the backup API in particular renamed ``schedule.state`` to
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, Any
 
 from homeiq_ha.client.errors import HAHumanGateRequired
@@ -854,9 +855,16 @@ def default_recipes(
             default path is loaded if it exists; without a manifest the
             manifest-driven organization recipes are simply absent (the
             report-only ones still run).
+
+    The Zigbee coordinator address defaults to :data:`ZHA_SERIAL_PATH` and
+    can be overridden with the ``HOMEIQ_ZHA_SERIAL_PATH`` environment
+    variable — both for a coordinator IP change and for staging a
+    watchdog alert against an unreachable target without a code edit
+    (see docs/operations/init-gateway.md).
     """
     if manifest is None and DEFAULT_MANIFEST_PATH.exists():
         manifest = load_manifest()
+    zha_serial_path = os.environ.get("HOMEIQ_ZHA_SERIAL_PATH") or ZHA_SERIAL_PATH
 
     recipes: list[Recipe] = [
         BackupScheduleRecipe(),
@@ -888,8 +896,8 @@ def default_recipes(
                 "sensor so its entity_id contains 'team_tracker'."
             ),
         ),
-        ZHARecipe(ZHA_SERIAL_PATH),
-        ZigbeeCoordinatorWatchdogRecipe(ZHA_SERIAL_PATH),
+        ZHARecipe(zha_serial_path),
+        ZigbeeCoordinatorWatchdogRecipe(zha_serial_path),
         ZigbeeMeshHealthRecipe(),
     ]
     if manifest is not None:

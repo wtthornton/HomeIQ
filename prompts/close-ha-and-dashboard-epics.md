@@ -44,8 +44,9 @@ child issue Done or Cancelled-with-a-reason.
    ending in **post-restore diff = 0 differences** with an independent re-read confirming the
    exact baseline, **or** a one-line recorded reason it is deferred/blocked, with the Linear id
    that now tracks it. No phase may be silently skipped.
-4. `python -m homeiq_ha.agent audit` against live HA: a status for all 13 recipes plus the
-   assertion line proving **zero write calls** were issued.
+4. `python -m homeiq_ha.agent audit` against live HA: a status for every registered recipe
+   (13 at authoring; the set grows — 20 as of 2026-08-13; count `default_recipes()`, don't
+   pin to a number) plus the assertion line proving **zero write calls** were issued.
 5. Linear query result showing **TAP-5405 and every child Done or Cancelled**, one-line reason
    per Cancelled, and every follow-up story created. **Every id in the output verified by
    `get_issue` before it is cited.**

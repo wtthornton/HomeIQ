@@ -223,7 +223,14 @@ async def _free_tcp_listener() -> tuple[asyncio.AbstractServer, str]:
 
 
 def _closed_tcp_path() -> str:
-    """A port that was just released, so connecting to it is refused."""
+    """A port that was just released, so connecting to it is refused.
+
+    Theoretically racy under parallel runs (another process could claim the
+    port between release and probe), but ephemeral-port reuse that fast has
+    not been observed across repeated serial and xdist runs; a flake here
+    means "reachable when expected refused", which reads as a test failure,
+    never a false pass.
+    """
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
         port = probe.getsockname()[1]
@@ -280,6 +287,56 @@ async def test_watchdog_alerts_on_setup_retry_even_with_reachable_coordinator(si
     # Coordinator answers, so the action is an entry reload, not a power-cycle.
     assert "reload" in (check.human_action or "").lower()
     assert sim.writes == []
+
+
+@pytest.mark.asyncio
+async def test_watchdog_alerts_on_not_loaded_disabled_entry(sim):
+    """A disabled/unloaded ZHA entry means every Zigbee device is dead —
+    that must alert even though the free coordinator socket answers."""
+    server, path = await _free_tcp_listener()
+    try:
+        sim.state["config_entries"].append(
+            {"entry_id": "zha1", "domain": "zha", "state": "not_loaded"}
+        )
+        check = await _watchdog(path).check(sim)
+    finally:
+        server.close()
+        await server.wait_closed()
+    assert check.status is CheckStatus.BLOCKED_ON_HUMAN
+    assert "zha=not_loaded" in check.summary
+    assert sim.writes == []
+
+
+@pytest.mark.asyncio
+async def test_watchdog_tolerates_setup_in_progress(sim):
+    """A starting-up entry is transient, not stuck — no alert."""
+    server, path = await _free_tcp_listener()
+    try:
+        sim.state["config_entries"].append(
+            {"entry_id": "zha1", "domain": "zha", "state": "setup_in_progress"}
+        )
+        check = await _watchdog(path).check(sim)
+    finally:
+        server.close()
+        await server.wait_closed()
+    assert check.status is CheckStatus.SATISFIED
+    assert sim.writes == []
+
+
+@pytest.mark.asyncio
+async def test_default_recipes_serial_path_env_override(sim, monkeypatch):
+    """HOMEIQ_ZHA_SERIAL_PATH redirects the probe target without a code edit
+    (a coordinator IP change, or staging a watchdog alert)."""
+    from homeiq_ha.agent.recipes import (
+        ZHARecipe,
+        ZigbeeCoordinatorWatchdogRecipe,
+        default_recipes,
+    )
+
+    monkeypatch.setenv("HOMEIQ_ZHA_SERIAL_PATH", "socket://10.0.0.9:1234")
+    by_type = {type(r): r for r in default_recipes()}
+    assert by_type[ZigbeeCoordinatorWatchdogRecipe].serial_path == "socket://10.0.0.9:1234"
+    assert by_type[ZHARecipe].serial_path == "socket://10.0.0.9:1234"
 
 
 @pytest.mark.asyncio
