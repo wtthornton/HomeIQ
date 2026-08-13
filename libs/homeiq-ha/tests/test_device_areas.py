@@ -12,7 +12,7 @@ from homeiq_ha.agent import CheckStatus
 from homeiq_ha.agent.manifest import Area, DeviceArea, OrganizationManifest
 from homeiq_ha.agent.recipes import ManifestDeviceAreasRecipe
 
-from tests.test_agent_recipes import SimHA
+from tests.simulators import SimHA
 
 
 @pytest.fixture

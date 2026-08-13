@@ -10,7 +10,7 @@ import pytest
 from homeiq_ha.agent import CheckStatus
 from homeiq_ha.agent.manifest import OrganizationManifest
 
-from tests.test_agent_recipes import SimHA
+from tests.simulators import SimHA
 
 
 @pytest.fixture

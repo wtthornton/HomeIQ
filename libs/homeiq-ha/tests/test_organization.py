@@ -24,7 +24,7 @@ from homeiq_ha.agent.recipes import (
     default_recipes,
 )
 
-from tests.test_agent_recipes import SimHA
+from tests.simulators import SimHA
 
 
 @pytest.fixture

@@ -96,3 +96,80 @@ class IntegrationRecipe(Recipe):
 
 
 __all__ = ["IntegrationRecipe"]
+
+
+class TeamTrackerRecipe(IntegrationRecipe):
+    """Team Tracker, with the entity_id trap asserted rather than trusted.
+
+    The README says the sensor will be ``sensor.team_tracker``. That is only
+    true for the YAML path — the UI config flow prefills the name as
+    ``"{league} - {team}"``, producing e.g. ``sensor.nfl_las_vegas_raiders``.
+    HomeIQ's sports-api filters for entity_ids *containing* ``team_tracker``
+    and would match nothing.
+
+    So this recipe verifies the resulting entity_id instead of trusting the
+    documented default, and fails loudly when the name does not carry the
+    marker.
+    """
+
+    #: The substring sports-api filters on.
+    MARKER = "team_tracker"
+
+    name = "integrations.team_tracker"
+    description = "Team Tracker configured with a sports-api-compatible entity_id"
+
+    def __init__(
+        self,
+        *,
+        steps: tuple[dict[str, Any], ...] = ({},),
+        needs_user_input: str | None = None,
+    ) -> None:
+        super().__init__(
+            "teamtracker",
+            title="Team Tracker",
+            steps=steps,
+            needs_user_input=needs_user_input,
+        )
+        self.name = "integrations.team_tracker"
+
+    async def _marked_entities(self, ha: Any) -> list[str]:
+        entities = await ha.ws.list_entities()
+        return [
+            entity["entity_id"]
+            for entity in entities or []
+            if self.MARKER in entity.get("entity_id", "")
+        ]
+
+    async def check(self, ha: HAClient) -> CheckResult:
+        base = await super().check(ha)
+        if base.status is not CheckStatus.SATISFIED:
+            return base
+
+        marked = await self._marked_entities(ha)
+        if marked:
+            return CheckResult(
+                CheckStatus.SATISFIED,
+                f"Team Tracker loaded with {len(marked)} matching entity/entities",
+                {"entity_ids": marked},
+            )
+        return CheckResult(
+            CheckStatus.BLOCKED_ON_HUMAN,
+            "Team Tracker is loaded but no entity_id contains 'team_tracker'",
+            {"marker": self.MARKER},
+            human_action=(
+                "Rename the Team Tracker sensor so its entity_id contains "
+                "'team_tracker' (e.g. sensor.team_tracker_raiders). sports-api "
+                "filters on that substring and will otherwise see nothing."
+            ),
+        )
+
+    async def verify(self, ha: HAClient) -> VerifyResult:
+        base = await super().verify(ha)
+        if not base.ok:
+            return base
+        marked = await self._marked_entities(ha)
+        return VerifyResult(
+            bool(marked),
+            f"{len(marked)} entity_id(s) carry the '{self.MARKER}' marker",
+            {"entity_ids": marked},
+        )

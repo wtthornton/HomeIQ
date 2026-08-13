@@ -18,7 +18,7 @@ from homeiq_ha.agent.snapshot import (
     restore,
 )
 
-from .test_agent_recipes import SimHA
+from .simulators import SimHA
 
 
 async def _noop_backup(_label: str) -> None:

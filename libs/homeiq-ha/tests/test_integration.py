@@ -7,9 +7,9 @@ from __future__ import annotations
 
 import pytest
 from homeiq_ha.agent import CheckStatus
-from homeiq_ha.agent.integration import IntegrationRecipe
+from homeiq_ha.agent.integration import IntegrationRecipe, TeamTrackerRecipe
 
-from tests.test_agent_recipes import SimHA
+from tests.simulators import FRESH_INSTANCE, SimHA
 
 
 @pytest.fixture
@@ -77,3 +77,43 @@ async def test_needs_user_input_is_satisfied_once_a_person_configured_it(sim):
     result = await IntegrationRecipe("nws", needs_user_input="anything").check(sim)
 
     assert result.status is CheckStatus.SATISFIED
+
+
+# --- Team Tracker entity_id trap (moved from test_agent_recipes.py, TAP-5921) ---
+
+
+@pytest.mark.asyncio
+async def test_team_tracker_blocks_when_the_entity_id_lacks_the_marker():
+    """The UI flow names the sensor "{league} - {team}", so the entity_id is
+    sensor.nfl_las_vegas_raiders and sports-api — which filters on the
+    substring 'team_tracker' — would match nothing."""
+    sim = SimHA(
+        {
+            **FRESH_INSTANCE,
+            "config_entries": [{"entry_id": "e1", "domain": "teamtracker", "state": "loaded"}],
+            "entities": [{"entity_id": "sensor.nfl_las_vegas_raiders"}],
+        }
+    )
+
+    result = await TeamTrackerRecipe().check(sim)
+
+    assert result.status is CheckStatus.BLOCKED_ON_HUMAN
+    assert "team_tracker" in (result.human_action or "")
+    assert not (await TeamTrackerRecipe().verify(sim)).ok
+
+
+@pytest.mark.asyncio
+async def test_team_tracker_satisfied_when_the_entity_id_carries_the_marker():
+    sim = SimHA(
+        {
+            **FRESH_INSTANCE,
+            "config_entries": [{"entry_id": "e1", "domain": "teamtracker", "state": "loaded"}],
+            "entities": [{"entity_id": "sensor.team_tracker_raiders"}],
+        }
+    )
+
+    result = await TeamTrackerRecipe().check(sim)
+
+    assert result.status is CheckStatus.SATISFIED
+    assert result.details["entity_ids"] == ["sensor.team_tracker_raiders"]
+    assert (await TeamTrackerRecipe().verify(sim)).ok

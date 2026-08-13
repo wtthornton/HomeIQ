@@ -1,4 +1,4 @@
-"""Manifest-driven organization recipes.
+"""Organization recipes: registry names and manifest-driven convergence.
 
 These converge the live instance to the desired-state manifest AgentForge
 authored and a judge reviewed (config/ha-organization-manifest.yaml).

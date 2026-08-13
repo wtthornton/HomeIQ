@@ -44,7 +44,6 @@ class IntegrationHealthChecker:
 
     Implements detailed health checks for:
     - MQTT broker connectivity
-    - Zigbee2MQTT addon status
     - Home Assistant integrations
     - Device discovery validation
     - Authentication validation
@@ -68,7 +67,6 @@ class IntegrationHealthChecker:
         results = await asyncio.gather(
             self.check_ha_authentication(),
             self.check_mqtt_integration(),
-            self.check_zigbee2mqtt_integration(),
             self.check_device_discovery(),
             self.check_data_api_integration(),
             self.check_admin_api_integration(),
@@ -308,91 +306,6 @@ class IntegrationHealthChecker:
         except (TimeoutError, OSError, ConnectionRefusedError) as e:
             logger.debug(f"MQTT broker connectivity check failed: {e}")
             return False
-
-    async def check_zigbee2mqtt_integration(self) -> CheckResult:
-        """
-        Check Zigbee2MQTT integration status via Home Assistant API.
-
-        Checks:
-        - Zigbee2MQTT addon installed (via HA API)
-        - Zigbee2MQTT entities present
-        - Bridge state entity (sensor.zigbee2mqtt_bridge_state)
-
-        This is the primary method for health monitoring, using HA API
-        which is simpler and more reliable than MQTT subscription.
-        """
-        try:
-            session = await get_http_session()
-            headers = {
-                "Authorization": f"Bearer {self.ha_token}",
-                "Content-Type": "application/json",
-            }
-
-            # Check for Zigbee2MQTT bridge state using single-entity endpoint
-            async with session.get(
-                f"{self.ha_url}/api/states/sensor.zigbee2mqtt_bridge_state",
-                headers=headers,
-                timeout=self.timeout,
-            ) as response:
-                if response.status == 200:
-                    z2m_bridge = await response.json()
-                elif response.status == 404:
-                    z2m_bridge = None
-                else:
-                    return CheckResult(
-                        integration_name="Zigbee2MQTT",
-                        integration_type="zigbee2mqtt",
-                        status=IntegrationStatus.ERROR,
-                        is_configured=False,
-                        is_connected=False,
-                        error_message=f"Failed to get HA states: HTTP {response.status}",
-                        check_details={"http_status": response.status},
-                    )
-
-            if not z2m_bridge:
-                return CheckResult(
-                    integration_name="Zigbee2MQTT",
-                    integration_type="zigbee2mqtt",
-                    status=IntegrationStatus.NOT_CONFIGURED,
-                    is_configured=False,
-                    is_connected=False,
-                    error_message="Zigbee2MQTT not detected in Home Assistant",
-                    check_details={
-                        "recommendation": "Install Zigbee2MQTT addon and configure MQTT integration"
-                    },
-                )
-
-            bridge_state = z2m_bridge.get("state", "unknown")
-            is_online = bridge_state.lower() == "online"
-
-            status = IntegrationStatus.HEALTHY if is_online else IntegrationStatus.WARNING
-
-            return CheckResult(
-                integration_name="Zigbee2MQTT",
-                integration_type="zigbee2mqtt",
-                status=status,
-                is_configured=True,
-                is_connected=is_online,
-                error_message=None if is_online else f"Bridge state: {bridge_state}",
-                check_details={
-                    "bridge_state": bridge_state,
-                    "bridge_entity": z2m_bridge.get("entity_id") if z2m_bridge else None,
-                    "recommendation": "Check Zigbee2MQTT addon logs if offline"
-                    if not is_online
-                    else None,
-                },
-            )
-
-        except Exception as e:
-            return CheckResult(
-                integration_name="Zigbee2MQTT",
-                integration_type="zigbee2mqtt",
-                status=IntegrationStatus.ERROR,
-                is_configured=False,
-                is_connected=False,
-                error_message=str(e),
-                check_details={"error_type": type(e).__name__},
-            )
 
     async def check_device_discovery(self) -> CheckResult:
         """

@@ -15,7 +15,7 @@ from homeiq_ha.agent.recipes import (
     ZHARecipe,
 )
 
-from tests.test_agent_recipes import SimHA
+from tests.simulators import SimHA
 
 
 @pytest.fixture

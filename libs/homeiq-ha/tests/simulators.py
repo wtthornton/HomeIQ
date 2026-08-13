@@ -1,0 +1,268 @@
+"""Fixture-backed Home Assistant simulator shared across the test modules.
+
+Extracted from test_agent_recipes.py (TAP-5921): six test files were importing
+the harness from a sibling test module, which is fragile and inflated that
+file past the maintainability gate. ``SimHA`` wires a scripted WebSocket
+(``SimWs``) and REST (``SimRest``) pair over one mutable ``state`` dict seeded
+from ``FRESH_INSTANCE`` — a factory-fresh instance shape captured live.
+"""
+
+from __future__ import annotations
+
+import copy
+import re
+from typing import Any
+
+from homeiq_ha.client.errors import HACommandError
+
+FRESH_INSTANCE: dict[str, Any] = {
+    "backup_config": {
+        "agents": {},
+        "automatic_backups_configured": False,
+        "create_backup": {"agent_ids": [], "password": None, "include_database": True},
+        "retention": {"copies": None, "days": None},
+        "schedule": {"days": [], "recurrence": "never", "time": None},
+    },
+    "backups": [],
+    # One destination, as the live instance reports via backup/agents/info.
+    "backup_agents": [{"agent_id": "hassio.local", "name": "local"}],
+    #: Set by backup/generate; lands after `polls_until_done` reads of
+    #: backup/info, mirroring Home Assistant's asynchronous job.
+    "pending_backup": None,
+    "polls_until_done": 0,
+    "core_config": {"currency": "USD", "country": "US", "time_zone": "America/Los_Angeles"},
+    "areas": [
+        {"area_id": "living_room", "name": "Living Room"},
+        {"area_id": "kitchen", "name": "Kitchen"},
+        {"area_id": "bedroom", "name": "Bedroom"},
+    ],
+    "floors": [],
+    "labels": [],
+    "devices": [{"id": f"dev{i}", "name": f"WLED {i}", "area_id": None} for i in range(19)],
+    "entities": [{"entity_id": f"light.wled_{i}"} for i in range(164)],
+    "addons": [],
+    "config_entries": [],
+}
+
+
+class SimWs:
+    """WebSocket half of the simulator."""
+
+    def __init__(self, state: dict[str, Any]) -> None:
+        self.state = state
+        self.writes: list[str] = []
+        #: Every command with the fields it carried, so a test can assert on
+        #: what was actually sent rather than only on the resulting state.
+        self.calls: list[tuple[str, dict[str, Any]]] = []
+
+    def _advance_backup(self) -> str:
+        """Model an asynchronous backup job, one poll at a time."""
+        pending = self.state.get("pending_backup")
+        if not pending:
+            return "idle"
+        self.state["polls_until_done"] -= 1
+        if self.state["polls_until_done"] > 0:
+            return "create_backup"
+        self.state["backups"].append(pending)
+        self.state["pending_backup"] = None
+        return "idle"
+
+    async def send_command(
+        self,
+        command_type: str,
+        *,
+        _timeout: float | None = None,
+        fields: dict[str, Any] | None = None,
+        **payload: Any,
+    ) -> Any:
+        fields = fields or {}
+        args = {**payload, **fields}
+        self.calls.append((command_type, copy.deepcopy(args)))
+
+        if command_type == "backup/config/info":
+            return {"config": self.state["backup_config"]}
+        if command_type == "backup/agents/info":
+            return {"agents": self.state["backup_agents"]}
+        if command_type == "backup/info":
+            # Advance first: the job lands partway through a poll loop, which is
+            # the whole behaviour verify has to cope with.
+            state = self._advance_backup()
+            return {"backups": list(self.state["backups"]), "state": state}
+        if command_type == "get_config":
+            return self.state["core_config"]
+        if command_type.endswith("_registry/list"):
+            return self.state[_registry_key(command_type)]
+
+        if command_type == "supervisor/api":
+            return await self._supervisor(args)
+        if command_type == "zha/devices":
+            return self.state.get("zha_devices", [])
+
+        # Everything below writes.
+        self.writes.append(command_type)
+
+        if command_type == "backup/config/update":
+            config = self.state["backup_config"]
+            config["schedule"].update(args.get("schedule") or {})
+            config["retention"].update(args.get("retention") or {})
+            config["create_backup"].update(args.get("create_backup") or {})
+            # A schedule only becomes live once it has somewhere to write to;
+            # observed on the live instance, which starts reporting
+            # next_automatic_backup the moment agent_ids is non-empty.
+            scheduled = bool(
+                config["schedule"].get("recurrence") not in (None, "never")
+                and config["create_backup"].get("agent_ids")
+            )
+            config["next_automatic_backup"] = "2026-08-02T04:56:21-07:00" if scheduled else None
+            # Home Assistant additionally withholds this until an encryption
+            # key exists, which backup/config/update cannot set.
+            config["automatic_backups_configured"] = scheduled and bool(
+                config["create_backup"].get("password")
+            )
+            return None
+        if command_type == "backup/generate":
+            if not args.get("agent_ids"):
+                raise HACommandError(
+                    "backup/generate", "invalid_format", "required key not provided: agent_ids"
+                )
+            self.state["pending_backup"] = {"backup_id": "b1", "name": args.get("name")}
+            self.state["polls_until_done"] = 2
+            # Only a job handle — the backup itself does not exist yet.
+            return {"backup_job_id": "job1"}
+        if command_type == "config/core/update":
+            self.state["core_config"].update(args)
+            return None
+        if command_type == "backup/delete":
+            self.state["backups"] = [
+                b for b in self.state["backups"] if b["backup_id"] != args["backup_id"]
+            ]
+            return None
+        if command_type.endswith("_registry/create"):
+            key = _registry_key(command_type)
+            # HA assigns slug ids (lowercase, non-alnum -> _), not raw names.
+            slug = re.sub(r"[^a-z0-9]+", "_", args["name"].lower()).strip("_")
+            self.state[key].append({f"{key[:-1]}_id": slug, "name": args["name"]})
+            return self.state[key][-1]
+        if command_type.endswith("_registry/delete"):
+            key = _registry_key(command_type)
+            id_field = _registry_id_field(command_type)
+            target = args[id_field]
+            self.state[key] = [e for e in self.state[key] if e.get(id_field) != target]
+            return None
+        if command_type.endswith("_registry/update"):
+            key = _registry_key(command_type)
+            id_field = _registry_id_field(command_type)
+            # The live device-registry API takes device_id even though the
+            # registry entries themselves are keyed "id".
+            target = args.pop(id_field, None) or args.pop("device_id", None)
+            for entry in self.state[key]:
+                if entry.get(id_field) == target:
+                    entry.update(args)
+                    return entry
+            return None
+        return None
+
+    async def _supervisor(self, args: dict[str, Any]) -> Any:
+        endpoint = args["endpoint"]
+        method = args.get("method", "get")
+        if method == "get" and endpoint == "/addons":
+            return {"addons": self.state["addons"]}
+        if method == "get" and endpoint.startswith("/addons/") and endpoint.endswith("/info"):
+            slug = endpoint.split("/")[2]
+            return self.state.get("addon_info", {}).get(slug, {})
+        self.writes.append(f"supervisor {method} {endpoint}")
+        if endpoint.startswith("/store/addons/") and endpoint.endswith("/install"):
+            slug = endpoint.split("/")[3]
+            self.state["addons"].append({"slug": slug, "state": "stopped"})
+            return None
+        if endpoint.startswith("/addons/") and endpoint.endswith("/start"):
+            slug = endpoint.split("/")[2]
+            for addon in self.state["addons"]:
+                if addon["slug"] == slug:
+                    addon["state"] = "started"
+            return None
+        if endpoint.startswith("/addons/") and endpoint.endswith("/uninstall"):
+            slug = endpoint.split("/")[2]
+            self.state["addons"] = [a for a in self.state["addons"] if a["slug"] != slug]
+            return None
+        return None
+
+    async def list_entities(self) -> list[dict[str, Any]]:
+        return self.state["entities"]
+
+    async def supervisor_api(
+        self,
+        endpoint: str,
+        *,
+        method: str = "get",
+        _payload: dict[str, Any] | None = None,
+        timeout: float = 900,
+    ) -> Any:
+        return await self.send_command(
+            "supervisor/api",
+            fields={"endpoint": endpoint, "method": method, "timeout": int(timeout)},
+        )
+
+
+#: registry name -> (state key, id field)
+_REGISTRIES = {
+    "area": ("areas", "area_id"),
+    "floor": ("floors", "floor_id"),
+    "label": ("labels", "label_id"),
+    "device": ("devices", "id"),
+    "entity": ("entities", "entity_id"),
+}
+
+
+def _registry_key(command_type: str) -> str:
+    # config/area_registry/list -> areas
+    registry = command_type.split("/")[1].removesuffix("_registry")
+    return _REGISTRIES[registry][0]
+
+
+def _registry_id_field(command_type: str) -> str:
+    registry = command_type.split("/")[1].removesuffix("_registry")
+    return _REGISTRIES[registry][1]
+
+
+class SimRest:
+    def __init__(self, state: dict[str, Any]) -> None:
+        self.state = state
+        self.writes: list[str] = []
+
+    async def request(self, method: str, path: str, **_kwargs: Any) -> Any:
+        if method.upper() != "GET":
+            self.writes.append(f"{method.upper()} {path}")
+        if path == "/api/config/config_entries/entry":
+            return self.state["config_entries"]
+        if method.upper() == "DELETE" and path.startswith("/api/config/config_entries/entry/"):
+            entry_id = path.rsplit("/", 1)[-1]
+            self.state["config_entries"] = [
+                e for e in self.state["config_entries"] if e.get("entry_id") != entry_id
+            ]
+            return {}
+        return {}
+
+    async def get_config_entries(self) -> list[dict[str, Any]]:
+        return await self.request("GET", "/api/config/config_entries/entry")
+
+    async def run_config_flow(self, domain: str, _steps: list[dict[str, Any]], **_c: Any) -> Any:
+        self.writes.append(f"config_flow {domain}")
+        self.state["config_entries"].append(
+            {"entry_id": f"entry_{domain}", "domain": domain, "state": "loaded"}
+        )
+        return {"type": "create_entry"}
+
+
+class SimHA:
+    """Fixture-backed Home Assistant simulator."""
+
+    def __init__(self, state: dict[str, Any] | None = None) -> None:
+        self.state = copy.deepcopy(state or FRESH_INSTANCE)
+        self.base_url = "http://sim.test"
+        self.ws = SimWs(self.state)
+        self.rest = SimRest(self.state)
+
+    @property
+    def writes(self) -> list[str]:
+        return self.ws.writes + self.rest.writes

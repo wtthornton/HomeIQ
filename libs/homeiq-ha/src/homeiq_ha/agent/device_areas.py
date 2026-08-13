@@ -1,4 +1,8 @@
-"""Device-registry convergence: manifest device→area assignments."""
+"""Area lifecycle from the manifest: device→area assignment, artifact-area removal.
+
+``ManifestAreasRemoveRecipe`` lives here with ``ManifestDeviceAreasRecipe``
+because removal is gated on the areas that recipe empties (TAP-5974).
+"""
 
 from __future__ import annotations
 
@@ -128,3 +132,100 @@ class ManifestDeviceAreasRecipe(Recipe):
 
 
 __all__ = ["ManifestDeviceAreasRecipe"]
+
+
+class ManifestAreasRemoveRecipe(Recipe):
+    """Remove areas the manifest declares as artifacts (``areas_remove``).
+
+    Hard guard: removal only ever applies to an EMPTY area. While any device
+    or entity is still assigned, the row reports BLOCKED_ON_HUMAN instead of
+    deleting — the standing never-do is "deleting areas with assigned
+    devices", and a stale removal row must not orphan anything. Runs after
+    :class:`ManifestDeviceAreasRecipe` so manifest-declared device moves
+    (e.g. the Hue "tv" zone's strips moving to living_room, TAP-5974) have
+    already emptied the area by the time removal is considered.
+    """
+
+    name = "organization.areas_remove"
+    phase = PHASE_ORGANIZATION
+    description = "Manifest-declared artifact areas are absent"
+
+    def __init__(self, manifest: OrganizationManifest) -> None:
+        self.manifest = manifest
+
+    async def _occupancy(self, ha: Any) -> dict[str, dict[str, int]]:
+        """area_id -> counts of devices/entities still assigned, for rows that exist."""
+        existing = {
+            area["area_id"]
+            for area in await ha.ws.send_command("config/area_registry/list") or []
+        }
+        wanted = [r for r in self.manifest.areas_remove if r.area_id in existing]
+        if not wanted:
+            return {}
+        devices = await ha.ws.send_command("config/device_registry/list") or []
+        entities = await ha.ws.send_command("config/entity_registry/list") or []
+        occupancy: dict[str, dict[str, int]] = {}
+        for removal in wanted:
+            occupancy[removal.area_id] = {
+                "devices": sum(1 for d in devices if d.get("area_id") == removal.area_id),
+                "entities": sum(1 for e in entities if e.get("area_id") == removal.area_id),
+            }
+        return occupancy
+
+    async def check(self, ha: HAClient) -> CheckResult:
+        occupancy = await self._occupancy(ha)
+        if not occupancy:
+            return CheckResult(
+                CheckStatus.SATISFIED,
+                f"all {len(self.manifest.areas_remove)} declared removal(s) absent",
+            )
+        occupied = {a: c for a, c in occupancy.items() if c["devices"] or c["entities"]}
+        if occupied:
+            return CheckResult(
+                CheckStatus.BLOCKED_ON_HUMAN,
+                f"{len(occupied)} removal-declared area(s) still occupied",
+                {"occupied": occupied},
+                human_action=(
+                    "Areas declared for removal still hold devices/entities: "
+                    f"{sorted(occupied)}. Move or unassign them (or drop the "
+                    "manifest areas_remove row) before removal can apply."
+                ),
+            )
+        return CheckResult(
+            CheckStatus.NEEDS_APPLY,
+            f"{len(occupancy)} empty artifact area(s) to remove",
+            {"to_remove": sorted(occupancy)},
+        )
+
+    async def plan(self, ha: HAClient) -> Plan:
+        occupancy = await self._occupancy(ha)
+        return Plan(
+            tuple(
+                Change("delete", f"area:{area_id}", before=area_id)
+                for area_id, counts in sorted(occupancy.items())
+                if not counts["devices"] and not counts["entities"]
+            )
+        )
+
+    async def apply(self, ha: HAClient) -> ApplyResult:
+        # Re-check emptiness at apply time — the registry may have changed
+        # since check(); the guard is load-bearing, not advisory.
+        occupancy = await self._occupancy(ha)
+        deleted: list[Change] = []
+        for area_id, counts in sorted(occupancy.items()):
+            if counts["devices"] or counts["entities"]:
+                continue
+            await ha.ws.send_command("config/area_registry/delete", area_id=area_id)
+            deleted.append(Change("delete", f"area:{area_id}", before=area_id))
+        return ApplyResult(tuple(deleted), f"deleted {len(deleted)} empty area(s)")
+
+    async def verify(self, ha: HAClient) -> VerifyResult:
+        existing = {
+            area["area_id"]
+            for area in await ha.ws.send_command("config/area_registry/list") or []
+        }
+        lingering = [r.area_id for r in self.manifest.areas_remove if r.area_id in existing]
+        return VerifyResult(
+            not lingering,
+            "all declared removals absent" if not lingering else f"still present: {lingering}",
+        )
