@@ -379,41 +379,58 @@ class PowercalcRecipe(Recipe):
     async def _drive_defaults(
         self, ha: Any, flow_id: str, step: dict[str, Any], label: str
     ) -> dict[str, Any]:
-        """Advance defaulted forms with empty input until create_entry.
+        """Advance defaulted forms until create_entry, guessing nothing.
 
         Refuses (loudly, with the live schema) any form carrying a required
         field without a default — that is a fact a person must supply.
+        The global-configuration chain is 5 forms on the live instance.
         """
-        for _ in range(6):
+        for _ in range(8):
             step_type = ha.rest.classify_flow_step(step)
             if step_type == "create_entry":
                 return step
-            self._drive_check(ha, label, step)
-            step = await ha.rest.advance_config_flow(flow_id, {})
+            if step_type != "form":
+                raise HAFlowError(
+                    f"powercalc {label} flow hit a {step_type!r} step", step
+                )
+            step = await ha.rest.advance_config_flow(
+                flow_id, self._defaults_only_input(label, step)
+            )
         raise HAFlowError(
-            f"powercalc {label} flow did not complete within 6 steps", step
+            f"powercalc {label} flow did not complete within 8 steps", step
         )
 
     @staticmethod
-    def _drive_check(ha: Any, label: str, step: dict[str, Any]) -> None:
-        step_type = ha.rest.classify_flow_step(step)
-        if step_type == "create_entry":
-            return
-        if step_type != "form":
-            raise HAFlowError(
-                f"powercalc {label} flow hit a {step_type!r} step", step
-            )
-        blockers = [
-            str(field.get("name"))
-            for field in step.get("data_schema") or []
-            if field.get("required") and "default" not in field
-        ]
+    def _defaults_only_input(label: str, step: dict[str, Any]) -> dict[str, Any]:
+        """Build a form submission that guesses nothing.
+
+        Section containers (``vol.Section``, serialized with a nested
+        ``schema`` list — powercalc's power_options/features/advanced) are
+        submitted as ``{}`` so voluptuous fills their nested defaults; they
+        group options, they are not facts. A required non-section field
+        without a default is a blocker and raises.
+        """
+        payload: dict[str, Any] = {}
+        blockers: list[str] = []
+        for field in step.get("data_schema") or []:
+            name = str(field.get("name"))
+            nested = field.get("schema")
+            if isinstance(nested, list):
+                blockers.extend(
+                    f"{name}.{sub.get('name')}"
+                    for sub in nested
+                    if sub.get("required") and "default" not in sub
+                )
+                payload[name] = {}
+            elif field.get("required") and "default" not in field:
+                blockers.append(name)
         if blockers:
             raise HAFlowError(
                 f"powercalc {label} form requires input the agent must "
                 f"not guess: {blockers}",
                 step,
             )
+        return payload
 
     async def verify(self, ha: HAClient) -> VerifyResult:
         entry = await self._loaded_entry(ha)

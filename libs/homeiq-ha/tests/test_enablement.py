@@ -222,6 +222,59 @@ async def test_powercalc_apply_bootstraps_discovery_via_global_config(sim):
 
 
 @pytest.mark.asyncio
+async def test_powercalc_submits_sections_as_empty_dicts(sim):
+    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
+    sim.state["flow_first_step"] = PC_MENU
+    sim.state["flow_current_step"] = {"type": "form", "flow_id": "pf1", "data_schema": []}
+    sim.state["flow_steps"] = [
+        {
+            # The live global-configuration form: vol.Section containers.
+            "type": "form",
+            "flow_id": "gc1",
+            "data_schema": [
+                {"name": "power_options", "required": True, "schema": [
+                    {"name": "power_sensor_precision", "optional": True},
+                ]},
+                {"name": "features", "required": True, "schema": [
+                    {"name": "create_energy_sensors", "default": True},
+                ]},
+            ],
+        },
+        {
+            "type": "create_entry",
+            "result": {"entry_id": "gc1", "domain": "powercalc", "state": "loaded"},
+            "add_flows": [{"flow_id": "pf1", "handler": "powercalc"}],
+        },
+        dict(PC_DONE),
+    ]
+
+    await powercalc_recipe().apply(sim)
+
+    section_input = sim.state["flow_inputs"][1]
+    assert section_input == {"power_options": {}, "features": {}}
+
+
+@pytest.mark.asyncio
+async def test_powercalc_refuses_a_section_with_a_required_undefaulted_field(sim):
+    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
+    sim.state["flow_first_step"] = PC_MENU
+    sim.state["flow_steps"] = [
+        {
+            "type": "form",
+            "flow_id": "gc1",
+            "data_schema": [
+                {"name": "power_options", "required": True, "schema": [
+                    {"name": "which_meter", "required": True},
+                ]},
+            ],
+        },
+    ]
+
+    with pytest.raises(HAFlowError, match="power_options.which_meter"):
+        await powercalc_recipe().apply(sim)
+
+
+@pytest.mark.asyncio
 async def test_powercalc_apply_raises_when_discovery_never_appears(sim):
     sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
     sim.state["flow_first_step"] = PC_MENU
