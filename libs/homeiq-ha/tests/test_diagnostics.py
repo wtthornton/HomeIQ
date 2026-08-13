@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import socket
 from typing import Any
 
 import pytest
@@ -211,10 +213,6 @@ async def test_mesh_health_apply_is_noop():
 
 
 # --- ZigbeeCoordinatorWatchdogRecipe (TAP-5983) -------------------------------
-
-
-import asyncio
-import socket
 
 
 async def _free_tcp_listener() -> tuple[asyncio.AbstractServer, str]:

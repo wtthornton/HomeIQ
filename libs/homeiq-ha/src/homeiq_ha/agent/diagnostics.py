@@ -168,8 +168,10 @@ class ZigbeeCoordinatorWatchdogRecipe(Recipe):
     both the ``zha`` and ``smlight`` config entries sat in ``setup_retry``
     silently — a human had to notice pairing had stalled. This recipe turns
     both failure modes into a ``BLOCKED_ON_HUMAN`` audit row (the engine's
-    alert channel: it names a ``human_action``, lands in the report's
-    ``blocked_on_human`` list, and halts converge phases behind it):
+    alert channel: it names a ``human_action`` and renders as a blocked
+    outcome row in every mode; a converge additionally records it in the
+    report's ``blocked_on_human`` list and halts the phases behind it —
+    an audit surfaces it in ``outcomes[]`` only):
 
     1. any watched config entry stuck in a retry/error state, and
     2. the coordinator's TCP socket not accepting connections.
