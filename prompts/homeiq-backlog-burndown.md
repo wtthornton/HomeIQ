@@ -167,7 +167,10 @@ it reached; paste the artifacts for those and the current SCORE line for the res
 - **Branch base:** check PR #82 (`gh pr view 82`). Merged → work from master. Unmerged →
   branch off `feat/ha-init-agent-activation`'s tip for Waves 3–7 and record the deviation.
 - Test runner: **`/home/wtthornton/code/HomeIQ/.venv/bin/python -m pytest`**. System
-  `python3` has no pytest.
+  `python3` has no pytest. **Run test trees separately** — combining
+  `libs/homeiq-ha` and `domains/device-management/ha-setup-service/tests` in one
+  invocation fails collection (both expose a `tests` package; the libs one
+  shadows the service's `tests.path_setup`).
 - Stack health: `docker ps --filter name=homeiq --format '{{.Status}}' | grep -c healthy`.
   If low before Wave 11, `bash scripts/domain.sh start <domain>`. **"(healthy)" counts
   measure uptime, not function** — probe the real data route before trusting any service.

@@ -67,6 +67,12 @@ and die as `unknown_error`; verified on HA 2026.8.1). The supported path is
 which returns journald text (ANSI codes included). `supervisor_api()` refuses
 log endpoints up front and names that method (TAP-5984).
 
+## Related evaluations
+
+Device-configuration decisions made through this gateway's read paths are
+recorded as evidence docs — e.g. the Inovelli smart-bulb-mode evaluation
+(`docs/operations/smart-bulb-mode-evaluation.md`, TAP-5988).
+
 ## Rebuilding the gateway
 
 The lib is baked into the image — after any `libs/homeiq-ha` change:

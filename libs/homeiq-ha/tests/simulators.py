@@ -79,56 +79,40 @@ class SimWs:
         args = {**payload, **fields}
         self.calls.append((command_type, copy.deepcopy(args)))
 
+        handled, result = self._read(command_type)
+        if handled:
+            return result
+        if command_type == "supervisor/api":
+            return await self._supervisor(args)
+
+        # Everything below writes — recorded so tests can assert "no writes".
+        self.writes.append(command_type)
+        return self._write(command_type, args)
+
+    def _read(self, command_type: str) -> tuple[bool, Any]:
+        """Answer a read command; ``(False, None)`` when it isn't one."""
         if command_type == "backup/config/info":
-            return {"config": self.state["backup_config"]}
+            return True, {"config": self.state["backup_config"]}
         if command_type == "backup/agents/info":
-            return {"agents": self.state["backup_agents"]}
+            return True, {"agents": self.state["backup_agents"]}
         if command_type == "backup/info":
             # Advance first: the job lands partway through a poll loop, which is
             # the whole behaviour verify has to cope with.
             state = self._advance_backup()
-            return {"backups": list(self.state["backups"]), "state": state}
+            return True, {"backups": list(self.state["backups"]), "state": state}
         if command_type == "get_config":
-            return self.state["core_config"]
+            return True, self.state["core_config"]
         if command_type.endswith("_registry/list"):
-            return self.state[_registry_key(command_type)]
-
-        if command_type == "supervisor/api":
-            return await self._supervisor(args)
+            return True, self.state[_registry_key(command_type)]
         if command_type == "zha/devices":
-            return self.state.get("zha_devices", [])
+            return True, self.state.get("zha_devices", [])
+        return False, None
 
-        # Everything below writes.
-        self.writes.append(command_type)
-
+    def _write(self, command_type: str, args: dict[str, Any]) -> Any:
         if command_type == "backup/config/update":
-            config = self.state["backup_config"]
-            config["schedule"].update(args.get("schedule") or {})
-            config["retention"].update(args.get("retention") or {})
-            config["create_backup"].update(args.get("create_backup") or {})
-            # A schedule only becomes live once it has somewhere to write to;
-            # observed on the live instance, which starts reporting
-            # next_automatic_backup the moment agent_ids is non-empty.
-            scheduled = bool(
-                config["schedule"].get("recurrence") not in (None, "never")
-                and config["create_backup"].get("agent_ids")
-            )
-            config["next_automatic_backup"] = "2026-08-02T04:56:21-07:00" if scheduled else None
-            # Home Assistant additionally withholds this until an encryption
-            # key exists, which backup/config/update cannot set.
-            config["automatic_backups_configured"] = scheduled and bool(
-                config["create_backup"].get("password")
-            )
-            return None
+            return self._backup_config_update(args)
         if command_type == "backup/generate":
-            if not args.get("agent_ids"):
-                raise HACommandError(
-                    "backup/generate", "invalid_format", "required key not provided: agent_ids"
-                )
-            self.state["pending_backup"] = {"backup_id": "b1", "name": args.get("name")}
-            self.state["polls_until_done"] = 2
-            # Only a job handle — the backup itself does not exist yet.
-            return {"backup_job_id": "job1"}
+            return self._backup_generate(args)
         if command_type == "config/core/update":
             self.state["core_config"].update(args)
             return None
@@ -138,11 +122,7 @@ class SimWs:
             ]
             return None
         if command_type.endswith("_registry/create"):
-            key = _registry_key(command_type)
-            # HA assigns slug ids (lowercase, non-alnum -> _), not raw names.
-            slug = re.sub(r"[^a-z0-9]+", "_", args["name"].lower()).strip("_")
-            self.state[key].append({f"{key[:-1]}_id": slug, "name": args["name"]})
-            return self.state[key][-1]
+            return self._registry_create(command_type, args)
         if command_type.endswith("_registry/delete"):
             key = _registry_key(command_type)
             id_field = _registry_id_field(command_type)
@@ -150,42 +130,85 @@ class SimWs:
             self.state[key] = [e for e in self.state[key] if e.get(id_field) != target]
             return None
         if command_type.endswith("_registry/update"):
-            key = _registry_key(command_type)
-            id_field = _registry_id_field(command_type)
-            # The live device-registry API takes device_id even though the
-            # registry entries themselves are keyed "id".
-            target = args.pop(id_field, None) or args.pop("device_id", None)
-            for entry in self.state[key]:
-                if entry.get(id_field) == target:
-                    entry.update(args)
-                    return entry
-            return None
+            return self._registry_update(command_type, args)
+        return None
+
+    def _backup_config_update(self, args: dict[str, Any]) -> None:
+        config = self.state["backup_config"]
+        config["schedule"].update(args.get("schedule") or {})
+        config["retention"].update(args.get("retention") or {})
+        config["create_backup"].update(args.get("create_backup") or {})
+        # A schedule only becomes live once it has somewhere to write to;
+        # observed on the live instance, which starts reporting
+        # next_automatic_backup the moment agent_ids is non-empty.
+        scheduled = bool(
+            config["schedule"].get("recurrence") not in (None, "never")
+            and config["create_backup"].get("agent_ids")
+        )
+        config["next_automatic_backup"] = "2026-08-02T04:56:21-07:00" if scheduled else None
+        # Home Assistant additionally withholds this until an encryption
+        # key exists, which backup/config/update cannot set.
+        config["automatic_backups_configured"] = scheduled and bool(
+            config["create_backup"].get("password")
+        )
+
+    def _backup_generate(self, args: dict[str, Any]) -> dict[str, Any]:
+        if not args.get("agent_ids"):
+            raise HACommandError(
+                "backup/generate", "invalid_format", "required key not provided: agent_ids"
+            )
+        self.state["pending_backup"] = {"backup_id": "b1", "name": args.get("name")}
+        self.state["polls_until_done"] = 2
+        # Only a job handle — the backup itself does not exist yet.
+        return {"backup_job_id": "job1"}
+
+    def _registry_create(self, command_type: str, args: dict[str, Any]) -> dict[str, Any]:
+        key = _registry_key(command_type)
+        # HA assigns slug ids (lowercase, non-alnum -> _), not raw names.
+        slug = re.sub(r"[^a-z0-9]+", "_", args["name"].lower()).strip("_")
+        self.state[key].append({f"{key[:-1]}_id": slug, "name": args["name"]})
+        return self.state[key][-1]
+
+    def _registry_update(self, command_type: str, args: dict[str, Any]) -> Any:
+        key = _registry_key(command_type)
+        id_field = _registry_id_field(command_type)
+        # The live device-registry API takes device_id even though the
+        # registry entries themselves are keyed "id".
+        target = args.pop(id_field, None) or args.pop("device_id", None)
+        for entry in self.state[key]:
+            if entry.get(id_field) == target:
+                entry.update(args)
+                return entry
         return None
 
     async def _supervisor(self, args: dict[str, Any]) -> Any:
         endpoint = args["endpoint"]
         method = args.get("method", "get")
-        if method == "get" and endpoint == "/addons":
+        if method == "get":
+            return self._supervisor_read(endpoint)
+        self.writes.append(f"supervisor {method} {endpoint}")
+        return self._supervisor_write(endpoint)
+
+    def _supervisor_read(self, endpoint: str) -> Any:
+        if endpoint == "/addons":
             return {"addons": self.state["addons"]}
-        if method == "get" and endpoint.startswith("/addons/") and endpoint.endswith("/info"):
+        if endpoint.startswith("/addons/") and endpoint.endswith("/info"):
             slug = endpoint.split("/")[2]
             return self.state.get("addon_info", {}).get(slug, {})
-        self.writes.append(f"supervisor {method} {endpoint}")
+        return None
+
+    def _supervisor_write(self, endpoint: str) -> None:
         if endpoint.startswith("/store/addons/") and endpoint.endswith("/install"):
             slug = endpoint.split("/")[3]
             self.state["addons"].append({"slug": slug, "state": "stopped"})
-            return None
-        if endpoint.startswith("/addons/") and endpoint.endswith("/start"):
+        elif endpoint.startswith("/addons/") and endpoint.endswith("/start"):
             slug = endpoint.split("/")[2]
             for addon in self.state["addons"]:
                 if addon["slug"] == slug:
                     addon["state"] = "started"
-            return None
-        if endpoint.startswith("/addons/") and endpoint.endswith("/uninstall"):
+        elif endpoint.startswith("/addons/") and endpoint.endswith("/uninstall"):
             slug = endpoint.split("/")[2]
             self.state["addons"] = [a for a in self.state["addons"] if a["slug"] != slug]
-            return None
-        return None
 
     async def list_entities(self) -> list[dict[str, Any]]:
         return self.state["entities"]

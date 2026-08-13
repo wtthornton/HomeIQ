@@ -8,14 +8,19 @@ setting was changed as part of this evaluation.
 
 ## Evidence (read live 2026-08-12T23:06Z states, fetched 2026-08-13T01:2xZ)
 
-| Observable | Office Light Dimmer (VZM31-SN) | Bar Light Dimmer (VZM31-SN) |
+Entity-id convention (ZHA minted these at pairing): the **`_2`-suffixed**
+entities belong to the **Office Light Dimmer**; the **unsuffixed**
+`inovelli_vzm31_sn` entities belong to the **Bar Light Dimmer** (verified by
+friendly-name mapping during adversarial verification). Full ids per row:
+
+| Observable (Office id / Bar id) | Office Light Dimmer (VZM31-SN) | Bar Light Dimmer (VZM31-SN) |
 |---|---|---|
-| `switch.…_smart_bulb_mode` | `off` | `off` |
-| `select.…_output_mode` | **`Dimmer`** (load-bearing fact: the 13% inference below is only valid in this mode — contrast the Office Fan Switch, which runs `OnOff`) | `Dimmer` |
-| `select.…_dimming_mode` | `LeadingEdge` | `LeadingEdge` |
-| `select.…_switch_type` | **`Three Way AUX`** — a deliberate 3-way install; someone wired an aux companion, which argues the load terminal is NOT unloaded | n/a checked |
-| Dimmer output | `on`, brightness 33/255 (13%) | `on`, brightness 203/255 (80%) |
-| Load power (`sensor.…_power`) | 0.0 W | 0.0 W |
+| `switch.inovelli_vzm31_sn_smart_bulb_mode_2` / `switch.inovelli_vzm31_sn_smart_bulb_mode` | `off` | `off` |
+| `select.inovelli_vzm31_sn_output_mode_2` / `select.inovelli_vzm31_sn_output_mode` | **`Dimmer`** (load-bearing fact: the 13% inference below is only valid in this mode — contrast the Office Fan Switch, which runs `OnOff`) | `Dimmer` |
+| `select.inovelli_vzm31_sn_dimming_mode_2` / `select.inovelli_vzm31_sn_dimming_mode` | `LeadingEdge` | `LeadingEdge` |
+| `select.inovelli_vzm31_sn_switch_type_2` / `select.inovelli_vzm31_sn_switch_type` | **`Three Way AUX`** | **`Three Way AUX`** (read during panel verification — BOTH dimmers are 3-way installs, so this setting alone does not differentiate the circuits; it still argues each load terminal has real wiring behind it) |
+| Dimmer output (`light.inovelli_vzm31_sn_2` / `light.inovelli_vzm31_sn`) | `on`, brightness 33/255 (13%) | `on`, brightness 203/255 (80%) |
+| Load power (`sensor.inovelli_vzm31_sn_power_2` / `sensor.inovelli_vzm31_sn_power`) | 0.0 W | 0.0 W |
 | Smart bulbs in area | 4× **Hue color downlight** (ceiling cans) + 1× Hue Go (portable) + WLED strip | none (WLED strip only, separate DC PSU) |
 | Smart-bulb health under current dimmer level | 3 downlights ON at full brightness (255), reachable, fresh states | n/a |
 
