@@ -15,6 +15,7 @@ recipes have applied live.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from typing import TYPE_CHECKING, Any
 
 from homeiq_ha.client.errors import HAClientError, HAFlowError
@@ -172,9 +173,13 @@ class PowercalcRecipe(Recipe):
         *,
         restart_timeout: float = 240.0,
         restart_poll_interval: float = 5.0,
+        discovery_timeout: float = 90.0,
+        discovery_poll_interval: float = 5.0,
     ) -> None:
         self.restart_timeout = restart_timeout
         self.restart_poll_interval = restart_poll_interval
+        self.discovery_timeout = discovery_timeout
+        self.discovery_poll_interval = discovery_poll_interval
 
     async def _repo(self, ha: Any) -> dict[str, Any] | None:
         repos = await ha.ws.send_command(
@@ -260,8 +265,8 @@ class PowercalcRecipe(Recipe):
             await self._restart(ha)
             changes.append(Change("restart", "homeassistant", after="restarted"))
 
-        if await self._loaded_entry(ha) is None:
-            changes.append(await self._confirm_discovery(ha))
+        if not await self._power_entities(ha):
+            changes.extend(await self._ensure_power_sensor(ha))
 
         powered = await self._power_entities(ha)
         if not powered:
@@ -281,7 +286,11 @@ class PowercalcRecipe(Recipe):
             raise HAClientError(
                 f"refusing to restart: config check returned {check!r}"
             )
-        await ha.rest.call_service("homeassistant", "restart")
+        # HA drops the connection as it shuts down (observed live 2026-08-13:
+        # aiohttp "Server disconnected"). The poll below is the real
+        # verification that a restart actually happened.
+        with contextlib.suppress(HAClientError, OSError):
+            await ha.rest.call_service("homeassistant", "restart")
         deadline = asyncio.get_running_loop().time() + self.restart_timeout
         while True:
             await asyncio.sleep(self.restart_poll_interval)
@@ -295,43 +304,116 @@ class PowercalcRecipe(Recipe):
                         "of the restart"
                     ) from None
 
-    async def _confirm_discovery(self, ha: Any) -> Change:
-        """Advance one Powercalc discovery flow through its confirm forms."""
-        flows = await ha.ws.send_command("config_entries/flow/progress")
-        pc_flows = [f for f in flows or [] if f.get("handler") == "powercalc"]
-        if not pc_flows:
-            raise HAClientError(
-                "no Powercalc discovery flow is in progress after install; "
-                "a manual virtual_power flow needs its schema read live first "
-                "— refusing to guess one"
+    async def _ensure_power_sensor(self, ha: Any) -> list[Change]:
+        """Get a discovered power sensor, bootstrapping discovery if needed.
+
+        Powercalc only scans for supported devices once its integration is
+        set up (verified live 2026-08-13: after download + restart, zero
+        discovery flows exist until an entry does). The bootstrap is the
+        flow menu's ``global_configuration`` branch — every form in it is
+        defaulted, so it can be driven empty without guessing anything.
+        """
+        changes: list[Change] = []
+        flows = await self._powercalc_flows(ha)
+        if not flows:
+            await self._create_global_entry(ha)
+            changes.append(
+                Change(
+                    "configure integration",
+                    "powercalc",
+                    after="global configuration entry",
+                )
             )
-        flow_id = pc_flows[0]["flow_id"]
+            flows = await self._wait_for_discovery(ha)
+        changes.append(await self._confirm_discovery(ha, flows[0]["flow_id"]))
+        return changes
+
+    async def _powercalc_flows(self, ha: Any) -> list[dict[str, Any]]:
+        flows = await ha.ws.send_command("config_entries/flow/progress")
+        return [f for f in flows or [] if f.get("handler") == "powercalc"]
+
+    async def _create_global_entry(self, ha: Any) -> None:
+        """Drive the user flow's global_configuration branch, defaults only."""
+        step = await ha.rest.start_config_flow("powercalc")
+        step_type = ha.rest.classify_flow_step(step)
+        if step_type != "menu":
+            raise HAFlowError(
+                f"powercalc flow opened with {step_type!r}, expected a menu",
+                step,
+            )
+        # menu_options serializes as a list of ids or an {id: label} dict;
+        # list() yields the ids either way.
+        option_ids = list(step.get("menu_options") or [])
+        if "global_configuration" not in option_ids:
+            raise HAFlowError(
+                "powercalc menu lacks 'global_configuration' (already "
+                f"configured?); live options: {option_ids}",
+                step,
+            )
+        next_step = await ha.rest.advance_config_flow(
+            step["flow_id"], {"next_step_id": "global_configuration"}
+        )
+        await self._drive_defaults(ha, step["flow_id"], next_step, "global configuration")
+
+    async def _wait_for_discovery(self, ha: Any) -> list[dict[str, Any]]:
+        deadline = asyncio.get_running_loop().time() + self.discovery_timeout
+        while True:
+            flows = await self._powercalc_flows(ha)
+            if flows:
+                return flows
+            if asyncio.get_running_loop().time() > deadline:
+                raise HAClientError(
+                    "powercalc discovery produced no flow within "
+                    f"{self.discovery_timeout}s of setup — no light matched "
+                    "its profile library; a manual virtual_power flow needs "
+                    "its schema read live first, refusing to guess one"
+                )
+            await asyncio.sleep(self.discovery_poll_interval)
+
+    async def _confirm_discovery(self, ha: Any, flow_id: str) -> Change:
+        """Advance one Powercalc discovery flow through its confirm forms."""
         step = await ha.rest.get_config_flow(flow_id)
-        for _ in range(5):
+        await self._drive_defaults(ha, flow_id, step, "discovery")
+        return Change("configure integration", "powercalc", after="loaded")
+
+    async def _drive_defaults(
+        self, ha: Any, flow_id: str, step: dict[str, Any], label: str
+    ) -> dict[str, Any]:
+        """Advance defaulted forms with empty input until create_entry.
+
+        Refuses (loudly, with the live schema) any form carrying a required
+        field without a default — that is a fact a person must supply.
+        """
+        for _ in range(6):
             step_type = ha.rest.classify_flow_step(step)
             if step_type == "create_entry":
-                return Change(
-                    "configure integration", "powercalc", after="loaded"
-                )
-            if step_type != "form":
-                raise HAFlowError(
-                    f"powercalc discovery flow hit a {step_type!r} step", step
-                )
-            blockers = [
-                str(field.get("name"))
-                for field in step.get("data_schema") or []
-                if field.get("required") and "default" not in field
-            ]
-            if blockers:
-                raise HAFlowError(
-                    "powercalc discovery form requires input the agent must "
-                    f"not guess: {blockers}",
-                    step,
-                )
+                return step
+            self._drive_check(ha, label, step)
             step = await ha.rest.advance_config_flow(flow_id, {})
         raise HAFlowError(
-            "powercalc discovery flow did not complete within 5 steps", step
+            f"powercalc {label} flow did not complete within 6 steps", step
         )
+
+    @staticmethod
+    def _drive_check(ha: Any, label: str, step: dict[str, Any]) -> None:
+        step_type = ha.rest.classify_flow_step(step)
+        if step_type == "create_entry":
+            return
+        if step_type != "form":
+            raise HAFlowError(
+                f"powercalc {label} flow hit a {step_type!r} step", step
+            )
+        blockers = [
+            str(field.get("name"))
+            for field in step.get("data_schema") or []
+            if field.get("required") and "default" not in field
+        ]
+        if blockers:
+            raise HAFlowError(
+                f"powercalc {label} form requires input the agent must "
+                f"not guess: {blockers}",
+                step,
+            )
 
     async def verify(self, ha: HAClient) -> VerifyResult:
         entry = await self._loaded_entry(ha)

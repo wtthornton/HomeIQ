@@ -316,6 +316,9 @@ class SimRest:
         for entity in step.pop("add_entities", []):
             # Scripted side effect: entities the completing step materialises.
             self.state["entities"].append(dict(entity))
+        for flow in step.pop("add_flows", []):
+            # Scripted side effect: discovery flows a completing setup opens.
+            self.state.setdefault("flow_progress", []).append(dict(flow))
         result = step.get("result")
         if step.get("type") == "create_entry" and isinstance(result, dict):
             # Mirror HA: a completed flow's entry becomes readable back.
