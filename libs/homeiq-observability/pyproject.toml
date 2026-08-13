@@ -11,6 +11,10 @@ dependencies = [
     "structlog>=23.0",
     "psutil>=5.9.0",
     "aiohttp>=3.13.3,<4.0.0",
+    # alerting_service.py imports it at module level; undeclared, it only
+    # resolved locally by venv coincidence — the first live libs-ci run
+    # caught it (TAP-6037).
+    "requests>=2.31",
 ]
 
 [project.optional-dependencies]
