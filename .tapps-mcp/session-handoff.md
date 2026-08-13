@@ -1,11 +1,11 @@
 # Session handoff
-**Updated:** 2026-08-13T03:27:50Z
-**Git:** e8e50e0b
-**Linear P0:** TAP-5945
+**Updated:** 2026-08-13T03:55:00Z
+**Git:** 6d8e5bab
+**Linear P0:** TAP-5944 + TAP-5945 (closure only — work done + verified)
 
 ## Resume-as (re-enter the goal loop — the standing instruction)
 - Next session re-enters the multi-run loop, not just the P0: paste/execute — `Read prompts/homeiq-backlog-burndown.md in full, then execute it as a goal loop — run the Loop section repeatedly until Done-when holds, printing the SCORE line every iteration. Establish your own preconditions per Wave 0; work the lowest-numbered unfinished wave only; do not stop unless an Autonomy hard-stop fires.`
-- Loop state: Waves 1–3, 5, 6 DONE + verified (never redo; brain keys `burndown-wave-*`). Wave 4 HUMAN-BLOCKED on TAP-6018 (skip 5978/5979/5980). Current = Wave 7 (epic TAP-5942): 5943 Done; **5944/5945 verified working (endpoints both 200 OK, converge runs, group permissions fixed), awaiting Linear closure**; then 5946, 5947, wave panel, close epic; then Waves 8–11. ~39/61 stories verifiable (2944+2945 awaiting closure).
+- Loop state: Waves 1–3, 5, 6 DONE + verified (never redo; brain keys `burndown-wave-*`). Wave 4 HUMAN-BLOCKED on TAP-6018 (skip 5978/5979/5980). Current = Wave 7 (epic TAP-5942): 5943 Done; **5944/5945 verifier-passed after gap fixes (commit 6d8e5bab) — Linear closure pending plugin auth**; then 5946, 5947, wave panel, close epic; then Waves 8–11. ~37/61 closed (+2 ready to close).
 
 ## Done
 - Wave 5 complete (5982/5983/5984 + epic TAP-5981; panel findings fixed; init-gateway runbook; `HOMEIQ_ZHA_SERIAL_PATH` override).
@@ -15,18 +15,23 @@
 - GH Actions slimming recs delivered — NOT approved, do not implement.
 
 ## Open
-- Combined 5944+5945 verifier killed by session limit — neither closed in Linear.
+- TAP-5944/5945: work verified complete, NOT closed in Linear (plugin unauthenticated this session). Closure notes ready — 5944: acceptance count corrected to 11 (12th card is the static teams form; proof key is `.items|length`, `.queue` doesn't exist); 5945: schema hardening `extra="forbid"` + 5 route tests (6d8e5bab).
 - TAP-5946 (permit root cause at ws.py:200-206; `zha/devices/permit` duration=N) and TAP-5947 (verify `config_entries/ignore_flow`) not started.
 
 ## Next (P0)
-- TAP-5944+5945 verifier re-dispatch in progress (opus, refute mode) — finding test coverage gaps in answers handler. Manual verification: GET /setup OK (200, HTML, headless-renderable); POST /answers OK (200, runs converge, group_add fix confirmed). Awaiting verifier's structured findings to finalize closure. Then TAP-5946 (permit root cause).
+- With Linear auth restored: close TAP-5944 + TAP-5945 via linear-issue skill using the closure notes above, then start TAP-5946.
+
+## Verifier verdict (2026-08-13, opus refute mode — full detail in brain key `burndown-wave-7-5944-5945-verified`)
+- PASSED: badges (7/7), compose `group_add` ([1000,1001], manifest writable, byte-identical mount, logs volume restored, RestartCount 0), websockets frame-logger pin (ws.py:56-65 — load-bearing, backup/config/info carries plaintext key), converge gating (wrote_nothing honest, blocked_on_human correct).
+- GAPS (both fixed in 6d8e5bab, redeployed, live-re-verified): queue count is 11 not 12; AnswersRequest accepted off-contract bodies (200 not 422) and handler was untested.
+- Post-fix live state: off-contract POST → 422, /setup → 200, queue = 11, suites 194 + 34 green, gates pass, checklist complete.
 
 ## Blockers
-- none
+- Linear MCP plugin unauthenticated in non-interactive session — user must re-auth via /mcp in an interactive session before 5944/5945 can be closed.
 
 ## Verify
 - `tapps_session_start()` then `tapps_memory(action="search", query="burndown wave 7")`.
-- Both pytest trees green (194 / 29); `curl :8024/api/v1/init/queue` items ≈11–12; `curl :8024/setup` → 200.
+- Both pytest trees green (194 / 34); `curl :8024/api/v1/init/queue | jq '.items|length'` ≈ 11 (live-derived, drifts); `curl :8024/setup` → 200; off-contract POST to /answers → 422.
 - `docker exec homeiq-setup-service python -c "import os; print(os.getgroups(), os.access('config/ha-organization-manifest.yaml', os.W_OK))"` → `[1000, 1001] True`.
 
 ## Success criterion
