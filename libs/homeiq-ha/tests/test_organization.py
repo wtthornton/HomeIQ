@@ -164,32 +164,6 @@ async def test_manifest_helpers_create_via_flow_idempotent_by_slug(sim):
 
 
 @pytest.mark.asyncio
-async def test_manifest_utility_meter_helper_keys_existence_on_sensor_domain(sim):
-    """A utility_meter entry creates sensor.<slug>, not utility_meter.<slug>.
-
-    Keying existence on the flow-handler domain would re-create the helper
-    every converge (TAP-5431).
-    """
-    recipe = ManifestHelpersRecipe(
-        _manifest(
-            helpers=(
-                Helper(
-                    "utility_meter",
-                    "daily_energy",
-                    "Daily Energy",
-                    {"source": "sensor.a_energy", "cycle": "daily"},
-                    "alias",
-                ),
-            )
-        )
-    )
-    sim.state["entities"].append({"entity_id": "sensor.daily_energy"})
-
-    assert (await recipe.check(sim)).status is CheckStatus.SATISFIED
-    assert (await recipe.apply(sim)).change_count == 0
-
-
-@pytest.mark.asyncio
 async def test_default_recipes_include_manifest_recipes_when_given():
     manifest = _manifest(
         device_areas=(DeviceArea("dev0", "office", "r"),),

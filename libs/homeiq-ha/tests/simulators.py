@@ -208,6 +208,9 @@ class SimWs:
         # The live device-registry API takes device_id even though the
         # registry entries themselves are keyed "id".
         target = args.pop(id_field, None) or args.pop("device_id", None)
+        # Mirror HA: an entity rename arrives as new_entity_id.
+        if key == "entities" and "new_entity_id" in args:
+            args["entity_id"] = args.pop("new_entity_id")
         for entry in self.state[key]:
             if entry.get(id_field) == target:
                 entry.update(args)

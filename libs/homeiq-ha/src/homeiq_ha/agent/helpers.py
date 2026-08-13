@@ -1,8 +1,16 @@
-"""Helper creation from the manifest, driven through HA config flows."""
+"""Helper creation from the manifest, driven through HA config flows.
+
+The manifest slug is the helper's stable identity: creation asserts the
+resulting entity_id and repairs drift by registry rename (platforms like
+utility_meter derive object ids from the source entity, not the name).
+Tests: ``tests/test_helpers.py``.
+"""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
+
+from homeiq_ha.client.errors import HAClientError
 
 from .recipe import (
     PHASE_ORGANIZATION,
@@ -101,6 +109,11 @@ class ManifestHelpersRecipe(Recipe):
     async def apply(self, ha: HAClient) -> ApplyResult:
         created: list[Change] = []
         for helper in await self._missing(ha):
+            expected = f"{self._domain(helper)}.{helper.slug}"
+            adopted = await self._adopt_by_name(ha, helper, expected)
+            if adopted is not None:
+                created.append(adopted)
+                continue
             steps: list[dict[str, Any]] = []
             form = {"name": helper.name}
             if helper.kind in self._MENU_FIRST and "menu" in helper.config:
@@ -113,11 +126,71 @@ class ManifestHelpersRecipe(Recipe):
                 if helper.kind in self._MENU_FIRST:
                     steps.append({"next_step_id": self._menu_choice(helper)})
             steps.append(form)
-            await ha.rest.run_config_flow(helper.kind, steps)
+            step = await ha.rest.run_config_flow(helper.kind, steps)
+            await self._repair_entity_id(ha, helper, expected, step)
             created.append(
                 Change("create", f"helper:{helper.kind}.{helper.slug}", after=helper.name)
             )
         return ApplyResult(tuple(created), f"created {len(created)} helper(s)")
+
+    async def _adopt_by_name(
+        self, ha: Any, helper: Any, expected: str
+    ) -> Change | None:
+        """Rename an already-created helper to its slug identity.
+
+        A helper can exist under a platform-derived entity_id (utility_meter
+        keys the object id on the SOURCE entity, observed live 2026-08-13:
+        "Daily Energy" became sensor.living_room_living_room_left_play_daily_energy).
+        Matching platform + name and renaming keeps the slug contract without
+        creating a duplicate config entry.
+        """
+        entities = await ha.ws.send_command("config/entity_registry/list")
+        candidates = [
+            e
+            for e in entities or []
+            if e.get("platform") == helper.kind
+            and str(e.get("entity_id", "")).startswith(expected.split(".")[0] + ".")
+            and (e.get("original_name") or e.get("name")) == helper.name
+        ]
+        if not candidates:
+            return None
+        if len(candidates) > 1:
+            raise HAClientError(
+                f"{len(candidates)} {helper.kind} entities are named "
+                f"{helper.name!r}; cannot adopt one for {expected} safely: "
+                f"{[e['entity_id'] for e in candidates]}"
+            )
+        await self._rename(ha, candidates[0]["entity_id"], expected)
+        return Change("rename", f"helper:{helper.kind}.{helper.slug}", candidates[0]["entity_id"], expected)
+
+    async def _repair_entity_id(
+        self, ha: Any, helper: Any, expected: str, step: Any
+    ) -> None:
+        """Assert the created entity carries the slug id; rename if not."""
+        entities = await ha.ws.send_command("config/entity_registry/list")
+        ids = {e.get("entity_id") for e in entities or []}
+        if expected in ids:
+            return
+        entry_id = ((step or {}).get("result") or {}).get("entry_id")
+        if not entry_id:
+            # Cannot attribute created entities to this flow; verify() still
+            # fails loudly if the expected id never appears.
+            return
+        made = [e for e in entities or [] if e.get("config_entry_id") == entry_id]
+        if len(made) != 1:
+            raise HAClientError(
+                f"{helper.kind} flow for {helper.name!r} completed but "
+                f"{expected} is absent and its entry produced "
+                f"{[e.get('entity_id') for e in made]} — refusing to guess"
+            )
+        await self._rename(ha, made[0]["entity_id"], expected)
+
+    @staticmethod
+    async def _rename(ha: Any, current: str, expected: str) -> None:
+        await ha.ws.send_command(
+            "config/entity_registry/update",
+            fields={"entity_id": current, "new_entity_id": expected},
+        )
 
     async def verify(self, ha: HAClient) -> VerifyResult:
         missing = await self._missing(ha)
