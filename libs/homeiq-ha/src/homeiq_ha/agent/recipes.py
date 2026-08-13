@@ -22,7 +22,11 @@ from .backup import (
     wait_for_backup,
 )
 from .device_areas import ManifestDeviceAreasRecipe
-from .diagnostics import ScenePolicyRecipe, ZigbeeMeshHealthRecipe
+from .diagnostics import (
+    ScenePolicyRecipe,
+    ZigbeeCoordinatorWatchdogRecipe,
+    ZigbeeMeshHealthRecipe,
+)
 from .helpers import ManifestHelpersRecipe
 from .integration import IntegrationRecipe
 from .manifest import DEFAULT_MANIFEST_PATH, OrganizationManifest, load_manifest
@@ -885,6 +889,7 @@ def default_recipes(
             ),
         ),
         ZHARecipe(ZHA_SERIAL_PATH),
+        ZigbeeCoordinatorWatchdogRecipe(ZHA_SERIAL_PATH),
         ZigbeeMeshHealthRecipe(),
     ]
     if manifest is not None:
@@ -916,6 +921,7 @@ __all__ = [
     "DevicesHaveAreasRecipe",
     "ManifestAreasRemoveRecipe",
     "ScenePolicyRecipe",
+    "ZigbeeCoordinatorWatchdogRecipe",
     "ZigbeeMeshHealthRecipe",
     "FirstBackupRecipe",
     "FloorsRecipe",

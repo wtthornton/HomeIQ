@@ -208,3 +208,110 @@ async def test_mesh_health_apply_is_noop():
     r = ZigbeeMeshHealthRecipe()
     assert (await r.apply(_MeshHA([]))).changed == ()
     assert (await r.verify(_MeshHA([]))).ok
+
+
+# --- ZigbeeCoordinatorWatchdogRecipe (TAP-5983) -------------------------------
+
+
+import asyncio
+import socket
+
+
+async def _free_tcp_listener() -> tuple[asyncio.AbstractServer, str]:
+    """A real listening socket on an ephemeral port, as a socket:// path."""
+    server = await asyncio.start_server(lambda r, w: w.close(), "127.0.0.1", 0)
+    port = server.sockets[0].getsockname()[1]
+    return server, f"socket://127.0.0.1:{port}"
+
+
+def _closed_tcp_path() -> str:
+    """A port that was just released, so connecting to it is refused."""
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    return f"socket://127.0.0.1:{port}"
+
+
+def _watchdog(path: str):
+    from homeiq_ha.agent.recipes import ZigbeeCoordinatorWatchdogRecipe
+
+    return ZigbeeCoordinatorWatchdogRecipe(path, probe_timeout=2.0)
+
+
+@pytest.mark.asyncio
+async def test_watchdog_not_applicable_without_zha_entry(sim):
+    check = await _watchdog(_closed_tcp_path()).check(sim)
+    assert check.status is CheckStatus.NOT_APPLICABLE
+    assert sim.writes == [], "report-only recipe must never write"
+
+
+@pytest.mark.asyncio
+async def test_watchdog_satisfied_when_loaded_and_reachable(sim):
+    server, path = await _free_tcp_listener()
+    try:
+        sim.state["config_entries"].append(
+            {"entry_id": "zha1", "domain": "zha", "state": "loaded"}
+        )
+        check = await _watchdog(path).check(sim)
+    finally:
+        server.close()
+        await server.wait_closed()
+    assert check.status is CheckStatus.SATISFIED
+    assert check.details["coordinator"]["reachable"] is True
+    assert sim.writes == []
+
+
+@pytest.mark.asyncio
+async def test_watchdog_alerts_on_setup_retry_even_with_reachable_coordinator(sim):
+    server, path = await _free_tcp_listener()
+    try:
+        sim.state["config_entries"].extend(
+            [
+                {"entry_id": "zha1", "domain": "zha", "state": "setup_retry"},
+                {"entry_id": "sml1", "domain": "smlight", "state": "setup_retry"},
+            ]
+        )
+        check = await _watchdog(path).check(sim)
+    finally:
+        server.close()
+        await server.wait_closed()
+    assert check.status is CheckStatus.BLOCKED_ON_HUMAN
+    assert check.summary.startswith("ZIGBEE ALERT")
+    assert "zha=setup_retry" in check.summary
+    assert "smlight=setup_retry" in check.summary
+    # Coordinator answers, so the action is an entry reload, not a power-cycle.
+    assert "reload" in (check.human_action or "").lower()
+    assert sim.writes == []
+
+
+@pytest.mark.asyncio
+async def test_watchdog_alerts_when_coordinator_unreachable(sim):
+    sim.state["config_entries"].append(
+        {"entry_id": "zha1", "domain": "zha", "state": "loaded"}
+    )
+    check = await _watchdog(_closed_tcp_path()).check(sim)
+    assert check.status is CheckStatus.BLOCKED_ON_HUMAN
+    assert "unreachable" in check.summary
+    assert check.details["coordinator"]["reachable"] is False
+    assert "power-cycle" in (check.human_action or "").lower()
+    assert sim.writes == []
+
+
+@pytest.mark.asyncio
+async def test_watchdog_skips_probe_for_serial_coordinator(sim):
+    sim.state["config_entries"].append(
+        {"entry_id": "zha1", "domain": "zha", "state": "loaded"}
+    )
+    check = await _watchdog("/dev/ttyUSB0").check(sim)
+    assert check.status is CheckStatus.SATISFIED
+    assert check.details["coordinator"]["reachable"] is None
+    assert "probe skipped" in check.details["coordinator"]["detail"]
+
+
+@pytest.mark.asyncio
+async def test_watchdog_apply_is_noop(sim):
+    recipe = _watchdog(_closed_tcp_path())
+    assert (await recipe.plan(sim)).is_empty
+    assert (await recipe.apply(sim)).changed == ()
+    assert (await recipe.verify(sim)).ok
+    assert sim.writes == []

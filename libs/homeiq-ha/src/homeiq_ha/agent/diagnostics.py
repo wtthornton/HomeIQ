@@ -1,12 +1,14 @@
-"""Report-only organization diagnostics (scene governance, mesh health).
+"""Report-only organization diagnostics (scene governance, mesh health, watchdog).
 
 Split out of :mod:`.recipes` (the recipe hub) to keep that module cohesive —
-these two recipes never write, so they cluster naturally. Re-exported from
+these recipes never write, so they cluster naturally. Re-exported from
 ``recipes`` so ``default_recipes`` and callers import them unchanged.
 """
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 from typing import TYPE_CHECKING
 
 from .recipe import (
@@ -159,4 +161,134 @@ class ZigbeeMeshHealthRecipe(Recipe):
         return VerifyResult(True, "report-only")
 
 
-__all__ = ["ScenePolicyRecipe", "ZigbeeMeshHealthRecipe"]
+class ZigbeeCoordinatorWatchdogRecipe(Recipe):
+    """Coordinator watchdog: stuck ZHA or unreachable SLZB becomes an alert (TAP-5983).
+
+    On 2026-08-12 the SLZB coordinator dropped off the network mid-pairing and
+    both the ``zha`` and ``smlight`` config entries sat in ``setup_retry``
+    silently — a human had to notice pairing had stalled. This recipe turns
+    both failure modes into a ``BLOCKED_ON_HUMAN`` audit row (the engine's
+    alert channel: it names a ``human_action``, lands in the report's
+    ``blocked_on_human`` list, and halts converge phases behind it):
+
+    1. any watched config entry stuck in a retry/error state, and
+    2. the coordinator's TCP socket not accepting connections.
+
+    The probe connects and immediately closes without sending a byte — the
+    SLZB-06 accepts up to 5 concurrent TCP clients and only concurrent *data*
+    corrupts the stream, so probing never disturbs ZHA's live session. It is
+    a raw socket read outside the HA API, so the audit's read-only proxy does
+    not see it; it is inherently read-only. When no zha entry exists at all
+    there is nothing to watch (that is :class:`~.zha.ZHARecipe`'s finding),
+    so the recipe reports ``NOT_APPLICABLE`` without probing.
+    """
+
+    name = "zigbee.coordinator_watchdog"
+    phase = PHASE_ORGANIZATION
+    description = "ZHA config entry loaded and Zigbee coordinator reachable"
+
+    #: Entry states that mean the integration is stuck, not merely starting.
+    ALERT_STATES = frozenset({"setup_retry", "setup_error", "migration_error", "failed_unload"})
+    #: Domains whose entries watch this coordinator (zha + the SLZB's own
+    #: smlight integration — both sat in setup_retry during the outage).
+    WATCHED_DOMAINS = frozenset({"zha", "smlight"})
+
+    def __init__(self, serial_path: str, *, probe_timeout: float = 5.0) -> None:
+        self.serial_path = serial_path
+        self.probe_timeout = probe_timeout
+
+    async def check(self, ha: HAClient) -> CheckResult:
+        entries = await ha.rest.get_config_entries() or []
+        watched = [
+            {
+                "domain": e.get("domain"),
+                "entry_id": e.get("entry_id"),
+                "state": e.get("state"),
+            }
+            for e in entries
+            if e.get("domain") in self.WATCHED_DOMAINS
+        ]
+        if not any(e["domain"] == "zha" for e in watched):
+            return CheckResult(
+                CheckStatus.NOT_APPLICABLE,
+                "no zha config entry; nothing to watch",
+                {"entries": watched},
+            )
+
+        stuck = [e for e in watched if e["state"] in self.ALERT_STATES]
+        reachable, probe_detail = await self._probe_coordinator()
+        details = {
+            "entries": watched,
+            "coordinator": {
+                "target": self.serial_path,
+                "reachable": reachable,
+                "detail": probe_detail,
+            },
+        }
+
+        problems = []
+        if stuck:
+            problems.append(
+                "config entries stuck: "
+                + ", ".join(f"{e['domain']}={e['state']}" for e in stuck)
+            )
+        if reachable is False:
+            problems.append(f"coordinator {self.serial_path} unreachable ({probe_detail})")
+        if problems:
+            if reachable is False:
+                human_action = (
+                    f"Power-cycle the Zigbee coordinator at {self.serial_path} "
+                    "(the 2026-08-12 outage recovered after a 30s power-cycle), "
+                    "then reload any stuck zha/smlight config entries."
+                )
+            else:
+                human_action = (
+                    "The coordinator socket answers, so the radio link is up — "
+                    "reload the stuck config entries from Settings → Devices & "
+                    "Services (or restart Home Assistant if reload loops)."
+                )
+            return CheckResult(
+                CheckStatus.BLOCKED_ON_HUMAN,
+                "ZIGBEE ALERT: " + "; ".join(problems),
+                details,
+                human_action=human_action,
+            )
+
+        states = ", ".join(f"{e['domain']}={e['state']}" for e in watched)
+        return CheckResult(CheckStatus.SATISFIED, f"{states}; {probe_detail}", details)
+
+    async def _probe_coordinator(self) -> tuple[bool | None, str]:
+        """TCP-connect to a ``socket://host:port`` coordinator, sending nothing.
+
+        Returns ``(None, reason)`` when the path is not a network coordinator
+        (serial devices can't be probed from here) — never a false alert.
+        """
+        if not self.serial_path.startswith("socket://"):
+            return None, f"{self.serial_path!r} is not network-attached; probe skipped"
+        host, _, port_text = self.serial_path.removeprefix("socket://").partition(":")
+        try:
+            port = int(port_text)
+        except ValueError:
+            return None, f"unparseable coordinator port in {self.serial_path!r}; probe skipped"
+        try:
+            _reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(host, port), self.probe_timeout
+            )
+        except (OSError, TimeoutError) as exc:
+            return False, f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
+        writer.close()
+        with contextlib.suppress(OSError):
+            await writer.wait_closed()
+        return True, f"coordinator tcp connect ok in <{self.probe_timeout}s"
+
+    async def plan(self, _ha: HAClient) -> Plan:
+        return Plan(())
+
+    async def apply(self, _ha: HAClient) -> ApplyResult:
+        return ApplyResult((), "report-only")
+
+    async def verify(self, _ha: HAClient) -> VerifyResult:
+        return VerifyResult(True, "report-only")
+
+
+__all__ = ["ScenePolicyRecipe", "ZigbeeCoordinatorWatchdogRecipe", "ZigbeeMeshHealthRecipe"]
