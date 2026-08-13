@@ -23,7 +23,9 @@ def test_package_imports() -> None:
         "ServiceScheduler",
         "StandardHealthCheck",
         "TaskManager",
+        "add_prometheus_middleware",
         "create_app",
+        "create_metrics_registry",
         "require_service_auth",
         "wait_for_dependency",
     ]
@@ -32,11 +34,24 @@ def test_package_imports() -> None:
 
 
 def test_all_attribute() -> None:
-    """__all__ should contain every public export."""
+    """__all__ should be exactly the expected export set.
+
+    Set equality, not a length pin: drift fails loudly WITH the names
+    (the old ``len == 14`` rotted silently when two exports were added —
+    caught the day the suite first ran in CI, TAP-6037).
+    """
     import homeiq_resilience
 
     assert hasattr(homeiq_resilience, "__all__")
-    assert len(homeiq_resilience.__all__) == 14
+    expected = {
+        "CircuitBreaker", "CircuitOpenError", "CrossGroupClient",
+        "DependencyStatus", "GroupHealthCheck", "ManagedHTTPClient",
+        "ServiceAuthValidator", "ServiceLifespan", "ServiceScheduler",
+        "StandardHealthCheck", "TaskManager", "add_prometheus_middleware",
+        "create_app", "create_metrics_registry", "require_service_auth",
+        "wait_for_dependency",
+    }
+    assert set(homeiq_resilience.__all__) == expected
 
 
 def test_module_reimport() -> None:

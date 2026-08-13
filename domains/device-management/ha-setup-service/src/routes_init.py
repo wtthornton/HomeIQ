@@ -74,9 +74,13 @@ def _host_allowed(hostport: str, extra: frozenset[str]) -> bool:
 
 
 def _expected_hosts() -> frozenset[str]:
-    """Operator-configured extra hosts (``EXPECTED_HOSTS``, comma-separated,
-    ``host`` or ``host:port``), lowered. Read via the cached settings."""
-    raw = getattr(get_settings(), "expected_hosts", "") or ""
+    """Operator-configured extra hosts (``EXPECTED_HOSTS``), lowered.
+
+    A bare ``host`` entry matches that name on any port; a ``host:port``
+    entry pins that exact authority only (a portless request Host will NOT
+    match it — prefer bare entries unless the port matters).
+    """
+    raw = get_settings().expected_hosts or ""
     return frozenset(h.strip().lower() for h in raw.split(",") if h.strip())
 
 

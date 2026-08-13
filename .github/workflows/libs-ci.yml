@@ -1,0 +1,62 @@
+name: "Shared Libraries CI"
+
+# TAP-6037: the libs/homeiq-* test suites only ran via the
+# workflow_dispatch-only publish flow, so a defect in a shared library's own
+# suite shipped unguarded (and did: homeiq-resilience had rotted for months).
+# This runs each lib's suite on push/PR, path-filtered to libs/**.
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - "libs/**"
+      - ".github/workflows/libs-ci.yml"
+  pull_request:
+    paths:
+      - "libs/**"
+      - ".github/workflows/libs-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: libs-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  libs-tests:
+    name: Shared library test suites
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install shared libraries
+        run: |
+          # One invocation, no suppression. These libs depend on each other
+          # and none is on PyPI, so per-lib installs resolve in isolation and
+          # fail. Same note as publish-shared-libs.yml / reusable-group-ci.yml.
+          pip install libs/homeiq-*/
+          pip install pytest pytest-asyncio pytest-timeout
+
+      - name: Run each lib's suite separately
+        run: |
+          # One pytest invocation per package, from the repo root — the
+          # locally proven shape. Suites must stay SEPARATE: libs and
+          # services each expose a `tests` package, so combined collection
+          # breaks (TAP-6037 acceptance).
+          for lib in libs/homeiq-*/; do
+            if [ -d "${lib}tests" ]; then
+              echo "::group::${lib}"
+              python -m pytest "${lib%/}" -q --timeout=300
+              echo "::endgroup::"
+            else
+              echo "No tests directory in ${lib} — skipping"
+            fi
+          done

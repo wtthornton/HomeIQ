@@ -16,6 +16,7 @@ defaults to a self-hosted runner (also free).
 | Workflow | Trigger |
 |---|---|
 | `ci-*` (9 domain groups) | push to `master`/`main` + PR, filtered to that domain, `libs/**`, and the workflow files |
+| `libs-ci` | push to `master`/`main` + PR, filtered to `libs/**` and the workflow file |
 | `quality-gate` | push to `master`/`main` + PR |
 | `test` | push to `master`/`main` + PR |
 | `integration-tests` | push to `master`/`main` + PR |
