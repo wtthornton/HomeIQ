@@ -43,14 +43,21 @@ ha-setup-service tree SEPARATELY — combining them fails collection on a
   ask), office dimmer 10-second paddle check before smart-bulb-mode enable
   (TAP-5988), gesture catalogue selections (TAP-5987).
 
-## Next (Wave 7 — setup wizard, epic TAP-5942)
+## Next (Wave 7 — setup wizard, epic TAP-5942 — IN PROGRESS)
 
-Children 5943–5947. The wizard serves from ha-setup-service (:8024 host
-port). Burndown prompt note: "do 5289 first" — 5289 (compose fragment) was
-already resolved in Wave 1; re-verify its final state via get_issue before
-assuming. Done-when: wizard on LAN, `GET /api/v1/init/queue` returns live
-audit-derived queue, answers→converge→verify round-trip on a staged answer
-set, readiness triggers for pairing/PIN/HACS (paste one driven flow).
+- TAP-5943 DONE (queue API live, verifier round-trip complete).
+- TAP-5945 implemented + hardened (verifier round 1 FAIL -> all 6 gaps
+  fixed: group_add 1000 writable mount proven on a copy, YAML-injection
+  quoting + rollback in NEW manifest_edit.py, typed unwritable failure,
+  team-flow create_entry/abort handling, EOF/empty-section guards,
+  websockets frame-logger pinned). TAP-5944 implemented (/setup page,
+  headless-chrome render proof: 12 items, 7 readiness badges).
+  **Combined 5944+5945 verifier was killed by the account session limit
+  (resets 7:30pm PT) — RE-DISPATCH IT before closing either story.**
+- Then TAP-5946 readiness triggers (permit root cause documented at
+  ws.py:200-206, fix 2f0f9087; command zha/devices/permit duration=N),
+  TAP-5947 triage (add/ignore/later; verify config_entries/ignore_flow
+  shape), wave panel, close epic TAP-5942. Suite floor now 194 + 29.
 Then Waves 8–11.
 
 ## Key mechanics (stable)
