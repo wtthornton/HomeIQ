@@ -156,11 +156,17 @@ function decisionStatus(result) {
 
 function renderOutcome(box, result) {
   const status = decisionStatus(result);
+  // The nested step summary carries the actionable half of routed/failed
+  // outcomes (which step, which fields, why) — surface it (TAP-6034 polish).
+  const step = result.step || {};
   const detail = [
     result.entry_state ? `entry ${result.entry_state}` : null,
     result.read_back ? `read-back ${result.read_back}` : null,
     result.reason ? `reason: ${result.reason}` : null,
     result.key ? `key ${result.key}` : null,
+    step.step_type ? `step: ${step.step_type}${step.step_id ? ` (${step.step_id})` : ""}` : null,
+    (step.fields || []).length ? `enter: ${step.fields.join(", ")}` : null,
+    step.reason ? `step reason: ${step.reason}` : null,
   ].filter(Boolean).join(" · ");
   const cls = { completed: "converged", routed: "converged", ignored: "skipped",
                 deferred: "skipped", failed: "failed" }[status];
@@ -207,7 +213,10 @@ function renderTriggerResult(box, result) {
     rows.push(`${k}: ${v}`);
   if ((result.fields || []).length) rows.push(`enter: ${result.fields.join(", ")}`);
   if (result.reason) rows.push(`reason: ${result.reason}`);
-  box.replaceChildren(...rows.map(text => el("div", { class: "result converged", text })));
+  // An honest refusal (flow_not_found, not_a_readiness_flow) must not
+  // render green (TAP-6034 polish).
+  const cls = result.reason ? "result blocked" : "result converged";
+  box.replaceChildren(...rows.map(text => el("div", { class: cls, text })));
 }
 
 function readinessTrigger(item) {

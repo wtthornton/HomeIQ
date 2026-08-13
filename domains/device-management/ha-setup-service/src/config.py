@@ -29,6 +29,13 @@ class Settings(BaseServiceSettings):
     # Admin API configuration
     admin_api_url: str = "http://homeiq-admin-api:8004"
 
+    # DNS-rebinding hardening (TAP-6035): extra Host/Origin authorities the
+    # init write endpoints accept, comma-separated ``host`` or ``host:port``
+    # entries (e.g. "homeiq.lan,ha-setup.local:8024"). IP literals and
+    # localhost always pass — they cannot be rebound; only DNS names need
+    # listing. See the write_router guard in routes_init.py.
+    expected_hosts: str = ""
+
     # Health check intervals (seconds)
     health_check_interval: int = 60
     integration_check_interval: int = 300  # 5 minutes

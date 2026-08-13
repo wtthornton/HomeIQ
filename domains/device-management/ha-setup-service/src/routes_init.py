@@ -7,6 +7,7 @@ them over HTTP and serializes the report.
 
 from __future__ import annotations
 
+import ipaddress
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
@@ -28,26 +29,86 @@ from homeiq_ha.agent.wizard import build_queue
 from homeiq_ha.client import HAClient
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
+from .config import get_settings
+
 if TYPE_CHECKING:
     from homeiq_ha.agent.engine import RunReport
 
 logger = logging.getLogger(__name__)
 
 
-async def same_origin_only(request: Request) -> None:
-    """Refuse cross-origin browser POSTs to state-changing init endpoints.
+def _bare_host(hostport: str) -> str:
+    """The host part of a Host/Origin authority, port stripped, lowercased.
 
-    Browsers always attach ``Origin`` to cross-origin (and fetch) POSTs; a
-    value whose host differs from the request's own ``Host`` is a drive-by
-    attempt (the wizard page is served same-origin from this service, and
-    CORS is not offered). Requests without an Origin header — curl, server
-    -to-server — pass untouched.
+    Handles bracketed IPv6 (``[::1]:8024``); a bare multi-colon value is a
+    portless IPv6 literal and passes through whole.
     """
+    value = hostport.strip().lower()
+    if value.startswith("["):
+        return value.partition("]")[0].lstrip("[")
+    if value.count(":") > 1:
+        return value
+    return value.rsplit(":", 1)[0]
+
+
+def _host_allowed(hostport: str, extra: frozenset[str]) -> bool:
+    """The DNS-rebinding policy (TAP-6035).
+
+    A rebinding attack must present the attacker's DNS *name* in Host (the
+    browser resolves evil.example to the LAN IP, but the header carries the
+    name). So: IP literals and localhost always pass — they cannot be
+    rebound — and any DNS name must be explicitly expected via settings.
+    """
+    if not hostport:
+        return False
+    if hostport.strip().lower() in extra:
+        return True  # exact host:port entry
+    host = _bare_host(hostport)
+    if host in extra or host == "localhost":
+        return True
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return True
+
+
+def _expected_hosts() -> frozenset[str]:
+    """Operator-configured extra hosts (``EXPECTED_HOSTS``, comma-separated,
+    ``host`` or ``host:port``), lowered. Read via the cached settings."""
+    raw = getattr(get_settings(), "expected_hosts", "") or ""
+    return frozenset(h.strip().lower() for h in raw.split(",") if h.strip())
+
+
+async def same_origin_only(request: Request) -> None:
+    """Refuse rebindable or cross-origin browser POSTs to init write endpoints.
+
+    Two checks, both against the expected-host policy rather than against
+    each other — comparing Origin to the request's own Host let a DNS-
+    rebinding page pass with a matching-but-foreign pair (TAP-6035, Wave 7
+    panel):
+
+    1. The ``Host`` header must be an IP literal, localhost, or a
+       configured expected host — a foreign DNS name is the rebinding
+       shape and gets 403 whether or not Origin is present.
+    2. When ``Origin`` is present (browsers attach it to fetch POSTs), its
+       host must satisfy the same policy — an ordinary cross-origin
+       drive-by still gets 403.
+
+    Requests without an Origin header — curl, server-to-server — only pass
+    the Host check, which IP/localhost callers satisfy by construction.
+    """
+    allowed = _expected_hosts()
+    if not _host_allowed(request.headers.get("host", ""), allowed):
+        raise HTTPException(
+            status_code=403,
+            detail="unexpected Host header — set EXPECTED_HOSTS to allow a DNS name",
+        )
     origin = request.headers.get("origin")
     if not origin:
         return
-    host = origin.split("://", 1)[-1].split("/", 1)[0]
-    if host != request.headers.get("host"):
+    origin_host = origin.split("://", 1)[-1].split("/", 1)[0]
+    if not _host_allowed(origin_host, allowed):
         raise HTTPException(status_code=403, detail="cross-origin request refused")
 
 
