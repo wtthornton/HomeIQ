@@ -24,6 +24,8 @@ PC_DONE = {
     "result": {"entry_id": "pc1", "domain": "powercalc", "state": "loaded"},
 }
 
+POWER_OK = [{"entity_id": "sensor.office_light_power", "state": "3.4"}]
+
 PC_MENU = {
     "type": "menu",
     "flow_id": "gc1",
@@ -43,6 +45,7 @@ def powercalc_recipe() -> PowercalcRecipe:
         restart_min_wait=0.0,
         discovery_timeout=0.05,
         discovery_poll_interval=0.0,
+        power_state_timeout=0.05,
     )
 
 @pytest.mark.asyncio
@@ -67,6 +70,7 @@ async def test_powercalc_check_distinguishes_download_from_flow(sim):
 
 @pytest.mark.asyncio
 async def test_powercalc_apply_downloads_restarts_and_confirms_discovery(sim):
+    sim.state["states"] = list(POWER_OK)
     sim.state["hacs_repositories"] = [dict(POWERCALC_REPO)]
     sim.state["flow_progress"] = [{"flow_id": "pf1", "handler": "powercalc"}]
     sim.state["flow_current_step"] = {"type": "form", "flow_id": "pf1", "data_schema": []}
@@ -102,6 +106,7 @@ async def test_powercalc_second_apply_reports_zero_changes(sim):
 
 @pytest.mark.asyncio
 async def test_powercalc_apply_bootstraps_discovery_via_global_config(sim):
+    sim.state["states"] = list(POWER_OK)
     sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
     sim.state["flow_first_step"] = PC_MENU
     sim.state["flow_current_step"] = {"type": "form", "flow_id": "pf1", "data_schema": []}
@@ -128,6 +133,7 @@ async def test_powercalc_apply_bootstraps_discovery_via_global_config(sim):
 
 @pytest.mark.asyncio
 async def test_powercalc_submits_sections_as_empty_dicts(sim):
+    sim.state["states"] = list(POWER_OK)
     sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
     sim.state["flow_first_step"] = PC_MENU
     sim.state["flow_current_step"] = {"type": "form", "flow_id": "pf1", "data_schema": []}
@@ -196,6 +202,7 @@ async def test_powercalc_apply_raises_when_discovery_never_appears(sim):
 
 @pytest.mark.asyncio
 async def test_powercalc_restarts_and_retries_on_already_in_progress(sim):
+    sim.state["states"] = list(POWER_OK)
     sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
     sim.state["flow_first_step"] = PC_MENU
     sim.state["flow_current_step"] = {"type": "form", "flow_id": "pf1", "data_schema": []}
@@ -262,6 +269,7 @@ async def test_powercalc_refuses_when_every_discovery_needs_human_facts(sim):
 
 @pytest.mark.asyncio
 async def test_powercalc_skips_blocked_flows_and_confirms_the_next(sim):
+    sim.state["states"] = list(POWER_OK)
     sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
     sim.state["flow_progress"] = [
         {

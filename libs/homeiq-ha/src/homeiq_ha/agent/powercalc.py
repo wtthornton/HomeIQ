@@ -62,12 +62,14 @@ class PowercalcRecipe(Recipe):
         restart_min_wait: float = 15.0,
         discovery_timeout: float = 90.0,
         discovery_poll_interval: float = 5.0,
+        power_state_timeout: float = 30.0,
     ) -> None:
         self.restart_timeout = restart_timeout
         self.restart_poll_interval = restart_poll_interval
         self.restart_min_wait = restart_min_wait
         self.discovery_timeout = discovery_timeout
         self.discovery_poll_interval = discovery_poll_interval
+        self.power_state_timeout = power_state_timeout
 
     async def _repo(self, ha: Any) -> dict[str, Any] | None:
         repos = await ha.ws.send_command(
@@ -240,25 +242,66 @@ class PowercalcRecipe(Recipe):
     async def _confirm_any_discovery(
         self, ha: Any, flows: list[dict[str, Any]]
     ) -> Change:
-        """Confirm the first discovery flow that needs no human facts.
+        """Confirm discovery flows until one yields a live power number.
 
         Observed live 2026-08-13: WLED profiles require ``voltage`` while
-        Hue LUT profiles confirm on defaults alone — the confirmable one is
-        not necessarily first. Flows that block stay in the wizard triage
-        queue where they belong.
+        Hue LUT profiles confirm on defaults alone — and a confirmed sensor
+        for an *unavailable* light reports no number, so flows whose source
+        light is currently available rank first and confirmation continues
+        until a sensor actually reports. Flows that block stay in the
+        wizard triage queue where they belong.
         """
         blocked: dict[str, str] = {}
+        for flow, label in await self._ranked(ha, flows):
+            try:
+                change = await self._confirm_discovery(ha, flow["flow_id"])
+            except HAFlowError as err:
+                blocked[label] = str(err)
+                continue
+            if await self._power_reports_a_number(ha):
+                return change
+            blocked[label] = "confirmed but its sensor reports no number"
+        raise HAClientError(
+            "no powercalc discovery flow produced a reporting power sensor "
+            f"without human facts: {blocked}"
+        )
+
+    async def _ranked(
+        self, ha: Any, flows: list[dict[str, Any]]
+    ) -> list[tuple[dict[str, Any], str]]:
+        """Pair each flow with its device label, available lights first.
+
+        The discovery title is ``"<light name> - <manufacturer>"``; the
+        light half matches the light entity's friendly_name.
+        """
+        live_names = {
+            (state.get("attributes") or {}).get("friendly_name")
+            for state in await ha.rest.get_states()
+            if str(state.get("entity_id", "")).startswith("light.")
+            and state.get("state") not in ("unavailable", "unknown")
+        }
+        labelled = []
         for flow in flows:
             title = (flow.get("context") or {}).get("title_placeholders") or {}
             label = str(title.get("name") or flow["flow_id"])
-            try:
-                return await self._confirm_discovery(ha, flow["flow_id"])
-            except HAFlowError as err:
-                blocked[label] = str(err)
-        raise HAClientError(
-            "every powercalc discovery flow needs input the agent must not "
-            f"guess: {blocked}"
-        )
+            alive = label.rsplit(" - ", 1)[0].strip() in live_names
+            labelled.append((not alive, flow, label))
+        labelled.sort(key=lambda item: item[0])
+        return [(flow, label) for _, flow, label in labelled]
+
+    async def _power_reports_a_number(self, ha: Any) -> bool:
+        """Poll until any powercalc power sensor carries a numeric state."""
+        deadline = asyncio.get_running_loop().time() + self.power_state_timeout
+        while True:
+            powered = await self._power_entities(ha)
+            states = {
+                s.get("entity_id"): s.get("state") for s in await ha.rest.get_states()
+            }
+            if any(_is_number(states.get(eid)) for eid in powered):
+                return True
+            if asyncio.get_running_loop().time() > deadline:
+                return False
+            await asyncio.sleep(self.discovery_poll_interval)
 
     async def _powercalc_flows(self, ha: Any) -> list[dict[str, Any]]:
         # Only discovery-source flows arrive here: HA's flow/progress WS
