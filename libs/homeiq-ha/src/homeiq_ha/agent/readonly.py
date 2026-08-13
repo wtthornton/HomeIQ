@@ -39,6 +39,9 @@ _READ_COMMANDS = frozenset(
         "backup/info",
         "backup/config/info",
         "backup/agents/info",
+        # In-progress discovery flows: enumerating them changes nothing
+        # (advancing/aborting a flow is a different command). TAP-5943.
+        "config_entries/flow/progress",
     }
 )
 

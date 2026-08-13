@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException
 from homeiq_ha.agent import HAInitAgent
 from homeiq_ha.agent.backup import backup_taker
 from homeiq_ha.agent.recipes import default_recipes
+from homeiq_ha.agent.wizard import build_queue
 from homeiq_ha.client import HAClient
 from pydantic import BaseModel
 
@@ -71,6 +72,21 @@ async def audit() -> dict[str, Any]:
         logger.exception("init audit failed")
         raise HTTPException(status_code=502, detail=f"audit failed: {exc}") from exc
     return _serialize(report)
+
+
+@init_router.get("/queue")
+async def queue() -> dict[str, Any]:
+    """The wizard's human-action queue: audit blocked rows + discovery flows.
+
+    Read-only like /audit — assembly lives in homeiq_ha.agent.wizard behind
+    the read-only proxy; the payload carries its read journal as evidence.
+    """
+    try:
+        async with HAClient.from_env() as ha:
+            return await build_queue(ha, default_recipes())
+    except Exception as exc:
+        logger.exception("init queue failed")
+        raise HTTPException(status_code=502, detail=f"queue failed: {exc}") from exc
 
 
 @init_router.post("/converge")

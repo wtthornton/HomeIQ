@@ -106,6 +106,8 @@ class SimWs:
             return True, self.state[_registry_key(command_type)]
         if command_type == "zha/devices":
             return True, self.state.get("zha_devices", [])
+        if command_type == "config_entries/flow/progress":
+            return True, self.state.get("flow_progress", [])
         return False, None
 
     def _write(self, command_type: str, args: dict[str, Any]) -> Any:
