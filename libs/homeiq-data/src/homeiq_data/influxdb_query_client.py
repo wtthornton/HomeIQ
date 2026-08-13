@@ -305,6 +305,29 @@ from(bucket: "{self.bucket}")
             "window": window
         }
     
+    async def list_active_measurements(self, period: str = "1h") -> List[str]:
+        """Measurement names with at least one point in the window.
+
+        The honest source for "which data sources actually wrote recently"
+        (TAP-5994) — a range-bounded scan, not the schema catalogue, so a
+        dead feed drops out of the list once the window passes it by.
+
+        Raises:
+            Exception: not connected — callers own their degradation.
+        """
+        if not self.is_connected or not self.query_api:
+            raise Exception("InfluxDB client not connected")
+        seconds = self._period_to_seconds(period)
+        query = f'''
+from(bucket: "{self.bucket}")
+  |> range(start: -{seconds}s)
+  |> keep(columns: ["_measurement"])
+  |> group()
+  |> distinct(column: "_measurement")
+'''
+        rows = await self._execute_query(query)
+        return sorted({str(r["_value"]) for r in rows if r.get("_value")})
+
     async def _execute_query(self, query: str) -> List[Dict[str, Any]]:
         """
         Execute InfluxDB query and return results

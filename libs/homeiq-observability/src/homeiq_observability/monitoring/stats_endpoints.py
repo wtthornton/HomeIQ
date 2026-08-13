@@ -801,29 +801,16 @@ class StatsEndpoints:
             if not self.use_influxdb or not self.influxdb_client.is_connected:
                 logger.warning("InfluxDB not available for data source discovery")
                 return []
-            
-            # Query InfluxDB for all measurements (data sources)
-            query = '''
-            import "influxdata/influxdb/schema"
-            schema.measurements(bucket: "home_assistant_events")
-            '''
-            
-            result = await self.influxdb_client.query(query)
-            
-            # Extract measurement names
-            measurements = []
-            for table in result:
-                for record in table.records:
-                    measurement = record.values.get("_value")
-                    if measurement:
-                        measurements.append(measurement)
-            
+
+            # A real, tested client method (TAP-5994) — the old code called
+            # a `query` method that never existed, and the except below
+            # swallowed the AttributeError forever.
+            measurements = await self.influxdb_client.list_active_measurements()
             logger.info(f"Discovered {len(measurements)} active data sources from InfluxDB")
             return measurements
-            
+
         except Exception as e:
-            logger.error(f"Error querying active data sources from InfluxDB: {e}")
-            # Return empty list instead of hardcoded fallback
+            logger.warning(f"Data source discovery degraded to []: {e}")
             return []
     
     async def _get_api_metrics_with_timeout(self, service_name: str, service_url: str, timeout: int) -> dict[str, Any]:
