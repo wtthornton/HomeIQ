@@ -1,77 +1,32 @@
-# Session Handoff — HomeIQ backlog burndown (2026-08-13, Wave 6 complete)
+# Session handoff
+**Updated:** 2026-08-13T03:27:50Z
+**Git:** fab6fb36
+**Linear P0:** TAP-5945
 
-Branch `feat/ha-init-agent-activation` (PR #82, draft). All work committed and
-pushed. Test floors: `libs/homeiq-ha` **175 passed** (run it and the
-ha-setup-service tree SEPARATELY — combining them fails collection on a
-`tests` package-name collision), ha-setup-service 29 passed.
+## Done
+- Wave 5 (Zigbee health, epic TAP-5981) complete: 5982/5983/5984 Done + 3-verifier panel, all findings fixed (watchdog healthy-state inversion, log-guard JSON exceptions, init-gateway runbook, staged-alert env override `HOMEIQ_ZHA_SERIAL_PATH`).
+- Wave 6 (switch comfort, epic TAP-5985) complete: 5921 (zigbee2mqtt probes deleted; recipes.py 947→409, gate 70.2), 5987 (24-slot gesture catalogue, all `selected: null`, nothing wired), 5988 (smart-bulb-mode evaluation — Office: enable after 10-second paddle check; Bar: leave as-is), 5989 (wiring check recorded), 5990 (goal-loop ADR + new docs/ARCHITECTURE.md), 5991 (5429 canceled superseded / 5430 narrowed / 5431 kept). Panel findings all fixed (simulators.py 70.5, handoff currency, entity ids in evidence doc). TAP-6027 filed (backup_schedule summary/detail contradiction).
+- Wave 7 in progress: TAP-5943 Done (GET /api/v1/init/queue live, verifier round-trip: machine-derived schemas, 7/10 readiness flags correct). TAP-5945 implemented + hardened after verifier round-1 FAIL (compose `group_add: "1000"` makes the bind-mounted manifest writable — was dead code at uid 1001; YAML-injection quoting + re-parse-or-rollback in new manifest_edit.py; typed unwritable failure; team-flow create_entry/abort handling; anchored entity matching; websockets frame-logger pinned above DEBUG). TAP-5944 implemented (GET /setup self-contained page; headless-chrome render proof: 12 live items, 7 readiness badges, human_action verbatim).
+- Test floors: libs/homeiq-ha **194 passed**, ha-setup-service **29 passed** (run the two trees SEPARATELY — `tests` package-name collision documented in the burndown prompt + service README).
+- GitHub Actions slimming recommendations delivered to owner (concurrency-cancel, draft gating, libs/** fan-out dedup via ci-libs.yml, park 2 known-red TappsMCP workflows, docker trio merge) — NOT approved yet, do not implement.
 
-## Waves complete — do NOT redo
+## Open
+- Combined TAP-5944+5945 refute-verifier was killed mid-run by the account session limit (reset 7:30pm PT) — neither story is closed in Linear yet.
+- TAP-5946 (readiness triggers) and TAP-5947 (discovery triage) not started; then Wave-7 panel + close epic TAP-5942.
+- Wave 4 (TAP-5977) human-blocked on TAP-6018 (FP1E quirk); Waves 8–11 untouched.
 
-- **Waves 1–3, 5** — see git history of this file + brain keys `burndown-wave-*`.
-  Wave 5 (Zigbee health, epic TAP-5981) closed with 3-verifier panel + all
-  findings fixed (`79f23dd8`).
-- **Wave 6 (switch comfort + closeout, epic TAP-5985) COMPLETE 2026-08-13.**
-  All stories Done/dispositioned, each refute-verified; 3-verifier panel run
-  (correctness PASS, no-residue PASS, reproducibility FAIL-narrow) and all
-  findings fixed same session:
-  - TAP-5921 zigbee2mqtt probes deleted; recipes.py 947→409 (gate 70.2);
-    harness → `tests/simulators.py` (gate 70.5 after panel fix) + new
-    `test_simulators.py`/`test_backup.py`/`test_registry.py`/`test_manifest.py`.
-  - TAP-5987 gesture catalogue: 24 `switch_gestures` rows in the manifest,
-    ALL `selected: null` — owner selects by editing the manifest; NO consumer
-    exists by design.
-  - TAP-5988 smart-bulb-mode evaluation:
-    `docs/operations/smart-bulb-mode-evaluation.md` — Office = ENABLE after a
-    10-second paddle check (third-world conventional-load risk; both dimmers
-    are `Three Way AUX`), Bar = leave as-is. NOTHING was changed on the
-    switches (recorder-history-proven).
-  - TAP-5989 fourth-switch wiring check recorded (ledger + Linear; LOCATION
-    of the switch was never recorded — ask owner which box).
-  - TAP-5990 ADR `docs/architecture/adr-goal-loop-operator-pattern.md` +
-    new `docs/ARCHITECTURE.md` index.
-  - TAP-5991 re-scope: TAP-5429 Canceled (superseded by PR #82 delivery),
-    TAP-5430 narrowed to http+recorder recipes, TAP-5431 kept (HACS
-    prerequisite cleared).
+## Next (P0)
+- Re-dispatch the combined TAP-5944+5945 adversarial verifier (fresh opus, refute against live evidence: group write proof on an in-mount COPY only, hostile-name merge on scratch copies, headless-chrome render vs live queue count, no-op answers POST `{"device_areas":[{"device_id":"6eebb4229176cf2e2762df8227624404","area":"Kitchen"}]}` must yield wrote_nothing), fix any gaps, then close both via the linear-issue skill and proceed to TAP-5946.
 
-## Blocked / standing (unchanged)
+## Blockers
+- none
 
-- **Wave 4 (TAP-5977) HUMAN-BLOCKED on TAP-6018** (FP1E quirk). Skip
-  5978/5979/5980; office stays on input_boolean proxies.
-- PR #82 merge = human decision. GitHub Actions slimming recommendations
-  delivered to owner — NOT approved yet, do not implement.
-- Pending owner actions: fourth-switch wiring check (TAP-5989, room unknown —
-  ask), office dimmer 10-second paddle check before smart-bulb-mode enable
-  (TAP-5988), gesture catalogue selections (TAP-5987).
+## Verify
+- `mcp__nlt-build__tapps_session_start()` first (PreToolUse gate), then brain recall `tapps_memory(action="search", query="burndown wave 7")`.
+- `.venv/bin/python -m pytest libs/homeiq-ha -q` → 194 passed; `.venv/bin/python -m pytest domains/device-management/ha-setup-service/tests -q` → 29 passed.
+- `curl -s http://localhost:8024/api/v1/init/queue | jq '.items|length'` (≈11–12) and `curl -s -o /dev/null -w "%{http_code}" http://localhost:8024/setup` → 200.
+- `docker exec homeiq-setup-service python -c "import os; print(os.getgroups(), os.access('config/ha-organization-manifest.yaml', os.W_OK))"` → `[1000, 1001] True`.
+- `git log --oneline -3` from fab6fb36; tree clean; all pushed to PR #82 branch.
 
-## Next (Wave 7 — setup wizard, epic TAP-5942 — IN PROGRESS)
-
-- TAP-5943 DONE (queue API live, verifier round-trip complete).
-- TAP-5945 implemented + hardened (verifier round 1 FAIL -> all 6 gaps
-  fixed: group_add 1000 writable mount proven on a copy, YAML-injection
-  quoting + rollback in NEW manifest_edit.py, typed unwritable failure,
-  team-flow create_entry/abort handling, EOF/empty-section guards,
-  websockets frame-logger pinned). TAP-5944 implemented (/setup page,
-  headless-chrome render proof: 12 items, 7 readiness badges).
-  **Combined 5944+5945 verifier was killed by the account session limit
-  (resets 7:30pm PT) — RE-DISPATCH IT before closing either story.**
-- Then TAP-5946 readiness triggers (permit root cause documented at
-  ws.py:200-206, fix 2f0f9087; command zha/devices/permit duration=N),
-  TAP-5947 triage (add/ignore/later; verify config_entries/ignore_flow
-  shape), wave panel, close epic TAP-5942. Suite floor now 194 + 29.
-Then Waves 8–11.
-
-## Key mechanics (stable)
-
-- Live HA reads: `docker exec -i homeiq-setup-service python -` with
-  `homeiq_ha.client`. Writes ONLY via `POST :8024/api/v1/init/converge`.
-- Gateway rebuild (needed after any libs/homeiq-ha change):
-  `docker compose -f domains/device-management/compose.yml --env-file .env
-  --profile production up -d --build ha-setup-service`; verify by identity.
-- Runbook: `docs/operations/init-gateway.md`. Read-only allowlist:
-  `homeiq_ha/agent/readonly.py`. New recipes: small modules re-exported from
-  the recipes hub.
-- Known artifact bug (follow-up story filed): `safety.backup_schedule` audit
-  row says satisfied/"automatic backups configured" while its own detail has
-  `automatic_backups_configured: false` — summary-vs-detail contradiction in
-  `BackupScheduleRecipe.check`.
-- ai-automation tests: `TEST_DATABASE_URL=postgresql+asyncpg://homeiq_test_ci:homeiq-test-only@localhost:15432/homeiq_test`.
+## Success criterion
+- TAP-5944 + TAP-5945 verifier PASS and both closed in Linear, then TAP-5946/5947 done, Wave-7 panel run, epic TAP-5942 closed with evidence.
