@@ -299,7 +299,19 @@ class BackupScheduleRecipe(Recipe):
                     "Without the key the backups are unrecoverable."
                 ),
             )
-        return CheckResult(CheckStatus.SATISFIED, "automatic backups configured", details)
+        # The summary states what THIS recipe verified: schedule/retention/
+        # destination drift-free and an encryption key present. It must not
+        # assert HA's `automatic_backups_configured` flag — HA core marks
+        # that field "only used by frontend" (components/backup/config.py):
+        # it records that the person completed the frontend's backup
+        # onboarding dialog and is never derived from the actual schedule,
+        # so it stays false on an API-configured instance whose nightly
+        # backups demonstrably run (TAP-6027).
+        return CheckResult(
+            CheckStatus.SATISFIED,
+            "backup schedule matches intent (drift-free, encryption key set)",
+            details,
+        )
 
     async def plan(self, ha: HAClient) -> Plan:
         config = await self._config(ha)

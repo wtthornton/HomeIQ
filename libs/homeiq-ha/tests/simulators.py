@@ -172,11 +172,10 @@ class SimWs:
             and config["create_backup"].get("agent_ids")
         )
         config["next_automatic_backup"] = "2026-08-02T04:56:21-07:00" if scheduled else None
-        # Home Assistant additionally withholds this until an encryption
-        # key exists, which backup/config/update cannot set.
-        config["automatic_backups_configured"] = scheduled and bool(
-            config["create_backup"].get("password")
-        )
+        # Deliberately NOT touched: HA core marks automatic_backups_configured
+        # "only used by frontend" (components/backup/config.py) — it records
+        # frontend-onboarding completion and is never derived from config
+        # updates, so it stays false on an API-configured instance (TAP-6027).
 
     def _backup_generate(self, args: dict[str, Any]) -> dict[str, Any]:
         if not args.get("agent_ids"):

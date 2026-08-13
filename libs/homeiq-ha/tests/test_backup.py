@@ -68,6 +68,25 @@ async def test_backup_schedule_satisfied_once_a_key_exists(sim):
 
 
 @pytest.mark.asyncio
+async def test_backup_schedule_summary_never_contradicts_its_details(sim):
+    """TAP-6027: the satisfied summary claimed HA's frontend-only
+    automatic_backups_configured flag, which stays false on an
+    API-configured instance. The summary must state what was verified,
+    never assert that flag."""
+    sim.state["backup_config"]["create_backup"]["password"] = "set"
+    # HA's frontend-onboarding flag stays false — exactly the live shape.
+    sim.state["backup_config"]["automatic_backups_configured"] = False
+    recipe = BackupScheduleRecipe(recurrence="daily", copies=7)
+    await recipe.apply(sim)
+
+    result = await recipe.check(sim)
+    assert result.status is CheckStatus.SATISFIED
+    assert result.details["automatic_backups_configured"] is False
+    assert "automatic backups configured" not in result.summary
+    assert "drift-free" in result.summary and "encryption key" in result.summary
+
+
+@pytest.mark.asyncio
 async def test_first_backup_reports_zero_backups(sim):
     result = await FirstBackupRecipe().check(sim)
     assert result.status is CheckStatus.NEEDS_APPLY
