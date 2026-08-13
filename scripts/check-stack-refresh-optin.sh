@@ -46,12 +46,16 @@ check_sh() {
         if (stripped == hd_end) in_heredoc = 0
         next
       }
-      line = raw; sub(/#.*$/, "", line)
-      # Here-strings are not heredocs; neutralize before opener detection.
+      # Comment must start the line or follow whitespace — $# and ${#var}
+      # are parameter expansions, not comments.
+      line = raw; sub(/(^|[[:space:]])#.*$/, "", line)
+      # Here-strings and arithmetic are not heredocs; neutralize both
+      # before opener detection so cat<<EOS (no space) still detects.
       hline = line; gsub(/<<</, " HERESTRING ", hline)
-      if (match(hline, /[[:space:]]<<-?['\''"]?[A-Za-z_][A-Za-z_0-9]*/)) {
+      gsub(/\$\(\([^)]*\)\)/, " ARITH ", hline)
+      if (match(hline, /[[:space:]]*<<-?['\''"]?[A-Za-z_][A-Za-z_0-9]*/)) {
         hd_end = substr(hline, RSTART, RLENGTH)
-        sub(/[[:space:]]<<-?['\''"]?/, "", hd_end)
+        sub(/[[:space:]]*<<-?['\''"]?/, "", hd_end)
         in_heredoc = 1
         # the rest of this line still gets evaluated below
       }
