@@ -35,13 +35,21 @@ SHAPE_D="^[[:space:]]+[A-Za-z0-9_]*${CRED}[A-Za-z0-9_]*:[[:space:]]+[^\$[:space:
 fail=0
 while IFS=: read -r file ln content; do
   [[ -z "$file" ]] && continue
-  name=$(grep -oiE "[A-Z0-9_]*${CRED}[A-Z0-9_]*" <<<"$content" | head -1)
-  [[ "${name:-URL_EMBEDDED}" == "URL_EMBEDDED" ]] || {
+  # Name from the ASSIGNMENT TARGET only (before the first = or :) — never
+  # from the value, which could echo a password substring into the log.
+  # `|| true`: a target with no credential-shaped name (URL shapes) must
+  # not abort the loop under set -e.
+  target=${content%%=*}; target=${target%%:*}
+  name=$(grep -oiE "[A-Z0-9_]*${CRED}[A-Z0-9_]*" <<<"$target" | head -1 || true)
+  if [[ -n "$name" ]]; then
     [[ "${name^^}" =~ (EXPIRE|EXPIRY|TTL|_FILE|_PATH|HEADER) ]] && continue
     value=$(sed -E 's/^[^=:]*(:-|=|:[[:space:]]+)//' <<<"$content")
     [[ "$value" =~ ^(true|false|[0-9]+)\}?$ ]] && continue
-  }
-  echo "::error file=${file},line=${ln}::committed credential value (${name:-inside a connection URL}) — interpolate from .env with \${VAR:?}"
+    label="$name"
+  else
+    label="inside the value — literal credential in a URL or non-credential-named variable"
+  fi
+  echo "::error file=${file},line=${ln}::committed credential value (${label}) — interpolate from .env with \${VAR:?}"
   fail=1
 done < <({ grep -inE "$SHAPE_A" $files /dev/null
            grep -inE "$SHAPE_B" $files /dev/null
