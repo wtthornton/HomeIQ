@@ -1,7 +1,7 @@
 # Session handoff
 **Updated:** 2026-08-13T03:55:00Z
 **Git:** 6d8e5bab
-**Linear P0:** TAP-5944 + TAP-5945 (closure only — work done + verified)
+**Linear P0:** TAP-5946 (Wave-7 next story — 5944/5945 CLOSED 2026-08-13 with verifier evidence)
 
 ## Resume-as (re-enter the goal loop — the standing instruction)
 - Next session re-enters the multi-run loop via the NEW drain prompt (supersedes burndown): paste/execute — `Read prompts/homeiq-backlog-drain.md in full, then execute it as a goal loop — run the Loop section repeatedly until Done-when holds, printing the SCORE line every iteration. Establish your own preconditions per Sub-goal 0; work sub-goals in order; do not stop unless an Autonomy hard-stop fires.` **Linear must be authenticated (`/mcp`) — Sub-goal 0 probes this first and hard-stops if not.**
@@ -15,11 +15,11 @@
 - GH Actions slimming recs delivered — NOT approved, do not implement.
 
 ## Open
-- TAP-5944/5945: work verified complete, NOT closed in Linear (plugin unauthenticated this session). Closure notes ready — 5944: acceptance count corrected to 11 (12th card is the static teams form; proof key is `.items|length`, `.queue` doesn't exist); 5945: schema hardening `extra="forbid"` + 5 route tests (6d8e5bab).
-- TAP-5946 (permit root cause at ws.py:200-206; `zha/devices/permit` duration=N) and TAP-5947 (verify `config_entries/ignore_flow`) not started.
+- TAP-5946 (readiness triggers: pairing/PIN/HACS — permit anchor ws.py:200-206) and TAP-5947 (discovery triage add/ignore/later) not started; then Wave-7 panel + close epic TAP-5942.
+- Live backlog re-read 2026-08-13: **57 open** (13 Urgent). Wave 1 NOT fully closed in Linear — epic TAP-5281 (Urgent) + TAP-5291 open. New defect batch: 5993 (H, 32 hardcoded compose credentials), 5430 (H), 5431/5994/5997/5999/6007/6027 (M).
 
 ## Next (P0)
-- With Linear auth restored: close TAP-5944 + TAP-5945 via linear-issue skill using the closure notes above, then start TAP-5946.
+- Re-enter the loop via `prompts/homeiq-backlog-drain.md` (rewritten 2026-08-13 against the live read): Sub-goal 1 = TAP-5946.
 
 ## Verifier verdict (2026-08-13, opus refute mode — full detail in brain key `burndown-wave-7-5944-5945-verified`)
 - PASSED: badges (7/7), compose `group_add` ([1000,1001], manifest writable, byte-identical mount, logs volume restored, RestartCount 0), websockets frame-logger pin (ws.py:56-65 — load-bearing, backup/config/info carries plaintext key), converge gating (wrote_nothing honest, blocked_on_human correct).
@@ -27,7 +27,7 @@
 - Post-fix live state: off-contract POST → 422, /setup → 200, queue = 11, suites 194 + 34 green, gates pass, checklist complete.
 
 ## Blockers
-- Linear MCP plugin unauthenticated in non-interactive session — user must re-auth via /mcp in an interactive session before 5944/5945 can be closed.
+- none (Linear re-authenticated 2026-08-13; 5944/5945 closed)
 
 ## Verify
 - `tapps_session_start()` then `tapps_memory(action="search", query="burndown wave 7")`.
