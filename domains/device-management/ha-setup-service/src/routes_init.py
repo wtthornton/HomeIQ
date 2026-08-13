@@ -19,7 +19,7 @@ from homeiq_ha.agent.backup import backup_taker
 from homeiq_ha.agent.recipes import default_recipes
 from homeiq_ha.agent.wizard import build_queue
 from homeiq_ha.client import HAClient
-from pydantic import BaseModel, SecretStr
+from pydantic import BaseModel, ConfigDict, SecretStr
 
 if TYPE_CHECKING:
     from homeiq_ha.agent.engine import RunReport
@@ -48,11 +48,15 @@ class ConvergeRequest(BaseModel):
 
 
 class DeviceAreaAnswer(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     device_id: str
     area: str
 
 
 class AddonOptionsAnswer(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     slug: str
     options: dict[str, Any]
 
@@ -62,7 +66,11 @@ class AnswersRequest(BaseModel):
 
     ``backup_password`` is a SecretStr: write-only by contract — set via
     backup/config/update, never logged, echoed, or persisted anywhere.
+    An off-contract body must 422, not silently succeed as an empty
+    submission — hence ``extra="forbid"`` here and on the nested answers.
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     device_areas: list[DeviceAreaAnswer] = []
     addon_options: list[AddonOptionsAnswer] = []
