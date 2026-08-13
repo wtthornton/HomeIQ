@@ -9,13 +9,15 @@ from datetime import datetime
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from homeiq_observability.endpoints import create_integration_router, simple_health_router
+from homeiq_observability.endpoints import simple_health_router
 
-from src.config_manager import config_manager
 from src.health_endpoints import HealthEndpointManager
 
 health_router = simple_health_router
-integration_router = create_integration_router(config_manager)
+# Deliberately NO integration router here (TAP-6007): this entrypoint —
+# wired by docker-compose.dev.yml and Dockerfile.simple — carries no auth
+# dependency, so mounting the config read/write surface exposed it
+# unauthenticated. Same removal as data-api's simple_main.
 health_manager = HealthEndpointManager()
 
 # Configure logging
@@ -52,7 +54,6 @@ app.add_middleware(
 app.include_router(health_router, prefix="/api/v1", tags=["Health"])
 
 # Include integration management router
-app.include_router(integration_router, prefix="/api/v1", tags=["Integration Management"])
 
 # Include health endpoint manager (group health, service health, dependencies, metrics)
 app.include_router(health_manager.router, tags=["Health Management"])

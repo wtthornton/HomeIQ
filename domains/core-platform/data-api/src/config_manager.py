@@ -14,7 +14,9 @@ SENSITIVE_KEY_PATTERNS = ("TOKEN", "API_KEY", "SECRET", "PASSWORD", "PRIVATE_KEY
 #: regardless of its key name — a DSN under an innocent key like
 #: POSTGRES_URL carries a live credential the key patterns never see
 #: (TAP-6007).
-EMBEDDED_CREDENTIAL_RE = re.compile(r"[a-z][a-z0-9+.-]*://[^/@\s]+:[^/@\s]+@", re.IGNORECASE)
+# User may be EMPTY (redis://:pw@h is the canonical Redis/Celery shape)
+# and passwords may carry "/" — hence * on user and [^@\s]+ on password.
+EMBEDDED_CREDENTIAL_RE = re.compile(r"[a-z][a-z0-9+.-]*://[^/@\s]*:[^@\s]+@", re.IGNORECASE)
 MASK_VALUE = "********"
 
 
