@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..clients.ha_client import HomeAssistantClient
-from ..database.models import AutomationVersion, Suggestion
+from ..database.models import AutomationVersion, Deployment, Suggestion
 from .safety_validator import SafetyValidator
 from .yaml_generation_service import YAMLGenerationService
 
@@ -261,6 +261,80 @@ class DeploymentService:
             logger.error(f"Failed to list automations: {e}")
             return []
 
+    async def _rollback_compiled(
+        self, automation_id: str, current: Deployment, previous: Deployment
+    ) -> dict[str, Any]:
+        """Restore the previous compiled artifact and flip the chain statuses."""
+        from ..database.models import CompiledArtifact
+
+        artifact_result = await self.db.execute(
+            select(CompiledArtifact).where(CompiledArtifact.compiled_id == previous.compiled_id)
+        )
+        artifact = artifact_result.scalar_one_or_none()
+        if artifact is None:
+            raise DeploymentError(
+                f"Cannot roll back {automation_id}: artifact {previous.compiled_id} "
+                f"for version {previous.version} no longer exists"
+            )
+
+        import yaml as _yaml
+
+        automation_data = _yaml.safe_load(artifact.yaml)
+        if isinstance(automation_data, dict):
+            automation_data["id"] = automation_id
+            restore_yaml = _yaml.dump(automation_data, default_flow_style=False, sort_keys=False)
+        else:
+            restore_yaml = artifact.yaml
+
+        await self.ha_client.deploy_automation(restore_yaml)
+
+        current.status = "rolled_back"
+        previous.status = "deployed"
+        await self.db.commit()
+
+        return {
+            "success": True,
+            "message": f"Rolled back to version {previous.version}",
+            "automation_id": automation_id,
+            "restored_version": previous.version,
+        }
+
+    async def _rollback_by_removal(self, automation_id: str) -> dict[str, Any]:
+        """Roll back a first-version deployment by removing it from HA.
+
+        Compiled-flow deployments record only a Deployment row (no prior
+        AutomationVersion), so their pre-deploy state — absence — is the
+        previous version.
+        """
+        dep_query = (
+            select(Deployment)
+            .where(
+                Deployment.ha_automation_id == automation_id,
+                Deployment.status == "deployed",
+            )
+            .order_by(Deployment.deployed_at.desc())
+            .limit(1)
+        )
+        dep_result = await self.db.execute(dep_query)
+        deployment = dep_result.scalar_one_or_none()
+        if deployment is None:
+            raise DeploymentError("No previous version found for rollback")
+
+        await self.ha_client.delete_automation(automation_id)
+        deployment.status = "rolled_back"
+        await self.db.commit()
+        logger.info(
+            "Rolled back first-version automation %s by removal (deployment %s)",
+            automation_id,
+            deployment.deployment_id,
+        )
+        return {
+            "automation_id": automation_id,
+            "status": "rolled_back",
+            "action": "removed",
+            "deployment_id": deployment.deployment_id,
+        }
+
     async def rollback_automation(self, automation_id: str) -> dict[str, Any]:
         """
         Rollback automation to previous version.
@@ -272,7 +346,29 @@ class DeploymentService:
             Rollback result dictionary
         """
         try:
-            # Get previous version (ordered by version_number for proper rollback)
+            # Compiled-deploy chain first (TAP-5992): a version-N deployment
+            # rolls back by restoring version N-1's artifact; removal only
+            # ever applies to a version-1 chain. Before this, compiled
+            # deployments had no AutomationVersion rows, so every rollback
+            # fell into the removal path and deleted the automation from HA.
+            chain_result = await self.db.execute(
+                select(Deployment)
+                .where(
+                    Deployment.ha_automation_id == automation_id,
+                    Deployment.status.in_(["deployed", "superseded"]),
+                )
+                .order_by(Deployment.version.desc(), Deployment.deployed_at.desc())
+            )
+            chain = list(chain_result.scalars().all())
+            if len(chain) >= 2:
+                return await self._rollback_compiled(automation_id, chain[0], chain[1])
+            if len(chain) == 1:
+                removal = await self._rollback_by_removal(automation_id)
+                chain[0].status = "rolled_back"
+                await self.db.commit()
+                return removal
+
+            # Legacy suggestion-flow chain (AutomationVersion table).
             query = (
                 select(AutomationVersion)
                 .where(AutomationVersion.automation_id == automation_id)
@@ -283,7 +379,7 @@ class DeploymentService:
             versions = result.scalars().all()
 
             if len(versions) < 2:
-                raise DeploymentError("No previous version found for rollback")
+                return await self._rollback_by_removal(automation_id)
 
             # Get previous version (second in list)
             previous_version = versions[1]

@@ -20,13 +20,11 @@
 #   CONTRACT_PACE        seconds between requests (default 1.1). admin-api rate
 #                        limits at 60 req/min with burst 20 — an unpaced sweep
 #                        produces false 429s.
-#   CONTRACT_TIMEOUT     per-request timeout in seconds (default 15). Raised from
-#                        10 because /api/v1/real-time-metrics answers at ~10.0s,
-#                        right on the old boundary, so the sweep reported a
-#                        curl-level 000 for an endpoint that does return 200.
-#                        That latency is a real performance problem worth fixing
-#                        on its own; the timeout here only stops it being
-#                        misreported as an unreachable route.
+#   CONTRACT_TIMEOUT     per-request timeout in seconds (default 10). Was
+#                        temporarily 15 while /api/v1/real-time-metrics sat at
+#                        ~10.0s waiting out a downstream aiohttp timeout; that
+#                        endpoint now runs its fan-out under a 1.5s budget
+#                        (TAP-5439), so the default is back at 10.
 #
 # Exit status: 0 when every endpoint matches its expected status, 1 otherwise.
 
@@ -35,7 +33,7 @@ set -uo pipefail
 BASE_URL="${1:-http://localhost:13000}"
 BASE_URL="${BASE_URL%/}"
 PACE="${CONTRACT_PACE:-1.1}"
-TIMEOUT="${CONTRACT_TIMEOUT:-15}"
+TIMEOUT="${CONTRACT_TIMEOUT:-10}"
 KEY="${DASHBOARD_API_KEY:-}"
 
 # path <TAB> expected-status <TAB> kind <TAB> rationale
@@ -108,7 +106,7 @@ read -r -d '' CONTRACT <<'EOF'
 /api/v1/docker/containers	200	http	admin-api
 /api/v1/docker/api-keys	200	http	admin-api
 /api/v1/docker/containers/admin-api/stats	200	http	admin-api; only compose-managed names resolve, others are a deliberate 400
-/api/v1/docker/containers/admin-api/logs?tail=10	200	http	admin-api; returns mock text while the docker socket is unreadable, but the route is live
+/api/v1/docker/containers/admin-api/logs?tail=10	200	http	admin-api; real container logs — socket readable via group_add docker GID (TAP-5999); with the socket unavailable this answers 503, never fabricated 200s
 /api/v1/alerts	200	http	data-api
 /api/v1/alerts/active	200	http	data-api
 /api/v1/alerts/summary	200	http	data-api
@@ -118,6 +116,24 @@ read -r -d '' CONTRACT <<'EOF'
 /api/v1/events	200	http	data-api
 /api/v1/events/{EVENT_ID}	200	http	data-api; id resolved at runtime from /api/v1/events
 /api/v1/events/stats?period=24h	200	http	data-api
+/api/v1/events/search	404	http	data-api; POST-only (frontend sends POST+CSRF, verified 200 live TAP-5446) — a GET probe falls into /events/{event_id} with id="search" and 404s, which proves the events router is mounted; nginx CSRF-gates non-GET so this sweep stays GET-only
+/api/v1/integrations	200	http	data-api; shared integration router (TAP-5447), lists .env.{service} files from infrastructure/service-configs
+/api/v1/integrations/websocket/config	200	http	data-api; ConfigForm's route — needs the seeded .env.websocket in infrastructure/service-configs (see its README); unknown services 404 by design
+/api/v1/ha/game-status/VGK	200	http	data-api; TAP-5448 — answers no_game when sports_data holds no rows for the team, which is the honest empty state
+/api/v1/ha/game-context/VGK	200	http	data-api; TAP-5448 — same no_game semantics as game-status
+/api/v1/hygiene/issues	200	http	data-api proxies device-intelligence with server-side X-API-Key (TAP-5449); empty list is a valid state
+/api/v1/docker/containers/data-api/logs?tail=10	200	http	admin-api; data-api added to the managed-container mapping (TAP-5450) — real logs since TAP-5999 (socket readable; unavailable socket answers 503)
+/api/v1/docker/containers/not-a-service/logs?tail=10	400	http	admin-api; unmanaged names are a deliberate 400, no longer shadowed into a 500 (TAP-5450)
+/api/v1/energy/circuits	200	http	data-api; TAP-5445 — Flux time literals fixed, all energy routes green
+/api/v1/energy/correlations	200	http	data-api; TAP-5445
+/api/v1/energy/statistics	200	http	data-api; TAP-5445
+/api/v1/energy/top-consumers	200	http	data-api; TAP-5445
+/api/v1/energy/device-impact/light.office	200	http	data-api; TAP-5445 — parameterized route, any entity id answers (empty impact is valid)
+/api/v1/memories	200	http	admin-api; TAP-5437 — memory schema provisioned, pgvector live
+/api/v1/memories/stats	200	http	admin-api; TAP-5437
+/api/v1/memories/trust	200	http	admin-api; TAP-5437 — the enum-bind 500 fixed in homeiq-memory
+/ai-automation/api/patterns/list	200	http	ai-automation → ai-pattern-service; TAP-5438 — the prefix the frontend actually calls (api.ts baseUrl /ai-automation)
+/ai-automation/api/patterns/stats	200	http	ai-automation → ai-pattern-service; TAP-5438
 /api/devices	200	http	data-api
 /api/devices/{DEVICE_ID}	200	http	data-api; id resolved at runtime from /api/devices
 /api/entities	200	http	data-api

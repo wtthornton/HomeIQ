@@ -105,6 +105,25 @@ class HARestClient:
     async def get_config_entries(self) -> list[dict[str, Any]]:
         return await self.request("GET", "/api/config/config_entries/entry")
 
+    async def get_supervisor_logs(self, endpoint: str = "/core/logs") -> str:
+        """Supervisor-managed logs as text, via the core's ``/api/hassio`` proxy.
+
+        The supported log path (TAP-5984, verified live 2026-08-13 on
+        HA 2026.8.1): the WS ``supervisor/api`` passthrough JSON-decodes
+        every Supervisor response, so text log endpoints (``/core/logs``,
+        ``/supervisor/logs``, ``/addons/<slug>/logs``) always fail there
+        with an opaque ``unknown_error``. The REST proxy forwards the
+        journald text untouched (ANSI color codes included — strip them
+        before machine-parsing), and :meth:`request` already returns
+        non-JSON bodies as ``str``.
+
+        Args:
+            endpoint: Supervisor log path, e.g. ``/core/logs`` or
+                ``/addons/core_ssh/logs``.
+        """
+        body = await self.request("GET", f"/api/hassio/{endpoint.lstrip('/')}")
+        return body if isinstance(body, str) else str(body)
+
     # -- config flows ------------------------------------------------------
 
     async def start_config_flow(self, domain: str, **context: Any) -> dict[str, Any]:
@@ -122,6 +141,15 @@ class HARestClient:
         return await self.request(
             "POST", f"/api/config/config_entries/flow/{flow_id}", json=user_input
         )
+
+    async def get_config_flow(self, flow_id: str) -> dict[str, Any]:
+        """Re-render a running flow's current step without submitting it.
+
+        HA core's ``FlowManagerResourceView.get`` calls
+        ``async_configure(flow_id)`` with no user input, which re-invokes the
+        current step handler in show-form mode — nothing advances.
+        """
+        return await self.request("GET", f"/api/config/config_entries/flow/{flow_id}")
 
     async def abort_config_flow(self, flow_id: str) -> None:
         await self.request("DELETE", f"/api/config/config_entries/flow/{flow_id}")

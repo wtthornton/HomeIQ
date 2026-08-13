@@ -16,7 +16,6 @@ from zoneinfo import ZoneInfo
 
 import uvicorn
 from aiohttp import ClientError
-from config import settings
 from event_parser import CalendarEventParser
 from ha_client import HomeAssistantCalendarClient
 from health_check import HealthCheckState
@@ -24,6 +23,8 @@ from homeiq_ha.enhanced_ha_connection_manager import ha_connection_manager
 from homeiq_observability.logging_config import log_error_with_context, setup_logging
 from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 from influxdb_client_3 import InfluxDBClient3, Point
+
+from config import settings
 
 logger = setup_logging("calendar-service")
 

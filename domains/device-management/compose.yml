@@ -261,7 +261,7 @@ services:
       - ACTIVITY_RECOGNITION_URL=http://activity-recognition:8036
       - ACTIVITY_RECOGNITION_TIMEOUT=30
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
       - HOME_ID=${HOME_ID:-default}
@@ -298,6 +298,10 @@ services:
       context: ../..
       dockerfile: domains/device-management/ha-setup-service/Dockerfile
     container_name: homeiq-setup-service
+    # The wizard answers endpoint (TAP-5945) writes owner decisions into the
+    # repo's committed manifest; the bind mount overlays the image's baked
+    # copy so those writes are durable and git-visible (commit them like any
+    # change). Wizard-induced dirty files in git status are expected.
     restart: unless-stopped
     ports:
       - "8024:8020"
@@ -312,7 +316,7 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-}}
       - HA_TOKEN=${HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
-      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq
       - DATABASE_SCHEMA=devices
       - DATA_API_URL=http://data-api:8006
       - API_KEY=${API_KEY:-}
@@ -323,7 +327,16 @@ services:
       - PERFORMANCE_SAMPLE_INTERVAL=30
     volumes:
       - ha_setup_data:/app/data
+      - ../../config:/app/config
       - homeiq_logs:/var/log/homeiq
+    # appuser is uid 1001; the repo's config/ files are 1000:1000 mode 664.
+    # Joining group 1000 makes the bind-mounted manifest writable without
+    # changing the user (which would break ha_setup_data ownership).
+    # Files the CONTAINER creates there (e.g. init-triage.json) are
+    # 1001:1001 mode 664 — group-writable by the code's own chmod, but the
+    # host user edits them via the API or sudo, not in place.
+    group_add:
+      - "1000"
     # Cross-domain: depends on core-platform/data-api, core-platform/admin-api
     networks:
       - homeiq-network

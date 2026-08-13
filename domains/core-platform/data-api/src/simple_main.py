@@ -9,12 +9,13 @@ from datetime import datetime
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from homeiq_observability.endpoints import create_integration_router, simple_health_router
-
-from src.config_manager import config_manager
+from homeiq_observability.endpoints import simple_health_router
 
 health_router = simple_health_router
-integration_router = create_integration_router(config_manager)
+# Deliberately NO integration router here (TAP-6007): this entrypoint
+# carries no auth dependency, so mounting the config read/write surface
+# was an unauthenticated-config-API one uvicorn target away. Production
+# (src.main:app via _app_setup.register_routers) mounts it WITH auth.
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -50,7 +51,6 @@ app.add_middleware(
 app.include_router(health_router, prefix="/api/v1", tags=["Health"])
 
 # Include integration management router
-app.include_router(integration_router, prefix="/api/v1", tags=["Integration Management"])
 
 
 @app.get("/")

@@ -300,3 +300,25 @@ domains/ml-engine/device-intelligence-service/models/*.backup_*
 # HA agent baselines: a capture of a real home's registries (device, area and
 # entity names). Testing artefact, never commit.
 ha-baseline*.json
+
+# Nightly init-agent audit artifacts and inventory sweeps: same data class as
+# the baselines (real IEEE addresses, coordinator IP, area/device/entity
+# names). Regenerated from the live instance — never commit.
+.tapps-mcp/init-audit-*.json
+.tapps-mcp/init-audit-cron.log
+.tapps-mcp/init-agent-baseline-*.json
+.tapps-mcp/org-inventory-*.json
+.tapps-mcp/office-inventory-*.json
+.tapps-mcp/org-author-run-*.json
+.tapps-mcp/sg2-slugs-*.json
+
+# TappsMCP per-directory tool caches minted outside the root .tapps-mcp/
+# (session ledgers, call-graph indices) — machine-local, never commit.
+# (*/**/ = any depth below root; the root .tapps-mcp/ holds tracked files.)
+*/**/.tapps-mcp/
+.tapps-mcp/sessions/
+.tapps-mcp/metrics/
+
+# Runtime state on the config bind mount: flow keys embed hardware
+# identity (MACs/serials) that must never enter a public repo history.
+config/init-triage.json

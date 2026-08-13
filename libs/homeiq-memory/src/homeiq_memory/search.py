@@ -17,7 +17,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from .decay import effective_confidence
-from .models import Memory, MemoryType
+from .models import Memory, MemoryType, SourceChannel
 
 if TYPE_CHECKING:
     from .embeddings import EmbeddingGenerator
@@ -161,7 +161,7 @@ class MemorySearch:
                     content=row["content"],
                     memory_type=MemoryType(row["memory_type"]),
                     confidence=row["confidence"],
-                    source_channel=row["source_channel"],
+                    source_channel=SourceChannel(row["source_channel"]),
                     source_service=row["source_service"],
                     entity_ids=row["entity_ids"],
                     area_ids=row["area_ids"],

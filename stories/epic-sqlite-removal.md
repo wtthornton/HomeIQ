@@ -44,7 +44,7 @@ set, services fall back to SQLite.
 - `domains/ml-engine/compose.yml` — lines 242, 295
 - `docker-compose.dev.yml` — line 91, volume line 99, named volume line 269
 - `docker-compose.minimal.yml` — line 33, volume line 36, named volume line 104
-- `domains/device-management/ha-setup-service/docker-compose.service.yml` — line 20
+- ~~`domains/device-management/ha-setup-service/docker-compose.service.yml` — line 20~~ (file deleted 2026-08-12, TAP-5289 — the live service definition is in `domains/device-management/compose.yml`)
 - `domains/ml-engine/device-intelligence-service/docker-compose.yml` — line 12
 
 **Acceptance Criteria:**

@@ -1,0 +1,2 @@
+# Per-service config files hold live values once edited via the dashboard.
+.env.*

@@ -1,15 +1,22 @@
 """HA Setup Service - Main FastAPI Application.
 
-Provides setup wizards, health monitoring, performance optimization
-and Zigbee2MQTT bridge management for Home Assistant environments.
+Provides health monitoring, performance optimization and setup validation
+for Home Assistant environments. Zigbee onboarding now lives in the
+libs/homeiq-ha init agent (ZHA recipe), not here.
 """
 
 from __future__ import annotations
 
 import logging
 import sys
+from typing import TYPE_CHECKING
 
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
+
+if TYPE_CHECKING:
+    from fastapi import Request
 
 from .config import get_settings
 from .database import init_db
@@ -19,11 +26,9 @@ from .integration_checker import IntegrationHealthChecker
 from .monitoring_service import ContinuousHealthMonitor
 from .optimization_engine import PerformanceAnalysisEngine, RecommendationEngine
 from .routes_health import health_router
+from .routes_init import init_router, page_router, write_router
 from .routes_validation import optimization_router, validation_router
-from .routes_zigbee import bridge_router, setup_router
 from .validation_service import ValidationService
-from .zigbee_bridge_manager import ZigbeeBridgeManager
-from .zigbee_setup_wizard import Zigbee2MQTTSetupWizard as ZigbeeSetupWizard
 
 settings = get_settings()
 
@@ -73,8 +78,6 @@ async def _startup_services() -> None:
 
     app.state.performance_analyzer = PerformanceAnalysisEngine()
     app.state.recommendation_engine = RecommendationEngine()
-    app.state.bridge_manager = ZigbeeBridgeManager()
-    app.state.zigbee_setup_wizard = ZigbeeSetupWizard()
     app.state.validation_service = ValidationService()
 
 
@@ -111,22 +114,44 @@ app = create_app(
     description="Automated setup, health monitoring, and optimization for Home Assistant",
     lifespan=lifespan.handler,
     health_check=health,
-    cors_origins=settings.get_cors_origins_list(),
+    # The wizard page is served same-origin from this service; nothing
+    # legitimate calls it cross-origin, so never fall back to the shared
+    # ["*"] default — an explicit operator-configured list or nothing.
+    cors_origins=settings.get_cors_origins_list() if settings.cors_origins else [],
 )
 
+
+@app.exception_handler(RequestValidationError)
+async def _redacted_validation_error(
+    _request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """422s without echoing submitted values.
+
+    Pydantic's default payload includes each offending ``input`` verbatim —
+    which returns a typed secret to the caller (and any response log) when
+    a field name is misspelled, e.g. ``backup_pass`` instead of
+    ``backup_password``. Locations and error types are kept; values are not.
+    """
+    errors = [
+        {k: v for k, v in error.items() if k not in ("input", "ctx")}
+        for error in exc.errors()
+    ]
+    return JSONResponse(status_code=422, content={"detail": errors})
+
+
 # Include extracted route modules
-app.include_router(bridge_router)
-app.include_router(setup_router)
 app.include_router(health_router)
+app.include_router(init_router)
+app.include_router(write_router)
+app.include_router(page_router)
 app.include_router(optimization_router)
 app.include_router(validation_router)
 
 
-# The generic /api/setup/wizard/* endpoints are gone along with the wizard
-# framework module. They fronted an MQTT wizard that declared five steps and
-# never implemented any of them, plus a second Zigbee2MQTT wizard competing
-# with the one behind /api/zigbee2mqtt/setup/*. That router is now the single
-# setup surface.
+# The Zigbee2MQTT wizard, bridge manager and their routers are gone: they
+# called two Home Assistant services that do not exist and hit WS-only
+# registries over REST (docs/ha-init-agent-design.md). Zigbee onboarding is
+# the libs/homeiq-ha init agent's ZHA recipe now.
 
 
 if __name__ == "__main__":

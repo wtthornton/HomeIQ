@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HomeIQ Setup</title>
+<style>
+  :root { --bg:#0f1420; --card:#1a2233; --ink:#e8edf6; --dim:#93a1b8; --line:#2a3550;
+          --ok:#3fb68b; --warn:#e0a63d; --bad:#e06c5d; --accent:#5b8def; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width:860px; margin:0 auto; padding:24px 16px 96px; }
+  h1 { font-size:22px; margin:8px 0 2px; }
+  .sub { color:var(--dim); margin:0 0 20px; }
+  h2 { font-size:15px; color:var(--dim); text-transform:uppercase; letter-spacing:.06em;
+       margin:28px 0 10px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px;
+          padding:14px 16px; margin-bottom:10px; }
+  .card h3 { margin:0 0 4px; font-size:15px; }
+  .action { color:var(--dim); font-size:14px; margin:2px 0 10px; }
+  .badge { display:inline-block; font-size:12px; padding:1px 8px; border-radius:999px;
+           border:1px solid var(--warn); color:var(--warn); margin-left:8px; vertical-align:middle; }
+  select, input[type=text], input[type=password] {
+    background:#111827; color:var(--ink); border:1px solid var(--line); border-radius:6px;
+    padding:6px 8px; font:inherit; max-width:100%; }
+  label { display:block; margin:6px 0; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:4px 0; }
+  .row > span { min-width:220px; color:var(--dim); }
+  .choices label { display:inline-flex; gap:6px; margin-right:14px; align-items:center; }
+  .note { font-size:13px; color:var(--dim); }
+  .secret-note { font-size:13px; color:var(--warn); }
+  button { background:var(--accent); color:#fff; border:0; border-radius:8px;
+           padding:10px 18px; font:inherit; cursor:pointer; }
+  button.small { padding:4px 12px; font-size:13px; background:transparent;
+                 border:1px solid var(--line); color:var(--ink); }
+  footer { position:fixed; bottom:0; left:0; right:0; background:var(--card);
+           border-top:1px solid var(--line); padding:12px 16px; display:flex;
+           gap:12px; align-items:center; justify-content:center; }
+  .result { border-left:3px solid var(--line); padding:4px 10px; margin:4px 0; font-size:14px; }
+  .result.converged { border-color:var(--ok); }
+  .result.skipped   { border-color:var(--dim); color:var(--dim); }
+  .result.blocked   { border-color:var(--warn); }
+  .result.failed    { border-color:var(--bad); }
+  #status { color:var(--dim); font-size:14px; }
+  .err { color:var(--bad); }
+</style>
+</head>
+<body>
+<main>
+  <h1>HomeIQ Setup</h1>
+  <p class="sub">Live queue from the init agent — answer once, converge on submit.
+     Your answers stay in this browser until you submit (secrets are never stored).</p>
+  <section id="queue"><p class="note">Loading queue…</p></section>
+
+  <h2>Sports teams <span class="note">(Team Tracker — one entry per team)</span></h2>
+  <section id="teams" class="card">
+    <div id="team-rows"></div>
+    <button class="small" id="add-team">+ add team</button>
+  </section>
+
+  <h2 id="results-h" hidden>Submission results</h2>
+  <section id="results"></section>
+</main>
+<footer>
+  <span id="status"></span>
+  <button id="submit">Submit &amp; converge</button>
+</footer>
+
+<script>
+"use strict";
+// v2: state.areas keys changed from display names to registry ids — the
+// version bump retires stale name-keyed saves from pre-fix visits.
+// Secrets are deliberately never put here.
+const LS_KEY = "homeiq-setup-answers-v2";
+const state = { areas: {}, addons: {}, triage: {}, teams: [], scenes: {} };
+
+function loadSaved() {
+  try { Object.assign(state, JSON.parse(localStorage.getItem(LS_KEY) || "{}")); }
+  catch (e) { /* corrupted saved state is discarded */ }
+}
+function persist() { localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+
+function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "text") node.textContent = v;
+    else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
+    else if (v !== null && v !== undefined) node.setAttribute(k, v);
+  }
+  node.append(...children);
+  return node;
+}
+
+function areaWidget(item) {
+  const box = el("div", { class: "choices" });
+  for (const device of item.decision.devices) {
+    // Devices arrive as {id, name}: the registry id is what /answers and
+    // the manifest consume; the display name is only ever shown. Posting a
+    // name as device_id could never converge (server rejects it too).
+    const select = el("select", {
+      onchange: (e) => { state.areas[device.id] = e.target.value; persist(); },
+    }, el("option", { value: "", text: "— leave unassigned —" }));
+    for (const area of item.decision.options)
+      select.append(el("option", { value: area, text: area,
+        selected: state.areas[device.id] === area ? "" : null }));
+    box.append(el("div", { class: "row" }, el("span", { text: device.name }), select));
+  }
+  return box;
+}
+
+function secretWidget() {
+  const input = el("input", { type: "password", placeholder: "backup encryption password",
+    autocomplete: "new-password" });
+  input.dataset.secret = "backup_password";
+  return el("div", {}, input,
+    el("div", { class: "secret-note",
+      text: "Write-only: sent once on submit, never stored in this browser, never echoed back." }));
+}
+
+function textFieldsWidget(item) {
+  const slug = item.name.replace(/^addons\./, "");
+  const box = el("div", {});
+  for (const field of item.decision.fields) {
+    const input = el("input", { type: "text", placeholder: field,
+      value: (state.addons[slug] || {})[field] || "",
+      oninput: (e) => {
+        state.addons[slug] = state.addons[slug] || {};
+        state.addons[slug][field] = e.target.value; persist();
+      } });
+    box.append(el("div", { class: "row" }, el("span", { text: `${slug} · ${field}` }), input));
+  }
+  return box;
+}
+
+function triageWidget(item) {
+  const box = el("div", { class: "choices" });
+  for (const option of item.decision.options) {
+    const radio = el("input", { type: "radio", name: item.id, value: option,
+      checked: state.triage[item.id] === option ? "" : null,
+      onchange: () => { state.triage[item.id] = option; persist(); } });
+    box.append(el("label", {}, radio, document.createTextNode(option)));
+  }
+  box.append(el("div", { class: "note",
+    text: "Triage decisions are saved here and applied in the triage step." }));
+  return box;
+}
+
+function widgetFor(item) {
+  const kind = item.decision && item.decision.type;
+  if (kind === "area_assignment") return areaWidget(item);
+  if (kind === "secret") return secretWidget();
+  if (kind === "text_fields") return textFieldsWidget(item);
+  if (kind === "select") return triageWidget(item);
+  return el("div", { class: "note", text: "Acknowledge — no input needed here." });
+}
+
+function titleFor(item) {
+  if (item.kind === "discovery") {
+    const name = Object.values(item.title_placeholders || {}).join(" ") || item.handler;
+    return `${name} (${item.handler}, discovered via ${item.source || "?"})`;
+  }
+  return item.title || item.name;
+}
+
+function render(queue) {
+  const root = document.getElementById("queue");
+  root.replaceChildren();
+  const groups = [
+    ["Needs a decision", queue.items.filter(i => i.kind === "audit_blocked")],
+    ["Discovered devices — add, ignore, or later", queue.items.filter(i => i.kind === "discovery")],
+  ];
+  for (const [heading, items] of groups) {
+    if (!items.length) continue;
+    root.append(el("h2", { text: heading }));
+    for (const item of items) {
+      const card = el("div", { class: "card" });
+      const h = el("h3", { text: titleFor(item) });
+      if (item.readiness) h.append(el("span", { class: "badge",
+        text: "be at the device — " + (item.readiness_reason || "person needed") }));
+      card.append(h);
+      if (item.human_action) card.append(el("div", { class: "action", text: item.human_action }));
+      card.append(widgetFor(item));
+      root.append(card);
+    }
+  }
+  document.getElementById("status").textContent =
+    `${queue.items.length} open item(s) · generated from ${queue.generated_from}`;
+}
+
+function teamRow(team = {}) {
+  const row = el("div", { class: "row" });
+  for (const field of ["league_id", "team_id"]) {
+    row.append(el("input", { type: "text", placeholder: field, value: team[field] || "",
+      oninput: (e) => { team[field] = e.target.value; persist(); } }));
+  }
+  if (!state.teams.includes(team)) state.teams.push(team);
+  return row;
+}
+
+function contract() {
+  const body = {
+    device_areas: Object.entries(state.areas)
+      .filter(([, area]) => area)
+      .map(([id, area]) => ({ device_id: id, area })),
+    addon_options: Object.entries(state.addons)
+      .filter(([, options]) => Object.values(options).some(Boolean))
+      .map(([slug, options]) => ({ slug, options })),
+    teams: state.teams.filter(t => t.league_id && t.team_id),
+  };
+  const secret = document.querySelector('input[data-secret="backup_password"]');
+  if (secret && secret.value) body.backup_password = secret.value;
+  return body;
+}
+
+async function submit() {
+  const status = document.getElementById("status");
+  status.textContent = "Submitting… converge is backup-gated and can take a minute.";
+  try {
+    const response = await fetch("api/v1/init/answers", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(contract()),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.detail || response.status);
+    const secret = document.querySelector('input[data-secret="backup_password"]');
+    if (secret) secret.value = ""; // write-only: gone the moment it is sent
+    const box = document.getElementById("results");
+    document.getElementById("results-h").hidden = false;
+    box.replaceChildren(...result.items.map(i =>
+      el("div", { class: `result ${i.status}`,
+        text: `${i.id}: ${i.status} ${JSON.stringify(i.evidence)}` })));
+    const converge = result.converge || {};
+    box.append(el("div", { class: `result ${converge.wrote_nothing ? "skipped" : "converged"}`,
+      text: `converge: ${converge.total_changes} change(s)` +
+            (converge.halted_reason ? ` · still waiting on a person: ${converge.halted_reason}` : "") }));
+    status.textContent = "Done — queue refreshes with live truth.";
+    loadQueue();
+  } catch (err) {
+    // el()/textContent, never innerHTML: err.message carries server detail
+    // text, which can embed HA-supplied strings — not trusted markup.
+    status.replaceChildren(
+      el("span", { class: "err", text: `Submit failed: ${err.message}` }));
+  }
+}
+
+async function loadQueue() {
+  try {
+    const response = await fetch("api/v1/init/queue");
+    render(await response.json());
+  } catch (err) {
+    const queueBox = document.getElementById("queue");
+    queueBox.replaceChildren(
+      el("p", { class: "err", text: `Queue unavailable: ${err.message}` }));
+  }
+}
+
+loadSaved();
+const savedTeams = state.teams.slice(); state.teams = [];
+const rows = document.getElementById("team-rows");
+for (const team of (savedTeams.length ? savedTeams : [{}])) rows.append(teamRow(team));
+document.getElementById("add-team").addEventListener("click", () => rows.append(teamRow()));
+document.getElementById("submit").addEventListener("click", submit);
+loadQueue();
+</script>
+</body>
+</html>

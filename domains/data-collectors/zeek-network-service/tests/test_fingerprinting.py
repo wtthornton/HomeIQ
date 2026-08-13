@@ -11,13 +11,11 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from src.parsers.dhcp_parser import DhcpParser
-from src.parsers.tls_parser import TlsParser
 from src.parsers.ssh_parser import SshParser
-from src.services.oui_lookup import OUILookup
+from src.parsers.tls_parser import TlsParser
 from src.services.log_tracker import LogTracker
-
+from src.services.oui_lookup import OUILookup
 
 # ---------------------------------------------------------------------------
 # OUI Vendor Lookup

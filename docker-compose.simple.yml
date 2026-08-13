@@ -12,10 +12,10 @@ services:
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
       - DOCKER_INFLUXDB_INIT_USERNAME=admin
-      - DOCKER_INFLUXDB_INIT_PASSWORD=admin123
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD:?required}
       - DOCKER_INFLUXDB_INIT_ORG=homeiq
       - DOCKER_INFLUXDB_INIT_BUCKET=home_assistant_events
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=homeiq-token
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN:?required}
     volumes:
       - influxdb_data:/var/lib/influxdb2
     healthcheck:
@@ -36,7 +36,7 @@ services:
       - "3000:3000"
     environment:
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=homeiq-token
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
       - INFLUXDB_ORG=homeiq
       - INFLUXDB_BUCKET=home_assistant_events
       - LOG_LEVEL=INFO

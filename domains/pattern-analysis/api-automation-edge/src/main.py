@@ -11,8 +11,8 @@ from .api.execution_router import router as execution_router
 from .api.observability_router import router as observability_router
 from .api.spec_router import router as spec_router
 from .capability.capability_graph import CapabilityGraph
+from .clients import HAWebSocketClient, make_ha_websocket_client
 from .clients.ha_rest_client import HARestClient
-from .clients.ha_websocket_client import HAWebSocketClient
 from .config import settings
 
 
@@ -55,7 +55,7 @@ async def _startup_service() -> None:
     rest_client = HARestClient()
 
     try:
-        websocket_client = HAWebSocketClient()
+        websocket_client = make_ha_websocket_client()
         await websocket_client.connect()
 
         capability_graph = CapabilityGraph(rest_client, websocket_client)
@@ -98,7 +98,7 @@ async def _shutdown_service() -> None:
         await capability_graph.stop()
 
     if websocket_client:
-        await websocket_client.disconnect()
+        await websocket_client.close()
 
     logger.info("API Automation Edge Service stopped")
 

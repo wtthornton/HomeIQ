@@ -5,6 +5,8 @@ from __future__ import annotations
 import pytest
 from homeiq_ha.agent import backup as backup_helpers
 
+from tests.simulators import SimHA
+
 
 @pytest.fixture(autouse=True)
 def _no_poll_delay(monkeypatch):
@@ -14,3 +16,8 @@ def _no_poll_delay(monkeypatch):
     removed, so a regression in the polling logic still fails the suite.
     """
     monkeypatch.setattr(backup_helpers, "POLL_INTERVAL", 0)
+
+
+@pytest.fixture
+def sim() -> SimHA:
+    return SimHA()

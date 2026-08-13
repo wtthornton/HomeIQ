@@ -14,10 +14,11 @@ from typing import Any
 
 import uvicorn
 from aggregator import LogAggregator
-from config import settings
 from fastapi import HTTPException, Query, Request
 from homeiq_observability.logging_config import setup_logging
 from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
+
+from config import settings
 
 logger = setup_logging("log-aggregator")
 
@@ -112,9 +113,14 @@ lifespan.on_shutdown(_shutdown, name="log-aggregator-cleanup")
 
 
 async def _check_docker() -> bool:
-    if _aggregator is None:
+    if _aggregator is None or _aggregator.docker_client is None:
         return False
-    return _aggregator.docker_client is not None
+    # Live probe, not a construction-time snapshot: a docker daemon that
+    # dies after startup must flip readiness (TAP-5903).
+    try:
+        return await asyncio.to_thread(_aggregator.docker_client.ping)
+    except Exception:
+        return False
 
 
 health = StandardHealthCheck(service_name="log-aggregator", version="1.0.0")

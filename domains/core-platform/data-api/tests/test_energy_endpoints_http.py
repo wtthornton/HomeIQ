@@ -159,26 +159,26 @@ class TestCorrelations:
 
     @pytest.mark.asyncio
     async def test_correlations_invalid_entity_id(self, client):
-        """Injection-style entity_id is caught — returns 500 because the broad
-        except Exception clause wraps the HTTPException (known code pattern)."""
+        """Injection-style entity_id is caught — the deliberate 400 surfaces
+        (f7b4e79d stopped the broad except masking 4xx)."""
         mock_client, _ = _make_mock_client([])
         with patch("src.energy_endpoints.get_influxdb_client", return_value=mock_client):
             resp = await client.get(
                 "/api/v1/energy/correlations",
                 params={"entity_id": "';--"},
             )
-        assert resp.status_code == 500
+        assert resp.status_code == 400
 
     @pytest.mark.asyncio
     async def test_correlations_invalid_domain(self, client):
-        """Injection-style domain is caught — returns 500 (same broad except pattern)."""
+        """Injection-style domain is caught — the deliberate 400 surfaces."""
         mock_client, _ = _make_mock_client([])
         with patch("src.energy_endpoints.get_influxdb_client", return_value=mock_client):
             resp = await client.get(
                 "/api/v1/energy/correlations",
                 params={"domain": "';--"},
             )
-        assert resp.status_code == 500
+        assert resp.status_code == 400
 
     @pytest.mark.asyncio
     async def test_correlations_custom_params(self, client):
@@ -313,11 +313,11 @@ class TestDeviceImpact:
 
     @pytest.mark.asyncio
     async def test_device_impact_invalid_entity_id(self, client):
-        """Returns 500 because broad except clause wraps the HTTPException (known pattern)."""
+        """The deliberate 400 surfaces (f7b4e79d stopped the broad except masking 4xx)."""
         mock_client, _ = _make_mock_client([])
         with patch("src.energy_endpoints.get_influxdb_client", return_value=mock_client):
             resp = await client.get("/api/v1/energy/device-impact/';--")
-        assert resp.status_code == 500
+        assert resp.status_code == 400
 
     @pytest.mark.asyncio
     async def test_device_impact_empty_influxdb(self, client):

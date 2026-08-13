@@ -8,8 +8,10 @@ Writes to HomeIQ's data-api and syncs to Home Assistant Entity Registry.
 import logging
 import os
 import re
+from itertools import count
 from typing import Any
 
+import aiohttp
 import httpx
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
@@ -96,36 +98,91 @@ async def _patch_data_api(entity_id: str, patch: dict[str, Any]) -> dict[str, An
         ) from exc
 
 
-async def _sync_to_ha(entity_id: str, ha_patch: dict[str, Any]) -> None:
-    """Best-effort sync to Home Assistant Entity Registry."""
-    if not HA_URL or not HA_TOKEN:
-        logger.debug("HA sync skipped — HA_URL or HA_TOKEN not configured")
-        return
+def _make_ws_caller(ws: aiohttp.ClientWebSocketResponse) -> Any:
+    """Return an async callable running one HA WS command and returning its result."""
+    counter = count(1)
 
-    headers = {
-        "Authorization": f"Bearer {HA_TOKEN}",
-        "Content-Type": "application/json",
-    }
-    # HA uses websocket for entity registry updates; REST endpoint may vary.
-    # We use the websocket message format via REST call.
-    ws_msg = {
-        "type": "config/entity_registry/update",
-        "entity_id": entity_id,
-        **ha_patch,
-    }
+    async def call(payload: dict[str, Any]) -> Any:
+        msg_id = next(counter)
+        await ws.send_json({"id": msg_id, **payload})
+        while True:
+            msg = await ws.receive_json()
+            if msg.get("id") == msg_id and msg.get("type") == "result":
+                if not msg.get("success"):
+                    raise RuntimeError(str(msg.get("error")))
+                return msg.get("result")
+
+    return call
+
+
+def _slugify_label(name: str) -> str:
+    """Approximate HA's label_id slugification (lowercase, non-alnum -> _)."""
+    return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
+
+
+async def _resolve_label_ids(call: Any, label_names: list[str]) -> list[str]:
+    """Map label names to label_registry ids, creating missing labels.
+
+    Matches by exact name OR by slug: HA stores label_ids as slugs, and those
+    slugs round-trip back through the entity store as if they were names
+    (e.g. "role_presence" for "role:presence"). Treating such a slug as a new
+    name would mint a duplicate "<slug>_2" label on every re-apply.
+    """
+    registry = await call({"type": "config/label_registry/list"})
+    by_name = {lbl["name"]: lbl["label_id"] for lbl in registry}
+    by_id = {lbl["label_id"] for lbl in registry}
+    label_ids = []
+    for name in label_names:
+        if name in by_name:
+            label_ids.append(by_name[name])
+        elif name in by_id or _slugify_label(name) in by_id:
+            label_ids.append(name if name in by_id else _slugify_label(name))
+        else:
+            created = await call({"type": "config/label_registry/create", "name": name})
+            by_name[name] = created["label_id"]
+            by_id.add(created["label_id"])
+            label_ids.append(created["label_id"])
+    return label_ids
+
+
+async def _sync_to_ha(entity_id: str, ha_patch: dict[str, Any]) -> dict[str, Any]:
+    """Sync entity registry changes to Home Assistant over its WebSocket API.
+
+    The entity registry is WebSocket-only (REST 404s). Label assignments must
+    reference label_registry ids, so label names are resolved (and created)
+    there first. Returns {"synced": bool, "detail": str} so callers can surface
+    whether HA actually applied the change.
+    """
+    if not HA_URL or not HA_TOKEN:
+        return {"synced": False, "detail": "HA_URL or HA_TOKEN not configured"}
+
+    ws_url = re.sub(r"^http", "ws", HA_URL.rstrip("/"), count=1) + "/api/websocket"
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.post(
-                f"{HA_URL.rstrip('/')}/api/websocket",
-                json=ws_msg,
-                headers=headers,
+        timeout = aiohttp.ClientTimeout(total=15)
+        async with (
+            aiohttp.ClientSession(timeout=timeout) as session,
+            session.ws_connect(ws_url) as ws,
+        ):
+            await ws.receive_json()  # auth_required
+            await ws.send_json({"type": "auth", "access_token": HA_TOKEN})
+            auth = await ws.receive_json()
+            if auth.get("type") != "auth_ok":
+                logger.warning("HA sync auth failed for %s", entity_id)
+                return {"synced": False, "detail": "HA websocket auth failed"}
+
+            call = _make_ws_caller(ws)
+            patch = dict(ha_patch)
+            if "labels" in patch:
+                patch["labels"] = await _resolve_label_ids(call, patch["labels"])
+
+            await call(
+                {"type": "config/entity_registry/update", "entity_id": entity_id, **patch}
             )
-            if resp.status_code < 400:
-                logger.info("Synced entity %s to HA registry", entity_id)
-            else:
-                logger.warning("HA sync returned %d for %s", resp.status_code, entity_id)
-    except httpx.HTTPError as exc:
-        logger.warning("HA sync failed for %s (best-effort): %s", entity_id, exc)
+            logger.info("Synced entity %s to HA registry", entity_id)
+            return {"synced": True, "detail": "ok"}
+    except (aiohttp.ClientError, RuntimeError, TimeoutError) as exc:
+        logger.warning("HA sync failed for %s: %s", entity_id, exc)
+        return {"synced": False, "detail": f"HA sync failed: {exc}"}
 
 
 # ── Endpoints ───────────────────────────────────────────────────────────────
@@ -136,8 +193,14 @@ async def set_entity_labels(entity_id: str, body: SetLabelsRequest) -> dict[str,
     """Set labels for an entity — Story 62.4"""
     entity_id = _validate_entity_id(entity_id)
     result = await _patch_data_api(entity_id, {"labels": body.labels})
-    await _sync_to_ha(entity_id, {"labels": body.labels})
-    return {"success": True, "entity_id": entity_id, "labels": body.labels, "data_api": result}
+    ha = await _sync_to_ha(entity_id, {"labels": body.labels})
+    return {
+        "success": ha["synced"],
+        "entity_id": entity_id,
+        "labels": body.labels,
+        "data_api": result,
+        "ha": ha,
+    }
 
 
 @router.put("/{entity_id}/aliases")
@@ -145,8 +208,14 @@ async def set_entity_aliases(entity_id: str, body: SetAliasesRequest) -> dict[st
     """Set aliases for an entity — Story 62.4"""
     entity_id = _validate_entity_id(entity_id)
     result = await _patch_data_api(entity_id, {"aliases": body.aliases})
-    await _sync_to_ha(entity_id, {"aliases": body.aliases})
-    return {"success": True, "entity_id": entity_id, "aliases": body.aliases, "data_api": result}
+    ha = await _sync_to_ha(entity_id, {"aliases": body.aliases})
+    return {
+        "success": ha["synced"],
+        "entity_id": entity_id,
+        "aliases": body.aliases,
+        "data_api": result,
+        "ha": ha,
+    }
 
 
 @router.put("/{entity_id}/name")
@@ -154,12 +223,13 @@ async def set_entity_name(entity_id: str, body: SetNameRequest) -> dict[str, Any
     """Set user-customized friendly name — Story 62.4"""
     entity_id = _validate_entity_id(entity_id)
     result = await _patch_data_api(entity_id, {"name_by_user": body.name_by_user})
-    await _sync_to_ha(entity_id, {"name": body.name_by_user})
+    ha = await _sync_to_ha(entity_id, {"name": body.name_by_user})
     return {
-        "success": True,
+        "success": ha["synced"],
         "entity_id": entity_id,
         "name_by_user": body.name_by_user,
         "data_api": result,
+        "ha": ha,
     }
 
 
@@ -194,7 +264,13 @@ async def bulk_label_entities(body: BulkLabelRequest) -> dict[str, Any]:
                 resp.raise_for_status()
                 entity = resp.json()
 
-                current_labels = set(entity.get("labels") or [])
+                # Keep only pattern-conforming label names. HA-side label_id
+                # slugs ("role_presence") round-trip into the store via
+                # ingestion sync; carrying them forward would re-mint deleted
+                # labels as "<slug>_2" duplicates on every write.
+                current_labels = {
+                    lbl for lbl in (entity.get("labels") or []) if _LABEL_PATTERN.match(lbl)
+                }
                 new_labels = (current_labels | set(body.add_labels)) - set(body.remove_labels)
                 new_labels_list = sorted(new_labels)
 
@@ -207,8 +283,9 @@ async def bulk_label_entities(body: BulkLabelRequest) -> dict[str, Any]:
                 upsert_resp.raise_for_status()
                 updated.append(eid)
 
-                # Best-effort HA sync
-                await _sync_to_ha(eid, {"labels": new_labels_list})
+                ha = await _sync_to_ha(eid, {"labels": new_labels_list})
+                if not ha["synced"]:
+                    errors.append(f"{eid}: {ha['detail']}")
 
             except HTTPException:
                 raise

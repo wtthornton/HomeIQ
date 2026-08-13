@@ -5,6 +5,7 @@ their associated response-builder logic. Extracted from
 AdminAPIService to keep main.py under 300 lines.
 """
 
+import asyncio
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -125,14 +126,49 @@ async def _build_enhanced_health(
         }
 
 
+# Hard per-fetch budget for the dashboard's poll target (TAP-5439). The
+# historical round 10.0s was weather-api's metrics fetch making two SERIAL
+# 5s-bounded requests (its own /health, then websocket-ingestion's) inside
+# _get_all_api_metrics — fixed at the source with asyncio.timeout in
+# homeiq_observability.monitoring.stats_endpoints. This budget is defense in
+# depth: whatever a downstream does, the endpoint answers within the budget,
+# degrading the late fetch to its fallback instead of stalling the poll loop.
+_RT_METRICS_BUDGET_SECONDS = 1.5
+
+
+def _empty_api_metrics() -> dict[str, Any]:
+    """Fresh fallback dict per call — a shared constant would alias its list."""
+    return {
+        "active_calls": 0,
+        "api_metrics": [],
+        "inactive_apis": 0,
+        "error_apis": 0,
+        "total_apis": 0,
+    }
+
+
+async def _bounded(coro: Any, fallback: Any) -> Any:
+    """Await coro under the metrics budget, degrading to fallback on timeout."""
+    try:
+        return await asyncio.wait_for(coro, _RT_METRICS_BUDGET_SECONDS)
+    except TimeoutError:
+        logger.warning(
+            "real-time-metrics fetch exceeded %.1fs budget; using fallback",
+            _RT_METRICS_BUDGET_SECONDS,
+        )
+        return fallback
+
+
 async def _build_real_time_metrics(
     stats_endpoints: StatsEndpoints,
 ) -> dict[str, Any]:
     """Build real-time metrics from stats endpoints."""
     try:
-        er = await stats_endpoints._get_current_event_rate()
-        api = await stats_endpoints._get_all_api_metrics()
-        ds = await stats_endpoints._get_active_data_sources()
+        er, api, ds = await asyncio.gather(
+            _bounded(stats_endpoints._get_current_event_rate(), 0.0),
+            _bounded(stats_endpoints._get_all_api_metrics(), _empty_api_metrics()),
+            _bounded(stats_endpoints._get_active_data_sources(), []),
+        )
         return {
             "events_per_hour": er * 3600,
             "api_calls_active": api["active_calls"],

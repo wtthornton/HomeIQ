@@ -107,6 +107,14 @@ start_domain() {
 
 # --- Ordered startup ---
 
+# Required env keys must exist BEFORE anything starts: the 2026-08-01 .env
+# rewrite silently dropped 55 populated keys and nothing failed loudly for
+# ten days (TAP-5902).
+if ! bash "$SCRIPT_DIR/preflight-env.sh"; then
+  echo -e "${RED}[ERROR]${NC} Env preflight failed — not starting the stack."
+  exit 1
+fi
+
 # 1. core-platform (critical — other domains depend on it)
 start_domain "core-platform"
 

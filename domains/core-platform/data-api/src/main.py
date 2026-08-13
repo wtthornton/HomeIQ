@@ -58,6 +58,12 @@ async def _startup() -> None:
     pathlib.Path("./data").mkdir(exist_ok=True)
     await init_db()
     await data_api_service.startup()
+    # The ha-automation game routes hold a module-level InfluxDB client that
+    # nothing connected; connect() logs and returns False on failure, and the
+    # routes answer 503 while it stays down (TAP-5448).
+    from .ha_automation_endpoints import connect_influxdb
+
+    await connect_influxdb()
 
 
 async def _shutdown() -> None:

@@ -17,10 +17,10 @@ services:
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
       - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_USERNAME:-admin}
-      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD:-admin123}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD:?required}
       - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG:-homeiq}
       - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN:?required}
     volumes:
       - influxdb_data:/var/lib/influxdb2
       - influxdb_config:/etc/influxdb2
@@ -66,7 +66,7 @@ services:
     environment:
       - POSTGRES_DB=homeiq
       - POSTGRES_USER=${POSTGRES_USER:-homeiq}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-homeiq-secure-2026}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?required}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ../../infrastructure/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
@@ -109,7 +109,7 @@ services:
       - DATA_API_HOST=0.0.0.0
       - DATA_API_PORT=8006
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -118,9 +118,17 @@ services:
       - CORS_ORIGINS=http://localhost:3000,http://localhost
       - DEPLOYMENT_MODE=${DEPLOYMENT_MODE:-production}
       - OTLP_ENDPOINT=http://jaeger:4317
-      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq
       - DATABASE_SCHEMA=core
+      # hygiene routes proxy to device-intelligence; the old localhost:8019
+      # fallback dialed the container's own loopback (TAP-5449)
+      - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8019
+    volumes:
+      # Per-service integration configs (.env.{service}) served and edited by
+      # /api/v1/integrations/{service}/config; config_manager reads the
+      # container-relative "infrastructure" dir (TAP-5447).
+      - ../../infrastructure/service-configs:/app/infrastructure
     depends_on:
       influxdb:
         condition: service_healthy
@@ -172,10 +180,10 @@ services:
       - ENABLE_HOME_ASSISTANT=true
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_USERNAME=admin
-      - INFLUXDB_PASSWORD=admin123
+      - INFLUXDB_PASSWORD=${INFLUXDB_PASSWORD:?required}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=home_assistant_events
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - LOG_FILE_PATH=${LOG_FILE_PATH:-/app/logs}
       - LOG_FORMAT=json
@@ -235,6 +243,11 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ../../infrastructure:/app/infrastructure:rw
       - ../../docker-compose.yml:/app/docker-compose.yml:ro
+    # The socket is root:docker on the host; joining the docker group by
+    # GID is what lets the non-root container user read it (TAP-5999 —
+    # without this the client init fails and docker routes answer 503).
+    group_add:
+      - "${DOCKER_GID:-984}"
     environment:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - LOG_FILE_PATH=${LOG_FILE_PATH:-/app/logs}
@@ -249,13 +262,13 @@ services:
       - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-}}
       - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-super-secret-jwt-key}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?required}
       - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-adminpass}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?required}
       - WEBSOCKET_INGESTION_URL=http://websocket-ingestion:8001
       - DATA_API_URL=http://data-api:8006
       - DEVICE_INTELLIGENCE_API_KEY=${API_KEY:-}
@@ -357,7 +370,7 @@ services:
       - ../../.env
     environment:
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -526,7 +539,7 @@ services:
       - "3002:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=homeiq
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:?required}
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana_data:/var/lib/grafana
@@ -565,7 +578,7 @@ services:
     ports:
       - "9187:9187"
     environment:
-      - DATA_SOURCE_NAME=postgresql://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq?sslmode=disable
+      - DATA_SOURCE_NAME=postgresql://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq?sslmode=disable
     depends_on:
       postgres:
         condition: service_healthy
@@ -651,10 +664,10 @@ services:
       - ENABLE_HOME_ASSISTANT=true
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_USERNAME=admin
-      - INFLUXDB_PASSWORD=admin123
+      - INFLUXDB_PASSWORD=${INFLUXDB_PASSWORD:?required}
       - INFLUXDB_ORG=homeiq-test
       - INFLUXDB_BUCKET=home_assistant_events_test
-      - INFLUXDB_TOKEN=homeiq-test-token
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - LOG_FILE_PATH=${LOG_FILE_PATH:-/app/logs}
       - LOG_FORMAT=json

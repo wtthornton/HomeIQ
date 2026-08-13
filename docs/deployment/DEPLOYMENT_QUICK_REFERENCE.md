@@ -28,13 +28,19 @@ HomeIQ uses **domain-based deployment** with **production profile** as the singl
 # Windows
 .\scripts\start-stack.ps1
 .\scripts\start-stack.ps1 -SkipWait   # Skip health polling
+$env:STACK_REFRESH = "1"; .\scripts\start-stack.ps1   # Force fresh base images + recreate all containers
 ```
 
 ```bash
 # Linux/Mac
 ./scripts/start-stack.sh
 ./scripts/start-stack.sh --skip-wait   # Skip health polling
+STACK_REFRESH=1 ./scripts/start-stack.sh   # Force fresh base images + recreate all containers
 ```
+
+**Default start reuses caches.** `--pull always` / `--force-recreate` are opt-in via
+`STACK_REFRESH=1` on both entry points; without it a start on unchanged sources is
+almost entirely BuildKit cache hits (TAP-5288).
 
 **What this does:**
 - Starts each of 9 domains via its own compose file

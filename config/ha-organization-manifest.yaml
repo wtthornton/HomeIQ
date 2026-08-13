@@ -1,0 +1,1207 @@
+provenance:
+  authored_by: homeiq-ha-organization-author v2 (AF project homeiq, max_budget_usd 3.5)
+  judged_by: homeiq-ha-organization-judge v2
+  workflow_run: b6f68807201c4aea9c9efd0b2da6a7b4
+  judge:
+    pass: true
+    score: 92
+    confidence: 0.86
+  dispositions:
+  - finding: low/discipline — design_notes count '40 devices not_applicable' vs actual
+    disposition: 'adopted: shipped arithmetic is 47 assigned (46 authored + 1 caller-disposition TV group device)
+      + 40 not_applicable + 2 blocked_on_human = 89 devices, verified deterministically against the inventory. The
+      judge''s off-by-one was real: the author''s design_notes said ''46 assigned / 40 not_applicable'', but the
+      authored output actually held 46 assigned / 41 not_applicable / 2 blocked — the wrong number in the notes
+      is the assigned/not_applicable split, corrected here after the TV disposition moved one row from not_applicable
+      to device_areas.'
+  - finding: caller addition — Hue zone group device 'TV' left not_applicable by the author
+    disposition: 'adopted with modification: assigned to living_room so the ''tv'' artifact area empties and areas_remove
+      can apply; grouped-light entity stays usable. Owner decision 2026-08-12.'
+  - finding: scene governance (TAP-5975) — 190 Hue-imported scenes had no declared treatment
+    disposition: 'adopted: scene_policy row declares platform=hue bridge_owned; enforced by the report-only organization.scene_policy
+      recipe, which blocks on any scene source without a stance.'
+  - finding: sensor groups (TAP-5976) — Hue outdoor motion/temp/lux ungrouped
+    disposition: 'adopted: six manifest helper groups (backyard/garage x presence/temperature/illuminance), single-member
+      today by design — stable automation-facing aliases that grow. Remaining Hue motion/temp/lux enumeration: the
+      bridge brought exactly two motion sensors (outdoor 1=backyard, outdoor 2=garage); zero ungrouped remain. Slugs
+      are name-derived (HA mints the group entity_id from the friendly name, not a passed slug) so converge is idempotent
+      — a mismatched slug re-created dupes on the live home during authoring, since corrected.'
+  inventory_artifact: .tapps-mcp/org-inventory-20260812T215552Z.json
+  generated: '2026-08-12T22:17:08Z'
+  supersedes_run: 379fcd101abc497fb957e502ef5c884b
+  manifest_version: 3
+manifest:
+  managed_label_prefixes:
+  - 'role:'
+  - 'class:'
+  - 'area:'
+  areas:
+  - area_id: backyard
+    name: Backyard
+  - area_id: bar
+    name: Bar
+  - area_id: dining_room
+    name: Dining Room
+  - area_id: driveway
+    name: Driveway
+  - area_id: family_room
+    name: Family Room
+  - area_id: garage
+    name: Garage
+  - area_id: garage_hallway
+    name: Garage Hallway
+  - area_id: guest_room
+    name: Guest Room
+  - area_id: hallway
+    name: Hallway
+  - area_id: kitchen
+    name: Kitchen
+  - area_id: living_room
+    name: Living Room
+  - area_id: master_bedroom
+    name: Master Bedroom
+  - area_id: masters_closet
+    name: Masters Closet
+  - area_id: office
+    name: Office
+  - area_id: patio
+    name: Patio
+  - area_id: porch
+    name: Porch
+  - area_id: stairs
+    name: Stairs
+  areas_remove:
+  - area_id: bedroom
+    reason: Legacy empty duplicate of master_bedroom (0 devices, 0 entities at reconciliation); master_bedroom is
+      the adopted slug — owner decision 2026-08-12.
+  - area_id: tv
+    reason: Hue zone import artifact, not a room; its strips and group device are manifest-assigned to living_room.
+      Removal only applies once empty (recipe hard guard).
+  device_areas:
+  - device_id: 6eebb4229176cf2e2762df8227624404
+    area_id: kitchen
+    reason: 50" The Frame TV, already assigned kitchen in inventory; retained per owner burndown note on kitchen
+      Frame TV.
+  - device_id: 76515039f73758e4b4617638c6f75bcc
+    area_id: guest_room
+    reason: Guest Room TV, name and current area both say guest_room; retained per owner note on guest room TV.
+  - device_id: fdb4c7facfe0f4afcd8ae23c8495854d
+    area_id: family_room
+    reason: Family Room TV (Sony BRAVIA), name and current area both say family_room; retained per owner note.
+  - device_id: ea01efb8a8137b4666a961294be9ac55
+    area_id: dining_room
+    reason: WLED 'Dishes' controller currently in dining_room; retained per owner note on Dining Room Dishes strip.
+  - device_id: 4b05b88151eb852a9064458be6a7dd6e
+    area_id: living_room
+    reason: WLED 'Living Room' controller, name and current area both living_room.
+  - device_id: 5b98e744dfb87e2acfd18fae91c1d9a3
+    area_id: kitchen
+    reason: WLED 'Kitchen Strip' controller, name and current area both kitchen.
+  - device_id: cbb188a2caac358e56879cd9ceb525ac
+    area_id: office
+    reason: WLED 'Office' controller, name and current area both office.
+  - device_id: 3fd8515e808982d653dd8fe7dded1ff8
+    area_id: bar
+    reason: WLED 'Bar' controller, name and current area both bar.
+  - device_id: edbdfedf33ca6814837fbf4337b90b0c
+    area_id: office
+    reason: '''[TV] Office Samsung TV'', name says Office; retained per owner note on office Samsung TVs.'
+  - device_id: 4b47a3b8894ef88edd1dde70d093e7a6
+    area_id: kitchen
+    reason: Duplicate registry entry for the kitchen 50" Frame (Samsung model), retained in kitchen.
+  - device_id: a364f8f5c02daad5342c8bcd23713f41
+    area_id: guest_room
+    reason: Duplicate registry entry (DLNA renderer) for Guest Room TV, retained in guest_room.
+  - device_id: 1e617ae65e9a354806c810e0f1f4bcfd
+    area_id: kitchen
+    reason: Third registry entry for the kitchen 50" Frame (integration duplicate), retained in kitchen.
+  - device_id: 56067204941bc1358dcbd5927127a736
+    area_id: office
+    reason: Duplicate registry entry 'Office Samsung TV (UN65TU700DFXZA)', retained in office.
+  - device_id: 4e917d72b551fd724f3bb39d2043634f
+    area_id: office
+    reason: Aqara occupancy sensor with no area_id set; owner burndown note explicitly retains office Aqara sensor
+      placement.
+  - device_id: 6e3ae73fc34919d6ddbbc3f6f719e23c
+    area_id: living_room
+    reason: '''LR Back Right Ceiling'' Hue downlight already in living_room; name confirms room.'
+  - device_id: 2ccac24d006c66e83798bcf031abef1a
+    area_id: porch
+    reason: '''Front Front Hallway'' Hue downlight currently in porch; owner note retains all non-tv Hue-imported
+      areas.'
+  - device_id: 4a785f4d0ba925d69c29aafa4a21e994
+    area_id: master_bedroom
+    reason: '''Master Front Right'' Hue downlight, name and area both master_bedroom.'
+  - device_id: fc3473b40ce52027f21e0d53ce770986
+    area_id: master_bedroom
+    reason: '''Master Front Left'' Hue downlight, name and area both master_bedroom.'
+  - device_id: 21efc0c230a143df0170af0330e68664
+    area_id: garage
+    reason: '''Basketball'' Hue lightstrip outdoor currently in garage; retained per owner note on Hue-imported
+      areas.'
+  - device_id: 466664345ee6a37d192be802dce00839
+    area_id: living_room
+    reason: '''Living Room Button'' Hue tap dial, name and area both living_room.'
+  - device_id: 6ab46d777eff2f5fe289c472c8cd6b01
+    area_id: living_room
+    reason: '''LR Front Left Ceiling'' Hue downlight, name and area both living_room.'
+  - device_id: 005820627e50b0c6bb654896b3978ed8
+    area_id: patio
+    reason: '''Back Porch Right'' Hue downlight currently in patio; retained per owner note.'
+  - device_id: 12b34f8dc5748c3738523ab65f13c9e5
+    area_id: master_bedroom
+    reason: '''Master Back Left'' Hue downlight, name and area both master_bedroom.'
+  - device_id: 92400edb4a8bceb7cbb4c115bcd180ed
+    area_id: hallway
+    reason: '''New hallway front'' Hue downlight currently in hallway; retained per owner note.'
+  - device_id: c514411468dea3c1f2a1f8d645e8d4f1
+    area_id: living_room
+    reason: '''LR Front Right Ceiling'' Hue downlight, name and area both living_room.'
+  - device_id: 0c51b7a639069fb17fbe7ebc925c657b
+    area_id: backyard
+    reason: '''Hue outdoor motion sensor 1'' currently in backyard; retained per owner note.'
+  - device_id: fd3718b748fe142666aff1c98eef6933
+    area_id: porch
+    reason: '''Back Front Hallway'' Hue downlight currently in porch; retained per owner note.'
+  - device_id: 9e837866acbcd16c5deafacf18e3d1a4
+    area_id: master_bedroom
+    reason: '''Hue Smart button 1'' currently in master_bedroom; retained per owner note.'
+  - device_id: 9f4492675c414c71adaf5265a49078e0
+    area_id: garage
+    reason: '''Hue lightstrip outdoor 1'' currently in garage; retained per owner note.'
+  - device_id: 27facf91c544d97ee20269db53058414
+    area_id: office
+    reason: '''Office Front Left'' Hue downlight, name and area both office.'
+  - device_id: 796b8d4e8c831e8055c53bd2f5519602
+    area_id: garage_hallway
+    reason: '''Garage Door'' Hue downlight currently in garage_hallway; retained per owner note.'
+  - device_id: f40d284b9f1d2ba87dfd6594299968eb
+    area_id: living_room
+    reason: '''Living Room Left Play'' Hue gradient light was filed under fake ''tv'' zone; owner note directs its
+      reassignment to living_room since the name and physical location are living room (TV entertainment area).'
+  - device_id: 845ba4a5f4b74938eac41bc4707e5e45
+    area_id: office
+    reason: '''Office Front Right'' Hue downlight, name and area both office.'
+  - device_id: f646b3e7d770117681fee1017810d597
+    area_id: office
+    reason: '''Office Go'' Hue portable light, name and area both office.'
+  - device_id: 37bb81f07292763395b211a62c5eec8b
+    area_id: patio
+    reason: '''Back Porch Left'' Hue downlight currently in patio; retained per owner note.'
+  - device_id: f8dbf67c670739d4fb005f83a2be93e0
+    area_id: garage
+    reason: '''Hue outdoor motion sensor 2'' currently in garage; retained per owner note.'
+  - device_id: 479f6b59c32cee4da8b84321858ae8fc
+    area_id: living_room
+    reason: '''LR Back Left Ceiling'' Hue downlight, name and area both living_room.'
+  - device_id: 5ec7ff7ebdb57869639e1607ede00833
+    area_id: master_bedroom
+    reason: '''Master Back Right'' Hue downlight, name and area both master_bedroom.'
+  - device_id: 877f93a9c7e210ba207b022f2ce30397
+    area_id: stairs
+    reason: '''Bottom Of Stairs'' Hue downlight currently in stairs; retained per owner note.'
+  - device_id: 70df6e4fbeaaa111a2baf571edb17ebe
+    area_id: hallway
+    reason: '''New front hall back'' Hue downlight currently in hallway; retained per owner note.'
+  - device_id: 1d6389ae8753e2e0750eb73c1925dc7b
+    area_id: garage
+    reason: '''Garage'' Hue tap dial switch currently in garage; retained per owner note.'
+  - device_id: e08deebba7773c650fab0505d4687844
+    area_id: office
+    reason: '''Office Back Left'' Hue downlight, name and area both office.'
+  - device_id: 44ba77a62f154f12c3ecc13047b633d2
+    area_id: office
+    reason: '''Office Back Right'' Hue downlight, name and area both office.'
+  - device_id: 8ca5cb27ac5aaa9d2e3502f918b675b9
+    area_id: office
+    reason: Inovelli 'Office Fan Switch' (VZM35-SN), name and area both office; retained per owner note on Inovelli
+      placements.
+  - device_id: 409926f92a13f393ad8b72399a5c5e5c
+    area_id: bar
+    reason: Inovelli 'Bar Light Dimmer' (VZM31-SN), name and area both bar; retained per owner note.
+  - device_id: 5c61fc36807180b2157d6c566047acee
+    area_id: office
+    reason: Inovelli 'Office Light Dimmer' (VZM31-SN), name and area both office; retained per owner note.
+  - device_id: 1a695500dba2a8b399a450b0542de763
+    area_id: living_room
+    reason: Hue zone group device for the living-room gradient strips; the 'tv' zone-area is an import artifact
+      being removed, so its group device lives with its members (owner decision 2026-08-12, caller disposition).
+  entity_labels:
+  - entity_id: button.dishes_restart
+    labels:
+    - area:dining_room
+    - class:wled-config
+    reason: Existing WLED config entity for the Dishes controller; label preserved so recipe reconciliation doesn't
+      strip it.
+  - entity_id: light.dishes
+    labels:
+    - role:primary-light
+    - area:dining_room
+    reason: Primary WLED light entity for Dishes; role:primary-light preserved.
+  - entity_id: number.dishes_speed
+    labels:
+    - area:dining_room
+    - class:wled-config
+    reason: WLED config parameter; label preserved.
+  - entity_id: number.dishes_intensity
+    labels:
+    - area:dining_room
+    - class:wled-config
+    reason: WLED config parameter; label preserved.
+  - entity_id: select.dishes_live_override
+    labels:
+    - area:dining_room
+    - class:wled-config
+    reason: WLED config parameter; label preserved.
+  - entity_id: select.dishes_playlist
+    labels:
+    - area:dining_room
+    - class:wled-config
+    reason: WLED config parameter; label preserved.
+  - entity_id: select.dishes_preset
+    labels:
+    - area:dining_room
+    - class:wled-config
+    reason: WLED config parameter; label preserved.
+  - entity_id: select.dishes_color_palette
+    labels:
+    - area:dining_room
+    - class:wled-config
+    reason: WLED config parameter; label preserved.
+  - entity_id: sensor.dishes_estimated_current
+    labels:
+    - class:diagnostic
+    - area:dining_room
+    reason: WLED diagnostic sensor; label preserved.
+  - entity_id: sensor.dishes_led_count
+    labels:
+    - class:diagnostic
+    - area:dining_room
+    reason: WLED diagnostic sensor; label preserved.
+  - entity_id: sensor.dishes_max_current
+    labels:
+    - class:diagnostic
+    - area:dining_room
+    reason: WLED diagnostic sensor; label preserved.
+  - entity_id: sensor.dishes_uptime
+    labels:
+    - class:diagnostic
+    - area:dining_room
+    reason: WLED diagnostic sensor; label preserved.
+  - entity_id: sensor.dishes_free_memory
+    labels:
+    - class:diagnostic
+    - area:dining_room
+    reason: WLED diagnostic sensor; label preserved.
+  - entity_id: sensor.dishes_wi_fi_signal
+    labels:
+    - class:diagnostic
+    - area:dining_room
+    reason: WLED diagnostic sensor; label preserved.
+  - entity_id: sensor.dishes_wi_fi_rssi
+    labels:
+    - class:diagnostic
+    - area:dining_room
+    reason: WLED diagnostic sensor; label preserved.
+  - entity_id: sensor.dishes_wi_fi_channel
+    labels:
+    - class:diagnostic
+    - area:dining_room
+    reason: WLED diagnostic sensor; label preserved.
+  - entity_id: sensor.dishes_wi_fi_bssid
+    labels:
+    - class:diagnostic
+    - area:dining_room
+    reason: WLED diagnostic sensor; label preserved.
+  - entity_id: sensor.dishes_ip
+    labels:
+    - class:diagnostic
+    - area:dining_room
+    reason: WLED diagnostic sensor; label preserved.
+  - entity_id: switch.dishes_nightlight
+    labels:
+    - area:dining_room
+    - class:wled-config
+    reason: WLED config switch; label preserved.
+  - entity_id: switch.dishes_sync_send
+    labels:
+    - area:dining_room
+    - class:wled-config
+    reason: WLED config switch; label preserved.
+  - entity_id: switch.dishes_sync_receive
+    labels:
+    - area:dining_room
+    - class:wled-config
+    reason: WLED config switch; label preserved.
+  - entity_id: switch.dishes_reverse
+    labels:
+    - area:dining_room
+    - class:wled-config
+    reason: WLED config switch; label preserved.
+  - entity_id: switch.dishes_freeze
+    labels:
+    - area:dining_room
+    - class:wled-config
+    reason: WLED config switch; label preserved.
+  - entity_id: update.dishes_firmware
+    labels:
+    - class:diagnostic
+    - area:dining_room
+    reason: WLED firmware update entity; label preserved.
+  - entity_id: button.living_room_restart
+    labels:
+    - class:wled-config
+    - area:living_room
+    reason: Existing WLED config entity for Living Room controller; preserved.
+  - entity_id: light.living_room
+    labels:
+    - role:primary-light
+    - area:living_room
+    reason: Primary WLED light for Living Room; preserved.
+  - entity_id: number.living_room_speed
+    labels:
+    - class:wled-config
+    - area:living_room
+    reason: WLED config parameter; preserved.
+  - entity_id: number.living_room_intensity
+    labels:
+    - class:wled-config
+    - area:living_room
+    reason: WLED config parameter; preserved.
+  - entity_id: select.living_room_live_override
+    labels:
+    - class:wled-config
+    - area:living_room
+    reason: WLED config parameter; preserved.
+  - entity_id: select.living_room_playlist
+    labels:
+    - class:wled-config
+    - area:living_room
+    reason: WLED config parameter; preserved.
+  - entity_id: select.living_room_preset
+    labels:
+    - class:wled-config
+    - area:living_room
+    reason: WLED config parameter; preserved.
+  - entity_id: select.living_room_color_palette
+    labels:
+    - class:wled-config
+    - area:living_room
+    reason: WLED config parameter; preserved.
+  - entity_id: sensor.living_room_estimated_current
+    labels:
+    - class:diagnostic
+    - area:living_room
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.living_room_led_count
+    labels:
+    - class:diagnostic
+    - area:living_room
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.living_room_max_current
+    labels:
+    - class:diagnostic
+    - area:living_room
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.living_room_uptime
+    labels:
+    - class:diagnostic
+    - area:living_room
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.living_room_free_memory
+    labels:
+    - class:diagnostic
+    - area:living_room
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.living_room_wi_fi_signal
+    labels:
+    - class:diagnostic
+    - area:living_room
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.living_room_wi_fi_rssi
+    labels:
+    - class:diagnostic
+    - area:living_room
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.living_room_wi_fi_channel
+    labels:
+    - class:diagnostic
+    - area:living_room
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.living_room_wi_fi_bssid
+    labels:
+    - class:diagnostic
+    - area:living_room
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.living_room_ip
+    labels:
+    - class:diagnostic
+    - area:living_room
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: switch.living_room_nightlight
+    labels:
+    - class:wled-config
+    - area:living_room
+    reason: WLED config switch; preserved.
+  - entity_id: switch.living_room_sync_send
+    labels:
+    - class:wled-config
+    - area:living_room
+    reason: WLED config switch; preserved.
+  - entity_id: switch.living_room_sync_receive
+    labels:
+    - class:wled-config
+    - area:living_room
+    reason: WLED config switch; preserved.
+  - entity_id: switch.living_room_reverse
+    labels:
+    - class:wled-config
+    - area:living_room
+    reason: WLED config switch; preserved.
+  - entity_id: switch.living_room_freeze
+    labels:
+    - class:wled-config
+    - area:living_room
+    reason: WLED config switch; preserved.
+  - entity_id: update.living_room_firmware
+    labels:
+    - class:diagnostic
+    - area:living_room
+    reason: WLED firmware update entity; preserved.
+  - entity_id: button.kitchen_strip_restart
+    labels:
+    - class:wled-config
+    - area:kitchen
+    reason: Existing WLED config entity for Kitchen Strip controller; preserved.
+  - entity_id: light.kitchen_strip_main
+    labels:
+    - class:wled-config
+    - area:kitchen
+    reason: WLED segment output entity; preserved.
+  - entity_id: light.kitchen_strip
+    labels:
+    - role:primary-light
+    - area:kitchen
+    reason: Primary WLED light for Kitchen Strip; preserved.
+  - entity_id: light.kitchen_strip_segment_1
+    labels:
+    - class:wled-config
+    - area:kitchen
+    reason: WLED segment output entity; preserved.
+  - entity_id: number.kitchen_strip_speed
+    labels:
+    - class:wled-config
+    - area:kitchen
+    reason: WLED config parameter; preserved.
+  - entity_id: number.kitchen_strip_intensity
+    labels:
+    - class:wled-config
+    - area:kitchen
+    reason: WLED config parameter; preserved.
+  - entity_id: number.kitchen_strip_segment_1_speed
+    labels:
+    - class:wled-config
+    - area:kitchen
+    reason: WLED config parameter; preserved.
+  - entity_id: number.kitchen_strip_segment_1_intensity
+    labels:
+    - class:wled-config
+    - area:kitchen
+    reason: WLED config parameter; preserved.
+  - entity_id: select.kitchen_strip_live_override
+    labels:
+    - class:wled-config
+    - area:kitchen
+    reason: WLED config parameter; preserved.
+  - entity_id: select.kitchen_strip_playlist
+    labels:
+    - class:wled-config
+    - area:kitchen
+    reason: WLED config parameter; preserved.
+  - entity_id: select.kitchen_strip_preset
+    labels:
+    - class:wled-config
+    - area:kitchen
+    reason: WLED config parameter; preserved.
+  - entity_id: select.kitchen_strip_color_palette
+    labels:
+    - class:wled-config
+    - area:kitchen
+    reason: WLED config parameter; preserved.
+  - entity_id: select.kitchen_strip_segment_1_color_palette
+    labels:
+    - class:wled-config
+    - area:kitchen
+    reason: WLED config parameter; preserved.
+  - entity_id: sensor.kitchen_strip_estimated_current
+    labels:
+    - class:diagnostic
+    - area:kitchen
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.kitchen_strip_led_count
+    labels:
+    - class:diagnostic
+    - area:kitchen
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.kitchen_strip_max_current
+    labels:
+    - class:diagnostic
+    - area:kitchen
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.kitchen_strip_uptime
+    labels:
+    - class:diagnostic
+    - area:kitchen
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.kitchen_strip_free_memory
+    labels:
+    - class:diagnostic
+    - area:kitchen
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.kitchen_strip_wi_fi_signal
+    labels:
+    - class:diagnostic
+    - area:kitchen
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.kitchen_strip_wi_fi_rssi
+    labels:
+    - class:diagnostic
+    - area:kitchen
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.kitchen_strip_wi_fi_channel
+    labels:
+    - class:diagnostic
+    - area:kitchen
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.kitchen_strip_wi_fi_bssid
+    labels:
+    - class:diagnostic
+    - area:kitchen
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.kitchen_strip_ip
+    labels:
+    - class:diagnostic
+    - area:kitchen
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: switch.kitchen_strip_nightlight
+    labels:
+    - class:wled-config
+    - area:kitchen
+    reason: WLED config switch; preserved.
+  - entity_id: switch.kitchen_strip_sync_send
+    labels:
+    - class:wled-config
+    - area:kitchen
+    reason: WLED config switch; preserved.
+  - entity_id: switch.kitchen_strip_sync_receive
+    labels:
+    - class:wled-config
+    - area:kitchen
+    reason: WLED config switch; preserved.
+  - entity_id: switch.kitchen_strip_reverse
+    labels:
+    - class:wled-config
+    - area:kitchen
+    reason: WLED config switch; preserved.
+  - entity_id: switch.kitchen_strip_freeze
+    labels:
+    - class:wled-config
+    - area:kitchen
+    reason: WLED config switch; preserved.
+  - entity_id: switch.kitchen_strip_segment_1_reverse
+    labels:
+    - class:wled-config
+    - area:kitchen
+    reason: WLED segment config switch; preserved.
+  - entity_id: switch.kitchen_strip_segment_1_freeze
+    labels:
+    - class:wled-config
+    - area:kitchen
+    reason: WLED segment config switch; preserved.
+  - entity_id: update.kitchen_strip_firmware
+    labels:
+    - class:diagnostic
+    - area:kitchen
+    reason: WLED firmware update entity; preserved.
+  - entity_id: button.office_restart
+    labels:
+    - class:wled-config
+    - area:office
+    reason: Existing WLED config entity for Office controller; preserved.
+  - entity_id: light.office
+    labels:
+    - role:primary-light
+    - area:office
+    reason: Primary WLED light for Office; preserved.
+  - entity_id: number.office_speed
+    labels:
+    - class:wled-config
+    - area:office
+    reason: WLED config parameter; preserved.
+  - entity_id: number.office_intensity
+    labels:
+    - class:wled-config
+    - area:office
+    reason: WLED config parameter; preserved.
+  - entity_id: select.office_live_override
+    labels:
+    - class:wled-config
+    - area:office
+    reason: WLED config parameter; preserved.
+  - entity_id: select.office_playlist
+    labels:
+    - class:wled-config
+    - area:office
+    reason: WLED config parameter; preserved.
+  - entity_id: select.office_preset
+    labels:
+    - class:wled-config
+    - area:office
+    reason: WLED config parameter; preserved.
+  - entity_id: select.office_color_palette
+    labels:
+    - class:wled-config
+    - area:office
+    reason: WLED config parameter; preserved.
+  - entity_id: sensor.office_estimated_current
+    labels:
+    - class:diagnostic
+    - area:office
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.office_led_count
+    labels:
+    - class:diagnostic
+    - area:office
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.office_max_current
+    labels:
+    - class:diagnostic
+    - area:office
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.office_uptime
+    labels:
+    - class:diagnostic
+    - area:office
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.office_free_memory
+    labels:
+    - class:diagnostic
+    - area:office
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.office_wi_fi_signal
+    labels:
+    - class:diagnostic
+    - area:office
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.office_wi_fi_rssi
+    labels:
+    - class:diagnostic
+    - area:office
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.office_wi_fi_channel
+    labels:
+    - class:diagnostic
+    - area:office
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.office_wi_fi_bssid
+    labels:
+    - class:diagnostic
+    - area:office
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.office_ip
+    labels:
+    - class:diagnostic
+    - area:office
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: switch.office_nightlight
+    labels:
+    - class:wled-config
+    - area:office
+    reason: WLED config switch; preserved.
+  - entity_id: switch.office_sync_send
+    labels:
+    - class:wled-config
+    - area:office
+    reason: WLED config switch; preserved.
+  - entity_id: switch.office_sync_receive
+    labels:
+    - class:wled-config
+    - area:office
+    reason: WLED config switch; preserved.
+  - entity_id: switch.office_reverse
+    labels:
+    - class:wled-config
+    - area:office
+    reason: WLED config switch; preserved.
+  - entity_id: switch.office_freeze
+    labels:
+    - class:wled-config
+    - area:office
+    reason: WLED config switch; preserved.
+  - entity_id: update.office_firmware
+    labels:
+    - class:diagnostic
+    - area:office
+    reason: WLED firmware update entity; preserved.
+  - entity_id: button.bar_restart
+    labels:
+    - class:wled-config
+    - area:bar
+    reason: Existing WLED config entity for Bar controller; preserved.
+  - entity_id: light.bar
+    labels:
+    - role:primary-light
+    - area:bar
+    reason: Primary WLED light for Bar; preserved.
+  - entity_id: number.bar_speed
+    labels:
+    - class:wled-config
+    - area:bar
+    reason: WLED config parameter; preserved.
+  - entity_id: number.bar_intensity
+    labels:
+    - class:wled-config
+    - area:bar
+    reason: WLED config parameter; preserved.
+  - entity_id: select.bar_live_override
+    labels:
+    - class:wled-config
+    - area:bar
+    reason: WLED config parameter; preserved.
+  - entity_id: select.bar_playlist
+    labels:
+    - class:wled-config
+    - area:bar
+    reason: WLED config parameter; preserved.
+  - entity_id: select.bar_preset
+    labels:
+    - class:wled-config
+    - area:bar
+    reason: WLED config parameter; preserved.
+  - entity_id: select.bar_color_palette
+    labels:
+    - class:wled-config
+    - area:bar
+    reason: WLED config parameter; preserved.
+  - entity_id: sensor.bar_estimated_current
+    labels:
+    - class:diagnostic
+    - area:bar
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.bar_led_count
+    labels:
+    - class:diagnostic
+    - area:bar
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.bar_max_current
+    labels:
+    - class:diagnostic
+    - area:bar
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.bar_uptime
+    labels:
+    - class:diagnostic
+    - area:bar
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.bar_free_memory
+    labels:
+    - class:diagnostic
+    - area:bar
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.bar_wi_fi_signal
+    labels:
+    - class:diagnostic
+    - area:bar
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.bar_wi_fi_rssi
+    labels:
+    - class:diagnostic
+    - area:bar
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.bar_wi_fi_channel
+    labels:
+    - class:diagnostic
+    - area:bar
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.bar_wi_fi_bssid
+    labels:
+    - class:diagnostic
+    - area:bar
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: sensor.bar_ip
+    labels:
+    - class:diagnostic
+    - area:bar
+    reason: WLED diagnostic sensor; preserved.
+  - entity_id: switch.bar_nightlight
+    labels:
+    - class:wled-config
+    - area:bar
+    reason: WLED config switch; preserved.
+  - entity_id: switch.bar_sync_send
+    labels:
+    - class:wled-config
+    - area:bar
+    reason: WLED config switch; preserved.
+  - entity_id: switch.bar_sync_receive
+    labels:
+    - class:wled-config
+    - area:bar
+    reason: WLED config switch; preserved.
+  - entity_id: switch.bar_reverse
+    labels:
+    - class:wled-config
+    - area:bar
+    reason: WLED config switch; preserved.
+  - entity_id: switch.bar_freeze
+    labels:
+    - class:wled-config
+    - area:bar
+    reason: WLED config switch; preserved.
+  - entity_id: update.bar_firmware
+    labels:
+    - class:diagnostic
+    - area:bar
+    reason: WLED firmware update entity; preserved.
+  - entity_id: input_boolean.office_presence_proxy
+    labels:
+    - role:presence
+    - area:office
+    reason: Existing office presence proxy helper feeding presence automations; preserved.
+  - entity_id: input_boolean.office_presence_proxy_2
+    labels:
+    - role:presence
+    - area:office
+    reason: Existing office presence proxy helper; preserved.
+  - entity_id: binary_sensor.office_presence_1
+    labels:
+    - role:presence
+    - area:office
+    reason: Existing office presence sensor; preserved.
+  - entity_id: binary_sensor.office_presence_2
+    labels:
+    - role:presence
+    - area:office
+    reason: Existing office presence sensor; preserved.
+  - entity_id: binary_sensor.office_presence_group
+    labels:
+    - role:presence
+    - area:office
+    reason: Existing office presence group sensor; preserved.
+  entity_aliases: []
+  helpers:
+  - kind: group
+    slug: backyard_presence
+    name: Backyard Presence
+    config:
+      type: binary_sensor
+      entities:
+      - binary_sensor.backyard_hue_outdoor_motion_sensor_1_motion
+      all: false
+    reason: Outdoor presence for automations; grows as more backyard sensors join (TAP-5976).
+  - kind: group
+    slug: garage_presence
+    name: Garage Presence
+    config:
+      type: binary_sensor
+      entities:
+      - binary_sensor.garage_hue_outdoor_motion_sensor_2_motion
+      all: false
+    reason: Outdoor presence for automations (TAP-5976).
+  - kind: group
+    slug: backyard_temperature
+    name: Backyard Temperature
+    config:
+      menu: sensor
+      type: mean
+      entities:
+      - sensor.backyard_hue_outdoor_motion_sensor_1_temperature
+    reason: Environmental coverage; mean across members as sensors join (TAP-5976).
+  - kind: group
+    slug: garage_temperature
+    name: Garage Temperature
+    config:
+      menu: sensor
+      type: mean
+      entities:
+      - sensor.garage_hue_outdoor_motion_sensor_2_temperature
+    reason: Environmental coverage (TAP-5976).
+  - kind: group
+    slug: backyard_illuminance
+    name: Backyard Illuminance
+    config:
+      menu: sensor
+      type: mean
+      entities:
+      - sensor.backyard_hue_outdoor_motion_sensor_1_illuminance
+    reason: Lux coverage for light-level automations (TAP-5976).
+  - kind: group
+    slug: garage_illuminance
+    name: Garage Illuminance
+    config:
+      menu: sensor
+      type: mean
+      entities:
+      - sensor.garage_hue_outdoor_motion_sensor_2_illuminance
+    reason: Lux coverage (TAP-5976).
+  not_applicable:
+  - scope: device
+    id: c4bd115486107572aa9ec60d5e4a5b65
+    status: not_applicable
+    reason: Sun integration, virtual service entity, no physical location.
+  - scope: device
+    id: ff0f9cea2bd547671580eb416131e0f6
+    status: not_applicable
+    reason: Home Assistant Core service device, not physical.
+  - scope: device
+    id: eecbfb7485fdd3e53f36a811f180e430
+    status: not_applicable
+    reason: Home Assistant Supervisor service device, not physical.
+  - scope: device
+    id: 3f67e2901e8533b9c2f7a27a50aa29be
+    status: not_applicable
+    reason: Home Assistant Host service device, not physical.
+  - scope: device
+    id: e2d5dc7d8f0fdaaaaaa5bfbd227585e7
+    status: not_applicable
+    reason: Home Assistant Operating System service device, not physical.
+  - scope: device
+    id: 69cf190185b436efdaa71525b6a29225
+    status: not_applicable
+    reason: Onboard Bluetooth radio (bcm43438-bt) of the host Pi; infrastructure, not a room device.
+  - scope: device
+    id: f3e6ce5c09a0f2769d2bdeb32f92cecb
+    status: not_applicable
+    reason: Home Assistant Backup service device, not physical.
+  - scope: device
+    id: b31551803e83759ead72bc28f4fd4233
+    status: not_applicable
+    reason: Google Translate TTS cloud service, not physical.
+  - scope: device
+    id: b16918282ce7c164d156a298a39c8507
+    status: not_applicable
+    reason: Met.no weather forecast service, not physical.
+  - scope: device
+    id: e74b87c2aca1767d7645016abf5c9352
+    status: not_applicable
+    reason: Host Raspberry Pi hardware; infrastructure, not a room device.
+  - scope: device
+    id: cf5b9b1829179bc995415669c84235a9
+    status: not_applicable
+    reason: Host Raspberry Pi 5 hardware; infrastructure, not a room device.
+  - scope: device
+    id: ea207445db0926263b01d5c7297eb587
+    status: not_applicable
+    reason: Texas Instruments CC2652 Zigbee radio stick; infrastructure, not a room device.
+  - scope: device
+    id: 8683d987c920c0bd84052f5647274305
+    status: not_applicable
+    reason: SLZB-06P7 Zigbee coordinator; infrastructure, not a room device.
+  - scope: device
+    id: 17d982b468074467d240c1b4d5f97a78
+    status: not_applicable
+    reason: TP-Link Archer BE800 router; network infrastructure, not a room device.
+  - scope: device
+    id: d8b3eaec275eaf69973ebbc7fe7f2fdf
+    status: not_applicable
+    reason: Hue Bridge ('Tapp House Pro'); infrastructure hub, not a room device.
+  - scope: device
+    id: 9b971d8434ca7d7648de195ea3298124
+    status: not_applicable
+    reason: File editor Home Assistant App integration, not physical.
+  - scope: device
+    id: fa48da3626b412a176d7e8b0eb593174
+    status: not_applicable
+    reason: Terminal & SSH Home Assistant App integration, not physical.
+  - scope: device
+    id: 4e34924f4505493a355bcd81c4d11b5c
+    status: not_applicable
+    reason: Matter Server Home Assistant App integration, not physical.
+  - scope: device
+    id: 2ed85ccb226fe34471358f18eba7535b
+    status: not_applicable
+    reason: Get HACS Home Assistant App integration, not physical.
+  - scope: device
+    id: c6115c9c82606b0aab406728ef866cc3
+    status: not_applicable
+    reason: HACS integration service, not physical.
+  - scope: device
+    id: f546c850c132ae62525e1dc332d22f6f
+    status: not_applicable
+    reason: Team Tracker integration service, not physical.
+  - scope: device
+    id: ba213c9a88fe706873168a7f74e46d22
+    status: not_applicable
+    reason: '''Masters Closet'' Hue-imported virtual Room service device, not a controllable physical device.'
+  - scope: device
+    id: 620d18db01b0aed6b0eb31022af41cba
+    status: not_applicable
+    reason: '''Patio'' Hue-imported virtual Room service device, not a controllable physical device.'
+  - scope: device
+    id: 4a769ea82437862ab20cf5cd239010c8
+    status: not_applicable
+    reason: '''Master Bedroom'' Hue-imported virtual Room service device, not a controllable physical device.'
+  - scope: device
+    id: 02303db8319bde4bd0901638c5a768f8
+    status: not_applicable
+    reason: '''Driveway'' Hue-imported virtual Room service device, not a controllable physical device.'
+  - scope: device
+    id: d44259ec6032d36bb045b272f99aebf9
+    status: not_applicable
+    reason: '''Living room'' Hue-imported virtual Room service device, not a controllable physical device.'
+  - scope: device
+    id: 571c298c14200c028a37fd6c40280010
+    status: not_applicable
+    reason: '''Porch'' Hue-imported virtual Room service device, not a controllable physical device.'
+  - scope: device
+    id: a99d4dec179943d3c4bfbf8be734ad2e
+    status: not_applicable
+    reason: '''Garage'' Hue-imported virtual Room service device, not a controllable physical device.'
+  - scope: device
+    id: e06cafc463379d56ede52a57157eedac
+    status: not_applicable
+    reason: '''Office'' Hue-imported virtual Room service device, not a controllable physical device.'
+  - scope: device
+    id: 3ab554e2897dec2cc2b34ab90e2caa6e
+    status: not_applicable
+    reason: '''Stairs'' Hue-imported virtual Room service device, not a controllable physical device.'
+  - scope: device
+    id: daf614da607f3dcc752b5cb0668f0acb
+    status: not_applicable
+    reason: '''Backyard'' Hue-imported virtual Room service device, not a controllable physical device.'
+  - scope: device
+    id: 105970fe324a53f42ad6182cbcfa9181
+    status: not_applicable
+    reason: '''Garage Hallway'' Hue-imported virtual Room service device, not a controllable physical device.'
+  - scope: device
+    id: 9da3a4f8bdb363c91e0b0afaa8a87bd0
+    status: not_applicable
+    reason: '''Hallway'' Hue-imported virtual Room service device, not a controllable physical device.'
+  - scope: device
+    id: 71e7cbb56dd0bf1c6a55e64acfae5bba
+    status: not_applicable
+    reason: '''Notification'' Hue Zone service device (cross-area group), not a single physical location.'
+  - scope: device
+    id: 471e36499b0029305cac88380a532267
+    status: not_applicable
+    reason: '''Downstairs'' Hue Zone service device (multi-area group), not a single physical location.'
+  - scope: device
+    id: 3a6e5b75d533f702a4a5d08eacecea48
+    status: not_applicable
+    reason: '''Garage'' Hue Zone service device (group), duplicate of the Garage room grouping, not a single physical
+      location.'
+  - scope: device
+    id: 78236c0632460ffa1b00a83eb86dc5b4
+    status: not_applicable
+    reason: '''TV Room'' Hue Zone service device (group); the underlying ''tv'' area is a Hue import artifact per
+      owner note.'
+  - scope: device
+    id: 0622476aabb308f5aaab796e365bc1a4
+    status: not_applicable
+    reason: '''Front House'' Hue Zone service device (multi-area group), not a single physical location.'
+  - scope: device
+    id: ca644b09576206d74aae45153b2a5a00
+    status: not_applicable
+    reason: '''First Floor'' Hue Zone service device (multi-area group), not a single physical location.'
+  - scope: device
+    id: ec973e0386f527b8ed82d3568aa5622e
+    status: not_applicable
+    reason: '''Outdoor'' Hue Service Group (multi-area group), not a single physical location.'
+  - scope: device
+    id: dbc185d96bbff441ddb3770bcccda947
+    status: blocked_on_human
+    reason: Device name is a generic 'unk_manufacturer unk_model' placeholder with no room, name, or model evidence
+      to place it.
+  - scope: device
+    id: 3388e37de3caa581f99dabc7b6134c22
+    status: blocked_on_human
+    reason: HP Tango printer has no room evidence in name/model; owner burndown note explicitly keeps it blocked_on_human.
+  scene_policy:
+  - platform: hue
+    stance: bridge_owned
+    reason: All 190 scenes imported by the Hue Bridge Pro pairing live on the bridge; HA's hue integration imports
+      them read-only. The manifest neither regenerates nor drift-flags them — the bridge (edited via the Hue app)
+      is their source of truth. Any future scene from another platform trips the scene-policy recipe's blocked_on_human
+      until it gets its own stance row (TAP-5975).
+  # TAP-5987 — multi-tap gesture catalogue (owner-selection surface, NOT a deployment).
+  # Gesture names are the HA device-automation triggers each switch actually exposes
+  # (read live 2026-08-12 via device_automation/trigger/list; every switch also offers
+  # Config/Aux subtypes and press/hold/release, catalogued on request). `options` are
+  # candidates; NOTHING is wired until the owner replaces `selected: null` with a choice —
+  # deployment then happens as a separate, owner-approved change through the converge path.
+  switch_gestures:
+  - {device_id: 5c61fc36807180b2157d6c566047acee, device_name: Office Light Dimmer, gesture: remote_button_double_press/Up,
+     options: [office lights to 100% cool white (work mode), all office devices on (lights + WLED)], selected: null}
+  - {device_id: 5c61fc36807180b2157d6c566047acee, device_name: Office Light Dimmer, gesture: remote_button_double_press/Down,
+     options: [office lights 20% warm (wind-down), office lights off + WLED off], selected: null}
+  - {device_id: 5c61fc36807180b2157d6c566047acee, device_name: Office Light Dimmer, gesture: remote_button_triple_press/Up,
+     options: [meeting mode - lights bright + fan medium, toggle WLED accent strip], selected: null}
+  - {device_id: 5c61fc36807180b2157d6c566047acee, device_name: Office Light Dimmer, gesture: remote_button_triple_press/Down,
+     options: [office everything off (lights + fan + WLED), pause office presence automation 1h], selected: null}
+  - {device_id: 5c61fc36807180b2157d6c566047acee, device_name: Office Light Dimmer, gesture: remote_button_quadruple_press/Up,
+     options: [toggle bar lights remotely, backyard lights on 10 min], selected: null}
+  - {device_id: 5c61fc36807180b2157d6c566047acee, device_name: Office Light Dimmer, gesture: remote_button_quadruple_press/Down,
+     options: [whole-house lights off, unassigned - reserve], selected: null}
+  - {device_id: 5c61fc36807180b2157d6c566047acee, device_name: Office Light Dimmer, gesture: remote_button_quintuple_press/Up,
+     options: [unassigned - reserve, LED-bar test notification], selected: null}
+  - {device_id: 5c61fc36807180b2157d6c566047acee, device_name: Office Light Dimmer, gesture: remote_button_quintuple_press/Down,
+     options: [unassigned - reserve], selected: null}
+  - {device_id: 8ca5cb27ac5aaa9d2e3502f918b675b9, device_name: Office Fan Switch, gesture: remote_button_double_press/Up,
+     options: [fan to max, fan on + resume presence-comfort automation], selected: null}
+  - {device_id: 8ca5cb27ac5aaa9d2e3502f918b675b9, device_name: Office Fan Switch, gesture: remote_button_double_press/Down,
+     options: [fan off + pause presence-comfort automation 1h, fan to low], selected: null}
+  - {device_id: 8ca5cb27ac5aaa9d2e3502f918b675b9, device_name: Office Fan Switch, gesture: remote_button_triple_press/Up,
+     options: [toggle presence-comfort automation on/off (LED confirms), fan breeze mode], selected: null}
+  - {device_id: 8ca5cb27ac5aaa9d2e3502f918b675b9, device_name: Office Fan Switch, gesture: remote_button_triple_press/Down,
+     options: [office everything off (fan + lights), unassigned - reserve], selected: null}
+  - {device_id: 8ca5cb27ac5aaa9d2e3502f918b675b9, device_name: Office Fan Switch, gesture: remote_button_quadruple_press/Up,
+     options: [unassigned - reserve], selected: null}
+  - {device_id: 8ca5cb27ac5aaa9d2e3502f918b675b9, device_name: Office Fan Switch, gesture: remote_button_quadruple_press/Down,
+     options: [unassigned - reserve], selected: null}
+  - {device_id: 8ca5cb27ac5aaa9d2e3502f918b675b9, device_name: Office Fan Switch, gesture: remote_button_quintuple_press/Up,
+     options: [unassigned - reserve], selected: null}
+  - {device_id: 8ca5cb27ac5aaa9d2e3502f918b675b9, device_name: Office Fan Switch, gesture: remote_button_quintuple_press/Down,
+     options: [unassigned - reserve], selected: null}
+  - {device_id: 409926f92a13f393ad8b72399a5c5e5c, device_name: Bar Light Dimmer, gesture: remote_button_double_press/Up,
+     options: [bar lights 100% (entertaining), bar lights + living room on], selected: null}
+  - {device_id: 409926f92a13f393ad8b72399a5c5e5c, device_name: Bar Light Dimmer, gesture: remote_button_double_press/Down,
+     options: [bar lights 25% warm (ambiance), bar lights off], selected: null}
+  - {device_id: 409926f92a13f393ad8b72399a5c5e5c, device_name: Bar Light Dimmer, gesture: remote_button_triple_press/Up,
+     options: [game-day mode - VGK/Raiders LED-bar effect via Team Tracker, movie mode - bar dim + living room dim], selected: null}
+  - {device_id: 409926f92a13f393ad8b72399a5c5e5c, device_name: Bar Light Dimmer, gesture: remote_button_triple_press/Down,
+     options: [downstairs lights off, unassigned - reserve], selected: null}
+  - {device_id: 409926f92a13f393ad8b72399a5c5e5c, device_name: Bar Light Dimmer, gesture: remote_button_quadruple_press/Up,
+     options: [backyard + garage lights on 10 min, unassigned - reserve], selected: null}
+  - {device_id: 409926f92a13f393ad8b72399a5c5e5c, device_name: Bar Light Dimmer, gesture: remote_button_quadruple_press/Down,
+     options: [whole-house lights off, unassigned - reserve], selected: null}
+  - {device_id: 409926f92a13f393ad8b72399a5c5e5c, device_name: Bar Light Dimmer, gesture: remote_button_quintuple_press/Up,
+     options: [unassigned - reserve], selected: null}
+  - {device_id: 409926f92a13f393ad8b72399a5c5e5c, device_name: Bar Light Dimmer, gesture: remote_button_quintuple_press/Down,
+     options: [unassigned - reserve], selected: null}
+design_notes: 'Label taxonomy restricted to the three managed prefixes already in use (role:, class:, area:) per
+  owner instruction — no new prefixes minted. role:primary-light marks each WLED controller''s main light entity;
+  class:wled-config / class:diagnostic separate WLED tuning entities from telemetry/diagnostic ones; area:* mirrors
+  device-level area assignment onto entities for filtering. role:presence tags the office presence proxy helpers
+  and binary sensors that feed presence automations. All of these labels already existed on the listed entities
+  in the inventory; they are re-declared in full (not just diffed) because the label sets are fully reconciled by
+  recipes — an entity''s omission from entity_labels would read as "remove all its managed labels," which is not
+  intended here. No new labels or prefixes were added since there was no fresh evidence to justify them.
+
+
+  Coverage (corrected caller-side after the TV group-device disposition; the authored text undercounted not_applicable
+  by one): 47 physical devices assigned to areas (all Hue lights/sensors/buttons, WLED controllers, TVs, Inovelli
+  switches, Aqara sensor); 40 devices marked not_applicable (plus 2 blocked_on_human = 89 total) (all Home Assistant
+  service/integration devices, host hardware — Pi, Bluetooth radio, Zigbee coordinator/stick, router, Hue Bridge
+  — and all Hue-imported virtual Room/Zone/Service-Group devices, including the ''tv'' room artifact per owner note);
+  2 devices blocked_on_human (unk_manufacturer/unk_model sensor with zero naming evidence, and the HP Tango printer
+  per explicit owner note). Device f40d284b9f1d2ba87dfd6594299968eb (''Living Room Left Play'') was moved out of
+  the fake ''tv'' area into living_room per owner instruction; device 4e917d72... (Aqara occupancy sensor, area_id
+  null in registry) was assigned to office per the owner''s explicit note retaining the prior office Aqara sensor
+  placement — this is the one case where I placed a device despite a null area_id, justified by direct owner instruction
+  rather than inference.
+
+
+  No new areas needed — ''tv'' is explicitly not real and excluded; ''bedroom'' is being retired and untouched,
+  matching owner instruction. No new helpers required; the two office presence proxy input_booleans already exist
+  and are only re-labeled, not recreated. No entity_id renames or aliases proposed — no strong alias evidence in
+  the inventory (aliases arrays are all empty and no naming ambiguity strong enough to justify one).'

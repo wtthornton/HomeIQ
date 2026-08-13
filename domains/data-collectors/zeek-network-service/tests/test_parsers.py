@@ -6,13 +6,16 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import pytest
-
-from src.parsers.conn_parser import ConnLogParser, _classify_direction, _is_private, _safe_int, _safe_float
+from src.parsers.conn_parser import (
+    ConnLogParser,
+    _classify_direction,
+    _is_private,
+    _safe_float,
+    _safe_int,
+)
 from src.parsers.dns_parser import DnsLogParser
 from src.services.device_aggregator import DeviceAggregator
 from src.services.log_tracker import LogTracker
-
 
 # ---------------------------------------------------------------------------
 # Direction classification

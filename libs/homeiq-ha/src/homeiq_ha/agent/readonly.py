@@ -8,6 +8,11 @@ write — the call never reaches Home Assistant.
 
 A recipe with a buggy ``check()`` therefore fails loudly during an audit
 instead of quietly mutating someone's home.
+
+One audited call bypasses this proxy by nature: the coordinator watchdog's
+TCP reachability probe (:class:`~.diagnostics.ZigbeeCoordinatorWatchdogRecipe`)
+opens a raw socket outside the HA API. It connects and closes without sending
+a byte, so it is read-only by construction rather than by proxy enforcement.
 """
 
 from __future__ import annotations
@@ -29,9 +34,14 @@ _READ_COMMANDS = frozenset(
         "get_config",
         "get_services",
         "auth/current_user",
+        "zha/devices",
+        "zha/device",
         "backup/info",
         "backup/config/info",
         "backup/agents/info",
+        # In-progress discovery flows: enumerating them changes nothing
+        # (advancing/aborting a flow is a different command). TAP-5943.
+        "config_entries/flow/progress",
     }
 )
 

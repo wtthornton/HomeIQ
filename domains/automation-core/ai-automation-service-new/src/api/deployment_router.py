@@ -229,8 +229,10 @@ async def deploy_compiled_automation(
     Deploy a compiled automation artifact to Home Assistant.
 
     Hybrid Flow Implementation: Deploys from compiled_id (template-based flow).
-    Supports update-or-create: if an existing deployment matches the same
-    template + area, it updates instead of creating a duplicate.
+    Creates a NEW automation unless ha_automation_id is explicitly provided,
+    in which case that automation is updated and its version chain extended
+    (TAP-5992: implicit template+area matching silently overwrote unrelated
+    automations and was removed).
     """
     import uuid
     from datetime import datetime
@@ -245,21 +247,20 @@ async def deploy_compiled_automation(
     if not compiled_artifact:
         raise HTTPException(status_code=404, detail=f"Compiled artifact '{compiled_id}' not found")
 
-    # Determine ha_automation_id: explicit > lookup by template+area > new from HA
+    # Update ONLY on an explicit ha_automation_id. The old template+area
+    # lookup silently converted creates into updates: deploying the fan
+    # artifact with the id omitted matched the office lighting deployment,
+    # overwrote it as v2, and the rollback then removed the lighting
+    # automation from HA entirely (TAP-5992, observed live 2026-08-12).
     ha_automation_id = payload.ha_automation_id
     existing_deployment = None
 
-    if (
-        not ha_automation_id
-        and getattr(compiled_artifact, "template_id", None)
-        and getattr(compiled_artifact, "area_id", None)
-    ):
-        # Look up existing deployment for same template + area
+    if ha_automation_id:
+        # Chain the version history off the automation actually being updated.
         lookup_query = (
             select(Deployment)
             .where(
-                Deployment.template_id == compiled_artifact.template_id,
-                Deployment.area_id == compiled_artifact.area_id,
+                Deployment.ha_automation_id == ha_automation_id,
                 Deployment.status == "deployed",
             )
             .order_by(Deployment.deployed_at.desc())
@@ -268,10 +269,9 @@ async def deploy_compiled_automation(
         lookup_result = await db.execute(lookup_query)
         existing_deployment = lookup_result.scalar_one_or_none()
         if existing_deployment:
-            ha_automation_id = existing_deployment.ha_automation_id
             logger.info(
-                f"Found existing deployment for template={compiled_artifact.template_id}, "
-                f"area={compiled_artifact.area_id}: {ha_automation_id}"
+                f"Explicit update of {ha_automation_id} "
+                f"(prior deployment {existing_deployment.deployment_id})"
             )
 
     # Safety validation on compiled YAML before deployment
@@ -297,16 +297,26 @@ async def deploy_compiled_automation(
     ha_client = get_ha_client()
 
     try:
-        # Inject existing automation ID into YAML for update-vs-create
-        deploy_yaml = compiled_artifact.yaml
-        if ha_automation_id:
-            import yaml as _yaml
+        # Inject existing automation ID into YAML for update-vs-create.
+        # On create, STRIP any embedded top-level id: the HA client honours the
+        # YAML's own id and would overwrite whatever automation holds it — the
+        # same incident as the removed template+area match, one layer down
+        # (TAP-5992 verifier finding).
+        import yaml as _yaml
 
-            auto_data = _yaml.safe_load(deploy_yaml)
-            if isinstance(auto_data, dict):
+        deploy_yaml = compiled_artifact.yaml
+        auto_data = _yaml.safe_load(deploy_yaml)
+        if isinstance(auto_data, dict):
+            if ha_automation_id:
                 auto_data["id"] = ha_automation_id
-                deploy_yaml = _yaml.dump(auto_data, default_flow_style=False, sort_keys=False)
                 logger.info(f"Updating existing automation {ha_automation_id}")
+                deploy_yaml = _yaml.dump(auto_data, default_flow_style=False, sort_keys=False)
+            elif auto_data.pop("id", None) is not None:
+                logger.warning(
+                    "Compiled artifact %s carried an embedded automation id; "
+                    "stripped for create semantics", compiled_id
+                )
+                deploy_yaml = _yaml.dump(auto_data, default_flow_style=False, sort_keys=False)
 
         # Deploy YAML to HA
         deployment_result = await ha_client.deploy_automation(deploy_yaml)

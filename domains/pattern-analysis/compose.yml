@@ -13,7 +13,7 @@ services:
     env_file:
       - ../../.env
     environment:
-      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq
       - DATABASE_SCHEMA=automation
       - DATA_API_URL=http://data-api:8006
       - DATA_API_API_KEY=${API_KEY:-}
@@ -69,10 +69,10 @@ services:
       - HA_WS_URL=${HA_WS_URL:-}
       - HA_TOKEN=${HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
       - HOME_ID=${HOME_ID:-default}
-      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:-homeiq-secure-2026}@postgres:5432/homeiq
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq
       - DATABASE_SCHEMA=patterns
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-homeiq-token}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-homeiq_metrics}
       - MAX_RETRIES=${MAX_RETRIES:-3}

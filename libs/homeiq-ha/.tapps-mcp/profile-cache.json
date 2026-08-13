@@ -1,0 +1,9 @@
+{
+  "fingerprint": "147e35b3886b38cd",
+  "profile": {
+    "project_type": "library",
+    "has_tests": true,
+    "has_docker": false,
+    "has_ci": false
+  }
+}

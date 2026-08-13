@@ -112,6 +112,11 @@ class SafetyValidator:
         else:
             data = yaml_content
 
+        # automations.yaml-style list of one automation is equivalent to the
+        # single-automation dict form — unwrap before validating.
+        if isinstance(data, list) and len(data) == 1 and isinstance(data[0], dict):
+            data = data[0]
+
         if not isinstance(data, dict):
             return SafetyResult(
                 score=0,
@@ -119,7 +124,7 @@ class SafetyValidator:
                     SafetyIssue(
                         severity=SafetySeverity.CRITICAL,
                         category="yaml_structure",
-                        message="YAML root must be a dictionary",
+                        message="YAML root must be a dictionary (or a list of exactly one automation)",
                         deduction=100,
                     )
                 ],
@@ -313,7 +318,7 @@ class SafetyValidator:
     def _check_trigger_safety(self, data: dict[str, Any]) -> list[SafetyIssue]:
         """Check for time_pattern triggers that fire too frequently (> 1/minute)."""
         issues: list[SafetyIssue] = []
-        triggers = data.get("trigger", [])
+        triggers = data.get("triggers", data.get("trigger", []))
         if isinstance(triggers, dict):
             triggers = [triggers]
         if not isinstance(triggers, list):
@@ -354,7 +359,7 @@ class SafetyValidator:
     def _check_missing_conditions(self, data: dict[str, Any]) -> list[SafetyIssue]:
         """Check for automations with broad triggers but no conditions."""
         issues: list[SafetyIssue] = []
-        triggers = data.get("trigger", [])
+        triggers = data.get("triggers", data.get("trigger", []))
         conditions = data.get("condition", [])
 
         if isinstance(triggers, dict):
@@ -464,8 +469,8 @@ class SafetyValidator:
         return results
 
     def _get_actions(self, data: dict[str, Any]) -> list[Any]:
-        """Extract the action list from automation data."""
-        actions = data.get("action", [])
+        """Extract the action list (modern 'actions' or legacy 'action')."""
+        actions = data.get("actions", data.get("action", []))
         if isinstance(actions, dict):
             return [actions]
         if isinstance(actions, list):

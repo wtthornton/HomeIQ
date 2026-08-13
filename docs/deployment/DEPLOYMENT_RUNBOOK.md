@@ -599,7 +599,7 @@ influxdb (direct writes)
 ./scripts/start-stack.sh
 ```
 
-Uses `--profile production` so data-collectors includes air-quality, carbon-intensity, electricity-pricing, and calendar. Use `-SkipWait` to skip health polling. See [Deployment Quick Reference](./DEPLOYMENT_QUICK_REFERENCE.md).
+Uses `--profile production` so data-collectors includes air-quality, carbon-intensity, electricity-pricing, and calendar. Use `-SkipWait` to skip health polling. The default start reuses image caches; set `STACK_REFRESH=1` (`$env:STACK_REFRESH = "1"` on Windows) to force `--pull always --force-recreate`. See [Deployment Quick Reference](./DEPLOYMENT_QUICK_REFERENCE.md).
 
 #### Single-Service Deployment
 

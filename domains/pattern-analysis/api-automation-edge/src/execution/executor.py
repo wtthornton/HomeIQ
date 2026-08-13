@@ -9,8 +9,9 @@ import logging
 import uuid
 from typing import Any
 
+from homeiq_ha.client import HAWebSocketClient
+
 from ..clients.ha_rest_client import HARestClient
-from ..clients.ha_websocket_client import HAWebSocketClient
 from .action_executor import ActionExecutor
 from .confirmation_watcher import ConfirmationWatcher
 from .retry_manager import RetryManager

@@ -7,8 +7,8 @@ to the ``network_connections`` measurement.
 from __future__ import annotations
 
 import asyncio
-import json
 import ipaddress
+import json
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 

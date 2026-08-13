@@ -88,10 +88,21 @@ class InfluxDBSchema:
         self.FIELD_SW_VERSION = "sw_version"
 
         # Retention policies (Current Configuration - January 2025)
-        self.RETENTION_HA_EVENTS = "365d"  # home_assistant_events bucket
-        self.RETENTION_SPORTS_DATA = "90d"  # sports_data bucket
-        self.RETENTION_WEATHER_DATA = "180d"  # weather_data bucket
-        self.RETENTION_SYSTEM_METRICS = "30d"  # system_metrics bucket
+        #
+        # ⚠️ These are DECLARED intent, not what runs (verified live 2026-08-13,
+        # TAP-6007). Every collector writes its measurement into the ONE
+        # `home_assistant_events` bucket (365d), not the per-type buckets below.
+        # e.g. sports-api writes the `sports_data` MEASUREMENT into
+        # `home_assistant_events` (INFLUXDB_BUCKET default, sports-api
+        # config.py / main.py:160), so it is retained 365d, NOT the 90d here.
+        # The `sports_data` / `weather_data` / `system_metrics` BUCKETS exist
+        # but are EMPTY. Changing a value below changes nothing until a
+        # collector is pointed at the matching bucket. See
+        # docs/operations/influxdb-retention.md.
+        self.RETENTION_HA_EVENTS = "365d"  # home_assistant_events bucket (the live one)
+        self.RETENTION_SPORTS_DATA = "90d"  # sports_data bucket — DECLARED, bucket empty
+        self.RETENTION_WEATHER_DATA = "180d"  # weather_data bucket — DECLARED, bucket empty
+        self.RETENTION_SYSTEM_METRICS = "30d"  # system_metrics bucket — DECLARED, bucket empty
 
     def create_event_point(self, event_data: dict[str, Any]) -> Point | None:
         """

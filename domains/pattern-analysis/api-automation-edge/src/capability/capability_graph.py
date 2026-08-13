@@ -9,8 +9,9 @@ import contextlib
 import logging
 from typing import Any
 
+from homeiq_ha.client import HAWebSocketClient
+
 from ..clients.ha_rest_client import HARestClient
-from ..clients.ha_websocket_client import HAWebSocketClient
 from ..config import settings
 from .drift_detector import DriftDetector
 from .entity_inventory import EntityInventory

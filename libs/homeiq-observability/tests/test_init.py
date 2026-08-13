@@ -40,7 +40,10 @@ def test_all_attribute() -> None:
     import homeiq_observability
 
     assert hasattr(homeiq_observability, "__all__")
-    assert len(homeiq_observability.__all__) == 17
+    # Epic 56 grew the public surface from 17 to 20 (metrics, tracing, alerts).
+    assert len(homeiq_observability.__all__) == 20
+    for name in homeiq_observability.__all__:
+        assert hasattr(homeiq_observability, name), f"__all__ names missing export: {name}"
 
 
 def test_module_reimport() -> None:

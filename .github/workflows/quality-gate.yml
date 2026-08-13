@@ -22,12 +22,37 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  actions: read # regression-checks job reads workflow states (TAP-5291)
 
 concurrency:
   group: quality-gate-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # TAP-5291: fail when either defect from the 2026-08-10 measurement
+  # regresses — forced-refresh flags becoming start-stack defaults again,
+  # or documented auto-trigger workflows disabled at the GitHub API level.
+  regression-checks:
+    name: Regression checks (TAP-5291)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: start-stack refresh flags are opt-in only
+        run: bash scripts/check-stack-refresh-optin.sh
+
+      - name: documented workflows are enabled at the API level
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/check-workflow-enablement.sh
+
+      # TAP-5993: no committed credential defaults in compose files.
+      - name: compose files carry no credential defaults
+        run: bash scripts/check-compose-credential-defaults.sh
+
   quality-gate:
     name: TAPPS Quality Gate
     runs-on: ubuntu-latest
@@ -38,6 +63,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      # No .env exists in CI; --ci validates the env.required manifest itself
+      # (syntax + every key documented in infrastructure/env.example) so a key
+      # rename cannot silently strand the preflight (TAP-5902).
+      - name: Env manifest preflight
+        run: bash scripts/preflight-env.sh --ci
 
       - name: Set up Python
         uses: actions/setup-python@v5

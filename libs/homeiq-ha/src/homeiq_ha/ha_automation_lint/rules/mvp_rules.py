@@ -6,7 +6,6 @@ Implements the minimum 15 rules required for MVP.
 import re
 import sys
 from pathlib import Path
-from typing import List
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -32,7 +31,7 @@ class MissingTriggerRule(Rule):
     severity = Severity.ERROR
     category = RuleCategory.SCHEMA
 
-    def check(self, automation: AutomationIR) -> List[Finding]:
+    def check(self, automation: AutomationIR) -> list[Finding]:
         if not automation.trigger:
             return [Finding(
                 rule_id=self.rule_id,
@@ -53,7 +52,7 @@ class MissingActionRule(Rule):
     severity = Severity.ERROR
     category = RuleCategory.SCHEMA
 
-    def check(self, automation: AutomationIR) -> List[Finding]:
+    def check(self, automation: AutomationIR) -> list[Finding]:
         if not automation.action:
             return [Finding(
                 rule_id=self.rule_id,
@@ -76,10 +75,11 @@ class UnknownTopLevelKeysRule(Rule):
 
     KNOWN_KEYS = {
         "id", "alias", "description", "trigger", "condition", "action",
+        "triggers", "conditions", "actions",
         "mode", "max", "max_exceeded", "variables", "trace", "initial_state"
     }
 
-    def check(self, automation: AutomationIR) -> List[Finding]:
+    def check(self, automation: AutomationIR) -> list[Finding]:
         findings = []
         unknown_keys = set(automation.raw_source.keys()) - self.KNOWN_KEYS
 
@@ -106,7 +106,7 @@ class DuplicateIDRule(Rule):
 
     # This rule needs special handling in the engine to check across automations
     # For now, we'll mark it as a placeholder
-    def check(self, _automation: AutomationIR) -> List[Finding]:
+    def check(self, _automation: AutomationIR) -> list[Finding]:
         # This check is performed at the engine level
         return []
 
@@ -119,13 +119,12 @@ class InvalidServiceFormatRule(Rule):
     severity = Severity.ERROR
     category = RuleCategory.SCHEMA
 
-    def check(self, automation: AutomationIR) -> List[Finding]:
+    def check(self, automation: AutomationIR) -> list[Finding]:
         findings = []
 
         for action in automation.action:
-            if action.service:
-                # Service should be in format "domain.service"
-                if "." not in action.service:
+            # Service should be in format "domain.service"
+            if action.service and "." not in action.service:
                     findings.append(Finding(
                         rule_id=self.rule_id,
                         severity=self.severity,
@@ -150,7 +149,7 @@ class TriggerMissingPlatformRule(Rule):
     severity = Severity.ERROR
     category = RuleCategory.SYNTAX
 
-    def check(self, automation: AutomationIR) -> List[Finding]:
+    def check(self, automation: AutomationIR) -> list[Finding]:
         findings = []
 
         for trigger in automation.trigger:
@@ -179,7 +178,7 @@ class DelayWithSingleModeRule(Rule):
     severity = Severity.WARN
     category = RuleCategory.LOGIC
 
-    def check(self, automation: AutomationIR) -> List[Finding]:
+    def check(self, automation: AutomationIR) -> list[Finding]:
         findings = []
 
         # Check if automation has single mode and contains delay
@@ -213,7 +212,7 @@ class HighFrequencyTriggerRule(Rule):
     severity = Severity.WARN
     category = RuleCategory.LOGIC
 
-    def check(self, automation: AutomationIR) -> List[Finding]:
+    def check(self, automation: AutomationIR) -> list[Finding]:
         findings = []
 
         for trigger in automation.trigger:
@@ -246,7 +245,7 @@ class ChooseWithoutDefaultRule(Rule):
     severity = Severity.INFO
     category = RuleCategory.LOGIC
 
-    def check(self, automation: AutomationIR) -> List[Finding]:
+    def check(self, automation: AutomationIR) -> list[Finding]:
         findings = []
 
         for action in automation.action:
@@ -278,7 +277,7 @@ class EmptyTriggerListRule(Rule):
     severity = Severity.ERROR
     category = RuleCategory.LOGIC
 
-    def check(self, automation: AutomationIR) -> List[Finding]:
+    def check(self, automation: AutomationIR) -> list[Finding]:
         # This is redundant with SCHEMA001 but kept for completeness
         if len(automation.trigger) == 0:
             return [Finding(
@@ -300,7 +299,7 @@ class EmptyActionListRule(Rule):
     severity = Severity.ERROR
     category = RuleCategory.LOGIC
 
-    def check(self, automation: AutomationIR) -> List[Finding]:
+    def check(self, automation: AutomationIR) -> list[Finding]:
         # This is redundant with SCHEMA002 but kept for completeness
         if len(automation.action) == 0:
             return [Finding(
@@ -326,7 +325,7 @@ class ServiceMissingTargetRule(Rule):
     severity = Severity.ERROR
     category = RuleCategory.RELIABILITY
 
-    def check(self, automation: AutomationIR) -> List[Finding]:
+    def check(self, automation: AutomationIR) -> list[Finding]:
         findings = []
 
         for action in automation.action:
@@ -363,7 +362,7 @@ class InvalidEntityIDFormatRule(Rule):
     severity = Severity.WARN
     category = RuleCategory.RELIABILITY
 
-    def check(self, automation: AutomationIR) -> List[Finding]:
+    def check(self, automation: AutomationIR) -> list[Finding]:
         findings = []
 
         # Check triggers
@@ -416,7 +415,7 @@ class MissingDescriptionRule(Rule):
     severity = Severity.INFO
     category = RuleCategory.MAINTAINABILITY
 
-    def check(self, automation: AutomationIR) -> List[Finding]:
+    def check(self, automation: AutomationIR) -> list[Finding]:
         if not automation.description:
             return [Finding(
                 rule_id=self.rule_id,
@@ -440,7 +439,7 @@ class MissingAliasRule(Rule):
     severity = Severity.INFO
     category = RuleCategory.MAINTAINABILITY
 
-    def check(self, automation: AutomationIR) -> List[Finding]:
+    def check(self, automation: AutomationIR) -> list[Finding]:
         if not automation.alias:
             return [Finding(
                 rule_id=self.rule_id,
@@ -460,7 +459,7 @@ class MissingAliasRule(Rule):
 # RULE REGISTRY
 # ============================================================================
 
-def get_all_rules() -> List[Rule]:
+def get_all_rules() -> list[Rule]:
     """
     Get all available MVP rules.
 

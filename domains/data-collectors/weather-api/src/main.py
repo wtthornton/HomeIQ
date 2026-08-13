@@ -12,6 +12,7 @@ credential. It is queried by coordinate rather than city name.
 from __future__ import annotations
 
 import asyncio
+import time
 from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
@@ -246,7 +247,7 @@ class WeatherService:
         """Fetch current weather data from the Open-Meteo API.
 
         Returns:
-            Weather data dictionary with temperature, humidity, etc., or cached data on failure.
+            Weather dict on a fresh successful fetch, None on any failure.
         """
         if not self.session or self.session.closed:
             raise RuntimeError("HTTP session not initialized")
@@ -273,13 +274,17 @@ class WeatherService:
                         self.latitude,
                         self.longitude,
                     )
-                    return self.cached_weather
+                    # None = fetch failed. Returning the stale cache here made
+                    # the caller stamp last_successful_fetch on FAILED fetches
+                    # and re-write stale rows to InfluxDB — readiness stayed
+                    # green through a total upstream outage (TAP-5903).
+                    return None
 
                 data = await response.json()
                 current = data.get("current") or {}
                 if not current:
                     logger.error("Open-Meteo response carried no `current` block")
-                    return self.cached_weather
+                    return None
 
                 code = int(current.get("weather_code", -1))
                 condition, description = WMO_WEATHER_CODES.get(code, ("Unknown", ""))
@@ -305,7 +310,7 @@ class WeatherService:
 
         except Exception as e:
             logger.error("Error fetching weather: %s", e)
-            return self.cached_weather
+            return None
 
     async def get_current_weather(self) -> dict[str, Any] | None:
         """Get current weather using cache-first strategy with thundering herd protection.
@@ -341,8 +346,11 @@ class WeatherService:
 
                 # Write to InfluxDB
                 await self.store_in_influxdb(weather)
+                return weather
 
-            return weather
+            # Fetch failed: serve the stale cache WITHOUT stamping freshness —
+            # /ready must go red when the upstream stays down (TAP-5903).
+            return self.cached_weather
 
     async def store_in_influxdb(self, weather: dict[str, Any]) -> None:
         """Store weather data in InfluxDB with retry and fallback hostname logic.
@@ -542,6 +550,27 @@ _health = StandardHealthCheck(
     service_name=settings.service_name,
     version=SERVICE_VERSION,
 )
+
+# Readiness (TAP-5903): a collector whose last successful upstream fetch is
+# older than 2× its poll interval is not ready — running-but-fetchless looked
+# identical to healthy for ten days. Startup grace: no fetch yet is ready
+# while uptime is inside the first interval.
+_READY_START = time.monotonic()
+
+
+async def _check_recent_fetch() -> dict[str, Any]:
+    interval = settings.cache_ttl_seconds
+    if weather_service is None:
+        return {"ok": False, "reason": "service not started"}
+    last = weather_service.last_successful_fetch
+    if last is None:
+        in_grace = (time.monotonic() - _READY_START) <= interval
+        return {"ok": in_grace, "last_successful_fetch": None, "startup_grace": in_grace}
+    age = (datetime.now(UTC) - last).total_seconds()
+    return {"ok": age <= interval * 2, "last_successful_fetch_age_s": round(age)}
+
+
+_health.register_check("recent_fetch", _check_recent_fetch)
 
 
 # ---------------------------------------------------------------------------

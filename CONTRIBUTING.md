@@ -24,7 +24,7 @@ git checkout -b feature/your-feature-name
 ### Local full stack (optional)
 
 - Copy `infrastructure/env.example` to **`.env` in the repo root** (Compose and `start-stack` expect this path).
-- Start everything: `./scripts/start-stack.sh` or `.\scripts\start-stack.ps1` (ordered domains + `--profile production`).
+- Start everything: `./scripts/start-stack.sh` or `.\scripts\start-stack.ps1` (ordered domains + `--profile production`). Default starts reuse image caches; `STACK_REFRESH=1` opts in to `--pull always --force-recreate`.
 - Do not use bare `docker compose up` from the repo root for routine work — see [docs/deployment/DEPLOYMENT_QUICK_REFERENCE.md](docs/deployment/DEPLOYMENT_QUICK_REFERENCE.md).
 
 ### Docker Security Requirements

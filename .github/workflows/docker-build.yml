@@ -3,8 +3,14 @@ name: Docker Build and Test
 on:
   pull_request:
     paths:
+      # Root-level and nested patterns are both listed: GitHub's path matcher
+      # treats '*' as not crossing '/', and '**/x' is not documented to match
+      # a root-level 'x', so the bare patterns keep root compose files covered.
       - '**/Dockerfile*'
       - 'docker-compose*.yml'
+      - 'compose*.yml'
+      - '**/docker-compose*.yml'
+      - '**/compose*.yml'
       - '.github/workflows/docker-build.yml'
   workflow_dispatch: {}
 
@@ -13,6 +19,9 @@ env:
   COMPOSE_DOCKER_CLI_BUILD: 1
 
 jobs:
+  # Compose file parse validation lives in compose-parse.yml, which runs on
+  # every PR unfiltered — a path filter here would skip the nonstandard-name
+  # detector for exactly the files it exists to catch (TAP-5289).
   build:
     name: Build Docker Images
     runs-on: ubuntu-latest

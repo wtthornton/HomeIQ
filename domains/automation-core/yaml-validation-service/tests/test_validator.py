@@ -56,17 +56,27 @@ action:
         assert any("trigger" in error.lower() for error in result["errors"])
         assert any("action" in error.lower() for error in result["errors"])
 
-    def test_schema_validation_plural_keys(self, validator):
-        """Test schema validation detects plural keys."""
+    def test_schema_validation_accepts_modern_plural_keys(self, validator):
+        """Modern (2024.10+) plural keys are the recommended HA form — valid."""
         data = {
-            "triggers": [{"platform": "time", "at": "07:00:00"}],
-            "actions": [{"service": "light.turn_on"}],
+            "triggers": [{"trigger": "time", "at": "07:00:00"}],
+            "actions": [{"action": "light.turn_on"}],
+        }
+
+        result = validator._validate_schema(data)
+        assert result["valid"] is True, result["errors"]
+
+    def test_schema_validation_rejects_mixed_forms(self, validator):
+        """A section present in both singular and plural form is ambiguous."""
+        data = {
+            "trigger": [{"platform": "time", "at": "07:00:00"}],
+            "triggers": [{"trigger": "time", "at": "08:00:00"}],
+            "actions": [{"action": "light.turn_on"}],
         }
 
         result = validator._validate_schema(data)
         assert result["valid"] is False
-        assert any("triggers" in error.lower() for error in result["errors"])
-        assert any("actions" in error.lower() for error in result["errors"])
+        assert any("both" in error.lower() for error in result["errors"])
 
     def test_entity_extraction_known_locations(self, validator):
         """Test entity extraction only from known locations (Epic 51.7)."""

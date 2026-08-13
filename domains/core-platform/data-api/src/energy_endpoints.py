@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from influxdb_client import InfluxDBClient
 from pydantic import BaseModel
 
-from .flux_utils import sanitize_flux_value
+from .flux_utils import flux_time, sanitize_flux_value
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +136,7 @@ async def get_energy_correlations(
 
         flux_query = f'''
         from(bucket: "{bucket}")
-          |> range(start: {start_time.isoformat()}Z)
+          |> range(start: {flux_time(start_time)})
           |> filter(fn: (r) => r["_measurement"] == "event_energy_correlation")
           |> filter(fn: (r) => {filter_clause})
           |> filter(fn: (r) => r["_field"] == "power_delta_w" and (r["_value"] >= {min_delta} or r["_value"] <= -{min_delta}))
@@ -237,7 +237,7 @@ async def get_circuit_power(hours: int = Query(1, description="Hours of history"
 
         flux_query = f'''
         from(bucket: "{bucket}")
-          |> range(start: {start_time.isoformat()}Z)
+          |> range(start: {flux_time(start_time)})
           |> filter(fn: (r) => r["_measurement"] == "smart_meter_circuit")
           |> filter(fn: (r) => r["_field"] == "power_w")
           |> group(columns: ["circuit_name"])
@@ -298,7 +298,7 @@ async def get_device_energy_impact(
         # Query ON transitions
         flux_on = f'''
         from(bucket: "{bucket}")
-          |> range(start: {start_time.isoformat()}Z)
+          |> range(start: {flux_time(start_time)})
           |> filter(fn: (r) => r["_measurement"] == "event_energy_correlation")
           |> filter(fn: (r) => r["entity_id"] == "{entity_id_safe}")
           |> filter(fn: (r) => r["state"] == "on")
@@ -309,7 +309,7 @@ async def get_device_energy_impact(
         # Query OFF transitions
         flux_off = f'''
         from(bucket: "{bucket}")
-          |> range(start: {start_time.isoformat()}Z)
+          |> range(start: {flux_time(start_time)})
           |> filter(fn: (r) => r["_measurement"] == "event_energy_correlation")
           |> filter(fn: (r) => r["entity_id"] == "{entity_id_safe}")
           |> filter(fn: (r) => r["state"] == "off")
@@ -320,7 +320,7 @@ async def get_device_energy_impact(
         # Count total state changes
         flux_count = f'''
         from(bucket: "{bucket}")
-          |> range(start: {start_time.isoformat()}Z)
+          |> range(start: {flux_time(start_time)})
           |> filter(fn: (r) => r["_measurement"] == "event_energy_correlation")
           |> filter(fn: (r) => r["entity_id"] == "{entity_id_safe}")
           |> filter(fn: (r) => r["_field"] == "power_delta_w")
@@ -407,7 +407,7 @@ async def get_energy_statistics(
         # Peak power in period
         flux_peak = f'''
         from(bucket: "{bucket}")
-          |> range(start: {start_time.isoformat()}Z)
+          |> range(start: {flux_time(start_time)})
           |> filter(fn: (r) => r["_measurement"] == "smart_meter")
           |> filter(fn: (r) => r["_field"] == "total_power_w")
           |> max()
@@ -416,7 +416,7 @@ async def get_energy_statistics(
         # Average power
         flux_avg = f'''
         from(bucket: "{bucket}")
-          |> range(start: {start_time.isoformat()}Z)
+          |> range(start: {flux_time(start_time)})
           |> filter(fn: (r) => r["_measurement"] == "smart_meter")
           |> filter(fn: (r) => r["_field"] == "total_power_w")
           |> mean()
@@ -425,7 +425,7 @@ async def get_energy_statistics(
         # Count correlations
         flux_correlations = f'''
         from(bucket: "{bucket}")
-          |> range(start: {start_time.isoformat()}Z)
+          |> range(start: {flux_time(start_time)})
           |> filter(fn: (r) => r["_measurement"] == "event_energy_correlation")
           |> filter(fn: (r) => r["_field"] == "power_delta_w")
           |> count()
@@ -509,7 +509,7 @@ async def get_top_energy_consumers(
         # Get average power delta by entity (ON transitions only)
         flux_query = f'''
         from(bucket: "{bucket}")
-          |> range(start: {start_time.isoformat()}Z)
+          |> range(start: {flux_time(start_time)})
           |> filter(fn: (r) => r["_measurement"] == "event_energy_correlation")
           |> filter(fn: (r) => r["state"] == "on")
           |> filter(fn: (r) => r["_field"] == "power_delta_w")
@@ -657,7 +657,7 @@ async def get_carbon_intensity_trends():
         # Query for last 24 hours of data
         flux_query = f'''
         from(bucket: "{carbon_bucket}")
-          |> range(start: {start_time.isoformat()}Z)
+          |> range(start: {flux_time(start_time)})
           |> filter(fn: (r) => r["_measurement"] == "carbon_intensity")
           |> filter(fn: (r) => r["_field"] == "carbon_intensity_gco2_kwh")
           |> sort(columns: ["_time"], desc: true)

@@ -229,26 +229,31 @@ class ValidationPipeline:
             errors.append("YAML root must be a dictionary")
             return {"valid": False, "errors": errors, "warnings": warnings}
 
-        # Check required fields
-        if "trigger" not in data:
-            errors.append("Missing required field: 'trigger'")
-        elif not data["trigger"]:
-            errors.append("Field 'trigger' cannot be empty")
-        elif not isinstance(data["trigger"], list):
-            errors.append("Field 'trigger' must be a list")
+        # HA accepts two automation schemas: the modern plural form
+        # (triggers:/conditions:/actions:, 2024.10+, the recommended form on
+        # current HA) and the legacy singular form. Accept either; error only
+        # when a section appears in both forms at once.
+        if "trigger" in data and "triggers" in data:
+            errors.append("Both 'trigger' and 'triggers' present — use one form")
+        if "action" in data and "actions" in data:
+            errors.append("Both 'action' and 'actions' present — use one form")
 
-        if "action" not in data:
-            errors.append("Missing required field: 'action'")
-        elif not data["action"]:
-            errors.append("Field 'action' cannot be empty")
-        elif not isinstance(data["action"], list):
-            errors.append("Field 'action' must be a list")
+        triggers = data.get("triggers", data.get("trigger"))
+        actions = data.get("actions", data.get("action"))
 
-        # Check for deprecated plural keys
-        if "triggers" in data:
-            errors.append("Use 'trigger' (singular) not 'triggers' (plural)")
-        if "actions" in data:
-            errors.append("Use 'action' (singular) not 'actions' (plural)")
+        if triggers is None:
+            errors.append("Missing required field: 'triggers' (or legacy 'trigger')")
+        elif not triggers:
+            errors.append("Trigger section cannot be empty")
+        elif not isinstance(triggers, list):
+            errors.append("Trigger section must be a list")
+
+        if actions is None:
+            errors.append("Missing required field: 'actions' (or legacy 'action')")
+        elif not actions:
+            errors.append("Action section cannot be empty")
+        elif not isinstance(actions, list):
+            errors.append("Action section must be a list")
 
         # Recommended fields
         if "alias" not in data:
@@ -256,48 +261,56 @@ class ValidationPipeline:
         if "description" not in data:
             warnings.append("Missing recommended field: 'description'")
         if "initial_state" not in data:
-            errors.append(
-                "Missing required field: 'initial_state' (must be 'true' for 2025.10+ compliance)"
+            warnings.append(
+                "Consider 'initial_state: true' so the automation is enabled after restart"
             )
 
-        # Validate trigger structure
-        if "trigger" in data and isinstance(data["trigger"], list):
-            for i, trigger in enumerate(data["trigger"]):
+        # Validate trigger structure: each item needs modern 'trigger: <kind>'
+        # or legacy 'platform: <kind>'
+        if isinstance(triggers, list):
+            for i, trigger in enumerate(triggers):
                 if not isinstance(trigger, dict):
                     errors.append(f"Trigger {i} must be a dictionary")
-                elif "platform" not in trigger:
+                elif "platform" not in trigger and "trigger" not in trigger:
                     errors.append(
-                        f"Trigger {i} must have 'platform' field (2025.10+ format requires 'platform:' field in triggers, "
-                        "e.g., platform: state, platform: time, platform: time_pattern)"
+                        f"Trigger {i} must have a 'trigger:' (modern) or 'platform:' (legacy) field, "
+                        "e.g., trigger: state / platform: state"
                     )
 
         # Validate action structure
-        if "action" in data and isinstance(data["action"], list):
-            for i, action in enumerate(data["action"]):
+        if isinstance(actions, list):
+            for i, action in enumerate(actions):
                 if not isinstance(action, dict):
                     errors.append(f"Action {i} must be a dictionary")
-                elif "service" not in action and "scene" not in action and "delay" not in action:  # noqa: SIM102
-                    # Check for advanced actions (variables, choose, repeat, parallel, sequence)
-                    if (
-                        "variables" not in action
-                        and "choose" not in action
-                        and "repeat" not in action
-                        and "parallel" not in action
-                        and "sequence" not in action
-                    ):
-                        errors.append(
-                            f"Action {i} must have 'service', 'scene', 'delay', 'variables', or advanced action type "
-                            "(2025.10+ format requires 'service:' field in actions, e.g., service: light.turn_on)"
-                        )
-                # Validate target structure for service actions
-                if "service" in action and "target" in action:
+                elif not any(
+                    key in action
+                    for key in (
+                        "action",  # modern 'action: domain.service'
+                        "service",  # legacy 'service: domain.service'
+                        "scene",
+                        "delay",
+                        # advanced action types
+                        "variables",
+                        "choose",
+                        "repeat",
+                        "parallel",
+                        "sequence",
+                    )
+                ):
+                    errors.append(
+                        f"Action {i} must have 'action:' (modern), 'service:' (legacy), 'scene', "
+                        "'delay', 'variables', or an advanced action type, e.g., action: light.turn_on"
+                    )
+                # Validate target structure for service-call actions
+                has_call = isinstance(action, dict) and ("service" in action or "action" in action)
+                if has_call and "target" in action:
                     if not isinstance(action["target"], dict):
                         errors.append(
-                            f"Action {i}: 'target' must be a dictionary (2025.10+ format uses target: {{entity_id: ...}} or target: {{area_id: ...}})"
+                            f"Action {i}: 'target' must be a dictionary (target: {{entity_id: ...}} or target: {{area_id: ...}})"
                         )
-                elif "service" in action and "entity_id" in action and "target" not in action:
+                elif has_call and "entity_id" in action and "target" not in action:
                     warnings.append(
-                        f"Action {i}: entity_id should be inside 'target:' structure for 2025.10+ compliance. "
+                        f"Action {i}: entity_id should be inside 'target:' structure. "
                         "Use target: {entity_id: ...} instead of entity_id: ... directly in action."
                     )
 
@@ -325,6 +338,11 @@ class ValidationPipeline:
             if entity_ids:
                 # Fetch entities from Data API
                 entities = await self.data_api_client.fetch_entities()
+                if entities is None:
+                    warnings.append(
+                        "Entity validation skipped: data-api entity list unavailable"
+                    )
+                    return {"valid": True, "errors": errors, "warnings": warnings}
                 valid_entity_ids = {e.get("entity_id") for e in entities if e.get("entity_id")}
 
                 # Build entity state map for state validation
@@ -399,10 +417,13 @@ class ValidationPipeline:
             "fan": ["on", "off", "unavailable"],
         }
 
-        # Extract state triggers and validate
-        if "trigger" in data and isinstance(data["trigger"], list):
-            for trigger in data["trigger"]:
-                if isinstance(trigger, dict) and trigger.get("platform") == "state":
+        # Extract state triggers and validate (modern plural or legacy singular)
+        state_triggers = data.get("triggers", data.get("trigger"))
+        if isinstance(state_triggers, list):
+            for trigger in state_triggers:
+                if isinstance(trigger, dict) and (
+                    trigger.get("platform") == "state" or trigger.get("trigger") == "state"
+                ):
                     entity_id = trigger.get("entity_id")
                     to_state = trigger.get("to")
                     _from_state = trigger.get("from")  # noqa: F841
@@ -690,18 +711,19 @@ class ValidationPipeline:
         Returns:
             True if delay found before critical actions
         """
-        if "action" not in data or not isinstance(data["action"], list):
+        action_list = data.get("actions", data.get("action"))
+        if not isinstance(action_list, list):
             return False
 
         # Check if delay appears before critical services in action sequence
-        for i, action in enumerate(data["action"]):
+        for i, action in enumerate(action_list):
             if isinstance(action, dict):
-                # Check if this is a critical service
-                service = action.get("service")
+                # Check if this is a critical service (modern 'action:' or legacy 'service:')
+                service = action.get("service") or action.get("action")
                 if service in services:
                     # Check previous actions for delay
                     for j in range(i):
-                        prev_action = data["action"][j]
+                        prev_action = action_list[j]
                         if isinstance(prev_action, dict):
                             if "delay" in prev_action:
                                 return True
@@ -797,8 +819,9 @@ class ValidationPipeline:
             warnings.append("Use 'error' field instead of deprecated 'continue_on_error'")
 
         # Check action items for deprecated error handling
-        if "action" in data and isinstance(data["action"], list):
-            for i, action in enumerate(data["action"]):
+        style_actions = data.get("actions", data.get("action"))
+        if isinstance(style_actions, list):
+            for i, action in enumerate(style_actions):
                 if isinstance(action, dict) and "continue_on_error" in action:
                     warnings.append(
                         f"Action {i}: Use 'error' field instead of deprecated 'continue_on_error'"
@@ -1026,10 +1049,12 @@ class ValidationPipeline:
             services = []
 
         if isinstance(data, dict):
-            # Extract from service field (actions)
-            if "service" in data:
-                service = data["service"]
-                # Validate service format: domain.service_name
+            # Extract from legacy 'service:' or modern 'action:' fields. A
+            # modern service call is {"action": "domain.service", ...}; the
+            # legacy top-level action list has a list value, so the str check
+            # keeps container keys out.
+            for field in ("service", "action"):
+                service = data.get(field)
                 if (isinstance(service, str) and "." in service) and (
                     self._is_valid_service_name(service)
                 ):

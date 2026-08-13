@@ -1,5 +1,10 @@
 # HA Setup Service - Comprehensive Code Review
 
+> **Historical note (2026-08-12):** `docker-compose.service.yml`, referenced in
+> several findings below, was deleted under TAP-5289 — it was an unparseable
+> copy-paste fragment. The live service definition is in
+> `domains/device-management/compose.yml`.
+
 **Service**: ha-setup-service (Tier 2, Port 8024/8020)
 **Date**: 2026-02-06
 **Reviewer**: Claude Opus 4.6 Deep Review
@@ -969,7 +974,7 @@ Currently, some health check endpoints both read status AND write to the databas
 
 - `bridge_endpoints.py` - entire file is dead code (router never registered)
 - `health_service.py:_calculate_health_score` - dead method replaced by `scoring_algorithm.py`
-- `health_service.py:_check_zigbee2mqtt_integration` - method defined but never called from `_check_integrations`
+- `health_service.py:_check_zigbee2mqtt_integration` - method defined but never called from `_check_integrations` — **resolved 2026-08-13 (TAP-5921):** deleted along with `integration_checker.py:check_zigbee2mqtt_integration` and the scoring filter
 
 ### A7. Add Request Rate Limiting
 

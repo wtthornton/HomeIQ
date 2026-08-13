@@ -2,9 +2,11 @@
 
 **Automated health monitoring, setup assistance, and performance optimization for Home Assistant**
 
-**Port:** 8020 (internal), exposed as 8027 (external)
+**Port:** 8020 (internal), exposed as **8024** (host)
 **Technology:** Python 3.11+, FastAPI, SQLAlchemy, AsyncIO
-**Container:** homeiq-ha-setup-service
+**Container:** homeiq-setup-service
+**Init gateway:** `/api/v1/init/audit` (read-only) and `/api/v1/init/converge` (backup-gated) — see `docs/operations/init-gateway.md`
+**Tests:** `.venv/bin/python -m pytest domains/device-management/ha-setup-service/tests -q` — run this tree **separately** from `libs/homeiq-ha` (both expose a `tests` package; a combined invocation fails collection on `tests.path_setup`)
 **Database:** PostgreSQL (schema: `devices`)
 **Scale:** Optimized for single Home Assistant instance
 

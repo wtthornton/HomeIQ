@@ -21,6 +21,7 @@ defaults to a self-hosted runner (also free).
 | `integration-tests` | push to `master`/`main` + PR |
 | `codeql-analysis` | push + PR + weekly (Mon 06:00 UTC) |
 | `docker-build`, `docker-test` | PR touching a Dockerfile or compose file |
+| `compose-parse` | every PR (deliberately unfiltered — it detects compose files under names the path filters would miss) |
 | `docker-security-scan` | PR touching a Dockerfile + weekly (Mon 06:00 UTC) |
 | `agentic-pr-review` | PR |
 | `dependabot-auto-merge` | Dependabot PRs |

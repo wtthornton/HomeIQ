@@ -4,11 +4,21 @@ Configuration Manager - Simple .env file reader/writer
 
 import logging
 import os
+import re
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 SENSITIVE_KEY_PATTERNS = ("TOKEN", "API_KEY", "SECRET", "PASSWORD", "PRIVATE_KEY", "ACCESS_KEY")
+#: URL userinfo credentials (scheme://user:pass@) make a VALUE sensitive
+#: regardless of its key name (TAP-6007) — kept in lockstep with the
+#: data-api copy of this module.
+# User may be EMPTY (redis://:pw@h is the canonical Redis/Celery shape).
+# The password class deliberately excludes "/": RFC 3986 excludes it from
+# userinfo (literal-slash passwords are malformed; percent-encoded forms
+# still match), and admitting it let a port colon swallow the URL path,
+# false-positiving on values like http://host:8123/u/me@example.com.
+EMBEDDED_CREDENTIAL_RE = re.compile(r"[a-z][a-z0-9+.-]*://[^/@\s]*:[^/@\s]+@", re.IGNORECASE)
 MASK_VALUE = "********"
 
 
@@ -111,7 +121,9 @@ class ConfigManager:
             raise FileNotFoundError(f"Configuration file not found: {env_file}")
 
         if not self.allow_secret_writes:
-            blocked = [key for key in updates if self._is_sensitive_key(key)]
+            blocked = [
+                key for key, value in updates.items() if self._is_sensitive(key, value)
+            ]
             if blocked:
                 raise PermissionError(
                     f"Updating sensitive keys via API is disabled: {', '.join(blocked)}"
@@ -357,15 +369,18 @@ class ConfigManager:
         """Return a copy of the provided config with sensitive values masked."""
         sanitized: dict[str, str] = {}
         for key, value in config.items():
-            if self._is_sensitive_key(key) and value:
+            if self._is_sensitive(key, value) and value:
                 sanitized[key] = MASK_VALUE
             else:
                 sanitized[key] = value
         return sanitized
 
-    def _is_sensitive_key(self, key: str) -> bool:
+    def _is_sensitive(self, key: str, value: str = "") -> bool:
+        """Sensitive by key name OR by an embedded value credential."""
         upper_key = key.upper()
-        return any(pattern in upper_key for pattern in SENSITIVE_KEY_PATTERNS)
+        if any(pattern in upper_key for pattern in SENSITIVE_KEY_PATTERNS):
+            return True
+        return bool(value and EMBEDDED_CREDENTIAL_RE.search(value))
 
 
 # Global instance

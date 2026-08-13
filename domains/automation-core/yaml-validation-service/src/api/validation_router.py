@@ -57,7 +57,13 @@ async def validate_yaml(
         # Initialize clients
         data_api_client = None
         if request.validate_entities and settings.enable_entity_validation:
-            api_key = settings.data_api_key or settings.api_key
+            # data_api_key is a SecretStr — unwrap it, or the Bearer header
+            # carries the masked "**********" placeholder and data-api 401s.
+            api_key = (
+                settings.data_api_key.get_secret_value()
+                if settings.data_api_key
+                else settings.api_key
+            )
             data_api_client = DataAPIClient(base_url=settings.data_api_url, api_key=api_key)
 
         ha_client = None

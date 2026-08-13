@@ -11,8 +11,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from homeiq_ha.client import HAWebSocketClient
 from src.clients.ha_rest_client import HARestClient
-from src.clients.ha_websocket_client import HAWebSocketClient
 from src.registry.spec_registry import SpecRegistry
 
 

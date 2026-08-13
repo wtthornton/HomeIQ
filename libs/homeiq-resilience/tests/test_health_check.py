@@ -110,3 +110,71 @@ class TestStandardHealthCheck:
         data = resp.json()
         assert data["status"] == "healthy"
         assert data["service"] == "test-service"
+
+
+class TestReadyEndpoint:
+    """/ready is strict, dependency-aware readiness (TAP-5903)."""
+
+    @pytest.mark.asyncio
+    async def test_no_checks_registered_is_not_ready(self, app):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
+            resp = await c.get("/ready")
+        assert resp.status_code == 503
+        body = resp.json()
+        assert body["ready"] is False
+        assert "no readiness checks registered" in body["reason"]
+
+    @pytest.mark.asyncio
+    async def test_all_passing_checks_is_ready(self, health, app):
+        async def ok_check() -> bool:
+            return True
+
+        health.register_check("upstream", ok_check)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
+            resp = await c.get("/ready")
+        assert resp.status_code == 200
+        assert resp.json()["ready"] is True
+
+    @pytest.mark.asyncio
+    async def test_failing_check_is_503_and_named(self, health, app):
+        async def ok_check() -> bool:
+            return True
+
+        async def stale_fetch() -> bool:
+            return False
+
+        health.register_check("upstream", ok_check)
+        health.register_check("recent_fetch", stale_fetch)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
+            resp = await c.get("/ready")
+        assert resp.status_code == 503
+        body = resp.json()
+        assert body["ready"] is False
+        assert "recent_fetch" in body["reason"]
+
+    @pytest.mark.asyncio
+    async def test_detail_dict_passes_through(self, health, app):
+        async def detail_check():
+            return {"ok": True, "last_successful_fetch_age_s": 42, "credential_present": True}
+
+        health.register_check("feed", detail_check)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
+            resp = await c.get("/ready")
+        assert resp.status_code == 200
+        check = resp.json()["checks"][0]
+        assert check["ok"] is True
+        assert check["detail"]["last_successful_fetch_age_s"] == 42
+        assert check["detail"]["credential_present"] is True
+
+    @pytest.mark.asyncio
+    async def test_health_stays_liveness_200_while_ready_is_503(self, health, app):
+        async def failing() -> bool:
+            return False
+
+        health.register_check("dep", failing)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
+            health_resp = await c.get("/health")
+            ready_resp = await c.get("/ready")
+        assert health_resp.status_code == 200  # Docker restarts on this; body may degrade
+        assert health_resp.json()["status"] == "unhealthy"
+        assert ready_resp.status_code == 503

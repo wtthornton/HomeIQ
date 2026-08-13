@@ -219,14 +219,56 @@ async def test_supervisor_api_passes_its_own_timeout_field():
     client = make_client(lambda m: ok(m, {"addons": []}))
     ws = await connect_fake(client)
     try:
-        await client.supervisor_api(
-            "/store/addons/core_ssh/install", method="post", timeout=900
-        )
+        await client.supervisor_api("/store/addons/core_ssh/install", method="post", timeout=900)
         sent = ws.sent[-1]
         assert sent["type"] == "supervisor/api"
         assert sent["endpoint"] == "/store/addons/core_ssh/install"
         assert sent["method"] == "post"
         assert sent["timeout"] == 900
+    finally:
+        await client.close()
+
+
+# --- supervisor logs (TAP-5984) --------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_supervisor_api_refuses_log_endpoints_with_guidance():
+    """Home Assistant's supervisor/api handler JSON-decodes every Supervisor
+    response, so text log endpoints always die as an opaque unknown_error
+    (reproduced live 2026-08-13 on HA 2026.8.1). The client refuses them up
+    front and names the working path instead."""
+    client = make_client(lambda m: ok(m))
+    await connect_fake(client)
+    try:
+        for endpoint in (
+            "/core/logs",
+            "/supervisor/logs",
+            "/addons/core_ssh/logs",
+            "/host/logs/boots/0",
+        ):
+            with pytest.raises(ValueError, match="get_supervisor_logs"):
+                await client.supervisor_api(endpoint)
+    finally:
+        await client.close()
+
+
+@pytest.mark.asyncio
+async def test_supervisor_api_still_forwards_non_log_endpoints():
+    client = make_client(lambda m: ok(m, {"result": "ok"}))
+    ws = await connect_fake(client)
+    try:
+        await client.supervisor_api("/addons")
+        assert ws.sent[-1]["endpoint"] == "/addons"
+        # /host/logs/boots and /host/logs/identifiers are JSON collection
+        # endpoints (verified live, HA 2026.8.1) — the guard must let them
+        # through, while their text entry sub-paths stay blocked.
+        await client.supervisor_api("/host/logs/boots")
+        assert ws.sent[-1]["endpoint"] == "/host/logs/boots"
+        await client.supervisor_api("/host/logs/identifiers")
+        assert ws.sent[-1]["endpoint"] == "/host/logs/identifiers"
+        with pytest.raises(ValueError, match="get_supervisor_logs"):
+            await client.supervisor_api("/host/logs/boots/0")
     finally:
         await client.close()
 
@@ -263,9 +305,7 @@ async def test_config_flow_completes():
 async def test_external_step_surfaces_as_a_human_gate():
     """OAuth flows return type=external and core refuses client advancement.
     Gating on `type` is what makes this surface instead of failing obscurely."""
-    rest = FakeRest(
-        [{"type": "external", "flow_id": "f1", "url": "https://accounts.google.com/x"}]
-    )
+    rest = FakeRest([{"type": "external", "flow_id": "f1", "url": "https://accounts.google.com/x"}])
     with pytest.raises(HAHumanGateRequired) as excinfo:
         await rest.run_config_flow("google_drive", [])
     assert excinfo.value.external_url == "https://accounts.google.com/x"
@@ -326,3 +366,57 @@ def test_ha_client_from_env_requires_credentials(monkeypatch):
         monkeypatch.delenv(name, raising=False)
     with pytest.raises(Exception, match="HOME_ASSISTANT_URL"):
         HAClient.from_env()
+
+
+@pytest.mark.asyncio
+async def test_event_frames_before_the_result_do_not_resolve_the_command():
+    """Subscription-style commands (zha/devices/permit) stream event frames
+    under the same id before their result. Observed live 2026-08-12: the
+    permit call reported an empty "unknown" error while succeeding, because
+    the first event frame resolved the future."""
+
+    def responder(message: dict[str, Any]) -> dict[str, Any] | None:
+        if message.get("type") == "zha/devices/permit":
+            # Queue two event frames, then the real result, all same id.
+            ws = client._ws  # noqa: SLF001 - test seam
+            for _ in range(2):
+                ws._outbox.put_nowait(  # noqa: SLF001
+                    json.dumps(
+                        {
+                            "id": message["id"],
+                            "type": "event",
+                            "event": {"type": "log_output"},
+                        }
+                    )
+                )
+            return ok(message, None)
+        return ok(message, None)
+
+    client = make_client(responder)
+    await connect_fake(client)
+
+    result = await client.send_command("zha/devices/permit", duration=60)
+
+    assert result is None  # success: the result frame, not an event, resolved it
+    await client.close()
+
+
+# --- supervisor logs via REST (TAP-5984) ------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_supervisor_logs_uses_the_rest_proxy_and_returns_text():
+    """The core's /api/hassio proxy forwards journald text untouched — the
+    supported log path, since the WS passthrough can only carry JSON."""
+    rest = FakeRest(["2026-08-13 00:00:00 INFO booting\n2026-08-13 00:00:01 INFO ready"])
+    text = await rest.get_supervisor_logs()
+    assert rest.calls == [("GET", "/api/hassio/core/logs")]
+    assert "INFO ready" in text.splitlines()[-1]
+
+
+@pytest.mark.asyncio
+async def test_get_supervisor_logs_targets_the_requested_endpoint():
+    rest = FakeRest(["addon log line"])
+    text = await rest.get_supervisor_logs("/addons/core_ssh/logs")
+    assert rest.calls == [("GET", "/api/hassio/addons/core_ssh/logs")]
+    assert text == "addon log line"

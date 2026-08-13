@@ -17,7 +17,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import get_settings
 from .http_client import get_http_session
-from .integration_checker import IntegrationHealthChecker
 from .models import EnvironmentHealth
 from .schemas import (
     EnvironmentHealthResponse,
@@ -396,39 +395,6 @@ class HealthMonitoringService:
                 "last_check": datetime.now(UTC),
             }
 
-    async def _check_zigbee2mqtt_integration(self) -> dict:
-        """
-        Check Zigbee2MQTT status using Home Assistant API.
-
-        Uses HA API to check for Zigbee2MQTT entities, which is simpler
-        and more reliable than MQTT subscription for health monitoring.
-        """
-        try:
-            integration_checker = IntegrationHealthChecker()
-            result = await integration_checker.check_zigbee2mqtt_integration()
-
-            return {
-                "name": result.integration_name,
-                "type": result.integration_type,
-                "status": result.status.value,
-                "is_configured": result.is_configured,
-                "is_connected": result.is_connected,
-                "error_message": result.error_message,
-                "check_details": {**(result.check_details or {}), "monitoring_method": "ha_api"},
-                "last_check": result.last_check,
-            }
-        except Exception as e:
-            return {
-                "name": "Zigbee2MQTT",
-                "type": "zigbee2mqtt",
-                "status": IntegrationStatus.ERROR.value,
-                "is_configured": False,
-                "is_connected": False,
-                "error_message": f"HA API check failed: {str(e)}",
-                "check_details": {"error_type": type(e).__name__},
-                "last_check": datetime.now(UTC),
-            }
-
     async def _check_data_api(self) -> dict:
         """Check HA Ingestor Data API status"""
         try:
@@ -521,10 +487,6 @@ class HealthMonitoringService:
             issues.append(f"Home Assistant core status: {ha_status.get('status')}")
 
         for integration in integrations:
-            # Skip Zigbee2MQTT - it's just MQTT with a different topic, not a separate integration
-            if integration.get("type") == "zigbee2mqtt":
-                continue
-
             if integration.get("status") != IntegrationStatus.HEALTHY.value:
                 issues.append(
                     f"{integration.get('name')} integration: {integration.get('status')} "

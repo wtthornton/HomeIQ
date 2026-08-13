@@ -5,7 +5,7 @@ Converts raw YAML to internal representation (IR).
 
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import yaml
 
@@ -24,7 +24,7 @@ class YAMLParseError(Exception):
 class AutomationParser:
     """Parse and normalize automation YAML to IR."""
 
-    def parse(self, yaml_content: str) -> Tuple[List[AutomationIR], List[Finding]]:
+    def parse(self, yaml_content: str) -> tuple[list[AutomationIR], list[Finding]]:
         """
         Parse YAML content and return normalized IR + parse errors.
 
@@ -34,7 +34,7 @@ class AutomationParser:
         Returns:
             Tuple of (automations list, parse findings list)
         """
-        findings: List[Finding] = []
+        findings: list[Finding] = []
 
         # Step 1: Parse YAML
         try:
@@ -64,7 +64,7 @@ class AutomationParser:
         automations_list = self._normalize_to_list(data, findings)
 
         # Step 3: Convert to IR
-        ir_automations: List[AutomationIR] = []
+        ir_automations: list[AutomationIR] = []
         for idx, auto_dict in enumerate(automations_list):
             ir = self._dict_to_ir(auto_dict, idx, findings)
             if ir:
@@ -72,7 +72,7 @@ class AutomationParser:
 
         return ir_automations, findings
 
-    def _normalize_to_list(self, data: Any, findings: List[Finding]) -> List[Dict[str, Any]]:
+    def _normalize_to_list(self, data: Any, findings: list[Finding]) -> list[dict[str, Any]]:
         """
         Normalize various formats to a list of automation dicts.
 
@@ -85,7 +85,8 @@ class AutomationParser:
         """
         if isinstance(data, dict):
             # Check if it's a single automation or a package format
-            if "trigger" in data or "action" in data:
+            # (legacy singular keys or modern 2024.10+ plural keys)
+            if any(k in data for k in ("trigger", "triggers", "action", "actions")):
                 # Single automation
                 return [data]
             else:
@@ -114,8 +115,8 @@ class AutomationParser:
         self,
         data: Any,
         index: int,
-        findings: List[Finding]
-    ) -> Optional[AutomationIR]:
+        findings: list[Finding]
+    ) -> AutomationIR | None:
         """
         Convert a single automation dict to IR.
 
@@ -148,21 +149,23 @@ class AutomationParser:
             path=f"automations[{index}]"
         )
 
-        # Parse triggers
-        triggers = data.get("trigger", [])
+        # Parse triggers — modern (2024.10+) plural "triggers" with per-item
+        # "trigger: <kind>" keys, or legacy singular "trigger" with "platform:".
+        triggers = data.get("triggers", data.get("trigger", []))
         if not isinstance(triggers, list):
             triggers = [triggers]
         ir.trigger = [
             TriggerIR(
-                platform=t.get("platform", "unknown") if isinstance(t, dict) else "unknown",
+                platform=(t.get("platform") or t.get("trigger") or "unknown")
+                if isinstance(t, dict) else "unknown",
                 raw=t if isinstance(t, dict) else {},
                 path=f"{ir.path}.trigger[{i}]"
             )
             for i, t in enumerate(triggers)
         ]
 
-        # Parse conditions
-        conditions = data.get("condition", [])
+        # Parse conditions (modern plural "conditions" or legacy "condition")
+        conditions = data.get("conditions", data.get("condition", []))
         if not isinstance(conditions, list):
             conditions = [conditions]
         ir.condition = [
@@ -174,13 +177,14 @@ class AutomationParser:
             for i, c in enumerate(conditions)
         ]
 
-        # Parse actions
-        actions = data.get("action", [])
+        # Parse actions — modern plural "actions" with per-item
+        # "action: <domain.service>", or legacy "action" with "service:".
+        actions = data.get("actions", data.get("action", []))
         if not isinstance(actions, list):
             actions = [actions]
         ir.action = [
             ActionIR(
-                service=a.get("service") if isinstance(a, dict) else None,
+                service=(a.get("service") or a.get("action")) if isinstance(a, dict) else None,
                 raw=a if isinstance(a, dict) else {},
                 path=f"{ir.path}.action[{i}]"
             )

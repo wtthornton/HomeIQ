@@ -19,7 +19,9 @@ from pathlib import Path
 
 from homeiq_ha.client import HAClient
 
+from .backup import backup_taker
 from .engine import HAInitAgent, Mode
+from .manifest import DEFAULT_MANIFEST_PATH, load_manifest
 from .recipes import default_recipes
 from .snapshot import Snapshot, capture, diff, restore
 
@@ -43,6 +45,11 @@ def _parser() -> argparse.ArgumentParser:
         "--baseline",
         default="ha-baseline.json",
         help="baseline file for snapshot/diff/restore (default: ha-baseline.json)",
+    )
+    parser.add_argument(
+        "--manifest",
+        default=None,
+        help=(f"organization manifest path (default: {DEFAULT_MANIFEST_PATH} when it exists)"),
     )
     parser.add_argument("-v", "--verbose", action="store_true")
     return parser
@@ -82,14 +89,17 @@ async def _run(args: argparse.Namespace) -> int:
     if args.mode in {"snapshot", "diff", "restore"}:
         return await _run_state_mode(args)
 
-    agent = HAInitAgent(default_recipes())
+    manifest = load_manifest(args.manifest) if args.manifest else None
+    agent = HAInitAgent(default_recipes(manifest))
     async with HAClient.from_env() as ha:
         if args.mode == Mode.AUDIT.value:
             report = await agent.audit(ha, only=args.only)
         elif args.mode == Mode.PLAN.value:
             report = await agent.plan(ha, phase=args.phase, only=args.only)
         else:
-            report = await agent.apply(ha, phase=args.phase, only=args.only)
+            report = await agent.apply(
+                ha, phase=args.phase, only=args.only, backup=backup_taker(ha)
+            )
 
     print(report.describe())
     if args.mode == Mode.AUDIT.value:
