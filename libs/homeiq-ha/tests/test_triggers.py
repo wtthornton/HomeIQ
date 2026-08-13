@@ -60,6 +60,7 @@ async def test_permit_retrigger_never_errors(sim: SimHA) -> None:
 
 async def test_flow_start_advances_bare_confirm_to_the_pin_form(sim: SimHA) -> None:
     """apple_tv shape: confirm (no fields) -> pairing starts -> PIN form."""
+    sim.state["flow_progress"] = [{"flow_id": "f1", "handler": "apple_tv"}]
     sim.state["flow_current_step"] = {
         "type": "form",
         "flow_id": "f1",
@@ -84,6 +85,7 @@ async def test_flow_start_is_idempotent_on_a_flow_already_at_its_pin_form(
     sim: SimHA,
 ) -> None:
     """A flow sitting at its PIN form is returned as-is — no second advance."""
+    sim.state["flow_progress"] = [{"flow_id": "f1", "handler": "androidtv_remote"}]
     sim.state["flow_current_step"] = {
         "type": "form",
         "flow_id": "f1",
@@ -95,27 +97,53 @@ async def test_flow_start_is_idempotent_on_a_flow_already_at_its_pin_form(
     assert not any(w.startswith("flow_advance") for w in sim.rest.writes)
 
 
-async def test_flow_start_never_completes_a_flow(sim: SimHA) -> None:
-    """Only empty confirm submissions ever go over the wire."""
+async def test_flow_start_refuses_a_non_readiness_flow_untouched(sim: SimHA) -> None:
+    """dlna_dmr shape: the bare confirm IS the completing step — never submit.
+
+    flow_next_step is deliberately unset: the simulator's advance defaults
+    to create_entry, so any submission here would complete the flow and
+    fail this test (the pre-fix implementation did exactly that).
+    """
+    sim.state["flow_progress"] = [{"flow_id": "f1", "handler": "dlna_dmr"}]
     sim.state["flow_current_step"] = {
         "type": "form",
         "flow_id": "f1",
         "step_id": "confirm",
         "data_schema": [],
     }
-    sim.state["flow_next_step"] = {
+    result = await advance_to_readiness(sim, "f1")
+    assert result["reason"] == "not_a_readiness_flow"
+    assert result["step_type"] == "form"
+    assert "flow_inputs" not in sim.state
+    assert not any(w.startswith("flow_advance") for w in sim.rest.writes)
+
+
+async def test_flow_start_reports_a_surprise_completion_honestly(sim: SimHA) -> None:
+    """A readiness handler whose confirm completes is reported, not masked."""
+    sim.state["flow_progress"] = [{"flow_id": "f1", "handler": "apple_tv"}]
+    sim.state["flow_current_step"] = {
         "type": "form",
         "flow_id": "f1",
-        "step_id": "pair",
-        "data_schema": [{"name": "pin", "type": "string", "required": True}],
+        "step_id": "confirm",
+        "data_schema": [],
     }
-    await advance_to_readiness(sim, "f1")
-    assert all(submitted == {} for submitted in sim.state.get("flow_inputs", []))
+    # flow_next_step unset -> simulator advance returns create_entry.
+    result = await advance_to_readiness(sim, "f1")
+    assert result["step_type"] == "create_entry"
+    assert sim.state["flow_inputs"] == [{}]
+
+
+async def test_flow_start_unknown_flow_is_an_honest_not_found(sim: SimHA) -> None:
+    sim.state["flow_progress"] = []
+    result = await advance_to_readiness(sim, "ghost")
+    assert result["reason"] == "flow_not_found"
+    assert not any(w.startswith("flow_advance") for w in sim.rest.writes)
 
 
 async def test_flow_start_hops_are_bounded(sim: SimHA) -> None:
     """A flow that keeps rendering bare confirms stops after 3 hops."""
     bare = {"type": "form", "flow_id": "f1", "step_id": "confirm", "data_schema": []}
+    sim.state["flow_progress"] = [{"flow_id": "f1", "handler": "apple_tv"}]
     sim.state["flow_current_step"] = dict(bare)
     sim.state["flow_next_step"] = dict(bare)
     result = await advance_to_readiness(sim, "f1")
@@ -124,6 +152,7 @@ async def test_flow_start_hops_are_bounded(sim: SimHA) -> None:
 
 
 async def test_flow_start_surfaces_an_abort_honestly(sim: SimHA) -> None:
+    sim.state["flow_progress"] = [{"flow_id": "f1", "handler": "braviatv"}]
     sim.state["flow_current_step"] = {
         "type": "abort",
         "flow_id": "f1",

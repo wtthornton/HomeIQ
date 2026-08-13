@@ -27,18 +27,28 @@ Re-triggering permit during an open window is safe by upstream design: the
 coordinator simply restarts the window with the new duration (an extend),
 never an error.
 
-Flow triggers never complete a flow: they advance only bare confirm steps
-(a ``form`` with no input fields) with ``{}``, and stop at the first step
-that needs human-held knowledge — a PIN form, a progress step's device code,
-or a terminal state. The one deliberate exception is HACS's acknowledgement
-form (all-boolean fields), which is auto-accepted because acknowledging is
-the prerequisite for the device code this trigger exists to surface.
+Flow triggers are readiness-gated: ``advance_to_readiness`` only advances
+flows whose handler is in ``wizard.READINESS_HANDLERS`` — the set whose
+confirm steps initiate pairing and land on a human-readable step (PIN form,
+device code). For every other handler a bare confirm submission is the
+*completing* step (HA core ``helpers/config_entry_flow.py``
+``DiscoveryFlowHandler.async_step_confirm`` creates the entry on any
+non-None input — dlna_dmr, heos, denonavr all follow it), so those flows
+are refused untouched and belong to the triage ``add`` decision
+(TAP-5947), where completing is the point and is read-back verified. If a
+readiness handler nevertheless completes on a confirm, the outcome is
+reported honestly in the summary — never claimed impossible. The one
+deliberate form auto-fill is HACS's acknowledgement form (all-boolean
+fields), accepted because acknowledging is the prerequisite for the device
+code this trigger exists to surface.
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
+
+from .wizard import READINESS_HANDLERS
 
 if TYPE_CHECKING:
     from homeiq_ha.client import HAClient
@@ -88,18 +98,14 @@ async def open_permit_window(ha: HAClient, duration: int = 60) -> dict[str, Any]
     }
 
 
-async def advance_to_readiness(ha: HAClient, flow_id: str) -> dict[str, Any]:
-    """Advance a discovered flow to the step the person must act on.
+async def hop_bare_confirms(ha: HAClient, flow_id: str) -> dict[str, Any]:
+    """Advance bare confirm forms (no input fields) with ``{}``, bounded.
 
-    Re-renders the current step (GET — never a submit), then hops through
-    bare confirm forms with ``{}``. Advancing a confirm is what makes the
-    device display its PIN (apple_tv, androidtv_remote). Stops at the first
-    step with input fields, placeholders to read, or a terminal state — the
-    flow is never completed here, because completing needs the code only
-    the human can see.
-
-    Idempotent-safe: a flow already sitting at its PIN form is returned
-    as-is, without another advance.
+    Stops at the first step with input fields, placeholders to read, or a
+    terminal state. For a discovery-confirm-terminal handler the ``{}``
+    submission IS the completing step — callers own that semantic: triage
+    ``add`` wants it (and read-back verifies), ``advance_to_readiness``
+    gates on the readiness map so it never advances such a flow.
     """
     step = await ha.rest.get_config_flow(flow_id)
     for _ in range(_MAX_CONFIRM_HOPS):
@@ -107,6 +113,41 @@ async def advance_to_readiness(ha: HAClient, flow_id: str) -> dict[str, Any]:
             break
         step = await ha.rest.advance_config_flow(flow_id, {})
     return _summarize(ha, step)
+
+
+async def advance_to_readiness(ha: HAClient, flow_id: str) -> dict[str, Any]:
+    """Advance a readiness flow to the step the person must act on.
+
+    Only flows whose handler is in ``READINESS_HANDLERS`` are advanced —
+    their confirm steps initiate pairing and land on a PIN/code step
+    (apple_tv, androidtv_remote, braviatv). Any other handler's confirm
+    would complete the flow outright, so it is returned untouched with
+    ``reason: not_a_readiness_flow`` and belongs to the triage ``add``
+    decision instead. A completion is reported as its real ``step_type``
+    (``create_entry``), never masked.
+
+    Idempotent-safe: a flow already sitting at its PIN form is returned
+    as-is, without another advance.
+    """
+    flows = await ha.ws.send_command("config_entries/flow/progress") or []
+    flow = next((f for f in flows if f.get("flow_id") == flow_id), None)
+    if flow is None:
+        return {
+            "flow_id": flow_id,
+            "handler": None,
+            "step_type": None,
+            "step_id": None,
+            "description_placeholders": {},
+            "fields": [],
+            "reason": "flow_not_found",
+        }
+    if flow.get("handler") not in READINESS_HANDLERS:
+        # GET only — re-render, never a submit — so the refusal still
+        # tells the caller what step the flow is sitting on.
+        summary = _summarize(ha, await ha.rest.get_config_flow(flow_id))
+        summary["reason"] = "not_a_readiness_flow"
+        return summary
+    return await hop_bare_confirms(ha, flow_id)
 
 
 async def start_hacs(ha: HAClient) -> dict[str, Any]:
@@ -139,6 +180,7 @@ __all__ = [
     "PERMIT_COMMAND",
     "PERMIT_MAX_DURATION",
     "advance_to_readiness",
+    "hop_bare_confirms",
     "open_permit_window",
     "start_hacs",
 ]

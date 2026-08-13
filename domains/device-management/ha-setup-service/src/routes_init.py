@@ -193,10 +193,12 @@ async def pairing_permit(body: PermitRequest | None = None) -> dict[str, Any]:
 
 @init_router.post("/flows/{flow_id}/start")
 async def flow_start(flow_id: str) -> dict[str, Any]:
-    """Advance a discovered flow to its human-readable step (PIN, code).
+    """Advance a readiness flow to its human-readable step (PIN, code).
 
-    Never completes the flow — it stops at the first step needing
-    human-held knowledge and returns that step's placeholders and fields.
+    Readiness-gated: only handlers in the wizard's readiness map are
+    advanced; any other flow is returned untouched with
+    ``reason: not_a_readiness_flow`` (its confirm submission would be the
+    completing step — that is the triage ``add`` decision, TAP-5947).
     """
     try:
         async with HAClient.from_env() as ha:
