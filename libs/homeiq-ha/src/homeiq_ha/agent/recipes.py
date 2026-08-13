@@ -30,7 +30,7 @@ from .diagnostics import (
     ZigbeeCoordinatorWatchdogRecipe,
     ZigbeeMeshHealthRecipe,
 )
-from .enablement import LocalCalendarRecipe, PowercalcRecipe
+from .enablement import LocalCalendarRecipe
 from .helpers import ManifestHelpersRecipe
 from .integration import IntegrationRecipe, TeamTrackerRecipe
 from .manifest import DEFAULT_MANIFEST_PATH, OrganizationManifest, load_manifest
@@ -38,6 +38,7 @@ from .organization import (
     ManifestEntityAliasesRecipe,
     ManifestEntityLabelsRecipe,
 )
+from .powercalc import PowercalcRecipe
 from .recipe import (
     PHASE_ADDONS,
     PHASE_CORRECTNESS,

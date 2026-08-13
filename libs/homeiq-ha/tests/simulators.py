@@ -327,6 +327,9 @@ class SimRest:
 
     async def abort_config_flow(self, flow_id: str) -> None:
         self.writes.append(f"flow_abort {flow_id}")
+        self.state["flow_progress"] = [
+            f for f in self.state.get("flow_progress", []) if f.get("flow_id") != flow_id
+        ]
 
     async def get_config_flow(self, flow_id: str) -> dict[str, Any]:
         """Current-step re-render (a read), scripted via state['flow_current_step']."""
