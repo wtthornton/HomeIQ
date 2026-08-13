@@ -28,30 +28,22 @@ back to the discovery title placeholders), which survives re-discovery.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from homeiq_ha.client.errors import HACommandError
 
 from .triggers import hop_bare_confirms
+from .wizard import flow_key
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from homeiq_ha.client import HAClient
 
 DECISIONS = ("add", "ignore", "later")
 
-
-def flow_key(flow: dict[str, Any]) -> str:
-    """A flow identity that survives rescans (flow ids do not)."""
-    handler = flow.get("handler") or "unknown"
-    context = flow.get("context") or {}
-    unique_id = context.get("unique_id")
-    if unique_id:
-        return f"{handler}:{unique_id}"
-    placeholders = context.get("title_placeholders") or {}
-    suffix = ",".join(f"{k}={placeholders[k]}" for k in sorted(placeholders)) or "no-id"
-    return f"{handler}:{suffix}"
+#: Same convention as ``manifest.DEFAULT_MANIFEST_PATH``: relative to the
+#: working directory, which the gateway bind-mounts at ``config/``.
+DEFAULT_TRIAGE_STORE_PATH = Path("config/init-triage.json")
 
 
 class LaterStore:
@@ -95,15 +87,26 @@ async def _apply_add(ha: HAClient, flow_id: str) -> dict[str, Any]:
     if step["step_type"] == "form" and step["fields"]:
         return {"decision": "add", "routed": "readiness", "step": step}
     if step["step_type"] == "create_entry":
-        # Read-back: the flow's word is not the proof — the entry existing is.
+        # Read-back: the flow's word is not the proof — the entry existing
+        # is. Match the created entry's id when the response carries it; a
+        # domain match alone could be a pre-existing sibling entry, so it
+        # is labelled as the weaker read-back that it is.
         entries = await ha.rest.get_config_entries()
-        entry = next(
-            (e for e in entries if e.get("domain") == step.get("handler")), None
-        )
+        if step.get("entry_id"):
+            entry = next(
+                (e for e in entries if e.get("entry_id") == step["entry_id"]), None
+            )
+            read_back = "entry_id"
+        else:
+            entry = next(
+                (e for e in entries if e.get("domain") == step.get("handler")), None
+            )
+            read_back = "domain"
         return {
             "decision": "add",
-            "completed": True,
+            "completed": entry is not None,
             "entry_state": entry.get("state") if entry else None,
+            "read_back": read_back,
             "step": step,
         }
     return {"decision": "add", "completed": False, "step": step}
@@ -147,4 +150,10 @@ async def apply_decision(
     return {"decision": "later", "deferred": True, "key": key}
 
 
-__all__ = ["DECISIONS", "LaterStore", "apply_decision", "flow_key"]
+__all__ = [
+    "DECISIONS",
+    "DEFAULT_TRIAGE_STORE_PATH",
+    "LaterStore",
+    "apply_decision",
+    "flow_key",
+]

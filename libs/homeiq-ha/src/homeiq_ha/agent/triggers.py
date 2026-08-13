@@ -70,6 +70,7 @@ def _field_names(step: dict[str, Any]) -> list[str]:
 
 def _summarize(ha: HAClient, step: dict[str, Any]) -> dict[str, Any]:
     """The step facts the wizard renders; never the raw HA payload."""
+    result = step.get("result")
     return {
         "flow_id": step.get("flow_id"),
         "handler": step.get("handler"),
@@ -78,6 +79,9 @@ def _summarize(ha: HAClient, step: dict[str, Any]) -> dict[str, Any]:
         "description_placeholders": step.get("description_placeholders") or {},
         "fields": _field_names(step),
         "reason": step.get("reason"),
+        # create_entry responses carry the created entry — the id is what a
+        # precise read-back (triage ``add``) matches on.
+        "entry_id": result.get("entry_id") if isinstance(result, dict) else None,
     }
 
 

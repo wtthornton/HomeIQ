@@ -98,6 +98,23 @@ def _audit_item(outcome: RecipeOutcome, area_names: list[str]) -> dict[str, Any]
     }
 
 
+def flow_key(flow: dict[str, Any]) -> str:
+    """A flow identity that survives rescans (flow ids do not).
+
+    ``later`` triage decisions (TAP-5947) persist across restarts, but HA
+    mints a fresh flow_id per rediscovery — so deferral keys on handler +
+    unique id, falling back to the discovery title placeholders.
+    """
+    handler = flow.get("handler") or "unknown"
+    context = flow.get("context") or {}
+    unique_id = context.get("unique_id")
+    if unique_id:
+        return f"{handler}:{unique_id}"
+    placeholders = context.get("title_placeholders") or {}
+    suffix = ",".join(f"{k}={placeholders[k]}" for k in sorted(placeholders)) or "no-id"
+    return f"{handler}:{suffix}"
+
+
 def _discovery_item(flow: dict[str, Any]) -> dict[str, Any]:
     handler = flow.get("handler")
     context = flow.get("context") or {}
@@ -110,6 +127,8 @@ def _discovery_item(flow: dict[str, Any]) -> dict[str, Any]:
         "decision": {"type": "select", "options": ["add", "ignore", "later"]},
         "readiness": handler in READINESS_HANDLERS,
         "readiness_reason": READINESS_HANDLERS.get(handler),
+        # Stable across rescans — what a "later" deferral is keyed on.
+        "triage_key": flow_key(flow),
     }
 
 
@@ -136,4 +155,4 @@ async def build_queue(ha: HAClient, recipes: Sequence[Recipe]) -> dict[str, Any]
     }
 
 
-__all__ = ["READINESS_HANDLERS", "build_queue"]
+__all__ = ["READINESS_HANDLERS", "build_queue", "flow_key"]

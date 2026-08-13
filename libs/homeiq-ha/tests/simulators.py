@@ -111,6 +111,30 @@ class SimWs:
         return False, None
 
     def _write(self, command_type: str, args: dict[str, Any]) -> Any:
+        if command_type == "config_entries/ignore_flow":
+            # Mirror HA core config_entries.py ignore_config_flow: unknown
+            # flow -> not_found; a flow without unique_id is refused; else
+            # the flow is dismissed and an ignore-source entry persists it.
+            flows = self.state.get("flow_progress", [])
+            flow = next(
+                (f for f in flows if f.get("flow_id") == args.get("flow_id")), None
+            )
+            if flow is None:
+                raise HACommandError(command_type, "not_found", "Flow not found")
+            if "unique_id" not in (flow.get("context") or {}):
+                raise HACommandError(
+                    command_type, "no_unique_id", "Specified flow has no unique ID."
+                )
+            self.state["flow_progress"] = [f for f in flows if f is not flow]
+            self.state["config_entries"].append(
+                {
+                    "entry_id": f"ignore-{args['flow_id']}",
+                    "domain": flow.get("handler"),
+                    "source": "ignore",
+                    "title": args.get("title"),
+                }
+            )
+            return None
         if command_type == "backup/config/update":
             return self._backup_config_update(args)
         if command_type == "backup/generate":
@@ -277,6 +301,10 @@ class SimRest:
             # Mirror HA: the created entity_id derives from the name.
             slug = re.sub(r"[^a-z0-9]+", "_", str(user_input["name"]).lower()).strip("_")
             self.state["entities"].append({"entity_id": f"sensor.{slug}"})
+        result = step.get("result")
+        if step.get("type") == "create_entry" and isinstance(result, dict):
+            # Mirror HA: a completed flow's entry becomes readable back.
+            self.state["config_entries"].append(dict(result))
         return step
 
     async def abort_config_flow(self, flow_id: str) -> None:

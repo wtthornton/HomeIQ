@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
@@ -17,6 +17,7 @@ from homeiq_ha.agent import HAInitAgent
 from homeiq_ha.agent.answers import Answers, apply_answers
 from homeiq_ha.agent.backup import backup_taker
 from homeiq_ha.agent.recipes import default_recipes
+from homeiq_ha.agent.triage import DEFAULT_TRIAGE_STORE_PATH, LaterStore, apply_decision
 from homeiq_ha.agent.triggers import (
     PERMIT_MAX_DURATION,
     advance_to_readiness,
@@ -38,6 +39,9 @@ init_router = APIRouter(prefix="/api/v1/init", tags=["init-agent"])
 page_router = APIRouter(tags=["init-agent"])
 
 _WIZARD_PAGE = Path(__file__).parent / "static" / "setup_wizard.html"
+
+#: "later" triage deferrals (TAP-5947) — durable on the bind-mounted config/.
+_TRIAGE_STORE = LaterStore(DEFAULT_TRIAGE_STORE_PATH)
 
 
 @page_router.get("/setup", include_in_schema=False)
@@ -126,18 +130,26 @@ async def audit() -> dict[str, Any]:
 
 
 @init_router.get("/queue")
-async def queue() -> dict[str, Any]:
+async def queue(show_all: bool = False) -> dict[str, Any]:
     """The wizard's human-action queue: audit blocked rows + discovery flows.
 
     Read-only like /audit — assembly lives in homeiq_ha.agent.wizard behind
     the read-only proxy; the payload carries its read journal as evidence.
+    Items deferred with a ``later`` decision (TAP-5947) are hidden by
+    default and included with ``?show_all=true``.
     """
     try:
         async with HAClient.from_env() as ha:
-            return await build_queue(ha, default_recipes())
+            payload = await build_queue(ha, default_recipes())
     except Exception as exc:
         logger.exception("init queue failed")
         raise HTTPException(status_code=502, detail=f"queue failed: {exc}") from exc
+    deferred = _TRIAGE_STORE.keys()
+    if not show_all and deferred:
+        kept = [i for i in payload["items"] if i.get("triage_key") not in deferred]
+        payload["deferred_count"] = len(payload["items"]) - len(kept)
+        payload["items"] = kept
+    return payload
 
 
 @init_router.post("/answers")
@@ -206,6 +218,31 @@ async def flow_start(flow_id: str) -> dict[str, Any]:
     except Exception as exc:
         logger.exception("flow start failed")
         raise HTTPException(status_code=502, detail=f"flow start failed: {exc}") from exc
+
+
+class DecisionRequest(BaseModel):
+    """TAP-5947: one triage decision for one discovered flow."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    decision: Literal["add", "ignore", "later"]
+
+
+@init_router.post("/flows/{flow_id}/decision")
+async def flow_decision(flow_id: str, body: DecisionRequest) -> dict[str, Any]:
+    """Apply one add / ignore / later decision; outcomes are read-back verified.
+
+    ``add`` completes confirm-style flows (PIN flows route to the readiness
+    triggers instead); ``ignore`` dismisses via HA's ignore mechanism so the
+    flow stays gone across restarts; ``later`` defers durably and hides the
+    item from the default queue view.
+    """
+    try:
+        async with HAClient.from_env() as ha:
+            return await apply_decision(ha, flow_id, body.decision, _TRIAGE_STORE)
+    except Exception as exc:
+        logger.exception("flow decision failed")
+        raise HTTPException(status_code=502, detail=f"decision failed: {exc}") from exc
 
 
 @init_router.post("/hacs/start")
