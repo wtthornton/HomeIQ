@@ -13,9 +13,12 @@ SENSITIVE_KEY_PATTERNS = ("TOKEN", "API_KEY", "SECRET", "PASSWORD", "PRIVATE_KEY
 #: URL userinfo credentials (scheme://user:pass@) make a VALUE sensitive
 #: regardless of its key name (TAP-6007) — kept in lockstep with the
 #: data-api copy of this module.
-# User may be EMPTY (redis://:pw@h is the canonical Redis/Celery shape)
-# and passwords may carry "/" — hence * on user and [^@\s]+ on password.
-EMBEDDED_CREDENTIAL_RE = re.compile(r"[a-z][a-z0-9+.-]*://[^/@\s]*:[^@\s]+@", re.IGNORECASE)
+# User may be EMPTY (redis://:pw@h is the canonical Redis/Celery shape).
+# The password class deliberately excludes "/": RFC 3986 excludes it from
+# userinfo (literal-slash passwords are malformed; percent-encoded forms
+# still match), and admitting it let a port colon swallow the URL path,
+# false-positiving on values like http://host:8123/u/me@example.com.
+EMBEDDED_CREDENTIAL_RE = re.compile(r"[a-z][a-z0-9+.-]*://[^/@\s]*:[^/@\s]+@", re.IGNORECASE)
 MASK_VALUE = "********"
 
 
