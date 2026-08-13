@@ -3,6 +3,7 @@ Events Endpoints for Data API
 Migrated from admin-api as part of Epic 13 Story 13.2
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -28,7 +29,9 @@ def _get_shared_influxdb_client():
         from influxdb_client import InfluxDBClient
 
         influxdb_url = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
-        influxdb_token = os.getenv("INFLUXDB_TOKEN", "homeiq-token")
+        # No committed default: a missing key must fail loudly, never fall
+        # back to a world-readable value (TAP-5993 class, found via TAP-5997).
+        influxdb_token = os.environ["INFLUXDB_TOKEN"]
         influxdb_org = os.getenv("INFLUXDB_ORG", "homeiq")
         _shared_influxdb_client = InfluxDBClient(
             url=influxdb_url, token=influxdb_token, org=influxdb_org
@@ -142,16 +145,18 @@ class EventsEndpoints:
 
         @self.router.post("/events/search", response_model=list[EventData])
         async def search_events(search: EventSearch):
-            """Search events with text query"""
+            """Search stored events with a text query (TAP-5997)."""
             try:
                 events = await self._search_events(search)
                 return events
 
             except Exception as e:
-                logger.error(f"Error searching events: {e}")
+                # A store failure must look like a failure — a silent []
+                # is indistinguishable from "no matches" (TAP-5997).
+                logger.error(f"Event search failed against the store: {e}")
                 raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to search events",
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail="Event store search failed",
                 ) from e
 
         @self.router.get("/events/stream", response_model=dict[str, Any])
@@ -609,31 +614,47 @@ from(bucket: "{influxdb_bucket}")
             return None
 
     async def _search_events(self, search: EventSearch) -> list[EventData]:
-        """Search events with text query"""
-        all_events = []
+        """Search stored events in InfluxDB by substring (TAP-5997).
 
-        for service_name, service_url in self.service_urls.items():
-            try:
-                async with (
-                    aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session,
-                    session.post(
-                        f"{service_url}/events/search", json=search.model_dump()
-                    ) as response,
-                ):
-                    if response.status == 200:
-                        data = await response.json()
-                        events = [EventData(**event) for event in data]
-                        for event in events:
-                            event.tags["service"] = service_name
-                        all_events.extend(events)
-                    else:
-                        raise Exception(f"HTTP {response.status}")
-            except Exception as e:
-                logger.warning(f"Failed to search events in {service_name}: {e}")
+        The old implementation federated ``POST /events/search`` to
+        collector services, none of which ever implemented the endpoint —
+        every call 404ed, the warning was swallowed, and the facade
+        returned ``[]`` structurally. The event store itself is what gets
+        searched now. Matching covers the indexed tags (``entity_id``,
+        ``event_type``); other requested fields are ignored rather than
+        pretended. Failures propagate — the route owns the 502.
+        """
+        bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
+        query_api = _get_shared_influxdb_client().query_api()
 
-        # Sort by timestamp (newest first)
+        needle = search.query.replace("\\", "\\\\").replace('"', '\\"')
+        searchable = ("entity_id", "event_type")
+        targets = [f for f in search.fields if f in searchable] or list(searchable)
+        conditions = " or ".join(
+            f'strings.containsStr(v: r.{t}, substr: "{needle}")' for t in targets
+        )
+        query = f'''
+import "strings"
+from(bucket: "{bucket}")
+  |> range(start: -24h)
+  |> filter(fn: (r) => r._measurement == "home_assistant_events")
+  |> filter(fn: (r) => r._field == "context_id")
+  |> filter(fn: (r) => {conditions})
+  |> sort(columns: ["_time"], desc: true)
+  |> limit(n: {int(search.limit)})
+'''
+        tables = await asyncio.to_thread(query_api.query, query)
+
+        all_events: list[EventData] = []
+        for table in tables:
+            for record in table.records:
+                event = self._build_event_from_record(
+                    record, f"search-{len(all_events)}"
+                )
+                if event:
+                    all_events.append(event)
+
         all_events.sort(key=lambda x: x.timestamp, reverse=True)
-
         return all_events[: search.limit]
 
     async def _get_all_events_stats(self, period: str) -> dict[str, Any]:
