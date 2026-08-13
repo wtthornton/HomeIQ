@@ -12,11 +12,12 @@ from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, HTTPException
 from homeiq_ha.agent import HAInitAgent
+from homeiq_ha.agent.answers import Answers, apply_answers
 from homeiq_ha.agent.backup import backup_taker
 from homeiq_ha.agent.recipes import default_recipes
 from homeiq_ha.agent.wizard import build_queue
 from homeiq_ha.client import HAClient
-from pydantic import BaseModel
+from pydantic import BaseModel, SecretStr
 
 if TYPE_CHECKING:
     from homeiq_ha.agent.engine import RunReport
@@ -31,6 +32,29 @@ class ConvergeRequest(BaseModel):
 
     phase: int | None = None
     only: str | None = None
+
+
+class DeviceAreaAnswer(BaseModel):
+    device_id: str
+    area: str
+
+
+class AddonOptionsAnswer(BaseModel):
+    slug: str
+    options: dict[str, Any]
+
+
+class AnswersRequest(BaseModel):
+    """The ha-human-actions-answers contract (TAP-5945).
+
+    ``backup_password`` is a SecretStr: write-only by contract — set via
+    backup/config/update, never logged, echoed, or persisted anywhere.
+    """
+
+    device_areas: list[DeviceAreaAnswer] = []
+    addon_options: list[AddonOptionsAnswer] = []
+    teams: list[dict[str, str]] = []
+    backup_password: SecretStr | None = None
 
 
 def _serialize(report: RunReport) -> dict[str, Any]:
@@ -87,6 +111,29 @@ async def queue() -> dict[str, Any]:
     except Exception as exc:
         logger.exception("init queue failed")
         raise HTTPException(status_code=502, detail=f"queue failed: {exc}") from exc
+
+
+@init_router.post("/answers")
+async def answers(body: AnswersRequest) -> dict[str, Any]:
+    """Ingest one wizard submission, converge (backup-gated), verify by read-back.
+
+    The manifest write lands on the repo's bind-mounted copy, so wizard
+    decisions are durable and git-visible (commit them like any change).
+    """
+    contract = Answers(
+        device_areas=tuple((d.device_id, d.area) for d in body.device_areas),
+        addon_options=tuple((a.slug, a.options) for a in body.addon_options),
+        teams=tuple(body.teams),
+        backup_password=(
+            body.backup_password.get_secret_value() if body.backup_password else None
+        ),
+    )
+    try:
+        async with HAClient.from_env() as ha:
+            return await apply_answers(ha, contract, default_recipes)
+    except Exception as exc:
+        logger.exception("init answers failed")
+        raise HTTPException(status_code=502, detail=f"answers failed: {exc}") from exc
 
 
 @init_router.post("/converge")

@@ -189,7 +189,7 @@ class SimWs:
         if method == "get":
             return self._supervisor_read(endpoint)
         self.writes.append(f"supervisor {method} {endpoint}")
-        return self._supervisor_write(endpoint)
+        return self._supervisor_write(endpoint, args.get("data"))
 
     def _supervisor_read(self, endpoint: str) -> Any:
         if endpoint == "/addons":
@@ -199,8 +199,12 @@ class SimWs:
             return self.state.get("addon_info", {}).get(slug, {})
         return None
 
-    def _supervisor_write(self, endpoint: str) -> None:
-        if endpoint.startswith("/store/addons/") and endpoint.endswith("/install"):
+    def _supervisor_write(self, endpoint: str, data: dict[str, Any] | None = None) -> None:
+        if endpoint.startswith("/addons/") and endpoint.endswith("/options"):
+            slug = endpoint.split("/")[2]
+            info = self.state.setdefault("addon_info", {}).setdefault(slug, {})
+            info.setdefault("options", {}).update((data or {}).get("options") or {})
+        elif endpoint.startswith("/store/addons/") and endpoint.endswith("/install"):
             slug = endpoint.split("/")[3]
             self.state["addons"].append({"slug": slug, "state": "stopped"})
         elif endpoint.startswith("/addons/") and endpoint.endswith("/start"):
@@ -220,13 +224,13 @@ class SimWs:
         endpoint: str,
         *,
         method: str = "get",
-        _payload: dict[str, Any] | None = None,
+        payload: dict[str, Any] | None = None,
         timeout: float = 900,
     ) -> Any:
-        return await self.send_command(
-            "supervisor/api",
-            fields={"endpoint": endpoint, "method": method, "timeout": int(timeout)},
-        )
+        fields: dict[str, Any] = {"endpoint": endpoint, "method": method, "timeout": int(timeout)}
+        if payload is not None:
+            fields["data"] = payload
+        return await self.send_command("supervisor/api", fields=fields)
 
 
 #: registry name -> (state key, id field)
@@ -254,6 +258,36 @@ class SimRest:
     def __init__(self, state: dict[str, Any]) -> None:
         self.state = state
         self.writes: list[str] = []
+
+    async def start_config_flow(self, domain: str, **_context: Any) -> dict[str, Any]:
+        """First step of a config flow, scripted via state['flow_first_step']."""
+        self.writes.append(f"flow_start {domain}")
+        return dict(
+            self.state.get("flow_first_step")
+            or {"type": "form", "flow_id": "sim-flow", "data_schema": []}
+        )
+
+    async def advance_config_flow(
+        self, flow_id: str, user_input: dict[str, Any]
+    ) -> dict[str, Any]:
+        self.writes.append(f"flow_advance {flow_id}")
+        self.state.setdefault("flow_inputs", []).append(dict(user_input))
+        step = dict(self.state.get("flow_next_step") or {"type": "create_entry"})
+        if step.get("type") == "create_entry" and user_input.get("name"):
+            # Mirror HA: the created entity_id derives from the name.
+            slug = re.sub(r"[^a-z0-9]+", "_", str(user_input["name"]).lower()).strip("_")
+            self.state["entities"].append({"entity_id": f"sensor.{slug}"})
+        return step
+
+    async def abort_config_flow(self, flow_id: str) -> None:
+        self.writes.append(f"flow_abort {flow_id}")
+
+    @staticmethod
+    def classify_flow_step(step: dict[str, Any]) -> str:
+        # The production classifier, so tests exercise real semantics.
+        from homeiq_ha.client.rest import HARestClient
+
+        return HARestClient.classify_flow_step(step)
 
     async def request(self, method: str, path: str, **_kwargs: Any) -> Any:
         if method.upper() != "GET":

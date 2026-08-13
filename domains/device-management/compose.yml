@@ -298,6 +298,10 @@ services:
       context: ../..
       dockerfile: domains/device-management/ha-setup-service/Dockerfile
     container_name: homeiq-setup-service
+    # The wizard answers endpoint (TAP-5945) writes owner decisions into the
+    # repo's committed manifest; the bind mount overlays the image's baked
+    # copy so those writes are durable and git-visible (commit them like any
+    # change). Wizard-induced dirty files in git status are expected.
     restart: unless-stopped
     ports:
       - "8024:8020"
@@ -323,6 +327,7 @@ services:
       - PERFORMANCE_SAMPLE_INTERVAL=30
     volumes:
       - ha_setup_data:/app/data
+      - ../../config:/app/config
       - homeiq_logs:/var/log/homeiq
     # Cross-domain: depends on core-platform/data-api, core-platform/admin-api
     networks:
