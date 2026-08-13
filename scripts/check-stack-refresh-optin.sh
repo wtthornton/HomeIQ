@@ -13,13 +13,18 @@
 #     flags inside it are flagged.
 #   - A literal flag is legal only on a refresh-variable assignment line
 #     inside that branch. sh tracks if/fi as words across `;`-separated
-#     segments (one-liner `if ...; then ...; fi` included) and skips
-#     heredoc bodies; ps1 tracks brace depth.
-#   - Known limits of the static approach, deliberate: a `#` or an
-#     unbalanced brace inside a quoted string literal confuses the
-#     stripper/depth counter, and code after a closing `fi` on the same
-#     line is still counted as in-branch. These need a real parser; the
-#     check targets accidental drift, and every ordinary idiom is handled.
+#     segments (one-liner `if ...; then ...; fi` included; code after a
+#     closing `fi` on the same line counts as outside), counts keywords on
+#     a string-stripped copy (an `if` inside a log message does not nest),
+#     and skips heredoc bodies (unterminated heredoc fails CLOSED, and
+#     here-strings/arithmetic `<<` are not treated as heredocs); ps1
+#     tracks brace depth.
+#   - Known limits of the static approach, deliberate: a `#` inside a
+#     quoted sh string still truncates that line (N8); an unbalanced
+#     brace inside a ps1 string literal confuses the depth counter (N6);
+#     multi-line string literals are not modeled. These need a real
+#     parser; the check targets accidental drift, and every ordinary
+#     idiom is handled and mutation-tested.
 #
 # Usage: check-stack-refresh-optin.sh [file ...]
 #   Defaults to scripts/start-stack.sh and scripts/start-stack.ps1.
@@ -42,33 +47,59 @@ check_sh() {
         next
       }
       line = raw; sub(/#.*$/, "", line)
-      if (match(line, /<<-?['\''"]?[A-Za-z_][A-Za-z_0-9]*/)) {
-        hd_end = substr(line, RSTART, RLENGTH)
-        sub(/<<-?['\''"]?/, "", hd_end)
+      # Here-strings are not heredocs; neutralize before opener detection.
+      hline = line; gsub(/<<</, " HERESTRING ", hline)
+      if (match(hline, /[[:space:]]<<-?['\''"]?[A-Za-z_][A-Za-z_0-9]*/)) {
+        hd_end = substr(hline, RSTART, RLENGTH)
+        sub(/[[:space:]]<<-?['\''"]?/, "", hd_end)
         in_heredoc = 1
         # the rest of this line still gets evaluated below
       }
-      # Regexes as strings: a /regex/ constant passed as a function
-      # argument degrades to a boolean match against $0 in awk.
-      nif = wcount(line, "(^|[;&|[:space:]])if([[:space:]]|$)")
-      nfi = wcount(line, "(^|[;[:space:]])fi([;[:space:]]|$)")
+      # Keyword counting runs on a string-stripped copy so "checking if x"
+      # in a log message cannot inflate the nesting. Regexes as strings: a
+      # /regex/ constant passed as a function arg degrades to a boolean.
+      kline = line
+      gsub(/"[^"]*"/, "\"\"", kline)
+      gsub(/'\''[^'\'']*'\''/, "", kline)
+      nif = wcount(kline, "(^|[;&|[:space:]])if([[:space:]]|$)")
+      nfi = wcount(kline, "(^|[;[:space:]])fi([;[:space:]]|$)")
       here = in_guard
+      closed = 0
       if (!in_guard && line ~ /if[[:space:]]+\[\[[[:space:]]+"\$\{STACK_REFRESH:-0\}"[[:space:]]+==[[:space:]]+"1"[[:space:]]+\]\]/) {
         here = 1
         depth = nif - nfi
-        in_guard = (depth > 0)
+        if (depth <= 0) closed = 1; else in_guard = 1
       } else if (in_guard) {
         depth += nif - nfi
-        if (depth <= 0) in_guard = 0
+        if (depth <= 0) { in_guard = 0; closed = 1 }
       }
       if (line ~ /--pull always|--force-recreate/) {
-        if (!here || line !~ /refresh_flags=/) {
+        # A line that closes the branch may still carry code AFTER the
+        # closing fi — that segment is outside the branch.
+        in_tail = 0
+        if (closed) {
+          tail = kline
+          if (sub(/.*[;[:space:]]fi([;[:space:]]|$)/, "", tail) || sub(/^fi([;[:space:]]|$)/, "", tail)) {
+            # tail is string-stripped; re-check the raw tail for flags by
+            # aligning on the last fi in the original line instead.
+            rtail = line
+            if (!sub(/.*[;[:space:]]fi([;[:space:]]|$)/, "", rtail)) sub(/^fi([;[:space:]]|$)/, "", rtail)
+            if (rtail ~ /--pull always|--force-recreate/) in_tail = 1
+          }
+        }
+        if (!here || in_tail || line !~ /refresh_flags=/) {
           printf "::error file=%s,line=%d::forced-refresh flag outside the sanctioned STACK_REFRESH branch: %s\n", FILENAME, FNR, $0
           bad = 1
         }
       }
     }
-    END { exit bad }
+    END {
+      if (in_heredoc) {
+        printf "::error file=%s::unterminated heredoc — check aborted early, refusing to pass\n", FILENAME
+        bad = 1
+      }
+      exit bad
+    }
   ' "$1"
 }
 
