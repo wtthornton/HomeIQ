@@ -328,12 +328,12 @@ services:
     volumes:
       - ha_setup_data:/app/data
       - ../../config:/app/config
+      - homeiq_logs:/var/log/homeiq
     # appuser is uid 1001; the repo's config/ files are 1000:1000 mode 664.
     # Joining group 1000 makes the bind-mounted manifest writable without
     # changing the user (which would break ha_setup_data ownership).
     group_add:
       - "1000"
-      - homeiq_logs:/var/log/homeiq
     # Cross-domain: depends on core-platform/data-api, core-platform/admin-api
     networks:
       - homeiq-network
