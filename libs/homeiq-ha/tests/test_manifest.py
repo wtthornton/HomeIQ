@@ -83,10 +83,14 @@ def test_committed_catalogue_covers_all_three_switches_and_wires_nothing():
         "remote_button_quadruple_press",
         "remote_button_quintuple_press",
     }
+    assert len(gestures) == 24, "3 switches x 4 multiplicities x Up/Down"
     for name in ("Office Light Dimmer", "Office Fan Switch", "Bar Light Dimmer"):
         rows = [g for g in gestures if g.device_name == name]
-        assert {g.gesture.split("/")[0] for g in rows} == multiplicities
-        assert {g.gesture.split("/")[1] for g in rows} == {"Up", "Down"}
+        # The full cross-product, not just set membership — a silently
+        # dropped row must fail here.
+        assert {tuple(g.gesture.split("/")) for g in rows} == {
+            (m, s) for m in multiplicities for s in ("Up", "Down")
+        }, f"{name}: every multiplicity x direction combination present"
         assert all(g.options for g in rows), f"{name}: every gesture lists candidates"
     assert all(g.selected is None for g in gestures), (
         "catalogue rows must ship unselected; owner sign-off happens by "

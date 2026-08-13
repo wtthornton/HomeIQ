@@ -112,9 +112,11 @@ class SwitchGesture:
 
     A catalogue row, not a deployment: ``options`` are candidate actions for
     the owner to choose between, and ``selected`` stays ``None`` until the
-    owner signs one off in the committed manifest. No recipe consumes these
-    rows while ``selected`` is ``None``, so committing the catalogue wires
-    nothing. ``gesture`` names the HA device-automation trigger the switch
+    owner signs one off in the committed manifest. NOTHING consumes these
+    rows today — no recipe reads the field at all, so committing the
+    catalogue (or even writing a selection) wires nothing; deployment is a
+    separate owner-approved change that would add such a consumer.
+    ``gesture`` names the HA device-automation trigger the switch
     actually exposes (``<type>/<subtype>``, e.g.
     ``remote_button_double_press/Up`` — read live from
     ``device_automation/trigger/list``, HA 2026.8.1).
