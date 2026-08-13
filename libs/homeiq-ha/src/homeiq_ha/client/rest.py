@@ -105,6 +105,23 @@ class HARestClient:
     async def get_config_entries(self) -> list[dict[str, Any]]:
         return await self.request("GET", "/api/config/config_entries/entry")
 
+    async def get_supervisor_logs(self, endpoint: str = "/core/logs") -> str:
+        """Supervisor-managed logs as text, via the core's ``/api/hassio`` proxy.
+
+        The supported log path (TAP-5984): the WS ``supervisor/api``
+        passthrough JSON-decodes every Supervisor response, so text log
+        endpoints (``/core/logs``, ``/supervisor/logs``, ``/addons/<slug>/logs``)
+        always fail there with an opaque ``unknown_error``. The REST proxy
+        forwards the journald text untouched, and :meth:`request` already
+        returns non-JSON bodies as ``str``.
+
+        Args:
+            endpoint: Supervisor log path, e.g. ``/core/logs`` or
+                ``/addons/core_ssh/logs``.
+        """
+        body = await self.request("GET", f"/api/hassio/{endpoint.lstrip('/')}")
+        return body if isinstance(body, str) else str(body)
+
     # -- config flows ------------------------------------------------------
 
     async def start_config_flow(self, domain: str, **context: Any) -> dict[str, Any]:

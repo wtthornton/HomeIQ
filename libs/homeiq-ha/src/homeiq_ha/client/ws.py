@@ -53,6 +53,16 @@ DEFAULT_MAX_RECONNECT_ATTEMPTS = 10
 EventHandler = Callable[[dict[str, Any]], Awaitable[None]]
 
 
+def _is_log_endpoint(endpoint: str) -> bool:
+    """Supervisor endpoints that return plain journald text, not JSON.
+
+    Covers ``/core/logs``, ``/supervisor/logs``, ``/host/logs``,
+    ``/addons/<slug>/logs`` and their sub-paths (``/host/logs/boots/0``).
+    """
+    path = endpoint.split("?", 1)[0].rstrip("/")
+    return path.endswith("/logs") or "/logs/" in path
+
+
 class HAWebSocketClient:
     """An authenticated Home Assistant WebSocket connection.
 
@@ -551,7 +561,24 @@ class HAWebSocketClient:
             timeout: Defaults to 15 minutes — add-on installs are slow, and a
                 short timeout aborts the client while the install continues
                 server-side, which is worse than waiting.
+
+        Raises:
+            ValueError: for log endpoints, which this passthrough cannot
+                transport (TAP-5984). Home Assistant's ``supervisor/api``
+                handler JSON-decodes every Supervisor response, and log
+                endpoints return plain journald text, so they always fail
+                with an opaque ``unknown_error`` (verified live 2026-08-13,
+                HA 2026.8.1). Refusing up front points the caller at the
+                supported path: :meth:`HARestClient.get_supervisor_logs`.
         """
+        if _is_log_endpoint(endpoint):
+            raise ValueError(
+                f"supervisor/api cannot return text logs ({endpoint!r}): the WS "
+                "passthrough JSON-decodes every Supervisor response, so log "
+                "endpoints always fail with unknown_error. Use "
+                "HARestClient.get_supervisor_logs(), which fetches "
+                f"GET /api/hassio{endpoint} as text."
+            )
         command: dict[str, Any] = {
             "endpoint": endpoint,
             "method": method.lower(),
