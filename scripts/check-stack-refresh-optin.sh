@@ -5,23 +5,66 @@
 # the DEFAULT in both start-stack entry points, silently turning every stack
 # start into a full re-pull. The fix moved them behind STACK_REFRESH=1.
 #
-# This check enforces two conditions on every non-comment line that carries
-# a literal flag:
-#   1. it is a refresh-variable assignment (refresh_flags= / $refreshArgs =)
-#      — hardcoding the flags onto the compose-up line itself (the exact
-#      historical regression) fails here no matter where the line sits;
-#   2. the `if ... STACK_REFRESH` conditional opens within the few lines
-#      above it — an unconditional assignment fails here.
+# Branch-aware static check (comments stripped before matching):
+#   - Only the exact sanctioned guard opens an opt-in branch:
+#       sh : if [[ "${STACK_REFRESH:-0}" == "1" ]]; then
+#       ps1: if ($env:STACK_REFRESH -eq "1") {
+#     A loosened conditional (e.g. -ne "__never__") is NOT recognized, so
+#     flags inside it are flagged. Known limit: a textually identical guard
+#     with different runtime semantics cannot exist, so this closes the
+#     guard-neutering class as far as a static check can.
+#   - A literal flag is legal only on a refresh-variable assignment line
+#     INSIDE that branch (sh: until its matching fi, nesting-aware;
+#     ps1: until brace depth returns to zero).
 #
 # Usage: check-stack-refresh-optin.sh [file ...]
 #   Defaults to scripts/start-stack.sh and scripts/start-stack.ps1.
 set -euo pipefail
 
-GUARD_RE='if.*STACK_REFRESH'
-ASSIGN_RE='refresh_flags=|\$refreshArgs[[:space:]]*='
-WINDOW=3 # lines above an assignment within which the guard must open
-
 fail=0
+
+check_sh() {
+  awk '
+    { line = $0; sub(/#.*$/, "", line) }
+    in_guard && line ~ /^[[:space:]]*if[[:space:]]/ { nest++ }
+    !in_guard && line ~ /if[[:space:]]+\[\[[[:space:]]+"\$\{STACK_REFRESH:-0\}"[[:space:]]+==[[:space:]]+"1"[[:space:]]+\]\]/ {
+      in_guard = 1; nest = 0; next
+    }
+    in_guard && line ~ /^[[:space:]]*fi([;[:space:]]|$)/ {
+      if (nest > 0) nest--; else in_guard = 0
+      next
+    }
+    line ~ /--pull always|--force-recreate/ {
+      if (!in_guard || line !~ /refresh_flags=/) {
+        printf "::error file=%s,line=%d::forced-refresh flag outside the sanctioned STACK_REFRESH branch: %s\n", FILENAME, FNR, $0
+        bad = 1
+      }
+    }
+    END { exit bad }
+  ' "$1"
+}
+
+check_ps1() {
+  awk '
+    { line = $0; sub(/#.*$/, "", line) }
+    !in_guard && line ~ /if[[:space:]]*\(\$env:STACK_REFRESH[[:space:]]+-eq[[:space:]]+"1"\)[[:space:]]*\{/ {
+      in_guard = 1
+      depth = gsub(/\{/, "{", line) - gsub(/\}/, "}", line)
+      next
+    }
+    in_guard {
+      depth += gsub(/\{/, "{", line) - gsub(/\}/, "}", line)
+      if (depth <= 0) { in_guard = 0 }
+    }
+    line ~ /--pull|--force-recreate/ {
+      if (!in_guard || line !~ /\$refreshArgs[[:space:]]*=/) {
+        printf "::error file=%s,line=%d::forced-refresh flag outside the sanctioned STACK_REFRESH branch: %s\n", FILENAME, FNR, $0
+        bad = 1
+      }
+    }
+    END { exit bad }
+  ' "$1"
+}
 
 check_file() {
   local file=$1
@@ -30,20 +73,10 @@ check_file() {
     fail=1
     return
   fi
-  while IFS=: read -r ln line; do
-    [[ -z "$ln" ]] && continue
-    if ! grep -qE "$ASSIGN_RE" <<<"$line"; then
-      echo "::error file=$file,line=$ln::forced-refresh flag hardcoded outside the refresh-variable assignment: ${line}"
-      fail=1
-      continue
-    fi
-    local start=$((ln > WINDOW ? ln - WINDOW : 1))
-    if ! sed -n "${start},${ln}p" "$file" | grep -qE "$GUARD_RE"; then
-      echo "::error file=$file,line=$ln::refresh-variable assignment not guarded by an if ... STACK_REFRESH branch: ${line}"
-      fail=1
-    fi
-  done < <(grep -nE -- '--pull always|--force-recreate|"--pull"|"--force-recreate"' "$file" \
-             | grep -vE '^[0-9]+:\s*#' || true)
+  case "$file" in
+    *.ps1) check_ps1 "$file" || fail=1 ;;
+    *)     check_sh "$file" || fail=1 ;;
+  esac
 }
 
 files=("$@")
@@ -55,7 +88,7 @@ for f in "${files[@]}"; do
 done
 
 if [[ $fail -ne 0 ]]; then
-  echo "FAIL: forced-refresh flags must appear only inside the STACK_REFRESH opt-in branch."
+  echo "FAIL: forced-refresh flags must appear only as refresh-variable assignments inside the STACK_REFRESH opt-in branch."
   exit 1
 fi
 echo "OK: refresh flags are opt-in only in: ${files[*]}"
