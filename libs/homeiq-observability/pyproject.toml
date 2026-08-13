@@ -15,6 +15,12 @@ dependencies = [
     # resolved locally by venv coincidence — the first live libs-ci run
     # caught it (TAP-6037).
     "requests>=2.31",
+    # monitoring_endpoints.py imports homeiq_data.auth (needs the [auth]
+    # extra: jose/passlib/fastapi) and stats_endpoints.py imports its
+    # influxdb client — a cross-lib dependency that was never declared;
+    # the second live libs-ci run caught it (TAP-6037).
+    "homeiq-data[auth]>=1.0.0",
+    "fastapi>=0.110",
 ]
 
 [project.optional-dependencies]
