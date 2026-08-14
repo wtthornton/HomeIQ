@@ -144,10 +144,19 @@ export async function getDevice(device_id: string): Promise<Device> {
 
 /**
  * Get device capabilities
+ *
+ * data-api has no GET /devices/{id}/capabilities route (only a
+ * side-effectful POST .../discover-capabilities that calls out to HA live
+ * and returns a differently-shaped payload). The read path is served by
+ * device-intelligence-service, which nginx and API_CONFIG already wire up
+ * specifically for this ("Team Tracker, Device Capabilities" — see
+ * config/api.ts and nginx.conf). That endpoint returns a bare capability
+ * array, so wrap it into the DeviceCapabilitiesResponse shape callers expect.
  */
 export async function getDeviceCapabilities(device_id: string): Promise<DeviceCapabilitiesResponse> {
-  const url = `${BASE_URL}/devices/${device_id}/capabilities`;
-  return fetchJSON<DeviceCapabilitiesResponse>(url);
+  const url = `${API_CONFIG.DEVICE_INTELLIGENCE}/devices/${device_id}/capabilities`;
+  const capabilities = await fetchJSON<DeviceCapability[]>(url);
+  return { device_id, capabilities, features: null };
 }
 
 /**
