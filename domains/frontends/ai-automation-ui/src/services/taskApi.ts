@@ -30,7 +30,7 @@ import { fetchJSON } from '../lib/api-client';
 
 const isProduction = import.meta.env.MODE === 'production';
 const BASE = isProduction
-  ? '/api/proactive/v1/tasks'
+  ? '/api/proactive/tasks'
   : 'http://localhost:8031/api/v1/tasks';
 
 export const taskApi = {
