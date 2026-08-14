@@ -124,6 +124,34 @@ async def test_search_quote_breakout_is_neutralized(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_empty_query_returns_no_matches_not_everything(monkeypatch):
+    """An empty query must not degrade into "return every event" (bug-hunt
+    c4, BUG-HomeIQ-4-4). sanitize_flux_value("") == "", and
+    strings.containsStr(substr: "") matches every string, so building the
+    query anyway would silently dump the whole store."""
+    client, query_api = _stub_query_api([_record("light.office")])
+    monkeypatch.setattr(ee, "_get_shared_influxdb_client", lambda: client)
+
+    results = await EventsEndpoints()._search_events(EventSearch(query=""))
+
+    assert results == []
+    query_api.query.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_symbols_only_query_returns_no_matches_not_everything(monkeypatch):
+    """Symbols-only input (e.g. "!!!") also sanitizes to "" and must be
+    treated the same as an empty query."""
+    client, query_api = _stub_query_api([_record("light.office")])
+    monkeypatch.setattr(ee, "_get_shared_influxdb_client", lambda: client)
+
+    results = await EventsEndpoints()._search_events(EventSearch(query="!!!"))
+
+    assert results == []
+    query_api.query.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_store_failure_surfaces_as_502_not_silent_empty():
     from httpx import ASGITransport, AsyncClient
 
