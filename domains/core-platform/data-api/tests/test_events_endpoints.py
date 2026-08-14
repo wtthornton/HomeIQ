@@ -244,6 +244,13 @@ class TestGetActiveEntities:
             assert resp.status_code == 200
             assert len(resp.json()) == 1
 
+    @pytest.mark.asyncio
+    async def test_negative_limit_rejected(self, client):
+        """A negative limit silently drops the tail via Python's sorted[:-N]
+        slicing instead of erroring — must be a 422, not a wrong-tail 200."""
+        resp = await client.get("/events/entities?limit=-5")
+        assert resp.status_code == 422
+
 
 class TestGetEventTypes:
     """GET /events/types"""
@@ -254,6 +261,11 @@ class TestGetEventTypes:
             mock.return_value = [{"type": "state_changed", "count": 100}]
             resp = await client.get("/events/types")
             assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_negative_limit_rejected(self, client):
+        resp = await client.get("/events/types?limit=-5")
+        assert resp.status_code == 422
 
 
 class TestGetRecentEvents:
