@@ -263,8 +263,10 @@ class EventsEndpoints:
         # General /events route - should come after specific routes
         @self.router.get("/events", response_model=list[EventData])
         async def get_recent_events(
-            limit: int = Query(100, description="Maximum number of events to return"),
-            offset: int = Query(0, description="Number of events to skip"),
+            limit: int = Query(
+                100, ge=1, le=1000, description="Maximum number of events to return"
+            ),
+            offset: int = Query(0, ge=0, description="Number of events to skip"),
             entity_id: str | None = Query(None, description="Filter by entity ID"),
             event_type: str | None = Query(None, description="Filter by event type"),
             start_time: datetime | None = Query(None, description="Start time filter"),

@@ -281,6 +281,31 @@ class TestGetRecentEvents:
             resp = await client.get("/events?entity_id=light.test")
             assert resp.status_code == 200
 
+    @pytest.mark.asyncio
+    async def test_negative_limit_rejected(self, client):
+        """A negative limit must not reach the Flux query string unvalidated
+        (same class of bug fixed on /events/search in TAP-5997)."""
+        resp = await client.get("/events?limit=-1")
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_excessive_limit_rejected(self, client):
+        """An unbounded limit would dump the whole infinite-retention bucket."""
+        resp = await client.get("/events?limit=999999999")
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_negative_offset_rejected(self, client):
+        resp = await client.get("/events?offset=-1")
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_normal_limit_still_works(self, client):
+        with patch.object(EventsEndpoints, "_get_all_events", new_callable=AsyncMock) as mock:
+            mock.return_value = []
+            resp = await client.get("/events?limit=50&offset=0")
+            assert resp.status_code == 200
+
 
 class TestGetEventById:
     """GET /events/{event_id}"""
