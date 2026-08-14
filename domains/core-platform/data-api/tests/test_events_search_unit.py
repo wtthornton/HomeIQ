@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic import ValidationError
 
 sys.path.insert(0, str(Path(__file__).parent / ".."))
 
@@ -82,9 +83,9 @@ async def test_search_clamps_limit_and_window(monkeypatch):
     monkeypatch.setattr(ee, "_get_shared_influxdb_client", lambda: client)
 
     # Pydantic rejects out-of-range at the model boundary.
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         EventSearch(query="x", limit=-1)
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         EventSearch(query="x", limit=99999)
 
     await EventsEndpoints()._search_events(EventSearch(query="x", limit=5, hours=48))
@@ -153,17 +154,19 @@ async def test_symbols_only_query_returns_no_matches_not_everything(monkeypatch)
 
 @pytest.mark.asyncio
 async def test_store_failure_surfaces_as_502_not_silent_empty():
+    from fastapi import FastAPI
     from httpx import ASGITransport, AsyncClient
+    from src.main import app
 
-    from src.main import app  # noqa: F401 — ensure app imports
+    # Import succeeded and yielded the real app — catches src.main breakage
+    # that a router-only test_app below wouldn't.
+    assert isinstance(app, FastAPI)
 
     endpoints = EventsEndpoints()
     with patch.object(
         EventsEndpoints, "_search_events", new_callable=AsyncMock
     ) as mock:
         mock.side_effect = Exception("store down")
-        from fastapi import FastAPI
-
         test_app = FastAPI()
         test_app.include_router(endpoints.router)
         async with AsyncClient(
