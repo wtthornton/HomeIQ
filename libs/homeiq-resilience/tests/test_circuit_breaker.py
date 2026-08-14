@@ -203,6 +203,45 @@ class TestCircuitOpenError:
 # ------------------------------------------------------------------
 
 
+class TestAsyncContextManager:
+    """`async with breaker:` protocol (bug-hunt c4, BUG-HomeIQ-4-2).
+
+    Multiple call sites (ha_rest_client.py, linter_client.py, agent_loop.py)
+    already used `async with <breaker>:` as if CircuitBreaker supported the
+    async context manager protocol. It didn't, so every one of those calls
+    raised TypeError before ever reaching the protected block.
+    """
+
+    @pytest.mark.asyncio
+    async def test_allows_request_and_records_success(
+        self, breaker: CircuitBreaker
+    ) -> None:
+        async with breaker:
+            pass
+        assert breaker.state == CircuitState.CLOSED
+
+    @pytest.mark.asyncio
+    async def test_records_failure_and_reraises_on_exception(
+        self, breaker: CircuitBreaker
+    ) -> None:
+        with pytest.raises(ValueError, match="boom"):
+            async with breaker:
+                raise ValueError("boom")
+        assert breaker._failure_count == 1
+
+    @pytest.mark.asyncio
+    async def test_raises_circuit_open_error_when_open(
+        self, breaker: CircuitBreaker
+    ) -> None:
+        for _ in range(3):
+            await breaker.record_failure()
+        assert breaker.state == CircuitState.OPEN
+
+        with pytest.raises(CircuitOpenError):
+            async with breaker:
+                raise AssertionError("protected block must not run")
+
+
 class TestReset:
     @pytest.mark.asyncio
     async def test_reset_returns_to_closed(

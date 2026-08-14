@@ -4,18 +4,23 @@ Implements a three-state circuit breaker (CLOSED, OPEN, HALF_OPEN) that
 protects services from cascading failures when upstream dependencies are
 unhealthy.  Thread-safe via ``asyncio.Lock``.
 
-Typical usage::
+Typical usage (manual)::
 
     breaker = CircuitBreaker(failure_threshold=5, recovery_timeout=60)
 
     if await breaker.allow_request():
         try:
             response = await do_request()
-            breaker.record_success()
+            await breaker.record_success()
         except Exception:
-            breaker.record_failure()
+            await breaker.record_failure()
     else:
         raise CircuitOpenError("upstream is down")
+
+Typical usage (async context manager)::
+
+    async with breaker:
+        response = await do_request()
 """
 
 from __future__ import annotations
@@ -24,6 +29,10 @@ import asyncio
 import enum
 import logging
 import time
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from types import TracebackType
 
 logger = logging.getLogger(__name__)
 
@@ -208,3 +217,34 @@ class CircuitBreaker:
             self._half_open_calls = 0
             self._last_failure_time = None
             logger.info("Circuit '%s' manually reset to CLOSED", self._name)
+
+    # ------------------------------------------------------------------
+    # Async context manager protocol
+    # ------------------------------------------------------------------
+
+    async def __aenter__(self) -> CircuitBreaker:
+        """Gate entry on ``allow_request()``, raising if the circuit is open.
+
+        Raises
+        ------
+        CircuitOpenError
+            If the circuit is open (or the HALF_OPEN trial slot is taken).
+        """
+        if not await self.allow_request():
+            raise CircuitOpenError(f"Circuit '{self._name}' is open")
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        """Record success on a clean exit, failure otherwise.
+
+        The exception, if any, is never suppressed.
+        """
+        if exc_type is None:
+            await self.record_success()
+        else:
+            await self.record_failure()
