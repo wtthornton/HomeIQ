@@ -115,7 +115,7 @@ class AIPromptGenerationService:
             return self._fallback_generation(context_analysis, max_prompts)
 
         # Circuit breaker: fast-fail to rule-based fallback when LLM is down
-        if not openai_breaker.allow_request():
+        if not await openai_breaker.allow_request():
             logger.warning(
                 "AI FALLBACK: OpenAI circuit open -- using rule-based suggestion generation"
             )

@@ -149,7 +149,7 @@ async def health_details() -> JSONResponse:
             status_code=503,
         )
 
-    result = pipeline.health()
+    result = await pipeline.health()
     result["version"] = __version__
     result["service"] = settings.service_name
 

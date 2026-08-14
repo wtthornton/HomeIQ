@@ -40,8 +40,9 @@ class TestInitialState:
     def test_starts_closed(self, breaker: CircuitBreaker) -> None:
         assert breaker.state == CircuitState.CLOSED
 
-    def test_allows_requests_when_closed(self, breaker: CircuitBreaker) -> None:
-        assert breaker.allow_request() is True
+    @pytest.mark.asyncio
+    async def test_allows_requests_when_closed(self, breaker: CircuitBreaker) -> None:
+        assert await breaker.allow_request() is True
 
     def test_name_is_set(self, breaker: CircuitBreaker) -> None:
         assert breaker.name == "test-breaker"
@@ -70,7 +71,7 @@ class TestClosedToOpen:
             await breaker.record_failure()
 
         assert breaker.state == CircuitState.CLOSED
-        assert breaker.allow_request() is True
+        assert await breaker.allow_request() is True
 
     @pytest.mark.asyncio
     async def test_success_resets_failure_count(
@@ -91,7 +92,7 @@ class TestClosedToOpen:
         for _ in range(3):
             await breaker.record_failure()
 
-        assert breaker.allow_request() is False
+        assert await breaker.allow_request() is False
 
 
 # ------------------------------------------------------------------
@@ -132,11 +133,11 @@ class TestOpenToHalfOpen:
 
         breaker._last_failure_time = time.monotonic() - 2.0
         assert breaker.state == CircuitState.HALF_OPEN
-        assert breaker.allow_request() is True
+        assert await breaker.allow_request() is True
 
         # After one trial call, should block further requests
         await breaker.increment_half_open_calls()
-        assert breaker.allow_request() is False
+        assert await breaker.allow_request() is False
 
 
 # ------------------------------------------------------------------
@@ -158,7 +159,7 @@ class TestHalfOpenToClosed:
         # Success closes it
         await breaker.record_success()
         assert breaker.state == CircuitState.CLOSED
-        assert breaker.allow_request() is True
+        assert await breaker.allow_request() is True
 
 
 # ------------------------------------------------------------------
@@ -180,7 +181,7 @@ class TestHalfOpenToOpen:
         # Failure during HALF_OPEN -> back to OPEN
         await breaker.record_failure()
         assert breaker.state == CircuitState.OPEN
-        assert breaker.allow_request() is False
+        assert await breaker.allow_request() is False
 
 
 # ------------------------------------------------------------------
@@ -213,4 +214,4 @@ class TestReset:
 
         await breaker.reset()
         assert breaker.state == CircuitState.CLOSED
-        assert breaker.allow_request() is True
+        assert await breaker.allow_request() is True

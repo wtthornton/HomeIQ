@@ -8,7 +8,7 @@ Typical usage::
 
     breaker = CircuitBreaker(failure_threshold=5, recovery_timeout=60)
 
-    if breaker.allow_request():
+    if await breaker.allow_request():
         try:
             response = await do_request()
             breaker.record_success()

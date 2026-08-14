@@ -192,7 +192,7 @@ class TestCircuitBreakerIntegration:
         breaker = CircuitBreaker(name="test", failure_threshold=3, recovery_timeout=60)
         for _ in range(3):
             await breaker.record_failure()
-        assert not breaker.allow_request()
+        assert not await breaker.allow_request()
 
     @pytest.mark.asyncio
     async def test_success_resets(self):
@@ -201,4 +201,4 @@ class TestCircuitBreakerIntegration:
         await breaker.record_failure()
         await breaker.record_success()
         # Still below threshold after reset
-        assert breaker.allow_request()
+        assert await breaker.allow_request()

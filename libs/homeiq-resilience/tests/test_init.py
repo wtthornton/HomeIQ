@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import importlib
 
+import pytest
+
 
 def test_package_imports() -> None:
     """All public symbols should be importable from the top-level package."""
@@ -45,12 +47,13 @@ def test_module_reimport() -> None:
     assert mod is homeiq_resilience
 
 
-def test_circuit_breaker_instantiation() -> None:
+@pytest.mark.asyncio
+async def test_circuit_breaker_instantiation() -> None:
     """CircuitBreaker should be constructible with default args."""
     from homeiq_resilience import CircuitBreaker
 
     breaker = CircuitBreaker()
-    assert breaker.allow_request() is True
+    assert await breaker.allow_request() is True
     assert breaker.name == "default"
 
 

@@ -182,7 +182,7 @@ class DeviceSuggestionService:
         Returns:
             List of capability dicts, or empty list on failure / circuit open
         """
-        if not _ml_engine_breaker.allow_request():
+        if not await _ml_engine_breaker.allow_request():
             logger.warning(
                 "AI FALLBACK: ml-engine circuit open -- skipping device capabilities for %s",
                 device_id,
@@ -231,7 +231,7 @@ class DeviceSuggestionService:
         Returns:
             List of synergy dicts related to the device, or empty list on failure / circuit open
         """
-        if not _pattern_analysis_breaker.allow_request():
+        if not await _pattern_analysis_breaker.allow_request():
             logger.warning(
                 "AI FALLBACK: pattern-analysis circuit open -- skipping synergies for %s",
                 device_id,
