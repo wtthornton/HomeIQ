@@ -276,7 +276,7 @@ class StorageMonitor:
 
         # Resolve alerts if usage drops below thresholds
         else:
-            await self._resolve_alerts()
+            await self._resolve_alerts(current_percentage)
 
     async def _create_alert(
         self,
@@ -321,10 +321,16 @@ class StorageMonitor:
         self.active_alerts.append(alert)
         logger.warning(f"Storage alert created: {message}")
 
-    async def _resolve_alerts(self) -> None:
-        """Resolve storage alerts when usage drops below thresholds."""
+    async def _resolve_alerts(self, current_percentage: float) -> None:
+        """Resolve storage alerts when live usage drops below thresholds.
+
+        Args:
+            current_percentage: Live usage percentage from the metrics that
+                triggered this check (not the frozen percentage captured
+                when the alert was created).
+        """
         for alert in self.active_alerts:
-            if not alert.resolved and alert.current_percentage < alert.threshold_percentage:
+            if not alert.resolved and current_percentage < alert.threshold_percentage:
                 alert.resolved = True
                 logger.info(f"Storage alert resolved: {alert.message}")
 
