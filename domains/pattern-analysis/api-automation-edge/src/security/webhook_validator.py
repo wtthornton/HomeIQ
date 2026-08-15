@@ -148,12 +148,14 @@ class WebhookValidator:
         if not self.validate_timestamp(timestamp):
             return False, "Invalid or expired timestamp"
 
-        # Validate nonce
-        if not self.validate_nonce(nonce):
-            return False, "Nonce already used (replay attack)"
-
-        # Validate signature
+        # Validate signature (authenticity) before consuming the nonce — a
+        # forged-signature request must not burn a nonce a legitimate
+        # request would otherwise be entitled to use.
         if not self.validate_signature(payload, timestamp, nonce, signature):
             return False, "Invalid signature"
+
+        # Validate nonce (replay protection)
+        if not self.validate_nonce(nonce):
+            return False, "Nonce already used (replay attack)"
 
         return True, None
