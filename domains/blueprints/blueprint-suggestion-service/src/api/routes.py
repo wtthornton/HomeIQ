@@ -251,7 +251,7 @@ async def accept_suggestion(
             status=suggestion.status,
             blueprint_id=suggestion.blueprint_id,
             blueprint_yaml=blueprint_data.get("yaml_content") if blueprint_data else None,
-            blueprint_inputs=blueprint_data.get("blueprint_inputs", {}) if blueprint_data else {},
+            blueprint_inputs=blueprint_data.get("inputs", {}) if blueprint_data else {},
             matched_devices=[DeviceMatch(**device) for device in suggestion.matched_devices],
             suggestion_score=suggestion.suggestion_score,
             conversation_id=suggestion.conversation_id,
