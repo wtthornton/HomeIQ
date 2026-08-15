@@ -65,21 +65,24 @@ class ActionScore:
     reversibility: float  # 0.0-1.0
     reasoning: str = ""
     factors: dict[str, float] = field(default_factory=dict)
+    auto_execute_threshold: int = 85
+    suggest_threshold: int = 50
+    suppress_threshold: int = 30
 
     @property
     def should_auto_execute(self) -> bool:
         """Whether this action qualifies for autonomous execution."""
-        return self.confidence >= 85 and self.risk_level == "low"
+        return self.confidence >= self.auto_execute_threshold and self.risk_level == "low"
 
     @property
     def should_suggest(self) -> bool:
         """Whether to surface as a suggestion for user approval."""
-        return self.confidence >= 50 or self.risk_level == "medium"
+        return self.confidence >= self.suggest_threshold or self.risk_level == "medium"
 
     @property
     def should_suppress(self) -> bool:
         """Whether to suppress entirely (too low confidence)."""
-        return self.confidence < 30
+        return self.confidence < self.suppress_threshold
 
     @property
     def is_safety_blocked(self) -> bool:
@@ -142,6 +145,9 @@ class ConfidenceScorer:
                 reversibility=0.0,
                 reasoning=f"Safety blocked: {entity_domain} domain cannot be auto-executed",
                 factors={"safety_block": 1.0},
+                auto_execute_threshold=self.auto_execute_threshold,
+                suggest_threshold=self.suggest_threshold,
+                suppress_threshold=self.suppress_threshold,
             )
 
         # Calculate confidence from multiple factors
@@ -184,6 +190,9 @@ class ConfidenceScorer:
             reversibility=reversibility,
             reasoning="; ".join(reasoning_parts),
             factors=factors,
+            auto_execute_threshold=self.auto_execute_threshold,
+            suggest_threshold=self.suggest_threshold,
+            suppress_threshold=self.suppress_threshold,
         )
 
     def evaluate_action_route(
