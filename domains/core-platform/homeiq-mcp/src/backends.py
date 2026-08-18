@@ -52,11 +52,17 @@ class HttpBacking:
         await self._client.aclose()
 
     async def get_json(self, path: str, params: dict[str, Any] | None = None, *, tool: str) -> Any:
+        clean = {k: v for k, v in (params or {}).items() if v is not None}
+        return await self._request("GET", path, tool=tool, params=clean)
+
+    async def post_json(self, path: str, body: dict[str, Any] | None = None, *, tool: str) -> Any:
+        return await self._request("POST", path, tool=tool, json=body)
+
+    async def _request(self, method: str, path: str, *, tool: str, **kwargs: Any) -> Any:
         if not self.configured:
             raise ToolError("backing_unavailable", f"{self.name} is not configured", tool=tool)
-        clean = {k: v for k, v in (params or {}).items() if v is not None}
         try:
-            response = await self._client.get(path, params=clean)
+            response = await self._client.request(method, path, **kwargs)
         except httpx.TimeoutException as exc:
             raise ToolError("backing_unavailable", f"{self.name} timed out", tool=tool) from exc
         except httpx.HTTPError as exc:

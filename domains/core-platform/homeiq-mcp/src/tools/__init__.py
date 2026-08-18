@@ -4,12 +4,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from . import anomalies, device_health, devices, energy, history, patterns
+
 if TYPE_CHECKING:
     from ..backends import Backings
     from ..registry import ToolRegistry
 
+_GROUPS = (history, devices, anomalies, patterns, energy, device_health)
+
 
 def register_all(registry: ToolRegistry, backings: Backings) -> None:
-    # Groups land per story: TAP-5294 (history/events/devices/entities/areas/state/stats/anomalies),
-    # TAP-5295 (patterns/synergies/energy summary/device health).
-    del registry, backings
+    for group in _GROUPS:
+        group.register(registry, backings)
