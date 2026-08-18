@@ -17,7 +17,7 @@ from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from mcp.server.transport_security import TransportSecuritySettings
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.routing import Mount, Route
+from starlette.routing import Route
 
 from .auth import STATE_KEY, STDIO_SCOPES, BearerScopeMiddleware
 from .backends import Backings, build_backings
@@ -129,17 +129,19 @@ class HomeIQMCP:
             read_tokens=settings.read_token_list,
             write_tokens=settings.write_token_list,
         )
-        return Starlette(
+        app = Starlette(
             routes=[
                 Route(
                     "/health",
                     make_health_endpoint(self.registry, self.backings, version=SERVER_VERSION),
                     methods=["GET"],
                 ),
-                Mount(MCP_PATH, app=mcp_app),
+                Route(MCP_PATH, endpoint=mcp_app, methods=["GET", "POST", "DELETE"]),
             ],
             lifespan=lifespan,
         )
+        app.router.redirect_slashes = False  # an API: /mcp/ is 404, never a 307 to /mcp
+        return app
 
     async def run_stdio(self) -> None:
         async with stdio_server() as (read_stream, write_stream):

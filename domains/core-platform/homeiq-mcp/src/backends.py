@@ -33,13 +33,18 @@ class HttpBacking:
         base_url: str,
         *,
         bearer_token: str = "",
+        api_key: str = "",
         health_path: str = "/health",
         timeout_seconds: float = 10.0,
     ) -> None:
         self.name = name
         self.base_url = base_url.rstrip("/")
         self.health_path = health_path
-        headers = {"Authorization": f"Bearer {bearer_token}"} if bearer_token else {}
+        headers: dict[str, str] = {}
+        if bearer_token:  # data-api: HTTPBearer
+            headers["Authorization"] = f"Bearer {bearer_token}"
+        if api_key:  # device-intelligence-service: X-API-Key
+            headers["X-API-Key"] = api_key
         self._client = httpx.AsyncClient(
             base_url=self.base_url, headers=headers, timeout=timeout_seconds
         )
@@ -136,6 +141,9 @@ def build_backings(settings: Any) -> Backings:
             "ai-pattern-service", settings.pattern_service_url, timeout_seconds=timeout
         ),
         device_intelligence=HttpBacking(
-            "device-intelligence-service", settings.device_intelligence_url, timeout_seconds=timeout
+            "device-intelligence-service",
+            settings.device_intelligence_url,
+            api_key=settings.data_api_key.get_secret_value(),
+            timeout_seconds=timeout,
         ),
     )

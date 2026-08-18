@@ -85,6 +85,18 @@ class EventSearch(BaseModel):
     hours: int = Field(default=24, ge=1, le=8760)
 
 
+# Fields the raw event query pivots into one row per event (writer: websocket-ingestion
+# `influxdb_schema.py`; verified against the live bucket 2026-08-17).
+_RAW_EVENT_FIELDS = ("context_id", "state_value", "previous_state")
+
+
+def _state_dict(value: Any) -> dict[str, Any] | None:
+    """Project a stored state value into the `{"state": ...}` dict EventData exposes."""
+    if value is None:
+        return None
+    return {"state": str(value)}
+
+
 class EventsEndpoints:
     """Events endpoints for feature data access"""
 
@@ -1060,8 +1072,18 @@ from(bucket: "{bucket}")
                   |> range(start: -24h)
                 '''
 
-            # Epic 45.5: Use appropriate measurement and field based on time range
-            query += f'''
+            # Epic 45.5: Use appropriate measurement and field based on time range.
+            # Raw events pivot the three fields an event consumer needs (context id and both
+            # states) into one row per event; statistics measurements keep the single field.
+            if measurement == "home_assistant_events":
+                field_predicate = " or ".join(f'r._field == "{f}"' for f in _RAW_EVENT_FIELDS)
+                query += f'''
+              |> filter(fn: (r) => r._measurement == "{measurement}")
+              |> filter(fn: (r) => {field_predicate})
+              |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+            '''
+            else:
+                query += f'''
               |> filter(fn: (r) => r._measurement == "{measurement}")
               |> filter(fn: (r) => r._field == "{field_name}")
             '''
@@ -1138,21 +1160,22 @@ from(bucket: "{bucket}")
                         continue
                     seen_event_ids.add(event_id)
 
-                    # Get the context_id field value (_value column)
-                    context_id = record.values.get("_value") or event_id
+                    # Pivoted raw events expose context_id / state_value / previous_state as
+                    # columns; statistics rows still carry their single field in _value.
+                    context_id = (
+                        record.values.get("context_id") or record.values.get("_value") or event_id
+                    )
 
-                    # Create event object with available data
-                    # Note: Single-field query means old_state, new_state, attributes not available
-                    # Trade-off: 1000x less bandwidth vs. complete event details
-                    # All critical data (entity_id, event_type, timestamp) comes from tags
+                    # attributes stay out of this query on purpose (large JSON per row);
+                    # GET /events/{event_id} serves the full record.
                     event = EventData(
                         id=context_id,
                         timestamp=record.get_time(),
                         entity_id=entity_id_val,
                         event_type=event_type_val,
-                        old_state=None,  # Not available (would need second query or pivot)
-                        new_state=None,  # Not available (would need second query or pivot)
-                        attributes={},  # Not available (would need second query or pivot)
+                        old_state=_state_dict(record.values.get("previous_state")),
+                        new_state=_state_dict(record.values.get("state_value")),
+                        attributes={},
                         tags={
                             "domain": record.values.get("domain") or "unknown",
                             "device_class": record.values.get("device_class") or "unknown",

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import httpx
-import pytest
 import respx
 from starlette.testclient import TestClient
 
@@ -23,7 +22,10 @@ MCP_HEADERS = {"Accept": "application/json, text/event-stream", "Content-Type": 
 
 
 def _client(app):
-    return TestClient(app.build_http_app(), base_url="http://homeiq-mcp:8050")
+    # No redirect following: a 307 from /mcp would hide a mount/route mistake from real clients.
+    return TestClient(
+        app.build_http_app(), base_url="http://homeiq-mcp:8050", follow_redirects=False
+    )
 
 
 def _bearer(token: str) -> dict[str, str]:
@@ -165,12 +167,14 @@ def test_write_token_also_reads(app, registry):
 
 
 def test_dns_rebinding_host_is_rejected(app):
-    with TestClient(app.build_http_app(), base_url="http://evil.example") as client:
+    with TestClient(
+        app.build_http_app(), base_url="http://evil.example", follow_redirects=False
+    ) as client:
         response = client.post("/mcp", json=INIT, headers=_bearer(READ_TOKEN))
     assert response.status_code == 421
 
 
-@pytest.mark.parametrize("path", ["/mcp", "/mcp/"])
-def test_mount_paths(app, path):
+def test_mcp_path_is_exact_and_never_redirects(app):
     with _client(app) as client:
-        assert client.post(path, json=INIT, headers=MCP_HEADERS).status_code == 401
+        assert client.post("/mcp", json=INIT, headers=MCP_HEADERS).status_code == 401
+        assert client.post("/mcp/", json=INIT, headers=MCP_HEADERS).status_code == 404

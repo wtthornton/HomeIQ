@@ -59,3 +59,18 @@ def test_invalid_port_is_a_config_error(monkeypatch):
     monkeypatch.setenv("HOMEIQ_MCP_PORT", "70000")
     with pytest.raises(ConfigError, match="port"):
         load_settings()
+
+
+def test_catalogue_path_resolution_prefers_explicit_then_repo(monkeypatch, tmp_path):
+    from src import catalogue as cat
+
+    monkeypatch.delenv("HOMEIQ_MCP_CATALOGUE_PATH", raising=False)
+    explicit = tmp_path / "x.json"
+    assert cat.resolve_catalogue_path(str(explicit)) == explicit
+    monkeypatch.setenv("HOMEIQ_MCP_CATALOGUE_PATH", str(explicit))
+    assert cat.resolve_catalogue_path() == explicit
+    monkeypatch.delenv("HOMEIQ_MCP_CATALOGUE_PATH")
+    assert cat.resolve_catalogue_path().name == "homeiq-mcp-tools.schema.json"
+    # A shallow install (e.g. /app/src) must not raise; it falls back to the image path.
+    monkeypatch.setattr(cat, "_repo_candidate", lambda: None)
+    assert cat.resolve_catalogue_path() == cat._IMAGE_PATH

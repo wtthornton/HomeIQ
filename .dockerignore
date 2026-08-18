@@ -70,6 +70,7 @@ coverage.xml
 
 # Documentation (large and not needed in images)
 docs/
+!docs/mcp/homeiq-mcp-tools.schema.json
 implementation/
 *.md
 !README.md

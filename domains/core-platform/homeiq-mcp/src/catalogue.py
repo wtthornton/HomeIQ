@@ -15,10 +15,16 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
-_REPO_RELATIVE = (
-    Path(__file__).resolve().parents[4] / "docs" / "mcp" / "homeiq-mcp-tools.schema.json"
-)
-_IMAGE_PATH = Path("/app/catalogue/homeiq-mcp-tools.schema.json")
+_CATALOGUE_FILE = "homeiq-mcp-tools.schema.json"
+_IMAGE_PATH = Path("/app/catalogue") / _CATALOGUE_FILE
+
+
+def _repo_candidate() -> Path | None:
+    """`docs/mcp/<file>` relative to the repo root when running from a checkout."""
+    here = Path(__file__).resolve()
+    if len(here.parents) <= 4:
+        return None
+    return here.parents[4] / "docs" / "mcp" / _CATALOGUE_FILE
 
 
 @dataclass(frozen=True)
@@ -52,8 +58,9 @@ def resolve_catalogue_path(explicit: str = "") -> Path:
     for candidate in (explicit, os.environ.get("HOMEIQ_MCP_CATALOGUE_PATH", "")):
         if candidate:
             return Path(candidate)
-    if _REPO_RELATIVE.exists():
-        return _REPO_RELATIVE
+    repo = _repo_candidate()
+    if repo is not None and repo.exists():
+        return repo
     return _IMAGE_PATH
 
 

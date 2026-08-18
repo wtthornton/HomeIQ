@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Query, status
 from influxdb_client import InfluxDBClient
+from influxdb_client.rest import ApiException
 from pydantic import BaseModel
 
 from .flux_utils import flux_time, sanitize_flux_value
@@ -630,6 +631,19 @@ async def get_current_carbon_intensity():
 
     except HTTPException:
         raise
+    except ApiException as e:
+        if e.status == 404:
+            # The carbon bucket does not exist on this instance (carbon-intensity-service not
+            # deployed): that is "no data", not a server fault.
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Carbon intensity bucket {carbon_bucket!r} not found",
+            ) from e
+        logger.error(f"Error getting current carbon intensity: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to query carbon intensity: {str(e)}",
+        ) from e
     except Exception as e:
         logger.error(f"Error getting current carbon intensity: {e}")
         raise HTTPException(

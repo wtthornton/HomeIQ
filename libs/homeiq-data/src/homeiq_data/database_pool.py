@@ -23,7 +23,7 @@ from .logging_config import get_logger
 logger = get_logger(__name__)
 
 # Schema name validator — prevents SQL injection in SET search_path
-_SAFE_SCHEMA = re.compile(r'^[a-z_][a-z0-9_]*$', re.IGNORECASE)
+_SAFE_SCHEMA = re.compile(r"^[a-z_][a-z0-9_]*$", re.IGNORECASE)
 
 # Global engine instances (one per database path)
 _engines: dict[str, AsyncEngine] = {}
@@ -119,9 +119,7 @@ def create_shared_session_maker(
                 autoflush=False,
             )
 
-            logger.info(
-                f"Created shared session maker: {database_path or database_url}"
-            )
+            logger.info(f"Created shared session maker: {database_path or database_url}")
 
     return _session_makers[database_url]
 
@@ -199,9 +197,10 @@ def check_pool_health(database_url: str) -> dict:
 
     if utilization >= 80:
         logger.warning(
-            "Pool exhaustion warning: %.1f%% utilization "
-            "(checked_out=%d, capacity=%d)",
-            utilization, checked_out, total_capacity,
+            "Pool exhaustion warning: %.1f%% utilization (checked_out=%d, capacity=%d)",
+            utilization,
+            checked_out,
+            total_capacity,
         )
 
     return stats
@@ -227,6 +226,27 @@ async def close_all_engines_async():
     _engines.clear()
     _session_makers.clear()
     logger.info("All shared database engines disposed")
+
+
+def _apply_search_path(dbapi_conn, schema: str) -> None:
+    """Set the session search_path OUTSIDE a transaction.
+
+    The asyncpg adapter opens an implicit transaction on the first statement and
+    the pool issues ROLLBACK when a connection is returned; PostgreSQL undoes a
+    session-level ``SET`` made inside a rolled-back transaction, so the schema
+    silently reverted to the role default (``public, core, ...``) and unqualified
+    table names resolved into other services' schemas (device-intelligence's
+    ``devices`` hit ``core.devices``). Toggling autocommit around the SET is the
+    SQLAlchemy-documented pattern for asyncpg.
+    """
+    previous_autocommit = dbapi_conn.autocommit
+    dbapi_conn.autocommit = True
+    cursor = dbapi_conn.cursor()
+    try:
+        cursor.execute(f"SET search_path TO {schema}, public")
+    finally:
+        cursor.close()
+        dbapi_conn.autocommit = previous_autocommit
 
 
 def create_pg_engine(
@@ -269,9 +289,7 @@ def create_pg_engine(
 
     @event.listens_for(engine.sync_engine, "connect")
     def set_search_path(dbapi_conn, _connection_record):
-        cursor = dbapi_conn.cursor()
-        cursor.execute(f"SET search_path TO {schema}, public")
-        cursor.close()
+        _apply_search_path(dbapi_conn, schema)
 
     logger.info(
         f"Created PostgreSQL engine: schema={schema} "
