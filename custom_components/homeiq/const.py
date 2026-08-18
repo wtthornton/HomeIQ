@@ -26,6 +26,11 @@ CONF_EXPOSED_TOOLS: Final = "exposed_tools"
 
 DEFAULT_AGENTFORGE_PROJECT: Final = "homeiq"
 
+# Conversation turns name the gene that answers them. Without a hint AgentForge
+# falls through to its global orchestrator, which cannot see this project's
+# agents and replies with plan JSON instead of an answer.
+CONVERSATION_AGENT: Final = "hiq-assistant"
+
 # Packaged copy of the MCP tool catalogue. Kept byte-identical to the canonical
 # docs/mcp/homeiq-mcp-tools.schema.json; tests/custom_components/homeiq pins the
 # two together so the copy cannot silently drift.

@@ -342,3 +342,41 @@ async def test_invoke_without_result_or_invocation_is_a_contract_violation(
         await client.async_invoke("Which areas exist in this home?")
 
     assert caught.value.code == "contract_violation"
+
+
+def test_answer_field_is_unwrapped_for_the_user() -> None:
+    """A gene answering with the house JSON envelope shows its prose, not the object."""
+    response = AgentForgeResponse(
+        text='{"answer": "You have a kitchen, an office and a garage.", "confidence": 0.9}',
+        is_error=False,
+        agent_used="homeiq-hiq-assistant",
+        orchestration_state=None,
+    )
+
+    assert response.as_user_message() == "You have a kitchen, an office and a garage."
+
+
+def test_plain_prose_and_unparseable_bodies_pass_through() -> None:
+    """Only a JSON object carrying a string answer is unwrapped; nothing else is touched."""
+    for text in (
+        "The kitchen light was on for 4 hours.",
+        '{"result": "no answer key here"}',
+        "{not json at all",
+        '{"answer": {"nested": "not a string"}}',
+    ):
+        response = AgentForgeResponse(
+            text=text, is_error=False, agent_used="a", orchestration_state=None
+        )
+        assert response.as_user_message() == text
+
+
+async def test_invoke_sends_the_config_hint(
+    client: AgentForgeClient, mocker: AiohttpClientMocker
+) -> None:
+    """The hint is what binds the call to a project agent instead of the global orchestrator."""
+    mocker.post(AGENTFORGE_ENDPOINT, json=task_response())
+
+    await client.async_invoke("Which areas exist?", config_hint="hiq-assistant")
+
+    _method, _url, body, _headers = mocker.mock_calls[0]
+    assert body == {"prompt": "Which areas exist?", "config_hint": "hiq-assistant"}

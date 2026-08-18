@@ -8,7 +8,7 @@ from homeassistant.components import conversation
 from homeassistant.const import MATCH_ALL
 
 from .agentforge import AgentForgeError
-from .const import DOMAIN, LLM_API_ID
+from .const import CONVERSATION_AGENT, DOMAIN, LLM_API_ID
 from .entity import HomeIQEntity, assistant_delta_stream, render_prompt
 
 if TYPE_CHECKING:
@@ -66,7 +66,9 @@ class HomeIQConversationEntity(
             return err.as_conversation_result()
 
         try:
-            response = await self.async_invoke(render_prompt(chat_log))
+            response = await self.async_invoke(
+                render_prompt(chat_log), config_hint=CONVERSATION_AGENT
+            )
         except AgentForgeError as err:
             # A refusal or an unreachable AgentForge is something the user needs
             # to hear, not a traceback in the log.

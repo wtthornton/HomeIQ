@@ -44,9 +44,13 @@ class HomeIQEntity(Entity):
             entry_type=DeviceEntryType.SERVICE,
         )
 
-    async def async_invoke(self, prompt: str) -> AgentForgeResponse:
+    async def async_invoke(
+        self, prompt: str, *, config_hint: str | None = None
+    ) -> AgentForgeResponse:
         """Run one AgentForge task for this entry."""
-        return await self.entry.runtime_data.agentforge.async_invoke(prompt)
+        return await self.entry.runtime_data.agentforge.async_invoke(
+            prompt, config_hint=config_hint
+        )
 
 
 def render_prompt(chat_log: conversation.ChatLog) -> str:

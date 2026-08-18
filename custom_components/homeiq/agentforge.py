@@ -81,6 +81,27 @@ class AgentForgeResponse:
             return False
         return self.text.startswith(BUDGET_BLOCKED_PREFIX) or BUDGET_EXCEEDED_MARKER in self.text
 
+    @property
+    def answer_text(self) -> str:
+        """Return the prose to show a person.
+
+        Genes answer with a JSON object carrying a prose ``answer`` alongside
+        the house convention fields. Showing the raw object to someone who
+        asked a spoken question is never right, so the ``answer`` is unwrapped
+        when present. A gene that replies in plain prose is passed through
+        untouched, as is a body that is not an object.
+        """
+        stripped = self.text.strip()
+        if not stripped.startswith("{"):
+            return self.text
+        try:
+            parsed = json.loads(stripped)
+        except json.JSONDecodeError:
+            return self.text
+        if isinstance(parsed, dict) and isinstance(answer := parsed.get("answer"), str):
+            return answer
+        return self.text
+
     def as_user_message(self) -> str:
         """Render this response as text a person can act on."""
         if self.refused_for_budget:
@@ -95,9 +116,9 @@ class AgentForgeResponse:
                 "Approve it there and ask again."
             )
         if self.is_error:
-            detail = self.text.strip() or "AgentForge reported an error with no detail."
+            detail = self.answer_text.strip() or "AgentForge reported an error with no detail."
             return f"HomeIQ could not complete that request: {detail}"
-        return self.text
+        return self.answer_text
 
 
 def _http_failure(status: int, body: str) -> AgentForgeError:
