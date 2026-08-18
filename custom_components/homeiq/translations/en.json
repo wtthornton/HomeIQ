@@ -1,0 +1,83 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect HomeIQ",
+        "description": "HomeIQ needs the MCP server that serves its read-only tools and the AgentForge instance that answers conversations and tasks. Both are checked before the entry is created.",
+        "data": {
+          "mcp_url": "HomeIQ MCP base URL",
+          "mcp_token": "HomeIQ MCP bearer token",
+          "agentforge_url": "AgentForge base URL",
+          "agentforge_api_key": "AgentForge project API key"
+        },
+        "data_description": {
+          "mcp_url": "Base URL only; HomeIQ appends /mcp. The server listens on port 8050.",
+          "mcp_token": "A token from HOMEIQ_MCP_READ_TOKENS.",
+          "agentforge_url": "The AgentForge API, normally port 8010.",
+          "agentforge_api_key": "The afp_ project key for this HomeIQ project."
+        }
+      },
+      "reconfigure": {
+        "title": "Update HomeIQ endpoints",
+        "description": "Change the HomeIQ MCP or AgentForge endpoint. Both are checked before the change is saved.",
+        "data": {
+          "mcp_url": "HomeIQ MCP base URL",
+          "mcp_token": "HomeIQ MCP bearer token",
+          "agentforge_url": "AgentForge base URL",
+          "agentforge_api_key": "AgentForge project API key"
+        }
+      }
+    },
+    "error": {
+      "mcp_cannot_connect": "Could not reach the HomeIQ MCP server at that URL.",
+      "mcp_invalid_auth": "The HomeIQ MCP server rejected that bearer token.",
+      "agentforge_cannot_connect": "Could not reach AgentForge at that URL.",
+      "agentforge_invalid_auth": "AgentForge rejected that API key."
+    },
+    "abort": {
+      "single_instance_allowed": "HomeIQ is already configured.",
+      "reconfigure_successful": "HomeIQ was reconfigured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "HomeIQ options",
+        "data": {
+          "agentforge_project": "AgentForge project",
+          "exposed_tools": "Exposed HomeIQ tools"
+        },
+        "data_description": {
+          "agentforge_project": "The AgentForge project slug conversations and tasks are invoked against.",
+          "exposed_tools": "Leave empty to offer every tool in the HomeIQ catalogue."
+        }
+      }
+    }
+  },
+  "entity": {
+    "conversation": {
+      "conversation": {
+        "name": "Assistant"
+      }
+    },
+    "ai_task": {
+      "ai_task_data": {
+        "name": "Task"
+      }
+    }
+  },
+  "exceptions": {
+    "mcp_tool_failed": {
+      "message": "The HomeIQ tool {tool} failed: {reason}"
+    },
+    "agentforge_error": {
+      "message": "{reason}"
+    },
+    "structure_not_json": {
+      "message": "AgentForge did not return JSON for a structured task. It replied: {response}"
+    },
+    "structure_mismatch": {
+      "message": "AgentForge's answer did not match the requested structure: {reason}"
+    }
+  }
+}

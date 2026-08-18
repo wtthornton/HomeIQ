@@ -47,6 +47,9 @@ simulation/htmlcov/
 # Virtual environments
 .env
 .venv
+# Home Assistant custom-integration test venv (Python 3.14 + homeassistant);
+# created from requirements-homeiq-integration.txt, never committed.
+.venv-ha
 env/
 venv/
 ENV/

@@ -1,0 +1,16 @@
+{
+  "domain": "homeiq",
+  "name": "HomeIQ",
+  "version": "0.1.0",
+  "codeowners": ["@wtthornton"],
+  "config_flow": true,
+  "dependencies": ["ai_task", "conversation"],
+  "documentation": "https://github.com/wtthornton/HomeIQ",
+  "integration_type": "service",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/wtthornton/HomeIQ/issues",
+  "loggers": ["custom_components.homeiq"],
+  "min_ha_version": "2026.8.0",
+  "requirements": [],
+  "single_config_entry": true
+}

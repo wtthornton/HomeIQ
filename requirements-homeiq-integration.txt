@@ -1,0 +1,21 @@
+# Test dependencies for the HomeIQ Home Assistant custom integration
+# (custom_components/homeiq, tests/custom_components/homeiq).
+#
+# Home Assistant 2026.8 needs Python 3.14, which the rest of this repo does not,
+# so the suite runs in its own environment rather than the workspace venv:
+#
+#   uv venv --python 3.14 .venv-ha
+#   VIRTUAL_ENV=.venv-ha uv pip install -r requirements-homeiq-integration.txt
+#   .venv-ha/bin/python -m pytest -c pytest-homeiq.ini
+#
+# pytest-homeassistant-custom-component pins the exact homeassistant release it
+# mirrors; bump this pin to move the integration to a newer Home Assistant.
+pytest-homeassistant-custom-component==0.13.356
+
+# Requirements of the components this integration depends on, which the
+# homeassistant wheel does not install: conversation needs hassil and the
+# intents package, and ai_task pulls in camera.
+hassil==3.11.0
+home-assistant-intents==2026.7.30
+PyTurboJPEG
+pillow
