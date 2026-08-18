@@ -1,6 +1,6 @@
 """Tests for HTTP clients"""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from src.clients.data_api_client import DataAPIClient
@@ -13,11 +13,11 @@ async def test_weather_api_client_success():
     """Test WeatherAPIClient successful fetch"""
     client = WeatherAPIClient(base_url="http://test-weather:8009")
 
-    mock_response = AsyncMock()
+    mock_response = MagicMock()
     mock_response.json.return_value = {"temperature": 72.5, "condition": "sunny", "humidity": 45}
-    mock_response.raise_for_status = AsyncMock()
+    mock_response.raise_for_status = MagicMock()
 
-    with patch.object(client.client, "get", return_value=mock_response):
+    with patch.object(client._cross_client, "call", return_value=mock_response):
         result = await client.get_current_weather()
         assert result is not None
         assert result["temperature"] == 72.5
@@ -30,7 +30,7 @@ async def test_weather_api_client_connection_error():
     """Test WeatherAPIClient graceful degradation on connection error"""
     client = WeatherAPIClient(base_url="http://test-weather:8009")
 
-    with patch.object(client.client, "get", side_effect=Exception("Connection failed")):
+    with patch.object(client._cross_client, "call", side_effect=Exception("Connection failed")):
         result = await client.get_current_weather()
         assert result is None  # Graceful degradation
 
@@ -42,11 +42,11 @@ async def test_sports_data_client_success():
     """Test SportsDataClient successful fetch"""
     client = SportsDataClient(base_url="http://test-data:8006")
 
-    mock_response = AsyncMock()
+    mock_response = MagicMock()
     mock_response.json.return_value = [{"id": "1", "team": "Lakers", "status": "live"}]
-    mock_response.raise_for_status = AsyncMock()
+    mock_response.raise_for_status = MagicMock()
 
-    with patch.object(client.client, "get", return_value=mock_response):
+    with patch.object(client._cross_client, "call", return_value=mock_response):
         result = await client.get_live_games()
         assert isinstance(result, list)
         assert len(result) == 1
@@ -59,11 +59,11 @@ async def test_data_api_client_success():
     """Test DataAPIClient successful fetch"""
     client = DataAPIClient(base_url="http://test-data:8006")
 
-    mock_response = AsyncMock()
+    mock_response = MagicMock()
     mock_response.json.return_value = [{"entity_id": "light.living_room", "state": "on"}]
-    mock_response.raise_for_status = AsyncMock()
+    mock_response.raise_for_status = MagicMock()
 
-    with patch.object(client.client, "get", return_value=mock_response):
+    with patch.object(client._cross_client, "call", return_value=mock_response):
         result = await client.get_events(limit=10)
         assert isinstance(result, list)
         assert len(result) == 1

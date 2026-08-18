@@ -40,7 +40,7 @@ class TestDataAPIClient:
             mock_settings.data_api_url = data_api_base_url
             client = DataAPIClient()
             assert client.base_url == data_api_base_url
-            assert client.client is not None
+            assert client._cross_client is not None
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -72,14 +72,14 @@ class TestDataAPIClient:
             ]
         }
 
-        with patch.object(client.client, "get", new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = mock_response
+        with patch.object(client._cross_client, "call", new_callable=AsyncMock) as mock_call:
+            mock_call.return_value = mock_response
 
             events = await client.fetch_events(entity_id="light.office", days=7)
 
             assert len(events) == 2
             assert events[0]["entity_id"] == "light.office"
-            mock_get.assert_called_once()
+            mock_call.assert_called_once()
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -91,8 +91,8 @@ class TestDataAPIClient:
         mock_response.status_code = 200
         mock_response.json.return_value = {"events": []}
 
-        with patch.object(client.client, "get", new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = mock_response
+        with patch.object(client._cross_client, "call", new_callable=AsyncMock) as mock_call:
+            mock_call.return_value = mock_response
 
             await client.fetch_events(
                 entity_id="light.office",
@@ -102,7 +102,7 @@ class TestDataAPIClient:
             )
 
             # Verify query parameters were included
-            call_args = mock_get.call_args
+            call_args = mock_call.call_args
             assert "entity_id" in str(call_args)
             assert "device_id" in str(call_args)
             assert "event_type" in str(call_args)
@@ -120,13 +120,13 @@ class TestDataAPIClient:
         mock_response.status_code = 200
         mock_response.json.return_value = {"events": []}
 
-        with patch.object(client.client, "get", new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = mock_response
+        with patch.object(client._cross_client, "call", new_callable=AsyncMock) as mock_call:
+            mock_call.return_value = mock_response
 
             await client.fetch_events(start_time=start_time, end_time=end_time)
 
             # Client uses limit param; time range not yet supported by data-api (see client docstring)
-            call_args = mock_get.call_args
+            call_args = mock_call.call_args
             assert call_args is not None
             assert call_args.kwargs.get("params", {}).get("limit") == 10000
 
@@ -140,13 +140,13 @@ class TestDataAPIClient:
         mock_response.status_code = 200
         mock_response.json.return_value = {"events": []}
 
-        with patch.object(client.client, "get", new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = mock_response
+        with patch.object(client._cross_client, "call", new_callable=AsyncMock) as mock_call:
+            mock_call.return_value = mock_response
 
             await client.fetch_events()
 
             # Should use default 30 days
-            mock_get.assert_called_once()
+            mock_call.assert_called_once()
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -154,8 +154,8 @@ class TestDataAPIClient:
         """Test event fetching handles HTTP errors."""
         client = DataAPIClient(base_url=data_api_base_url)
 
-        with patch.object(client.client, "get", new_callable=AsyncMock) as mock_get:
-            mock_get.side_effect = httpx.HTTPError("Connection failed")
+        with patch.object(client._cross_client, "call", new_callable=AsyncMock) as mock_call:
+            mock_call.side_effect = httpx.HTTPError("Connection failed")
 
             with pytest.raises(httpx.HTTPError):
                 await client.fetch_events()
@@ -166,8 +166,8 @@ class TestDataAPIClient:
         """Test event fetching handles timeout errors."""
         client = DataAPIClient(base_url=data_api_base_url)
 
-        with patch.object(client.client, "get", new_callable=AsyncMock) as mock_get:
-            mock_get.side_effect = httpx.TimeoutException("Request timeout")
+        with patch.object(client._cross_client, "call", new_callable=AsyncMock) as mock_call:
+            mock_call.side_effect = httpx.TimeoutException("Request timeout")
 
             with pytest.raises(httpx.TimeoutException):
                 await client.fetch_events()
@@ -178,9 +178,12 @@ class TestDataAPIClient:
         """Test client cleanup."""
         client = DataAPIClient(base_url=data_api_base_url)
 
-        with patch.object(client.client, "aclose", new_callable=AsyncMock) as mock_close:
-            await client.close()
-            mock_close.assert_called_once()
+        # close() is a no-op: CrossGroupClient opens a client per request, so
+        # there is no long-lived transport to shut down. Assert it stays
+        # awaitable and side-effect free rather than asserting on a closed
+        # resource that no longer exists.
+        await client.close()
+        assert client._cross_client is not None
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -208,16 +211,14 @@ class TestDataAPIClient:
             ]
         }
 
-        with patch.object(client.client, "get", new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = mock_response
+        with patch.object(client._cross_client, "call", new_callable=AsyncMock) as mock_call:
+            mock_call.return_value = mock_response
 
             devices = await client.fetch_devices()
 
             assert len(devices) == 2
             assert devices[0]["device_id"] == "device1"
-            mock_get.assert_called_once_with(
-                f"{data_api_base_url}/api/devices", params={"limit": 1000}, headers={}
-            )
+            mock_call.assert_called_once_with("GET", "/api/devices", params={"limit": 1000})
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -234,16 +235,14 @@ class TestDataAPIClient:
             ]
         }
 
-        with patch.object(client.client, "get", new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = mock_response
+        with patch.object(client._cross_client, "call", new_callable=AsyncMock) as mock_call:
+            mock_call.return_value = mock_response
 
             entities = await client.fetch_entities()
 
             assert len(entities) == 2
             assert entities[0]["entity_id"] == "light.office"
-            mock_get.assert_called_once_with(
-                f"{data_api_base_url}/api/entities", params={"limit": 1000}, headers={}
-            )
+            mock_call.assert_called_once_with("GET", "/api/entities", params={"limit": 1000})
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -255,16 +254,14 @@ class TestDataAPIClient:
         mock_response.status_code = 200
         mock_response.json.return_value = {"entity_id": "light.office", "state": "on"}
 
-        with patch.object(client.client, "get", new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = mock_response
+        with patch.object(client._cross_client, "call", new_callable=AsyncMock) as mock_call:
+            mock_call.return_value = mock_response
 
             entity = await client.get_entity_by_id("light.office")
 
             assert entity is not None
             assert entity["entity_id"] == "light.office"
-            mock_get.assert_called_once_with(
-                f"{data_api_base_url}/api/entities/light.office", headers={}
-            )
+            mock_call.assert_called_once_with("GET", "/api/entities/light.office")
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -275,8 +272,8 @@ class TestDataAPIClient:
         mock_response = MagicMock()
         mock_response.status_code = 404
 
-        with patch.object(client.client, "get", new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = mock_response
+        with patch.object(client._cross_client, "call", new_callable=AsyncMock) as mock_call:
+            mock_call.return_value = mock_response
 
             entity = await client.get_entity_by_id("light.nonexistent")
 
@@ -291,13 +288,13 @@ class TestDataAPIClient:
         mock_response = MagicMock()
         mock_response.status_code = 200
 
-        with patch.object(client.client, "get", new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = mock_response
+        with patch.object(client._cross_client, "call", new_callable=AsyncMock) as mock_call:
+            mock_call.return_value = mock_response
 
             is_healthy = await client.health_check()
 
             assert is_healthy is True
-            mock_get.assert_called_once_with(f"{data_api_base_url}/health", headers={}, timeout=5.0)
+            mock_call.assert_called_once_with("GET", "/health")
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -308,8 +305,8 @@ class TestDataAPIClient:
         mock_response = MagicMock()
         mock_response.status_code = 503
 
-        with patch.object(client.client, "get", new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = mock_response
+        with patch.object(client._cross_client, "call", new_callable=AsyncMock) as mock_call:
+            mock_call.return_value = mock_response
 
             is_healthy = await client.health_check()
 
@@ -321,8 +318,8 @@ class TestDataAPIClient:
         """Test health check handles exceptions gracefully."""
         client = DataAPIClient(base_url=data_api_base_url)
 
-        with patch.object(client.client, "get", new_callable=AsyncMock) as mock_get:
-            mock_get.side_effect = Exception("Connection error")
+        with patch.object(client._cross_client, "call", new_callable=AsyncMock) as mock_call:
+            mock_call.side_effect = Exception("Connection error")
 
             is_healthy = await client.health_check()
 

@@ -75,60 +75,64 @@ class TestAIAutomationClient:
     @pytest.mark.asyncio
     async def test_validate_yaml_success(self, client, valid_yaml, validation_response):
         """Test successful YAML validation."""
-        with patch.object(client.client, "post") as mock_post:
+        with patch.object(client._cross_client, "call") as mock_call:
             mock_response = MockResponse(200, validation_response)
             # httpx.AsyncClient.post() returns Response directly when awaited
-            mock_post.return_value = mock_response
+            mock_call.return_value = mock_response
 
             result = await client.validate_yaml(valid_yaml)
 
             assert result["valid"] is True
             assert len(result["errors"]) == 0
             assert "stages" in result
-            mock_post.assert_called_once()
+            mock_call.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_validate_yaml_with_options(self, client, valid_yaml, validation_response):
         """Test YAML validation with custom options."""
-        with patch.object(client.client, "post") as mock_post:
+        with patch.object(client._cross_client, "call") as mock_call:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response = MockResponse(200, validation_response)
             mock_response.raise_for_status = MagicMock()
             # httpx.AsyncClient.post() returns Response directly when awaited
-            mock_post.return_value = mock_response
+            mock_call.return_value = mock_response
 
             result = await client.validate_yaml(valid_yaml, validate_entities=False, validate_safety=False)
 
             assert result["valid"] is True
             # Check that request was made with correct options
-            call_args = mock_post.call_args
-            assert call_args[0][0] == "http://test-service:8000/api/v1/yaml/validate"
+            call_args = mock_call.call_args
+            assert call_args[0] == ("POST", "/api/v1/automations/validate")
             payload = call_args[1]["json"]
             assert payload["validate_entities"] is False
-            assert payload["validate_safety"] is False
+            # the unified endpoint names this field validate_services
+            assert payload["validate_services"] is False
 
     @pytest.mark.asyncio
     async def test_validate_yaml_with_context(self, client, valid_yaml, validation_response):
         """Test YAML validation with context."""
-        with patch.object(client.client, "post") as mock_post:
+        with patch.object(client._cross_client, "call") as mock_call:
             mock_response = MockResponse(200, validation_response)
             # httpx.AsyncClient.post() returns Response directly when awaited
-            mock_post.return_value = mock_response
+            mock_call.return_value = mock_response
 
             context = {"entities": ["light.kitchen"], "conversation_history": []}
 
-            result = await client.validate_yaml(valid_yaml, context=context)
+            result = await client.validate_yaml(valid_yaml, _context=context)
 
             assert result["valid"] is True
-            call_args = mock_post.call_args
+            call_args = mock_call.call_args
             payload = call_args[1]["json"]
-            assert payload["context"] == context
+            # The unified endpoint does not take context. The parameter is
+            # accepted and dropped, so assert it never reaches the wire rather
+            # than asserting a payload key the service no longer sends.
+            assert "context" not in payload
 
     @pytest.mark.asyncio
     async def test_validate_yaml_invalid_response(self, client, valid_yaml):
         """Test YAML validation with invalid response."""
-        with patch.object(client.client, "post") as mock_post:
+        with patch.object(client._cross_client, "call") as mock_call:
             mock_response = MockResponse(
                 200,
                 {
@@ -140,7 +144,7 @@ class TestAIAutomationClient:
                 },
             )
             # httpx.AsyncClient.post() returns Response directly when awaited
-            mock_post.return_value = mock_response
+            mock_call.return_value = mock_response
 
             result = await client.validate_yaml(valid_yaml)
 
@@ -150,8 +154,8 @@ class TestAIAutomationClient:
     @pytest.mark.asyncio
     async def test_validate_yaml_http_error(self, client, valid_yaml):
         """Test YAML validation with HTTP error."""
-        with patch.object(client.client, "post") as mock_post:
-            mock_post.side_effect = httpx.HTTPStatusError(
+        with patch.object(client._cross_client, "call") as mock_call:
+            mock_call.side_effect = httpx.HTTPStatusError(
                 "Server error", request=MagicMock(), response=MagicMock(status_code=500)
             )
 
@@ -163,19 +167,19 @@ class TestAIAutomationClient:
     @pytest.mark.asyncio
     async def test_validate_yaml_connection_error(self, client, valid_yaml):
         """Test YAML validation with connection error."""
-        with patch.object(client.client, "post") as mock_post:
-            mock_post.side_effect = httpx.ConnectError("Connection failed")
+        with patch.object(client._cross_client, "call") as mock_call:
+            mock_call.side_effect = httpx.ConnectError("Connection failed")
 
             with pytest.raises(Exception) as exc_info:
                 await client.validate_yaml(valid_yaml)
 
-            assert "Could not connect" in str(exc_info.value)
+            assert "Error validating YAML" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_validate_yaml_timeout(self, client, valid_yaml):
         """Test YAML validation with timeout."""
-        with patch.object(client.client, "post") as mock_post:
-            mock_post.side_effect = httpx.TimeoutException("Request timed out")
+        with patch.object(client._cross_client, "call") as mock_call:
+            mock_call.side_effect = httpx.TimeoutException("Request timed out")
 
             with pytest.raises(Exception) as exc_info:
                 await client.validate_yaml(valid_yaml)
@@ -194,10 +198,10 @@ class TestAIAutomationClient:
             "summary": "Validation passed with fixes",
         }
 
-        with patch.object(client.client, "post") as mock_post:
+        with patch.object(client._cross_client, "call") as mock_call:
             mock_response = MockResponse(200, validation_response_with_fix)
             # httpx.AsyncClient.post() returns Response directly when awaited
-            mock_post.return_value = mock_response
+            mock_call.return_value = mock_response
 
             result = await client.validate_yaml(valid_yaml)
 
@@ -208,9 +212,11 @@ class TestAIAutomationClient:
     @pytest.mark.asyncio
     async def test_close_client(self, client):
         """Test closing the client."""
-        with patch.object(client.client, "aclose") as mock_close:
-            await client.close()
-            mock_close.assert_called_once()
+        # close() is a no-op: CrossGroupClient opens a client per request, so
+        # there is no persistent transport to close. Assert it stays awaitable
+        # and side-effect free.
+        await client.close()
+        assert client._cross_client is not None
 
 
 if __name__ == "__main__":
