@@ -259,6 +259,7 @@ cost comes from `/invocations`, project rollup from `/stats` and `/spend`.
 | Gene | Model / role | obs max (n) | Cap | Basis |
 |---|---|---|---|---|
 | `hiq-anomaly-triage` | haiku / router | $0.0545 (2) | 0.25 | 3x = $0.16; was 0.50 (over-provisioned) |
+| `hiq-assistant` | haiku / producer | $0.0901 (3) | 0.30 | 3x = $0.27; sized from live spend on 2026-08-18 (ids 19583/19584/19586), not a peer estimate |
 | `hiq-classify` | haiku / router | — (0) | 0.25 | peer estimate — `hiq-anomaly-triage`; was 0.10 |
 | `hiq-correlate` | sonnet / aggregator | — (0) | 0.50 | peer estimate — `homeiq-audit-aggregator`; unchanged |
 | `hiq-device-health-triage` | haiku / router | — (0) | 0.25 | peer estimate — `hiq-anomaly-triage`; was 0.50 |

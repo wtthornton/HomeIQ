@@ -34,6 +34,15 @@
     "homeiq-mcp-probe": [
       "list_devices",
       "get_entity_state"
+    ],
+    "hiq-assistant": [
+      "list_areas",
+      "list_devices",
+      "list_entities",
+      "get_entity_state",
+      "get_entity_history",
+      "get_recent_events",
+      "get_energy_summary"
     ]
   }
 }
