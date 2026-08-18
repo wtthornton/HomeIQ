@@ -15,5 +15,19 @@
 - Live: homeiq-mcp :8050 on AF gateway bind (HOMEIQ_MCP_BIND=172.20.0.1), catalogue 1.2.3, read_only rootfs, minimal env; AF registry v1 active with vault auth; probe gene v2 least-privilege ran live.
 - AF-side oddity (recorded on 5296): invocation ledger says is_error=true/num_turns=0 while CLI result is success — AF bug, not ours.
 
-## Next
-Wave 9a (5311 → 5318 → 5312 → 5313 → 5319/5316 → 5314 → 5315 → 5317) per plan; then 9b (+6102 → 5322), 11a (5910 deletions = hard-stops, then 5303, 6103), 10, 11b (5299, 5301). Human-gated: 5430/6018 need Decision A (SSH write path); TAP-5978/5979 physical. Anytime: 6066.
+## Wave 9a DONE on branch feat/wave9-genome (pushed)
+- 5311 fork+drift+CI (genome-kit.yml), 5312 8 base genes rendered, 5318 publish pipeline (af_kit/af_live_diff/af_roundtrip_check/af_preflight/af_suite_run), 5313 injection judge, 5316+5319 five skills (deny list SAFETY001-006), 5314 draft+judge genes, 5315 five analysis genes with least-privilege MCP grants, 5317 four chromosomes published+ACTIVE (home-health, automation-proposal w/ human gate, energy-digest, anomaly-triage event+schedule).
+- Kit: 23 agents, 7 workflows, 11 skills publishable; 150 kit tests; drift clean; 30/30 live match; round-trip fields + AF version pin OK.
+- Wave 9 Done-when evidence LIVE: deny refusal (8e905a10, rule_id deny.unlock_lock) + budget hold (d376d401, error_max_budget_usd). Probe reverted to v4 (0.3 cap) and re-activated.
+- AF platform notes: transform sandbox = no comprehensions/any()/methods; gate payload_from = $refs only; orchestrated runs don't materialize run objects on this deployment (api replica enqueues only) — recorded on 5323.
+
+## Wave 9 shipped (PR #88 open, branch feat/wave9-genome, 5 commits)
+- Epic TAP-5285 Done + 5311/5312/5313/5314/5315/5316/5317/5318/5319/5320/5325 Done. 5321 + 5323 left In Progress: both need AF instance env (AF_MONTHLY_BUDGET_USD / plan ceiling) = OWNER action; per-gene budgets + the budget-kill proof are done.
+- Live: 23 agents + 7 workflows active on project homeiq; af_live_diff 30/30; deny refusal 8e905a10; budget kill d376d401.
+
+## Next (needs owner input before proceeding)
+1. Merge PR #88 (Wave 9) — owner gate on merges.
+2. **Wave 11a (TAP-5910) is 15 service DELETIONS — every one an Autonomy hard-stop.** Needs explicit go-ahead; each deletion carries a pasted capability-reachability proof.
+3. TAP-6102 cutover (ai-automation-service-new -> AF genes) is now unblocked (5314/5318 done) -> then 5322 credential move; rotation is owner-gated.
+4. Wave 10 (5305-5310) installs a custom integration on the LIVE HA instance = apply, gateway path or hard-stop.
+5. Owner batch: AF_MONTHLY_BUDGET_USD; SSH write path (5430/6018); credential rotation (6036/5993).
