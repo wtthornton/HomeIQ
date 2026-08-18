@@ -25,6 +25,18 @@ logger = get_logger(__name__)
 # Schema name validator — prevents SQL injection in SET search_path
 _SAFE_SCHEMA = re.compile(r"^[a-z_][a-z0-9_]*$", re.IGNORECASE)
 
+
+def validate_schema_name(schema: str) -> str:
+    """Return `schema` if it is a plain identifier; raise ValueError otherwise.
+
+    Every `SET search_path TO {schema}` in the codebase must go through this so an
+    env-sourced value can never smuggle SQL.
+    """
+    if not _SAFE_SCHEMA.match(schema):
+        raise ValueError(f"Invalid schema name: {schema!r}")
+    return schema
+
+
 # Global engine instances (one per database path)
 _engines: dict[str, AsyncEngine] = {}
 _session_makers: dict[str, async_sessionmaker] = {}
@@ -228,7 +240,7 @@ async def close_all_engines_async():
     logger.info("All shared database engines disposed")
 
 
-def _apply_search_path(dbapi_conn, schema: str) -> None:
+def apply_search_path(dbapi_conn, schema: str) -> None:
     """Set the session search_path OUTSIDE a transaction.
 
     The asyncpg adapter opens an implicit transaction on the first statement and
@@ -274,8 +286,7 @@ def create_pg_engine(
     Returns:
         AsyncEngine configured for the specified schema
     """
-    if not _SAFE_SCHEMA.match(schema):
-        raise ValueError(f"Invalid schema name: {schema!r}")
+    validate_schema_name(schema)
 
     engine = create_async_engine(
         database_url,
@@ -289,7 +300,7 @@ def create_pg_engine(
 
     @event.listens_for(engine.sync_engine, "connect")
     def set_search_path(dbapi_conn, _connection_record):
-        _apply_search_path(dbapi_conn, schema)
+        apply_search_path(dbapi_conn, schema)
 
     logger.info(
         f"Created PostgreSQL engine: schema={schema} "

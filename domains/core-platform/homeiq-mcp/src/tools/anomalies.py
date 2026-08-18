@@ -61,8 +61,15 @@ async def _failures(backings: Backings, args: dict[str, Any], limit: int) -> lis
     return rows[:limit]
 
 
+def _recount(payload: dict[str, Any]) -> None:
+    payload["counts"] = {
+        "power": len(payload.get("power_anomalies", [])),
+        "failure_risk": len(payload.get("failure_predictions", [])),
+    }
+
+
 def register(registry: ToolRegistry, backings: Backings) -> None:
-    @registry.register(TOOL, narrow_hint="limit")
+    @registry.register(TOOL, narrow_hint="limit", recount=_recount)
     async def detect_anomalies(args: dict[str, Any]) -> dict[str, Any]:
         kind = args.get("kind", "all")
         limit = args.get("limit", 50)

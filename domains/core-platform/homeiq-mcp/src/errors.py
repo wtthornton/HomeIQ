@@ -13,7 +13,6 @@ ErrorCode = Literal[
     "backing_unavailable",
     "invalid_input",
     "not_found",
-    "truncated_upstream",
     "contract_violation",
 ]
 

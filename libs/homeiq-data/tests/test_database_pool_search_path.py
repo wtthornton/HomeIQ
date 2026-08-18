@@ -8,7 +8,7 @@ default search_path into other services' schemas.
 from unittest.mock import MagicMock
 
 import pytest
-from homeiq_data.database_pool import _apply_search_path, create_pg_engine
+from homeiq_data.database_pool import apply_search_path, create_pg_engine
 
 
 def _conn(initial_autocommit=False):
@@ -24,7 +24,7 @@ def test_search_path_is_set_with_autocommit_and_restored():
     states = []
     cursor.execute.side_effect = lambda sql: states.append((sql, conn.autocommit))
 
-    _apply_search_path(conn, "devices")
+    apply_search_path(conn, "devices")
 
     assert states == [("SET search_path TO devices, public", True)]
     assert conn.autocommit is False  # restored to the adapter's default
@@ -35,7 +35,7 @@ def test_autocommit_restored_even_when_set_fails():
     conn, cursor = _conn(initial_autocommit=False)
     cursor.execute.side_effect = RuntimeError("boom")
     with pytest.raises(RuntimeError):
-        _apply_search_path(conn, "devices")
+        apply_search_path(conn, "devices")
     assert conn.autocommit is False
     cursor.close.assert_called_once()
 
@@ -43,7 +43,7 @@ def test_autocommit_restored_even_when_set_fails():
 def test_engine_registers_connect_listener_that_applies_search_path(monkeypatch):
     calls = []
     monkeypatch.setattr(
-        "homeiq_data.database_pool._apply_search_path", lambda _conn, schema: calls.append(schema)
+        "homeiq_data.database_pool.apply_search_path", lambda _conn, schema: calls.append(schema)
     )
     engine = create_pg_engine("postgresql+asyncpg://u:p@localhost/db", schema="devices")
     # Our listener sits on the pool's connect hook next to the dialect's own; fire just ours.
@@ -58,3 +58,11 @@ def test_engine_registers_connect_listener_that_applies_search_path(monkeypatch)
 def test_schema_name_is_validated():
     with pytest.raises(ValueError):
         create_pg_engine("postgresql+asyncpg://u:p@localhost/db", schema="devices; DROP TABLE x")
+
+
+def test_validate_schema_name_public_helper():
+    from homeiq_data import validate_schema_name
+
+    assert validate_schema_name("patterns") == "patterns"
+    with pytest.raises(ValueError):
+        validate_schema_name("patterns; drop table x")

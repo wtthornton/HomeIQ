@@ -712,6 +712,7 @@ async def list_entities(
     domain: str | None = Query(default=None, description="Filter by domain (light, sensor, etc)"),
     platform: str | None = Query(default=None, description="Filter by platform"),
     device_id: str | None = Query(default=None, description="Filter by device ID"),
+    area_id: str | None = Query(default=None, description="Filter by area/room ID"),
     label: list[str] | None = Query(
         default=None, description="Filter by label (JSONB containment, repeatable)"
     ),
@@ -746,6 +747,8 @@ async def list_entities(
             query = query.where(Entity.platform == platform)
         if device_id:
             query = query.where(func.lower(Entity.device_id) == func.lower(device_id))
+        if area_id:
+            query = query.where(Entity.area_id == area_id)
 
         # Story 62.2: Label filter (JSONB containment — uses GIN index)
         if label:

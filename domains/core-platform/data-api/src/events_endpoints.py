@@ -89,6 +89,8 @@ class EventSearch(BaseModel):
 # Fields the raw event query pivots into one row per event (writer: websocket-ingestion
 # `influxdb_schema.py`; verified against the live bucket 2026-08-17).
 _RAW_EVENT_FIELDS = ("context_id", "state_value", "previous_state")
+# Legacy rows hold the repr of a full HA state object; anything larger than this is not one.
+_LEGACY_STATE_REPR_MAX = 64 * 1024
 
 
 def _state_dict(value: Any) -> dict[str, Any] | None:
@@ -101,10 +103,10 @@ def _state_dict(value: Any) -> dict[str, Any] | None:
     if value is None:
         return None
     text = str(value)
-    if text.startswith("{") and "'state':" in text:
+    if text.startswith("{") and "'state':" in text and len(text) <= _LEGACY_STATE_REPR_MAX:
         try:
             parsed = ast.literal_eval(text)
-        except (ValueError, SyntaxError):
+        except (ValueError, SyntaxError, RecursionError, MemoryError):
             parsed = None
         if isinstance(parsed, dict) and parsed.get("state") is not None:
             return {"state": str(parsed["state"])}
@@ -703,9 +705,7 @@ from(bucket: "{bucket}")
         all_events: list[EventData] = []
         for table in tables:
             for record in table.records:
-                event = self._build_event_from_record(
-                    record, f"search-{len(all_events)}"
-                )
+                event = self._build_event_from_record(record, f"search-{len(all_events)}")
                 if event:
                     all_events.append(event)
 
@@ -1094,7 +1094,6 @@ from(bucket: "{bucket}")
                 query += f'''
               |> filter(fn: (r) => r._measurement == "{measurement}")
               |> filter(fn: (r) => {field_predicate})
-              |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
             '''
             else:
                 query += f'''
@@ -1132,6 +1131,14 @@ from(bucket: "{bucket}")
             if event_filter.event_category:
                 category_safe = sanitize_flux_value(event_filter.event_category)
                 query += f'  |> filter(fn: (r) => r.event_category == "{category_safe}")\n'
+
+            # Raw events: pivot AFTER the selective tag filters so InfluxDB pushes them
+            # down to storage; one row per event with context_id / state_value /
+            # previous_state as columns.
+            if measurement == "home_assistant_events":
+                query += (
+                    '  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")\n'
+                )
 
             # Group all tag-based series together, then get distinct records
             query += "  |> group()\n"

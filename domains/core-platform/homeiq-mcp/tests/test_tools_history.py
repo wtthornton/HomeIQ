@@ -182,10 +182,12 @@ async def test_trace_automation_projects_chain_items(reg, catalogue):
         return_value=httpx.Response(200, json=items)
     )
     out = await reg.call(
-        "trace_automation", {"context_id": "ctx0", "max_depth": 3}, scopes=READ_SCOPES
+        "trace_automation", {"context_id": "ctx0", "max_depth": 2}, scopes=READ_SCOPES
     )
     _validate(catalogue, "trace_automation", out)
-    assert out["truncated"] is True and out["hint"] == "max_depth" and out["count"] == 3
+    # max_depth bounds chain LEVELS, not rows: depths 0..2 kept (3 rows), depth 3 dropped, no row cap.
+    assert out["count"] == 3 and out["truncated"] is False and "hint" not in out
+    assert [c["depth"] for c in out["chain"]] == [0, 1, 2]
     assert "state" not in out["chain"][0] and out["chain"][1]["state"] == "on"
     assert out["chain"][1]["t"] == "2026-08-17T10:01:00+00:00"
 
@@ -234,3 +236,30 @@ async def test_backing_404_maps_to_not_found(reg):
     with pytest.raises(ToolError) as exc:
         await reg.call("trace_automation", {"context_id": "nope"}, scopes=READ_SCOPES)
     assert exc.value.code == "not_found"
+
+
+@respx.mock
+async def test_history_skips_state_changed_rows_without_new_state_and_filters_event_type(
+    reg, catalogue
+):
+    route = respx.get(f"{DATA_API}/api/v1/events").mock(
+        return_value=httpx.Response(
+            200, json=[_event(1), {**_event(2), "new_state": None}, _event(3)]
+        )
+    )
+    out = await reg.call("get_entity_history", {"entity_id": "light.office"}, scopes=READ_SCOPES)
+    _validate(catalogue, "get_entity_history", out)
+    assert [p["t"] for p in out["points"]] == [
+        "2026-08-17T10:01:00+00:00",
+        "2026-08-17T10:03:00+00:00",
+    ]
+    assert route.calls.last.request.url.params["event_type"] == "state_changed"
+
+
+@pytest.mark.parametrize(
+    "bad", ["../v1/energy/statistics", "a/b", "x?y=1", "ctx#frag", "with space", "", "z" * 300]
+)
+async def test_path_traversal_in_context_id_is_rejected_before_any_request(reg, bad):
+    with pytest.raises(ToolError) as exc:
+        await reg.call("trace_automation", {"context_id": bad}, scopes=READ_SCOPES)
+    assert exc.value.code == "invalid_input"

@@ -146,3 +146,14 @@ async def test_missing_required_field_is_contract_violation(reg):
     with pytest.raises(ToolError) as exc:
         await reg.call("detect_anomalies", {"kind": "power"}, scopes=READ_SCOPES)
     assert exc.value.code == "contract_violation"
+
+
+@respx.mock
+async def test_counts_are_recomputed_after_byte_budget_truncation(reg, catalogue):
+    big = [{**_anomaly(i), "device_id": f"dev{i}-" + "x" * 300} for i in range(100)]
+    respx.get(f"{DATA_API}/api/devices/power-anomalies").mock(
+        return_value=httpx.Response(200, json={"anomalies": big})
+    )
+    out = await reg.call("detect_anomalies", {"kind": "power", "limit": 100}, scopes=READ_SCOPES)
+    _validate(catalogue, out)
+    assert out["truncated"] is True and out["counts"]["power"] == len(out["power_anomalies"]) < 100

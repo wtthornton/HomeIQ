@@ -415,8 +415,14 @@ services:
       dockerfile: domains/core-platform/homeiq-mcp/Dockerfile
     container_name: homeiq-mcp
     restart: unless-stopped
+    # HOMEIQ_MCP_BIND narrows the published address (e.g. the docker gateway IP that
+    # AgentForge dials, so the port is not LAN-exposed). Bearer auth + Host allowlist
+    # guard it either way.
     ports:
-      - "8050:8050"
+      - "${HOMEIQ_MCP_BIND:-0.0.0.0}:8050:8050"
+    read_only: true
+    tmpfs:
+      - /tmp
     env_file:
       - ../../.env
     environment:

@@ -37,8 +37,8 @@ class Settings(BaseSettings):
     allowed_hosts: str = ""
     """Extra Host header values (comma-separated) accepted besides the public hostname and localhost."""
 
-    read_tokens: str = ""
-    write_tokens: str = ""
+    read_tokens: SecretStr = SecretStr("")
+    write_tokens: SecretStr = SecretStr("")
     allow_writes: str = ""
     """Per-tool mutation grant (design rule 1): comma-separated tool names. v1 has no mutating tools."""
 
@@ -57,11 +57,11 @@ class Settings(BaseSettings):
 
     @property
     def read_token_list(self) -> list[str]:
-        return _split_csv(self.read_tokens)
+        return _split_csv(self.read_tokens.get_secret_value())
 
     @property
     def write_token_list(self) -> list[str]:
-        return _split_csv(self.write_tokens)
+        return _split_csv(self.write_tokens.get_secret_value())
 
     @property
     def allowed_write_tools(self) -> frozenset[str]:

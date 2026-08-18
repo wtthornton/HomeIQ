@@ -585,6 +585,30 @@ class TestListEntitiesEndpoint:
             resp = await c.get("/api/entities?domain=light")
         assert resp.status_code == 200
 
+    @pytest.mark.asyncio
+    async def test_area_id_filter_is_applied_to_the_query(self):
+        """`area_id` was advertised (MCP list_entities) but silently dropped; it now filters."""
+        from src.database import get_db
+        from src.devices_endpoints import router
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = []
+        mock_result.scalars.return_value = mock_scalars
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        app = FastAPI()
+        app.include_router(router)
+        app.dependency_overrides[get_db] = _make_db_override(mock_session)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get("/api/entities?area_id=office")
+        assert resp.status_code == 200
+        executed = mock_session.execute.call_args[0][0]
+        assert "area_id" in str(executed.compile(compile_kwargs={"literal_binds": True}))
+        assert "office" in str(executed.compile(compile_kwargs={"literal_binds": True}))
+
 
 class TestGetEntityEndpoint:
     """GET /api/entities/{entity_id}"""

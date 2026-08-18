@@ -74,3 +74,15 @@ def test_catalogue_path_resolution_prefers_explicit_then_repo(monkeypatch, tmp_p
     # A shallow install (e.g. /app/src) must not raise; it falls back to the image path.
     monkeypatch.setattr(cat, "_repo_candidate", lambda: None)
     assert cat.resolve_catalogue_path() == cat._IMAGE_PATH
+
+
+def test_tokens_never_appear_in_settings_repr(monkeypatch):
+    monkeypatch.setenv("HOMEIQ_MCP_READ_TOKENS", "read-secret-abc")
+    monkeypatch.setenv("HOMEIQ_MCP_WRITE_TOKENS", "write-secret-xyz")
+    monkeypatch.setenv("DATA_API_URL", "http://data-api:8006")
+    monkeypatch.setenv("API_KEY", "k-secret")
+    settings = load_settings()
+    dumped = repr(settings) + str(settings.model_dump())
+    for secret in ("read-secret-abc", "write-secret-xyz", "k-secret"):
+        assert secret not in dumped
+    assert settings.read_token_list == ["read-secret-abc"]

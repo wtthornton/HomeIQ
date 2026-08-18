@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..budget import cap_rows
 from ..errors import ToolError
-from .projection import expect_list, listing, present, require
+from .projection import expect_list, listing, path_segment, present, require
 
 if TYPE_CHECKING:
     from ..backends import Backings
@@ -68,10 +68,13 @@ def register(registry: ToolRegistry, backings: Backings) -> None:
         ]
         return listing("devices", devices, 300, "limit")
 
-    @registry.register("get_device")
+    def _recount_device(payload: dict[str, Any]) -> None:
+        payload["entity_count"] = len(payload["entities"])
+
+    @registry.register("get_device", narrow_hint=None, recount=_recount_device)
     async def get_device(args: dict[str, Any]) -> dict[str, Any]:
         tool = "get_device"
-        device_id = args["device_id"]
+        device_id = path_segment(args["device_id"], tool=tool, name="device_id")
         row = await data_api.get_json(f"/api/devices/{device_id}", tool=tool)
         if not isinstance(row, dict):
             raise ToolError("contract_violation", "device backing returned a non-object", tool=tool)
@@ -108,7 +111,7 @@ def register(registry: ToolRegistry, backings: Backings) -> None:
         entities = [{**_entity(r, tool=tool), **present(r, _ENTITY_OPTIONAL)} for r in rows]
         return listing("entities", entities, 500, "limit")
 
-    @registry.register("list_areas")
+    @registry.register("list_areas", narrow_hint=None)
     async def list_areas(_args: dict[str, Any]) -> dict[str, Any]:
         tool = "list_areas"
         rows = expect_list(await data_api.get_json("/api/areas", tool=tool), tool=tool, key="areas")
@@ -121,7 +124,7 @@ def register(registry: ToolRegistry, backings: Backings) -> None:
             }
             for r in rows
         ]
-        return listing("areas", areas, 100, "limit")
+        return listing("areas", areas, 100, None)
 
     @registry.register("get_automation_stats", narrow_hint="limit")
     async def get_automation_stats(args: dict[str, Any]) -> dict[str, Any]:
@@ -143,14 +146,15 @@ def register(registry: ToolRegistry, backings: Backings) -> None:
                 },
                 "truncated": False,
             }
+        limit = args.get("limit", 25)
         if args.get("automation_id"):
-            row = await data_api.get_json(f"/api/v1/automations/{args['automation_id']}", tool=tool)
+            automation_id = path_segment(args["automation_id"], tool=tool, name="automation_id")
+            row = await data_api.get_json(f"/api/v1/automations/{automation_id}", tool=tool)
             rows = [row] if isinstance(row, dict) else expect_list(row, tool=tool)
         else:
-            payload = await data_api.get_json(
-                _STATS_PATHS[view], {"limit": args.get("limit", 25)}, tool=tool
-            )
-            rows = expect_list(payload, tool=tool, key="automations")
+            payload = await data_api.get_json(_STATS_PATHS[view], {"limit": limit}, tool=tool)
+            # stats/inactive ignores limit upstream; apply it here for every view.
+            rows = expect_list(payload, tool=tool, key="automations")[:limit]
         return {
             **listing("automations", [_automation(r, tool=tool) for r in rows], 100, "limit"),
             "view": view,

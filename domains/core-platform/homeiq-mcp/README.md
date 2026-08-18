@@ -14,8 +14,7 @@ integration.
   → read scope; `HOMEIQ_MCP_WRITE_TOKENS` → read + mutate. Mutating tools (none
   in v1) additionally need the per-tool grant `HOMEIQ_MCP_ALLOW_WRITES`.
 - **Errors:** every tool failure is MCP tool-error content with a `code` from
-  `backing_unavailable | invalid_input | not_found | truncated_upstream |
-  contract_violation` — never an upstream traceback.
+  `backing_unavailable | invalid_input | not_found | contract_violation` — never an upstream traceback.
 - **Budgets:** responses are truncated to each tool's `max_response_bytes` with
   `truncated: true` + `hint` naming the parameter to narrow.
 

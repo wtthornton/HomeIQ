@@ -215,7 +215,7 @@ async def test_list_synergies_happy_path(registry, backings) -> None:
                 200,
                 json={
                     "success": True,
-                    "data": {"synergies": synergies_list, "count": 1},
+                    "data": {"synergies": synergies_list, "count": len(synergies_list)},
                     "message": "ok",
                 },
             )
@@ -252,16 +252,27 @@ async def test_list_synergies_with_filters(registry, backings) -> None:
             "confidence": 0.92,
             "complexity": "low",
             "explanation": "Coffee makes coffee",
-        }
+        },
+        {
+            "synergy_id": "syn_002",
+            "synergy_type": "device_pair",
+            "device_ids": ["light.hall"],
+            "area": "hall",
+            "metadata": {},
+            "impact_score": 0.5,
+            "confidence": 0.95,
+            "complexity": "low",
+            "explanation": {"reason": "dict explanations come from a JSON column"},
+        },
     ]
 
     with respx.mock:
         respx.get(
             "http://patterns.test:8020/api/v1/synergies/list",
+            # `area` is NOT forwarded: the upstream route has no such filter; it is applied locally.
             params={
                 "synergy_type": "device_pair",
                 "min_confidence": 0.9,
-                "area": "kitchen",
                 "limit": 20,
             },
         ).mock(

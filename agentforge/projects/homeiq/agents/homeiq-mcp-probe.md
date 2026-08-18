@@ -17,7 +17,10 @@ domain: homeiq-platform
 approved: true
 allowed_tools: ""
 mcp_servers:
-- homeiq
+- name: homeiq
+  tools:
+  - list_devices
+  - get_entity_state
 risk_level: low
 completion_criteria: 'Done when the report names the MCP tools actually invoked,
   quotes the device names returned by list_devices (or states plainly that the

@@ -2,7 +2,10 @@
 
 data-api's `/api/v1/events` takes `start_time`/`end_time`, so the trailing
 `hours` window is derived here; it has no downsampling, so
-`downsample_minutes` is applied locally (first point per bucket).
+`downsample_minutes` is applied locally (first observed point per bucket).
+History and state tools ask for `event_type=state_changed` only, and skip the
+rare state_changed row without a new_state (HA emits one when an entity is
+removed) so a single such row cannot fail the whole call.
 """
 
 from __future__ import annotations
@@ -10,7 +13,16 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from .projection import expect_list, listing, present, require, rfc3339, state_string, window
+from .projection import (
+    expect_list,
+    listing,
+    path_segment,
+    present,
+    require,
+    rfc3339,
+    state_string,
+    window,
+)
 
 if TYPE_CHECKING:
     from ..backends import Backings
@@ -53,7 +65,11 @@ def register(registry: ToolRegistry, backings: Backings) -> None:
     @registry.register("get_entity_history", narrow_hint="hours")
     async def get_entity_history(args: dict[str, Any]) -> dict[str, Any]:
         tool = "get_entity_history"
-        params: dict[str, Any] = {"entity_id": args["entity_id"], "limit": args.get("limit", 500)}
+        params: dict[str, Any] = {
+            "entity_id": args["entity_id"],
+            "event_type": "state_changed",
+            "limit": args.get("limit", 500),
+        }
         if args.get("start_time") and args.get("end_time"):
             params["start_time"], params["end_time"] = args["start_time"], args["end_time"]
         else:
@@ -61,11 +77,11 @@ def register(registry: ToolRegistry, backings: Backings) -> None:
         rows = expect_list(await data_api.get_json(EVENTS, params, tool=tool), tool=tool)
         points = []
         for row in rows:
+            state = state_string(row.get("new_state"))
+            if state is None:
+                continue
             core = require(row, ("timestamp",), tool=tool)
-            point = {"t": rfc3339(core["timestamp"]), "state": state_string(row.get("new_state"))}
-            if "value" in row:
-                point["value"] = row["value"]
-            points.append(point)
+            points.append({"t": rfc3339(core["timestamp"]), "state": state})
         points = _downsample(points, args.get("downsample_minutes", 0))
         return listing("points", points, 500, "hours", entity_id=args["entity_id"])
 
@@ -104,11 +120,10 @@ def register(registry: ToolRegistry, backings: Backings) -> None:
     async def trace_automation(args: dict[str, Any]) -> dict[str, Any]:
         tool = "trace_automation"
         max_depth = args.get("max_depth", 5)
+        context_id = path_segment(args["context_id"], tool=tool, name="context_id")
         rows = expect_list(
             await data_api.get_json(
-                f"{EVENTS}/automation-trace/{args['context_id']}",
-                {"max_depth": max_depth},
-                tool=tool,
+                f"{EVENTS}/automation-trace/{context_id}", {"max_depth": max_depth}, tool=tool
             ),
             tool=tool,
         )
@@ -117,19 +132,29 @@ def register(registry: ToolRegistry, backings: Backings) -> None:
             core = require(
                 row, ("depth", "context_id", "timestamp", "entity_id", "event_type"), tool=tool
             )
+            if int(core["depth"]) > max_depth:
+                continue
             timestamp = core.pop("timestamp")
             item = {**core, "t": rfc3339(timestamp)}
             state = state_string(row.get("state"))
             if state is not None:
                 item["state"] = state
             chain.append(item)
-        return listing("chain", chain, max_depth, "max_depth")
+        # max_depth bounds chain LEVELS (upstream returns up to 100 events per level); the
+        # byte budget, not a row cap, bounds the size — hint still names max_depth.
+        return listing("chain", chain, 1000, "max_depth")
 
     @registry.register("get_entity_state")
     async def get_entity_state(args: dict[str, Any]) -> dict[str, Any]:
         tool = "get_entity_state"
         start, end = window(args.get("hours", 24))
-        params = {"entity_id": args["entity_id"], "limit": 1, "start_time": start, "end_time": end}
+        params = {
+            "entity_id": args["entity_id"],
+            "event_type": "state_changed",
+            "limit": 1,
+            "start_time": start,
+            "end_time": end,
+        }
         rows = expect_list(await data_api.get_json(EVENTS, params, tool=tool), tool=tool)
         newest = rows[0] if rows else None
         return {

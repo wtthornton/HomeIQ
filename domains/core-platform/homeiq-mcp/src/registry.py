@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 import mcp.types as types
 from jsonschema import ValidationError
 
-from .budget import enforce_budget
+from .budget import enforce_budget, payload_size
 from .errors import ToolError
 
 if TYPE_CHECKING:
@@ -26,11 +26,15 @@ logger = logging.getLogger("homeiq_mcp.registry")
 Handler = Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]
 
 
+Recount = Callable[[dict[str, Any]], None]
+
+
 @dataclass(frozen=True)
 class RegisteredTool:
     spec: ToolSpec
     handler: Handler
-    narrow_hint: str
+    narrow_hint: str | None
+    recount: Recount | None
 
 
 class ToolRegistry:
@@ -41,7 +45,12 @@ class ToolRegistry:
         self.allowed_write_tools = allowed_write_tools
         self._tools: dict[str, RegisteredTool] = {}
 
-    def register(self, name: str, *, narrow_hint: str = "limit") -> Callable[[Handler], Handler]:
+    def register(
+        self, name: str, *, narrow_hint: str | None = "limit", recount: Recount | None = None
+    ) -> Callable[[Handler], Handler]:
+        """Bind a handler. `narrow_hint` names the input the agent should narrow when the
+        response is truncated (None for tools with no narrowing input); `recount` runs after
+        budget truncation to fix derived counters the generic budget cannot know about."""
         spec = self.catalogue.tools.get(name)
         if spec is None:
             raise KeyError(f"{name!r} is not in catalogue v{self.catalogue.version}")
@@ -53,7 +62,9 @@ class ToolRegistry:
         def decorator(fn: Handler) -> Handler:
             if name in self._tools:
                 raise ValueError(f"tool {name!r} registered twice")
-            self._tools[name] = RegisteredTool(spec=spec, handler=fn, narrow_hint=narrow_hint)
+            self._tools[name] = RegisteredTool(
+                spec=spec, handler=fn, narrow_hint=narrow_hint, recount=recount
+            )
             return fn
 
         return decorator
@@ -108,7 +119,10 @@ class ToolRegistry:
             raise ToolError("invalid_input", f"{path}: {exc.message}", tool=name) from exc
         self._check_write_grant(spec, scopes)
         payload = await tool.handler(args)
+        before = payload_size(payload)
         payload = enforce_budget(payload, spec.max_response_bytes, tool.narrow_hint)
+        if tool.recount is not None and payload_size(payload) != before:
+            tool.recount(payload)
         try:
             spec.output_validator.validate(payload)
         except ValidationError as exc:

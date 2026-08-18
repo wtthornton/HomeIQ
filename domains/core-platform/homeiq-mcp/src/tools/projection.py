@@ -3,8 +3,10 @@ copying, state and timestamp normalisation, and the standard list envelope."""
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from urllib.parse import quote
 
 from ..budget import cap_rows
 from ..errors import ToolError
@@ -54,6 +56,24 @@ def state_string(value: Any) -> str | None:
     return str(value)[:255]
 
 
+_PATH_SEGMENT = re.compile(r"^[A-Za-z0-9._:@-]{1,255}$")
+
+
+def path_segment(value: Any, *, tool: str, name: str) -> str:
+    """Return `value` safe to interpolate into an upstream URL path.
+
+    Caller-supplied ids (entity/device/automation/context ids) must never be able to
+    steer the server's authenticated request to another route: reject anything outside
+    the id charset (no `/`, `?`, `#`, whitespace) with `invalid_input`, then percent-encode.
+    """
+    text = str(value)
+    if not _PATH_SEGMENT.match(text):
+        raise ToolError(
+            "invalid_input", f"{name} contains characters that are not allowed in an id", tool=tool
+        )
+    return quote(text, safe="")
+
+
 def rfc3339(value: Any) -> str:
     return value.isoformat() if hasattr(value, "isoformat") else str(value)
 
@@ -66,13 +86,13 @@ def window(hours: int) -> tuple[str, str]:
 
 
 def listing(
-    name: str, rows: list[Any], row_cap: int, hint: str, *, count: bool = True, **extra: Any
+    name: str, rows: list[Any], row_cap: int, hint: str | None, *, count: bool = True, **extra: Any
 ) -> dict[str, Any]:
     """Standard `{name: rows[, count], truncated[, hint]}` envelope with the catalogue row cap."""
     rows, capped = cap_rows(rows, row_cap)
     out: dict[str, Any] = {name: rows, "truncated": capped, **extra}
     if count:
         out["count"] = len(rows)
-    if capped:
+    if capped and hint is not None:
         out["hint"] = hint
     return out

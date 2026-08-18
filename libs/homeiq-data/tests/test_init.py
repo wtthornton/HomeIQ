@@ -16,6 +16,7 @@ def test_package_imports() -> None:
         "check_pg_connection",
         "close_all_engines",
         "close_all_engines_async",
+        "apply_search_path",
         "create_pg_engine",
         "create_shared_db_engine",
         "create_shared_session_maker",
@@ -26,6 +27,7 @@ def test_package_imports() -> None:
         "run_async_migrations",
         "run_migrations_on_startup",
         "validate_database_url",
+        "validate_schema_name",
     ]
     for name in expected_exports:
         assert hasattr(homeiq_data, name), f"Missing export: {name}"
@@ -36,7 +38,7 @@ def test_all_attribute() -> None:
     import homeiq_data
 
     assert hasattr(homeiq_data, "__all__")
-    assert len(homeiq_data.__all__) == 19
+    assert len(homeiq_data.__all__) == 21
 
 
 def test_version_attribute() -> None:

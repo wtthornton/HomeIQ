@@ -287,4 +287,52 @@ async def test_automation_stats_row_cap(reg, catalogue):
         "get_automation_stats", {"view": "errors", "limit": 100}, scopes=READ_SCOPES
     )
     _validate(catalogue, "get_automation_stats", out)
-    assert out["truncated"] is True and out["count"] == 100
+    # Upstream over-delivered (120 > limit 100); the local slice honours the request exactly.
+    assert out["truncated"] is False and out["count"] == 100
+
+
+@pytest.mark.parametrize("bad", ["../v1/energy/statistics", "dev/1", "dev?x=1", "dev#1"])
+async def test_get_device_rejects_path_traversal_ids(reg, bad):
+    with pytest.raises(ToolError) as exc:
+        await reg.call("get_device", {"device_id": bad}, scopes=READ_SCOPES)
+    assert exc.value.code == "invalid_input"
+
+
+async def test_automation_id_is_path_guarded(reg):
+    with pytest.raises(ToolError) as exc:
+        await reg.call(
+            "get_automation_stats",
+            {"view": "list", "automation_id": "../stats/overview"},
+            scopes=READ_SCOPES,
+        )
+    assert exc.value.code == "invalid_input"
+
+
+@respx.mock
+async def test_get_device_budget_truncation_recounts_and_has_no_hint(reg, catalogue):
+    respx.get(f"{DATA_API}/api/devices/dev1").mock(
+        return_value=httpx.Response(200, json=_device(1))
+    )
+    respx.get(f"{DATA_API}/api/entities/by-device/dev1").mock(
+        return_value=httpx.Response(
+            200, json={"entities": [_entity(i, friendly_name="x" * 100) for i in range(400)]}
+        )
+    )
+    out = await reg.call("get_device", {"device_id": "dev1"}, scopes=READ_SCOPES)
+    _validate(catalogue, "get_device", out)
+    assert out["truncated"] is True and "hint" not in out
+    assert out["entity_count"] == len(out["entities"]) < 400
+
+
+@respx.mock
+async def test_automation_stats_inactive_applies_limit_locally(reg, catalogue):
+    respx.get(f"{DATA_API}/api/v1/automations/stats/inactive").mock(
+        return_value=httpx.Response(
+            200, json={"count": 30, "automations": [_automation(i) for i in range(30)]}
+        )
+    )
+    out = await reg.call(
+        "get_automation_stats", {"view": "inactive", "limit": 5}, scopes=READ_SCOPES
+    )
+    _validate(catalogue, "get_automation_stats", out)
+    assert out["count"] == 5

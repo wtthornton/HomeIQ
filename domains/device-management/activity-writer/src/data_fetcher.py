@@ -62,6 +62,7 @@ def normalize_single_event(e: dict[str, Any]) -> dict[str, Any] | None:
         "entity_id": str(e.get("entity_id", "")),
         "timestamp": ts,
         "state_value": state_value,
+        "attributes": e.get("attributes"),
         "event_type": e.get("event_type", "state_changed"),
     }
 
@@ -82,7 +83,15 @@ def group_influx_records(result: Any) -> list[dict[str, Any]]:
             t = record.get_time()
             key = (entity_id, t.isoformat())
             if key not in by_key:
-                by_key[key] = {"entity_id": entity_id, "timestamp": t, "state_value": None}
-            if record.values.get("_field") == "state_value" and record.values.get("_value"):
-                by_key[key]["state_value"] = str(record.values["_value"])
+                by_key[key] = {
+                    "entity_id": entity_id,
+                    "timestamp": t,
+                    "state_value": None,
+                    "attributes": None,
+                }
+            field, value = record.values.get("_field"), record.values.get("_value")
+            if field == "state_value" and value:
+                by_key[key]["state_value"] = str(value)
+            elif field == "attributes" and value:
+                by_key[key]["attributes"] = value
     return list(by_key.values())

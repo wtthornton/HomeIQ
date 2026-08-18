@@ -57,7 +57,9 @@ def build_readings(events: list[dict[str, Any]]) -> list[SensorReading]:
             buckets[bucket_key] = _new_bucket()
         b = buckets[bucket_key]
         entity_id = str(ev.get("entity_id", ""))
-        state_str, temp, humidity, power = parse_state_value(ev.get("state_value"))
+        state_str, temp, humidity, power = parse_state_value(
+            ev.get("state_value"), ev.get("attributes")
+        )
         category = classify_entity(entity_id)
         is_on = (state_str or "").lower() in _ON_STATES
         _apply_event_to_bucket(b, category, is_on, state_str, temp, humidity, power)

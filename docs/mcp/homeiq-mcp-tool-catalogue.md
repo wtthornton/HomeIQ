@@ -5,7 +5,17 @@
 integration. Changing a shape here is a contract change: bump `catalogue_version`
 and update the contract tests (TAP-5297) in the same commit.
 
-**catalogue_version:** 1.2.0
+**catalogue_version:** 1.2.1
+
+**v1.2.1 changes (2026-08-18, verifier round):** id inputs that reach an upstream URL
+path (`device_id`, `automation_id`, `context_id`, `entity_id`) carry a strict
+charset `pattern` and the server percent-encodes them (a `../` id must never steer
+the server's authenticated request). `detect_anomalies` drops `hours` (neither
+backing honours a window). `search_events.hours` max is 72 (data-api's search
+times out beyond that). `downsample_minutes` is first-observed-per-bucket, not
+a mean. Error code set drops the unused `truncated_upstream`. `kind=power`
+anomalies and `get_energy_summary.top_consumers` are empty until TAP-5301
+provides the energy-correlator data they read.
 
 **v1.2.0 changes (2026-08-17, TAP-5293/TAP-5295):** tools 14 `get_energy_correlations`
 and 15 `get_device_energy_impact` are `status: deferred` (owner Decision E —
@@ -84,7 +94,7 @@ Entity state history over a bounded window, optionally downsampled. Time precede
    "start_time": {"type": "string", "format": "date-time"},
    "end_time": {"type": "string", "format": "date-time"},
    "downsample_minutes": {"type": "integer", "minimum": 0, "maximum": 1440, "default": 0,
-     "description": "0 = raw rows (capped); N = mean per N-minute bucket"},
+     "description": "0 = raw rows (capped); N = first observed point per N-minute bucket"},
    "limit": {"type": "integer", "minimum": 1, "maximum": 500, "default": 500}},
  "required": ["entity_id"]}
 ```
@@ -107,7 +117,7 @@ Entity state history over a bounded window, optionally downsampled. Time precede
 Text search over stored HA events (entity ids and event types).
 - **Backing:** data-api `POST /api/v1/events/search` (TAP-5997 hardened path)
 - **Annotations:** `readOnlyHint: true` · **Budget:** 32 KB / 200 events
-- **Input:** `{query: string (1..200 chars, required), hours: int 1..8760 = 24, limit: int 1..200 = 50}`
+- **Input:** `{query: string (1..200 chars, required), hours: int 1..72 = 24, limit: int 1..200 = 50}`
 - **Output:** `{events: [{t, entity_id, event_type, old_state?, new_state?}], count, truncated}`
 
 #### 3. `get_recent_events`
@@ -224,12 +234,12 @@ Health scores: fleet summary or one device with factor breakdown and trend.
 #### 17. `detect_anomalies`
 Anomaly surface across the two production detectors: power anomalies and
 predicted device failures.
-- **Backing:** data-api `GET /api/devices/power-anomalies` **(currently SHADOWED
-  in production by the `/api/devices/{device_id}` matcher registered first —
-  TAP-6071 must land before TAP-5294 implements `kind: power`)** +
+- **Backing:** data-api `GET /api/devices/power-anomalies` (route un-shadowed by
+  TAP-6071; its actual-power source is the energy-correlator pipeline that has
+  never written a row, so `power_anomalies` is `[]` until TAP-5301) +
   device-intelligence `GET /api/predictions/failures`
 - **Annotations:** `readOnlyHint: true` · **Budget:** 32 KB / 100 rows
-- **Input:** `{kind: enum["power","failure_risk","all"] = "all", hours: int 1..168 = 24, min_probability: number 0..1 = 0.5, risk_level?: enum["low","medium","high"], limit: int 1..100 = 50}`
+- **Input:** `{kind: enum["power","failure_risk","all"] = "all", min_probability: number 0..1 = 0.5, risk_level?: enum["low","medium","high"], limit: int 1..100 = 50}`
 - **Output:** `{power_anomalies?: [{entity_id, t, observed_w, expected_w?, severity}], failure_predictions?: [{device_id, failure_probability, risk_level, top_recommendation?}], counts: {power: integer, failure_risk: integer}, truncated}`
 - Note: ai-pattern-service also carries an ML anomaly router
   (`anomaly/routes.py`), but it is **not registered** in that app today —
@@ -304,12 +314,12 @@ is the capability no other MCP surface has.
 
 ## Server-level contract notes (for TAP-5293)
 
-- Transport: streamable-http (`mcp` Python SDK, `MCPServer(...).streamable_http_app()`), mounted at `/mcp`; `/health` beside it.
+- Transport: streamable-http (`mcp` Python SDK low-level `Server` + `StreamableHTTPSessionManager`, JSON responses, stateless) at the exact route `/mcp`; `/health` beside it. The low-level server is used so `list_tools` serves this catalogue's schemas verbatim.
 - Auth: bearer token required (LAN-internal); tools themselves carry no auth
   parameters.
 - Errors: tool errors return MCP tool-error content with a `code` from
-  `{backing_unavailable, invalid_input, not_found, truncated_upstream,
-  contract_violation}` — never a raw upstream traceback. `contract_violation`
+  `{backing_unavailable, invalid_input, not_found, contract_violation}` — never
+  a raw upstream traceback. `contract_violation`
   is raised when a backing's response cannot be projected into the tool's
   output schema (a server-side defect, surfaced instead of shipping an
   off-contract payload).

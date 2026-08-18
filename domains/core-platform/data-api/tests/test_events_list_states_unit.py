@@ -57,7 +57,8 @@ async def test_raw_events_pivot_and_expose_states(monkeypatch):
     assert 'r._field == "state_value"' in flux and 'r._field == "previous_state"' in flux
     assert 'r._field == "context_id"' in flux
     assert 'pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")' in flux
-    assert flux.index("pivot(") < flux.index("group()")  # pivot within each series first
+    # selective tag filters push down to storage BEFORE the pivot; pivot before the global group()
+    assert flux.index('r.entity_id == "light.office"') < flux.index("pivot(") < flux.index("group()")
     assert len(events) == 1
     assert events[0].id == "01CTX"
     assert events[0].new_state == {"state": "on"}
