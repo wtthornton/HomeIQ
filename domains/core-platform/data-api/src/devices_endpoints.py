@@ -748,7 +748,11 @@ async def list_entities(
                 limit = int(raw_query.get("limit", 100))
 
         # Build query
-        query = select(Entity)
+        # Select the effective area alongside the entity so responses carry the area the
+        # filter matches on (entity's own area_id, else its device's — see /api/areas).
+        query = select(Entity, _effective_area_column().label("effective_area")).outerjoin(
+            Device, Device.device_id == Entity.device_id
+        )
 
         # Apply filters
         if domain:
@@ -758,10 +762,7 @@ async def list_entities(
         if device_id:
             query = query.where(func.lower(Entity.device_id) == func.lower(device_id))
         if area_id:
-            # Effective area (entity's own, else its device's) — see /api/areas.
-            query = query.outerjoin(Device, Device.device_id == Entity.device_id).where(
-                _effective_area_column() == area_id
-            )
+            query = query.where(_effective_area_column() == area_id)
 
         # Story 62.2: Label filter (JSONB containment — uses GIN index)
         if label:
@@ -793,7 +794,7 @@ async def list_entities(
 
         # Execute
         result = await db.execute(query)
-        entities_data = result.scalars().all()
+        rows = result.all()
 
         # Convert to response
         entity_responses = [
@@ -803,7 +804,7 @@ async def list_entities(
                 domain=entity.domain,
                 platform=entity.platform or "unknown",
                 unique_id=entity.unique_id,
-                area_id=entity.area_id,
+                area_id=effective_area,
                 disabled=entity.disabled,
                 # Entity Registry Name Fields (2025 HA API)
                 name=entity.name,
@@ -834,7 +835,7 @@ async def list_entities(
                     else datetime.now(UTC).isoformat()
                 ),
             )
-            for entity in entities_data
+            for entity, effective_area in rows
         ]
 
         return EntitiesListResponse(

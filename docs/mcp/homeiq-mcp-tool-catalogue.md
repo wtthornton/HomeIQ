@@ -5,7 +5,12 @@
 integration. Changing a shape here is a contract change: bump `catalogue_version`
 and update the contract tests (TAP-5297) in the same commit.
 
-**catalogue_version:** 1.2.2
+**catalogue_version:** 1.2.3
+
+**v1.2.3 changes (2026-08-18):** `trace_automation` carries an honesty caveat —
+ingestion stores `context_id` but not `context_parent_id`, so chains resolve
+empty on live data until TAP-6107 lands. `list_entities` rows carry the
+effective area.
 
 **v1.2.2 changes (2026-08-18, verifier round 2):** `trace_automation.chain`
 `maxItems` 100 (`max_depth` bounds levels; upstream emits up to 100 events per

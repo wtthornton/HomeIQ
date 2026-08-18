@@ -551,9 +551,8 @@ class TestListEntitiesEndpoint:
         mock_entity = _make_mock_entity()
         mock_session = AsyncMock()
         mock_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = [mock_entity]
-        mock_result.scalars.return_value = mock_scalars
+        # Rows are (entity, effective_area) tuples since the device-area fallback join.
+        mock_result.all.return_value = [(mock_entity, "office")]
         mock_session.execute = AsyncMock(return_value=mock_result)
 
         app = FastAPI()
@@ -563,7 +562,9 @@ class TestListEntitiesEndpoint:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get("/api/entities")
         assert resp.status_code == 200
-        assert resp.json()["count"] == 1
+        body = resp.json()
+        assert body["count"] == 1
+        assert body["entities"][0]["area_id"] == "office"
 
     @pytest.mark.asyncio
     async def test_domain_filter(self):
