@@ -133,6 +133,7 @@ def test_every_active_tool_has_at_least_one_consumer_or_is_listed_as_orphan(gene
     consumers = {t for ts in gene_map["genes"].values() for t in ts}
     orphans = sorted(set(ACTIVE) - consumers)
     # Orphans are allowed but must be deliberate: list them here when adding a tool nobody consumes yet.
-    assert orphans == ["search_events"], (
+    # get_automation_stats is reserved for future hiq.diagnosis gene (TAP-5317).
+    assert orphans == ["get_automation_stats"], (
         f"unexpected orphan tools (add a gene or record here): {orphans}"
     )

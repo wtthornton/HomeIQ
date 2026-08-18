@@ -15,10 +15,35 @@ skills:
     why: "Per-channel AI-disclosure decision table across platform and statutory regimes.\
       \ Applies to any species that publishes generated content. The only dated pack\
       \ \u2014 carries verified_at/expires per L14, so re-verify on adoption."
+  automation-safety-rules:
+    tier: deployment
+    why: "Hard-deny list for unsafe automation patterns (lock unlocking, alarm disarming,\
+      \ safety detector disablement). Everything outside the deny list is annotate-only\
+      \ risk scoring. HomeIQ-specific; consumed by hiq-draft-automation and hiq-judge-automation\
+      \ genes."
   cx-guardrails:
     tier: domain
     why: What a customer-facing reply may assert from retrieved evidence and what
       it may never promise. Commerce-specific, but names no gene.
+  energy-truth:
+    tier: deployment
+    why: "Authoritative energy metric definitions and source-authority rules (smart\
+      \ meter authoritative for whole-home watts; Powercalc for unmetered device estimates;\
+      \ carbon from service only). HomeIQ-specific; consumed by hiq-correlate gene."
+  ha-yaml-rules:
+    tier: deployment
+    why: "Home Assistant 2026.x automation YAML correctness rules (15 linter rules).\
+      \ Enables retiring the linter container. HomeIQ-specific; consumed by hiq-draft-automation\
+      \ and hiq-judge-automation genes. Source of truth is docs/automation-linter-rules.md."
+  home-atlas:
+    tier: deployment
+    why: "Home structural ground truth (18 areas, key groups, naming conventions, integration\
+      \ inventory). Authority is config/ha-organization-manifest.yaml. HomeIQ-specific;\
+      \ consumed by entity resolution and automation genes."
+  home-taxonomy:
+    tier: deployment
+    why: "Device event types, anomaly labels, maintenance events, and integration\
+      \ identity labels for hiq-classify gene. HomeIQ-specific; source is skills/home-taxonomy/SKILL.md."
   kpi-truth:
     tier: domain
     why: Source-authority rules for commerce metrics and which cross-platform discrepancies

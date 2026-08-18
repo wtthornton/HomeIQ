@@ -1,8 +1,7 @@
 # Policy rules for homeiq.
 #
-# One placeholder rule. It is deliberately NOT a copy of the exporting
-# genome's rules: capability names are species-specific, and a deny that
-# matches nothing reads as protection while providing none.
+# Capability-based routing and gating for HomeIQ genes. The quarantine gate is
+# the primary control — it has an allow that passes cleared items to other genes.
 #
 # Semantics worth knowing before you edit:
 #   * conditions AND together; an empty list matches anything
@@ -13,8 +12,8 @@
 # SPECIFICATION until the runtime is proven to load and enforce it. Check
 # what your engine actually does before treating this as a control.
 rules:
-  - rule_id: homeiq-deny-placeholder
-    description: "Replace with a real capability for this species."
-    capabilities: ["homeiq.act.placeholder"]
-    decision: deny
+  - rule_id: homeiq-quarantine-gate
+    description: "Quarantine gate for Home-Assistant-sourced text injection scanning (TAP-5313)."
+    capabilities: ["hiq.judge.quarantine"]
+    decision: allow
     priority: 100
