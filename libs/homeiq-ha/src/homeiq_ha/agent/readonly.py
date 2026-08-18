@@ -9,10 +9,17 @@ write — the call never reaches Home Assistant.
 A recipe with a buggy ``check()`` therefore fails loudly during an audit
 instead of quietly mutating someone's home.
 
-One audited call bypasses this proxy by nature: the coordinator watchdog's
-TCP reachability probe (:class:`~.diagnostics.ZigbeeCoordinatorWatchdogRecipe`)
-opens a raw socket outside the HA API. It connects and closes without sending
-a byte, so it is read-only by construction rather than by proxy enforcement.
+Two audited paths bypass this proxy by nature, because neither goes through
+the HA API at all. Both are read-only by construction rather than by proxy
+enforcement, and each is covered by a test asserting its ``check`` issues no
+write:
+
+* the coordinator watchdog's TCP reachability probe
+  (:class:`~.diagnostics.ZigbeeCoordinatorWatchdogRecipe`) opens a raw socket,
+  then connects and closes without sending a byte;
+* the ``configuration.yaml`` recipes (:mod:`.config_yaml`) read the file over
+  the ssh transport in :mod:`.host_files`. Their ``check`` and ``plan`` call
+  only ``read_text``; ``write_text`` is reachable from ``apply`` alone.
 """
 
 from __future__ import annotations

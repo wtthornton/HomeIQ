@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any
 from homeiq_ha.client.errors import HAHumanGateRequired
 
 from .backup import BackupScheduleRecipe, FirstBackupRecipe
+from .config_yaml import HttpLoginThresholdRecipe, RecorderTuningRecipe
 from .device_areas import ManifestAreasRemoveRecipe, ManifestDeviceAreasRecipe
 from .diagnostics import (
     ScenePolicyRecipe,
@@ -32,6 +33,7 @@ from .diagnostics import (
 )
 from .enablement import LocalCalendarRecipe
 from .helpers import ManifestHelpersRecipe
+from .host_files import host_files_from_env
 from .integration import IntegrationRecipe, TeamTrackerRecipe
 from .manifest import DEFAULT_MANIFEST_PATH, OrganizationManifest, load_manifest
 from .organization import (
@@ -61,6 +63,7 @@ from .registry import (
     LabelsRecipe,
 )
 from .zha import ZHA_SERIAL_PATH, ZHAFormationRefused, ZHARecipe
+from .zha_quirks import AqaraFP1EQuirkRecipe
 
 if TYPE_CHECKING:
     from homeiq_ha.client import HAClient
@@ -329,11 +332,17 @@ def default_recipes(
     if manifest is None and DEFAULT_MANIFEST_PATH.exists():
         manifest = load_manifest()
     zha_serial_path = os.environ.get("HOMEIQ_ZHA_SERIAL_PATH") or ZHA_SERIAL_PATH
+    host_files = host_files_from_env()
 
     recipes: list[Recipe] = [
         BackupScheduleRecipe(),
         FirstBackupRecipe(),
         CoreConfigRecipe(currency="USD", country="US"),
+        # The two YAML-only rows (design doc 1.1 and 2.4). They need the
+        # core_ssh write path; without HOMEIQ_HA_SSH_HOST they report
+        # NOT_APPLICABLE instead of pretending the instance is hardened.
+        HttpLoginThresholdRecipe(host_files),
+        RecorderTuningRecipe(host_files),
         FloorsRecipe(("Main Floor",)),
         # Manifest-driven when a manifest exists: the hardcoded default set
         # included "Bedroom", which would recreate the very artifact area the
@@ -367,6 +376,11 @@ def default_recipes(
         # exists and CALENDAR_ENTITIES names it. TAP-5431.
         LocalCalendarRecipe(),
         ZHARecipe(zha_serial_path),
+        # The FP1E reports presence on Aqara's 0xFCC0 cluster, which no
+        # shipped quirk claims for this model string, so the units join
+        # with no occupancy entity at all. Needs the core_ssh write path
+        # to deploy the quirk; without it, NOT_APPLICABLE. TAP-6018.
+        AqaraFP1EQuirkRecipe(host_files),
         ZigbeeCoordinatorWatchdogRecipe(zha_serial_path),
         ZigbeeMeshHealthRecipe(),
     ]
@@ -393,6 +407,7 @@ __all__ = [
     "PHASE_SAFETY",
     "ZHA_SERIAL_PATH",
     "AddonRecipe",
+    "AqaraFP1EQuirkRecipe",
     "AreasRecipe",
     "BackupScheduleRecipe",
     "CoreConfigRecipe",
@@ -404,10 +419,12 @@ __all__ = [
     "FirstBackupRecipe",
     "FloorsRecipe",
     "HACSBootstrapRecipe",
+    "HttpLoginThresholdRecipe",
     "IntegrationRecipe",
     "LabelsRecipe",
     "LocalCalendarRecipe",
     "PowercalcRecipe",
+    "RecorderTuningRecipe",
     "ManifestDeviceAreasRecipe",
     "ManifestEntityAliasesRecipe",
     "ManifestEntityLabelsRecipe",

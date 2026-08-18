@@ -11,10 +11,9 @@ import asyncio
 import contextlib
 from typing import TYPE_CHECKING, Any
 
-import aiohttp
-
 from homeiq_ha.client.errors import HAClientError, HAFlowError
 
+from .core_restart import restart_core
 from .recipe import (
     PHASE_HACS,
     ApplyResult,
@@ -190,38 +189,12 @@ class PowercalcRecipe(Recipe):
 
     async def _restart(self, ha: Any) -> None:
         """Config-checked restart, polled back to life. Loud on timeout."""
-        check = await ha.rest.check_config()
-        if (check or {}).get("result") != "valid":
-            raise HAClientError(
-                f"refusing to restart: config check returned {check!r}"
-            )
-        # HA drops the connection as it shuts down (observed live 2026-08-13:
-        # aiohttp.ServerDisconnectedError, which is a ClientError — neither
-        # an OSError nor HAClientError, rest.request does not wrap transport
-        # errors). The poll below is the real verification.
-        with contextlib.suppress(HAClientError, OSError, aiohttp.ClientError):
-            await ha.rest.call_service("homeassistant", "restart")
-        # Let the shutdown actually begin: polling immediately would see the
-        # OLD instance still RUNNING and report success before it exits.
-        await asyncio.sleep(self.restart_min_wait)
-        deadline = asyncio.get_running_loop().time() + self.restart_timeout
-        while True:
-            try:
-                config = await ha.rest.request("GET", "/api/config")
-                if (config or {}).get("state") == "RUNNING":
-                    break
-            except (HAClientError, OSError, aiohttp.ClientError):
-                pass  # still rebooting; the deadline below bounds the wait
-            if asyncio.get_running_loop().time() > deadline:
-                raise HAClientError(
-                    f"HA did not reach state RUNNING within "
-                    f"{self.restart_timeout}s of the restart"
-                )
-            await asyncio.sleep(self.restart_poll_interval)
-        # The restart killed the WebSocket; reconnect it for the discovery
-        # reads that follow (the client has no auto-reconnect here).
-        await ha.ws.close()
-        await ha.ws.connect()
+        await restart_core(
+            ha,
+            timeout=self.restart_timeout,
+            poll_interval=self.restart_poll_interval,
+            min_wait=self.restart_min_wait,
+        )
 
     async def _ensure_power_sensor(self, ha: Any) -> list[Change]:
         """Get a discovered power sensor, bootstrapping discovery if needed.
