@@ -276,13 +276,6 @@ class TestConfigEndpointModels:
 
 
 # ---------------------------------------------------------------------------
-# docker_endpoints & docker_service models
-# ---------------------------------------------------------------------------
-
-# docker_endpoints/docker_service skipped — `docker` package not installed in test env
-
-
-# ---------------------------------------------------------------------------
 # sports_endpoints models
 # ---------------------------------------------------------------------------
 
