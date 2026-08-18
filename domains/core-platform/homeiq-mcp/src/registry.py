@@ -127,7 +127,9 @@ class ToolRegistry:
             spec.output_validator.validate(payload)
         except ValidationError as exc:
             path = "/".join(str(p) for p in exc.absolute_path) or "(root)"
-            logger.error("contract violation in %s at %s: %s", name, path, exc.message)
+            # Log the failing path and the validator's rule only — never the payload
+            # (jsonschema's message embeds the offending instance, i.e. home state).
+            logger.error("contract violation in %s at %s (%s)", name, path, exc.validator)
             raise ToolError(
                 "contract_violation",
                 f"{name} produced an off-contract response at {path}",

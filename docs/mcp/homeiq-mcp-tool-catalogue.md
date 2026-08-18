@@ -5,7 +5,15 @@
 integration. Changing a shape here is a contract change: bump `catalogue_version`
 and update the contract tests (TAP-5297) in the same commit.
 
-**catalogue_version:** 1.2.1
+**catalogue_version:** 1.2.2
+
+**v1.2.2 changes (2026-08-18, verifier round 2):** `trace_automation.chain`
+`maxItems` 100 (`max_depth` bounds levels; upstream emits up to 100 events per
+level; the 16 KB budget bounds size). `get_entity_history` drops the never-emitted
+`points[].value`. `list_areas` / `list_entities(area_id)` use the effective area
+(entity area, else its device's — HA leaves inherited entity areas null; before
+this, both answered empty for every area). `list_synergies.area` is applied after
+the upstream limit.
 
 **v1.2.1 changes (2026-08-18, verifier round):** id inputs that reach an upstream URL
 path (`device_id`, `automation_id`, `context_id`, `entity_id`) carry a strict
@@ -254,7 +262,7 @@ predicted device failures.
 |---|---|---|
 | get_entity_history | 64 KB | 500 |
 | search_events / get_recent_events | 32 KB | 200 |
-| trace_automation | 16 KB | depth 10 |
+| trace_automation | 16 KB | 100 rows (depth ≤ 10) |
 | list_devices | 48 KB | 300 |
 | get_device | 24 KB | 500 entities |
 | list_entities | 48 KB | 500 |

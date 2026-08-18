@@ -1,6 +1,6 @@
 {
-  "$comment": "HomeIQ MCP tool contract (TAP-5292). Machine-readable source of truth; docs/mcp/homeiq-mcp-tool-catalogue.md is the human view. TAP-5297 contract tests pin this file against the running server's list_tools output. v1.2.0 (2026-08-17, TAP-5293/5295): tools 14/15 carry status=deferred (energy-correlator has no live output; see TAP-5910/TAP-5301); every list-returning output declares optional `truncated` + `hint` so the server can honour design rule 2 under additionalProperties=false. v1.2.1 (2026-08-18, verifier round on TAP-5293..5297): id inputs that reach an upstream URL path carry a strict pattern; detect_anomalies drops the never-honoured `hours`; search_events `hours` max is 72 (data-api's search times out beyond that today); downsample_minutes is first-observed-per-bucket; error code set drops the unused truncated_upstream; notes on the power/top_consumers pipelines being empty until TAP-5301.",
-  "catalogue_version": "1.2.1",
+  "$comment": "HomeIQ MCP tool contract (TAP-5292). Machine-readable source of truth; docs/mcp/homeiq-mcp-tool-catalogue.md is the human view. TAP-5297 contract tests pin this file against the running server's list_tools output. v1.2.0 (2026-08-17, TAP-5293/5295): tools 14/15 carry status=deferred (energy-correlator has no live output; see TAP-5910/TAP-5301); every list-returning output declares optional `truncated` + `hint` so the server can honour design rule 2 under additionalProperties=false. v1.2.1 (2026-08-18, verifier round on TAP-5293..5297): id inputs that reach an upstream URL path carry a strict pattern; detect_anomalies drops the never-honoured `hours`; search_events `hours` max is 72 (data-api's search times out beyond that today); downsample_minutes is first-observed-per-bucket; error code set drops the unused truncated_upstream; notes on the power/top_consumers pipelines being empty until TAP-5301. v1.2.2 (2026-08-18, verifier round 2): trace_automation.chain maxItems 100 (max_depth bounds levels; upstream emits up to 100 events per level, byte budget bounds size); get_entity_history drops the never-emitted points[].value; list_areas/list_entities use the effective area (entity area, else its device's — HA leaves inherited entity areas null); list_synergies area filter is applied after the upstream limit.",
+  "catalogue_version": "1.2.2",
   "tools": [
     {
       "name": "get_entity_history",
@@ -81,12 +81,6 @@
                 "state": {
                   "type": "string",
                   "maxLength": 255
-                },
-                "value": {
-                  "type": [
-                    "number",
-                    "null"
-                  ]
                 }
               },
               "required": [
@@ -396,7 +390,7 @@
                 "event_type"
               ]
             },
-            "maxItems": 10
+            "maxItems": 100
           },
           "count": {
             "type": "integer",
@@ -676,7 +670,8 @@
           },
           "area_id": {
             "type": "string",
-            "maxLength": 128
+            "maxLength": 128,
+            "description": "Matches the effective area: the entity's own area_id, else its device's."
           },
           "device_id": {
             "type": "string",
@@ -768,7 +763,7 @@
     },
     {
       "name": "list_areas",
-      "description": "Areas with entity counts and the domains present in each.",
+      "description": "Areas with entity counts and the domains present in each. Areas are derived from the effective area of entities (the entity's own area_id, else its device's — HA leaves an inherited entity area null).",
       "annotations": {
         "readOnlyHint": true
       },
@@ -1185,7 +1180,8 @@
           },
           "area": {
             "type": "string",
-            "maxLength": 128
+            "maxLength": 128,
+            "description": "Applied after the upstream limit (the backing has no area filter), so a page can under-fill; raise limit if needed."
           },
           "limit": {
             "type": "integer",

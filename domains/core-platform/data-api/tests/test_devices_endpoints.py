@@ -605,9 +605,33 @@ class TestListEntitiesEndpoint:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get("/api/entities?area_id=office")
         assert resp.status_code == 200
-        executed = mock_session.execute.call_args[0][0]
-        assert "area_id" in str(executed.compile(compile_kwargs={"literal_binds": True}))
-        assert "office" in str(executed.compile(compile_kwargs={"literal_binds": True}))
+        sql = str(
+            mock_session.execute.call_args[0][0].compile(compile_kwargs={"literal_binds": True})
+        )
+        # Effective area: the entity's own area_id, else its device's (HA inherits it).
+        assert "coalesce" in sql.lower() and "devices" in sql.lower() and "office" in sql
+
+    @pytest.mark.asyncio
+    async def test_areas_join_devices_for_inherited_area(self):
+        from src.database import get_db
+        from src.devices_endpoints import router
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.all.return_value = []
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        app = FastAPI()
+        app.include_router(router)
+        app.dependency_overrides[get_db] = _make_db_override(mock_session)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get("/api/areas")
+        assert resp.status_code == 200
+        sql = str(
+            mock_session.execute.call_args[0][0].compile(compile_kwargs={"literal_binds": True})
+        )
+        assert "coalesce" in sql.lower() and "left outer join" in sql.lower()
 
 
 class TestGetEntityEndpoint:

@@ -88,15 +88,13 @@ def register(registry: ToolRegistry, backings: Backings) -> None:
             **present(row, (*_DEVICE_OPTIONAL, "sw_version", "labels")),
         }
         entities, capped = cap_rows(entities, 500)
-        out = {
+        # No hint: device_id is the only input and cannot narrow the entity list.
+        return {
             "device": device,
             "entities": entities,
             "entity_count": len(entities),
             "truncated": capped,
         }
-        if capped:
-            out["hint"] = "device_id"
-        return out
 
     @registry.register("list_entities", narrow_hint="limit")
     async def list_entities(args: dict[str, Any]) -> dict[str, Any]:

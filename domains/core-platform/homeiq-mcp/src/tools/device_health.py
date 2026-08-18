@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from ..errors import ToolError
-from .projection import expect_list, listing, present, require, rfc3339
+from .projection import expect_list, listing, path_segment, present, require, rfc3339
 
 if TYPE_CHECKING:
     from ..backends import Backings
@@ -39,7 +39,9 @@ def _summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 async def _trend(backings: Backings, device_id: str, days: int) -> list[dict[str, Any]]:
     payload = await backings.device_intelligence.get_json(
-        f"/api/health/trends/{device_id}", {"days": days}, tool=TOOL
+        f"/api/health/trends/{path_segment(device_id, tool=TOOL, name='device_id')}",
+        {"days": days},
+        tool=TOOL,
     )
     points = []
     for row in expect_list(payload, tool=TOOL, key="trends"):
@@ -48,13 +50,19 @@ async def _trend(backings: Backings, device_id: str, days: int) -> list[dict[str
     return points[-30:]
 
 
+def _recount(payload: dict[str, Any]) -> None:
+    if "devices" in payload:
+        payload["summary"] = _summary(payload["devices"])
+
+
 def register(registry: ToolRegistry, backings: Backings) -> None:
-    @registry.register(TOOL, narrow_hint="limit")
+    @registry.register(TOOL, narrow_hint="limit", recount=_recount)
     async def get_device_health(args: dict[str, Any]) -> dict[str, Any]:
         device_id = args.get("device_id")
         if device_id:
+            safe_id = path_segment(device_id, tool=TOOL, name="device_id")
             row = await backings.device_intelligence.get_json(
-                f"/api/health/scores/{device_id}", tool=TOOL
+                f"/api/health/scores/{safe_id}", tool=TOOL
             )
             if not isinstance(row, dict):
                 raise ToolError(

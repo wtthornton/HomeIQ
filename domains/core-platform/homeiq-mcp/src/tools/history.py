@@ -141,8 +141,8 @@ def register(registry: ToolRegistry, backings: Backings) -> None:
                 item["state"] = state
             chain.append(item)
         # max_depth bounds chain LEVELS (upstream returns up to 100 events per level); the
-        # byte budget, not a row cap, bounds the size — hint still names max_depth.
-        return listing("chain", chain, 1000, "max_depth")
+        # catalogue row cap (100) and byte budget bound the size — hint names max_depth.
+        return listing("chain", chain, 100, "max_depth")
 
     @registry.register("get_entity_state")
     async def get_entity_state(args: dict[str, Any]) -> dict[str, Any]:

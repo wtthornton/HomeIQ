@@ -227,3 +227,22 @@ def test_parse_state_value_bare_state_without_attributes() -> None:
 def test_parse_state_value_legacy_repr_still_wins_for_attrs() -> None:
     s = "{'state': 'on', 'attributes': {'power': 5.0}}"
     assert parse_state_value(s, None) == ("on", None, None, 5.0)
+
+
+def test_group_influx_records_reads_pivoted_columns() -> None:
+    from datetime import UTC, datetime
+    from unittest.mock import MagicMock
+
+    from src.data_fetcher import group_influx_records
+
+    rec = MagicMock()
+    rec.values = {
+        "entity_id": "light.garage",
+        "state_value": "on",
+        "attributes": '{"brightness": 200}',
+    }
+    rec.get_time.return_value = datetime(2026, 8, 18, tzinfo=UTC)
+    table = MagicMock()
+    table.records = [rec]
+    (event,) = group_influx_records([table])
+    assert event["state_value"] == "on" and event["attributes"] == '{"brightness": 200}'

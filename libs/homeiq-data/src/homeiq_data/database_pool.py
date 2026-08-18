@@ -199,10 +199,7 @@ def check_pool_health(database_url: str) -> dict:
     total_capacity = stats["pool_size"] + max(0, stats.get("overflow", 0))
     checked_out = stats["checked_out"]
 
-    if total_capacity > 0:
-        utilization = (checked_out / total_capacity) * 100
-    else:
-        utilization = 0.0
+    utilization = (checked_out / total_capacity) * 100 if total_capacity > 0 else 0.0
 
     stats["utilization_percent"] = round(utilization, 1)
     stats["pool_checkedout_overflow"] = max(0, checked_out - stats["pool_size"])
@@ -251,6 +248,7 @@ def apply_search_path(dbapi_conn, schema: str) -> None:
     ``devices`` hit ``core.devices``). Toggling autocommit around the SET is the
     SQLAlchemy-documented pattern for asyncpg.
     """
+    validate_schema_name(schema)
     previous_autocommit = dbapi_conn.autocommit
     dbapi_conn.autocommit = True
     cursor = dbapi_conn.cursor()

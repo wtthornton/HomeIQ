@@ -158,6 +158,8 @@ class ActivityWriterService:
           |> filter(fn: (r) => r._measurement == "home_assistant_events")
           |> filter(fn: (r) => r.event_type == "state_changed")
           |> filter(fn: (r) => r._field == "state_value" or r._field == "attributes")
+          |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+          |> group()
           |> sort(columns: ["_time"], desc: false)
           |> limit(n: {self.events_limit})
         '''

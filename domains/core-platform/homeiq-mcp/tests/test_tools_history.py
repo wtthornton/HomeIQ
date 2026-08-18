@@ -263,3 +263,27 @@ async def test_path_traversal_in_context_id_is_rejected_before_any_request(reg, 
     with pytest.raises(ToolError) as exc:
         await reg.call("trace_automation", {"context_id": bad}, scopes=READ_SCOPES)
     assert exc.value.code == "invalid_input"
+
+
+@respx.mock
+async def test_trace_automation_many_events_per_level_stay_on_contract(reg, catalogue):
+    items = [
+        {
+            "depth": d,
+            "context_id": f"ctx{d}-{i}",
+            "timestamp": f"2026-08-17T10:{d:02d}:{i:02d}+00:00",
+            "entity_id": f"light.l{i}",
+            "event_type": "state_changed",
+            "state": "on",
+        }
+        for d in range(3)
+        for i in range(30)
+    ]
+    respx.get(f"{DATA_API}/api/v1/events/automation-trace/ctx0").mock(
+        return_value=httpx.Response(200, json=items)
+    )
+    out = await reg.call(
+        "trace_automation", {"context_id": "ctx0", "max_depth": 5}, scopes=READ_SCOPES
+    )
+    _validate(catalogue, "trace_automation", out)
+    assert out["count"] == 90 and out["truncated"] is False

@@ -423,8 +423,8 @@ services:
     read_only: true
     tmpfs:
       - /tmp
-    env_file:
-      - ../../.env
+    # No env_file: this agent-facing, network-published service gets exactly the
+    # variables it needs (interpolated from .env at compose time), not every secret.
     environment:
       - HOMEIQ_MCP_PORT=8050
       - HOMEIQ_MCP_READ_TOKENS=${HOMEIQ_MCP_READ_TOKENS:?required}

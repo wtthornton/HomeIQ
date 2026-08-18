@@ -55,6 +55,11 @@ def _get_shared_influxdb_client():
 
 
 # Response Models
+def _effective_area_column():
+    """Entity area with device-area fallback (HA leaves the entity's area NULL when inherited)."""
+    return func.coalesce(func.nullif(Entity.area_id, ""), Device.area_id)
+
+
 class DeviceResponse(BaseModel):
     """Device response model"""
 
@@ -626,17 +631,22 @@ async def list_areas(db: AsyncSession = Depends(get_db)):
         return cached
 
     try:
-        # Distinct areas with entity counts
+        # Distinct areas with entity counts. HA's entity registry leaves entity.area_id
+        # NULL when the entity inherits its device's area, so the effective area is
+        # coalesce(entity.area_id, device.area_id).
+        effective_area = _effective_area_column()
         query = (
             select(
-                Entity.area_id,
+                effective_area.label("area_id"),
                 func.count(Entity.entity_id).label("entity_count"),
                 func.array_agg(func.distinct(Entity.domain)).label("domains"),
             )
-            .where(Entity.area_id.isnot(None))
-            .where(Entity.area_id != "")
-            .group_by(Entity.area_id)
-            .order_by(Entity.area_id)
+            .select_from(Entity)
+            .outerjoin(Device, Device.device_id == Entity.device_id)
+            .where(effective_area.isnot(None))
+            .where(effective_area != "")
+            .group_by(effective_area)
+            .order_by(effective_area)
         )
         result = await db.execute(query)
         rows = result.all()
@@ -748,7 +758,10 @@ async def list_entities(
         if device_id:
             query = query.where(func.lower(Entity.device_id) == func.lower(device_id))
         if area_id:
-            query = query.where(Entity.area_id == area_id)
+            # Effective area (entity's own, else its device's) — see /api/areas.
+            query = query.outerjoin(Device, Device.device_id == Entity.device_id).where(
+                _effective_area_column() == area_id
+            )
 
         # Story 62.2: Label filter (JSONB containment — uses GIN index)
         if label:
