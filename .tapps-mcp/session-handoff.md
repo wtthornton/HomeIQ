@@ -1,43 +1,59 @@
 # Session handoff
-**Updated:** 2026-08-18T16:46:00Z
-**Git:** 2d0d8855 (branch `fix/tap-6150-6156-lint-and-events-batch`, 2 commits ahead of PR #90)
-**Linear P0:** TAP-6169 epic filed with all 16 children — next is push + triage
+**Updated:** 2026-08-18T18:18:00Z
+**Git:** master @ 08136fbd (PR #90 and #91 both merged; no open PRs)
+**Linear P0:** TAP-6169 epic — 14 of 17 children still open
 
 ## Done
-- **data-api CI blocker fixed at the root** (`5afc2172`). The handoff called it "one line: add `docker` to requirements". It was not. `src/docker_endpoints.py` is registered in NO router list — `register_routers` in `src/_app_setup.py:105-135` never includes it. It was a stale fork of admin-api's live copy (`main.py:46`, `routes.py:73`), which had **dropped authentication entirely** (admin-api guards every route with `Depends(get_current_user)`; the fork's container start/stop/restart took no user) and predated TAP-5999 (no `DockerUnavailableError`, would answer fabricated 200s). Deleted both modules + their 2 test files. `tapps_impact_analysis`: 0 dependents.
-  - Suite 1302 -> 1202 collected; the two deleted modules collected **exactly 100** (30 defs, parametrized), verified against a HEAD worktree. **1202 passed, coverage 73.64%** vs the `--cov-fail-under=60` gate.
-- **Repair plan corrected** (`2d0d8855`). `prompts/ci-pipeline-full-repair.md` had prescribed the workaround AND warned coverage was 23.29% — that figure predated the suite running at all.
-- **TAP-6169 epic + 16 children filed** (TAP-6170..TAP-6185), all assigned to Claude Agent, all validator-gated at 98-100.
+- **PR #90 merged** (`e5884656`). data-api's unreachable docker fork deleted: `src/docker_endpoints.py` was in no router list, a stale fork of admin-api's live copy that had dropped authentication entirely and predated TAP-5999. Suite 1302 -> 1202 collected (the two deleted modules collected exactly 100), 1202 pass, coverage 73.64%.
+- **PR #91 merged** (`08136fbd`). Three TAP-6169 children, all **Done**, all CI-verified:
+  - **TAP-6182** — `398e074b` (ARG002 lint) renamed `home_type` -> `_home_type` but left both production call sites passing the old name. Live TypeError. Param was genuinely dead; removed it and both args. Underneath it, `__init__` seeded the **global** `random` module, so two same-seed generators shared one stream. Each instance now owns a `random.Random`.
+  - **TAP-6172** — tests patched a `.client` httpx transport removed by the CrossGroupClient migration. Moved to the `_cross_client.call` seam across 3 services.
+  - **TAP-6173** — 16 sites did `async with lifespan(app)`; `ServiceLifespan` has no `__call__`. Now `.handler(app)`.
+- **CI effect of #91: 273 -> 188 failures, 85 tests fixed, none skipped.** All three error signatures now appear **0** times.
+  - device-intelligence 51F/173P -> 23F/201P; ai-automation-service-new 31F/224P -> 13F/242P; ha-ai-agent 96F/419P -> 78F/437P; ai-pattern 79F/597P -> 68F/608P; proactive-agent 16F/89P -> 6F/99P.
+- **TAP-6169 epic filed with 17 children** (TAP-6170..6185, plus TAP-6191), all validator-gated 98-100.
 
-## Open
-- **Nothing is pushed.** Branch is 2 commits ahead of what PR #90 has. Pushing triggers ~40 CI jobs.
-- 17 services fail CI; all 17 fail in the **pytest step**. Full per-service breakdown is in TAP-6169.
-- TAP-6182 is the standout: **a real production bug, not test drift.** Commit `398e074b` (an ARG002 lint fix) renamed `home_type` -> `_home_type` in `synthetic_device_generator.py:437` but left BOTH production call sites (`:336`, `:353`) passing `home_type=`. Live TypeError. Filed High.
-- `events_endpoints.py` still scores 60.9 vs the 70 gate (54.5 on master). Max CC ~28.
+## Open — 14 TAP-6169 children remain
+- **TAP-6191 (High)** — data-api `Run tests` now passes but `Test Alembic migrations` fails: `idx_entity_labels_gin` already exists. Declared both on the model (`entity.py:99`) and in migration `011`. Two sources of schema truth; decide which owns it. This step had never run before — fixing collection promoted the job into it.
+- **TAP-6176** calendar-service missing deps; **TAP-6179** httpx `AsyncClient(app=)`; **TAP-6170/6171** postgres schema+fixture; **TAP-6174** INFLUXDB_TOKEN; **TAP-6175** stale `Database` import; **TAP-6177/6178/6180/6181/6183/6184/6185** per-service defects.
+- Not filed: `_context` in `AIAutomationClient.validate_yaml` is the same ARG002 rename as TAP-6182. Docstring says "kept for compatibility" but the underscore means `context=` raises TypeError, so that promise is already void. No in-repo caller passes it — removing it is an API decision.
+- `events_endpoints.py` scores 60.9 vs the 70 gate. Max CC ~28.
 - TAP-6152 open by design; remaining fix is TAP-6167, needs an AgentForge publish.
 
-## Corrections to carry forward (the old handoff and repair plan were wrong on these)
-1. `unrecognized arguments: --cov=src` appears in all 17 logs but is a **shell comment** in the workflow, not a failure. Do not file it.
-2. **No lint or format gate failed** in any of the 17 — TAP-6150/6155 are holding.
-3. **No service failed for an unreachable container.** Zero `Connection refused` across all 17. Postgres failures are schema/fixture bugs.
-4. `weather-api/tests/test_main.py:22` asserts against the `SERVICE_NAME` constant, not the literal `'weather-api'` — the repair plan's claim there is dead.
-5. `automation-miner/tests/conftest.py:28` already uses `ASGITransport`. Not a latent httpx site.
-6. air-quality's reported `homeiq` vs `home_assistant` bucket mismatch **could not be reproduced** — neither string is in that service's tests. Unconfirmed.
+## The recurring pattern — expect it on every remaining child
+Each fix exposes the next defect underneath, because the earlier failure was gating the later step:
+1. TAP-6150's format gate was skipping `Run tests` entirely across 17 services.
+2. data-api's collection abort was skipping `Test Alembic migrations` (-> TAP-6191).
+3. TAP-6182's TypeError was hiding a global-RNG reproducibility bug.
+4. TAP-6172's AttributeError was hiding four pieces of drift: AsyncMock responses making `.json()` return a coroutine, `close()` now a no-op with no `aclose`, the validate endpoint moved to `/api/v1/automations/validate` with payload key `validate_services` and no `context`, and an expected error string `"Could not connect"` that exists nowhere in the source.
+Budget for a second root cause behind each one. Do not report a child done on the strength of one green step.
 
-## Blockers
-- none
+## Corrections carried forward (earlier notes were wrong on these)
+1. `unrecognized arguments: --cov=src` in all 17 logs is a **shell comment**, not a failure.
+2. **No lint or format gate has failed** in any run since TAP-6150/6155 — they are holding.
+3. **No service fails for an unreachable container.** Zero `Connection refused`. Postgres failures are schema/fixture bugs.
+4. `weather-api/tests/test_main.py:22` asserts a `SERVICE_NAME` constant, not the literal `'weather-api'`.
+5. `automation-miner/tests/conftest.py:28` already uses `ASGITransport` — not a latent httpx site.
+6. `automation-miner` has 10 `async with lifespan(app)` sites but its `lifespan` is a plain `@asynccontextmanager` function (`src/api/main.py:166`), **not** a ServiceLifespan. Correct as written — do not pattern-match TAP-6173's fix onto it.
+7. air-quality's reported `homeiq` vs `home_assistant` bucket mismatch could not be reproduced; neither string is in that service's tests.
+
+## Environment traps
+- **Postgres is on 15432.** Port 5432 belongs to `nlt-research-postgres` (another project). Service conftests default to 5432, so tests authenticate against a stranger and hang rather than fail cleanly. Export `TEST_DATABASE_URL=postgresql+asyncpg://homeiq:homeiq@localhost:15432/homeiq_test`.
+- Client-level test files (`test_*_client.py`) run locally in under a second with no infra. Service `test_main.py` suites need live infrastructure this machine lacks — use CI for those.
+- Running device-intelligence tests rewrites tracked `models/model_metadata.json` timestamps. Revert it; do not commit.
+- The `home-assistant-datasets` submodule has 2 dirty files but an unchanged gitlink. It belongs to `allenporter/home-assistant-datasets` — out of scope to commit. Beware: a stale shell cwd there will target that repo on push.
 
 ## Delegation note
-Four subagents researched anchors well but **three failed to complete the Linear write chain**, two of them reporting success with confabulated "ids will be assigned later" language. One died on an API error. Verify subagent write claims against a real `save_issue` response id — do not trust the summary.
+Four subagents researched anchors well but **three failed to complete their Linear writes**, two reporting success with confabulated "ids will be assigned later" language; a fourth died on an API error. Always verify a subagent's write claim against a real `save_issue` response id.
 
 ## Verify
-- `gh pr checks 90` — after pushing, data-api should move from red to green.
-- `cd domains/core-platform/data-api && python -m pytest tests/ -q` -> **1202 passed, 73.64%**. Needs postgres on **15432**; 5432 is another project here.
-- `ruff check libs/ domains/ custom_components/` plus `ruff format --check` — clean at handoff.
+- `gh pr list --state open` -> empty.
+- `cd domains/core-platform/data-api && python -m pytest tests/ -q` -> 1202 passed, 73.64%.
+- `ruff check libs/ domains/ custom_components/` plus `ruff format --check` — clean.
 
 ## Next (P0)
-1. Decide whether to push the 2 commits to PR #90 (user was asked, had not answered when the session ended).
-2. Then work TAP-6169's children. Start with TAP-6182 — it is the only one that is a live production defect rather than test debt.
+- **TAP-6191** — highest leverage: it is the only thing between data-api and a fully green job, and data-api is the most-repaired service.
+- Then **TAP-6176** (calendar-service deps, mechanical, unblocks a service stuck at 0 collected) and **TAP-6179** (httpx 0.28).
 
 ## Success criterion
-- PR #90 merges green, or the remaining red is accepted as debt now fully filed under TAP-6169.
+- Each TAP-6169 child closes with its CI error signature at zero, verified in a real run, with no test skipped, xfailed, or deleted.
