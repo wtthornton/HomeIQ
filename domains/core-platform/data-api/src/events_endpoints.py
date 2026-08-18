@@ -184,7 +184,9 @@ class EventsEndpoints:
 
         @self.router.get("/events/entities", response_model=list[dict[str, Any]])
         async def get_active_entities(
-            limit: int = Query(100, description="Maximum number of entities to return"),
+            limit: int = Query(
+                100, ge=1, le=1000, description="Maximum number of entities to return"
+            ),
             service: str | None = Query(None, description="Specific service"),
         ):
             """Get list of active entities"""
@@ -205,7 +207,9 @@ class EventsEndpoints:
 
         @self.router.get("/events/types", response_model=list[dict[str, Any]])
         async def get_event_types(
-            limit: int = Query(50, description="Maximum number of event types to return"),
+            limit: int = Query(
+                50, ge=1, le=500, description="Maximum number of event types to return"
+            ),
             service: str | None = Query(None, description="Specific service"),
         ):
             """Get list of event types"""
@@ -263,8 +267,10 @@ class EventsEndpoints:
         # General /events route - should come after specific routes
         @self.router.get("/events", response_model=list[EventData])
         async def get_recent_events(
-            limit: int = Query(100, description="Maximum number of events to return"),
-            offset: int = Query(0, description="Number of events to skip"),
+            limit: int = Query(
+                100, ge=1, le=1000, description="Maximum number of events to return"
+            ),
+            offset: int = Query(0, ge=0, description="Number of events to skip"),
             entity_id: str | None = Query(None, description="Filter by entity ID"),
             event_type: str | None = Query(None, description="Filter by event type"),
             start_time: datetime | None = Query(None, description="Start time filter"),

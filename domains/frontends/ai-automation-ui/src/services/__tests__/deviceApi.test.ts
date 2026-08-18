@@ -11,6 +11,7 @@ vi.mock('../../lib/api-client', () => ({
   API_CONFIG: {
     DATA: 'http://localhost:8006/api',
     AI_AUTOMATION: 'http://localhost:8018/api',
+    DEVICE_INTELLIGENCE: 'http://localhost:8028/api',
     HA_AI_AGENT: 'http://localhost:8030/api',
     BLUEPRINT_SUGGESTIONS: 'http://localhost:8039/api/blueprint-suggestions',
   },
@@ -96,16 +97,29 @@ describe('deviceApi', () => {
   });
 
   describe('getDeviceCapabilities', () => {
-    it('fetches capabilities for a device', async () => {
-      mockFetchJSON.mockResolvedValue({
-        device_id: 'd1',
-        capabilities: [{ capability_name: 'brightness', capability_type: 'number', exposed: true, configured: true, source: 'ha', last_updated: '2026-01-01' }],
-      });
+    it('fetches capabilities from device-intelligence-service, not data-api', async () => {
+      // data-api has no GET /devices/{id}/capabilities route (only a
+      // side-effectful POST .../discover-capabilities with a different
+      // response shape). The live GET route lives on device-intelligence-service
+      // and is already wired for it — see nginx.conf's
+      // "device-intelligence-service (Team Tracker, Device Capabilities)"
+      // proxy and API_CONFIG.DEVICE_INTELLIGENCE's own doc comment.
+      mockFetchJSON.mockResolvedValue([
+        { capability_name: 'brightness', capability_type: 'number', exposed: true, configured: true, source: 'ha', last_updated: '2026-01-01' },
+      ]);
 
       const result = await getDeviceCapabilities('d1');
 
-      expect(mockFetchJSON).toHaveBeenCalledWith('http://localhost:8006/api/devices/d1/capabilities');
+      expect(mockFetchJSON).toHaveBeenCalledWith('http://localhost:8028/api/devices/d1/capabilities');
+      expect(result.device_id).toBe('d1');
       expect(result.capabilities).toHaveLength(1);
+      expect(result.capabilities[0].capability_name).toBe('brightness');
+    });
+
+    it('propagates errors', async () => {
+      mockFetchJSON.mockRejectedValue(new Error('Not found'));
+
+      await expect(getDeviceCapabilities('bad-id')).rejects.toThrow('Not found');
     });
   });
 
