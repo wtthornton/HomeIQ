@@ -1,33 +1,43 @@
 # Session handoff
-**Updated:** 2026-08-18T04:00Z
-**Git:** branch feat/wave8-mcp-server (8 commits ahead of master; PR #87 open). PR #83 MERGED 2026-08-18 (owner-approved).
-**Plan:** docs/planning/backlog-implementation-plan-2026-08-17.md (owner approved Decisions A–E; A/C are owner actions still open)
+**Updated:** 2026-08-18T16:46:00Z
+**Git:** 2d0d8855 (branch `fix/tap-6150-6156-lint-and-events-batch`, 2 commits ahead of PR #90)
+**Linear P0:** TAP-6169 epic filed with all 16 children — next is push + triage
 
-## Done this session
-- Phase 0: PR #83 rebased+merged; Linear triage — 5302/5300/5298 canceled as dups of 5910 (comments), TAP-6102 (ai-automation-service-new → AF genes, gates 5322) and TAP-6103 (domain CI red) filed; decisions on 5322/6018/5295/5283; drain prompt table synced.
-- Wave 8 on branch: TAP-6071 (route un-shadow), TAP-5293 (server), TAP-5294/5295 (15 tools), TAP-5297 (34 contract tests, gene map, CI dev-deps), TAP-5296 (AF project overlay registry v1 active; probe gene published; live invocations 99cf5797/106d4e53 mcp_hosts=[homeiq]).
-- Upstream fixes found by live calls: data-api events pivot (states no longer null), ingestion stores bare state, carbon 404, homeiq-data search_path autocommit (device-intelligence 500 fixed), device-intelligence X-API-Key. Redeployed: data-api, websocket-ingestion, device-intelligence, homeiq-mcp (:8050).
-- .env additions (values not shown): HOMEIQ_MCP_READ_TOKENS, HOMEIQ_MCP_ALLOWED_HOSTS (incl. AF gateway 172.20.0.1). AF vault: project:homeiq secret HOMEIQ_MCP_AUTHORIZATION.
+## Done
+- **data-api CI blocker fixed at the root** (`5afc2172`). The handoff called it "one line: add `docker` to requirements". It was not. `src/docker_endpoints.py` is registered in NO router list — `register_routers` in `src/_app_setup.py:105-135` never includes it. It was a stale fork of admin-api's live copy (`main.py:46`, `routes.py:73`), which had **dropped authentication entirely** (admin-api guards every route with `Depends(get_current_user)`; the fork's container start/stop/restart took no user) and predated TAP-5999 (no `DockerUnavailableError`, would answer fabricated 200s). Deleted both modules + their 2 test files. `tapps_impact_analysis`: 0 dependents.
+  - Suite 1302 -> 1202 collected; the two deleted modules collected **exactly 100** (30 defs, parametrized), verified against a HEAD worktree. **1202 passed, coverage 73.64%** vs the `--cov-fail-under=60` gate.
+- **Repair plan corrected** (`2d0d8855`). `prompts/ci-pipeline-full-repair.md` had prescribed the workaround AND warned coverage was 23.29% — that figure predated the suite running at all.
+- **TAP-6169 epic + 16 children filed** (TAP-6170..TAP-6185), all assigned to Claude Agent, all validator-gated at 98-100.
 
-## Wave 8 CLOSED (2026-08-18)
-- 3-round opus refute panel: rounds 1-2 produced ~28 findings, all fixed (commits 13499ca2, bd8b01a0, 5fab8956); round 3 PASS. PR #87 MERGED to master (45645304).
-- Linear: TAP-5282 epic + 6071/5293/5294/5295/5296/5297 all Done with evidence comments. TAP-6107 filed (context_parent_id never ingested -> trace chains empty; catalogue v1.2.3 carries the caveat).
-- Live: homeiq-mcp :8050 on AF gateway bind (HOMEIQ_MCP_BIND=172.20.0.1), catalogue 1.2.3, read_only rootfs, minimal env; AF registry v1 active with vault auth; probe gene v2 least-privilege ran live.
-- AF-side oddity (recorded on 5296): invocation ledger says is_error=true/num_turns=0 while CLI result is success — AF bug, not ours.
+## Open
+- **Nothing is pushed.** Branch is 2 commits ahead of what PR #90 has. Pushing triggers ~40 CI jobs.
+- 17 services fail CI; all 17 fail in the **pytest step**. Full per-service breakdown is in TAP-6169.
+- TAP-6182 is the standout: **a real production bug, not test drift.** Commit `398e074b` (an ARG002 lint fix) renamed `home_type` -> `_home_type` in `synthetic_device_generator.py:437` but left BOTH production call sites (`:336`, `:353`) passing `home_type=`. Live TypeError. Filed High.
+- `events_endpoints.py` still scores 60.9 vs the 70 gate (54.5 on master). Max CC ~28.
+- TAP-6152 open by design; remaining fix is TAP-6167, needs an AgentForge publish.
 
-## Wave 9a DONE on branch feat/wave9-genome (pushed)
-- 5311 fork+drift+CI (genome-kit.yml), 5312 8 base genes rendered, 5318 publish pipeline (af_kit/af_live_diff/af_roundtrip_check/af_preflight/af_suite_run), 5313 injection judge, 5316+5319 five skills (deny list SAFETY001-006), 5314 draft+judge genes, 5315 five analysis genes with least-privilege MCP grants, 5317 four chromosomes published+ACTIVE (home-health, automation-proposal w/ human gate, energy-digest, anomaly-triage event+schedule).
-- Kit: 23 agents, 7 workflows, 11 skills publishable; 150 kit tests; drift clean; 30/30 live match; round-trip fields + AF version pin OK.
-- Wave 9 Done-when evidence LIVE: deny refusal (8e905a10, rule_id deny.unlock_lock) + budget hold (d376d401, error_max_budget_usd). Probe reverted to v4 (0.3 cap) and re-activated.
-- AF platform notes: transform sandbox = no comprehensions/any()/methods; gate payload_from = $refs only; orchestrated runs don't materialize run objects on this deployment (api replica enqueues only) — recorded on 5323.
+## Corrections to carry forward (the old handoff and repair plan were wrong on these)
+1. `unrecognized arguments: --cov=src` appears in all 17 logs but is a **shell comment** in the workflow, not a failure. Do not file it.
+2. **No lint or format gate failed** in any of the 17 — TAP-6150/6155 are holding.
+3. **No service failed for an unreachable container.** Zero `Connection refused` across all 17. Postgres failures are schema/fixture bugs.
+4. `weather-api/tests/test_main.py:22` asserts against the `SERVICE_NAME` constant, not the literal `'weather-api'` — the repair plan's claim there is dead.
+5. `automation-miner/tests/conftest.py:28` already uses `ASGITransport`. Not a latent httpx site.
+6. air-quality's reported `homeiq` vs `home_assistant` bucket mismatch **could not be reproduced** — neither string is in that service's tests. Unconfirmed.
 
-## Wave 9 shipped (PR #88 open, branch feat/wave9-genome, 5 commits)
-- Epic TAP-5285 Done + 5311/5312/5313/5314/5315/5316/5317/5318/5319/5320/5325 Done. 5321 + 5323 left In Progress: both need AF instance env (AF_MONTHLY_BUDGET_USD / plan ceiling) = OWNER action; per-gene budgets + the budget-kill proof are done.
-- Live: 23 agents + 7 workflows active on project homeiq; af_live_diff 30/30; deny refusal 8e905a10; budget kill d376d401.
+## Blockers
+- none
 
-## Next (needs owner input before proceeding)
-1. Merge PR #88 (Wave 9) — owner gate on merges.
-2. **Wave 11a (TAP-5910) is 15 service DELETIONS — every one an Autonomy hard-stop.** Needs explicit go-ahead; each deletion carries a pasted capability-reachability proof.
-3. TAP-6102 cutover (ai-automation-service-new -> AF genes) is now unblocked (5314/5318 done) -> then 5322 credential move; rotation is owner-gated.
-4. Wave 10 (5305-5310) installs a custom integration on the LIVE HA instance = apply, gateway path or hard-stop.
-5. Owner batch: AF_MONTHLY_BUDGET_USD; SSH write path (5430/6018); credential rotation (6036/5993).
+## Delegation note
+Four subagents researched anchors well but **three failed to complete the Linear write chain**, two of them reporting success with confabulated "ids will be assigned later" language. One died on an API error. Verify subagent write claims against a real `save_issue` response id — do not trust the summary.
+
+## Verify
+- `gh pr checks 90` — after pushing, data-api should move from red to green.
+- `cd domains/core-platform/data-api && python -m pytest tests/ -q` -> **1202 passed, 73.64%**. Needs postgres on **15432**; 5432 is another project here.
+- `ruff check libs/ domains/ custom_components/` plus `ruff format --check` — clean at handoff.
+
+## Next (P0)
+1. Decide whether to push the 2 commits to PR #90 (user was asked, had not answered when the session ended).
+2. Then work TAP-6169's children. Start with TAP-6182 — it is the only one that is a live production defect rather than test debt.
+
+## Success criterion
+- PR #90 merges green, or the remaining red is accepted as debt now fully filed under TAP-6169.
