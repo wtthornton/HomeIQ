@@ -950,8 +950,15 @@ from(bucket: "{bucket}")
         Returns:
             Tuple of (measurement_name, field_name)
             - Last 10 days: ("home_assistant_events", "context_id")
-            - 10-30 days: ("statistics_short_term", "mean")
-            - Beyond 30 days: ("statistics", "mean")
+            - 10-30 days: ("statistics_short_term", "count")
+            - Beyond 30 days: ("statistics", "count")
+
+        The downsampled tiers carry both a ``count`` and a ``mean`` field
+        (infrastructure/influxdb/tasks/*.flux). This endpoint serves *events*, so
+        it reads ``count``, which is defined for every entity. ``mean`` exists
+        only where states parse as numbers - on this instance that is 1,228 rows
+        against 30,061, so reading ``mean`` here would silently drop every
+        light, switch and binary_sensor from any window over 10 days.
         """
         now = datetime.now(UTC)
 
@@ -979,11 +986,11 @@ from(bucket: "{bucket}")
             # Last 10 days: Use raw events
             return ("home_assistant_events", "context_id")
         elif days_ago <= 30:
-            # 10-30 days: Use short-term statistics
-            return ("statistics_short_term", "mean")
+            # 10-30 days: 5-minute downsample
+            return ("statistics_short_term", "count")
         else:
-            # Beyond 30 days: Use long-term statistics
-            return ("statistics", "mean")
+            # Beyond 30 days: hourly downsample
+            return ("statistics", "count")
 
     async def _get_events_from_influxdb(
         self, event_filter: EventFilter, limit: int, offset: int

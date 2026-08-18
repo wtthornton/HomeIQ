@@ -82,7 +82,12 @@ async def test_statistics_range_keeps_single_field_query(monkeypatch):
         EventFilter(start_time=old, end_time=datetime(2026, 7, 2, tzinfo=UTC)), limit=1, offset=0
     )
     flux = query_api.query.call_args[0][0]
-    assert 'r._field == "mean"' in flux and "pivot(" not in flux
+    # count, not mean: the downsampled tiers carry both, but mean exists only for
+    # entities whose states parse as numbers. An events query reading mean would
+    # drop every light, switch and binary_sensor from windows over 10 days.
+    assert 'r._field == "count"' in flux and "pivot(" not in flux
+    # start_time is more than 30 days back, so this is the hourly tier.
+    assert 'r._measurement == "statistics"' in flux
 
 
 @pytest.mark.asyncio
