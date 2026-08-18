@@ -3,13 +3,8 @@
 Semantic memory store with hybrid search, confidence decay, and LLM prompt injection.
 """
 
+from homeiq_memory import metrics as memory_metrics
 from homeiq_memory.client import MemoryClient
-from homeiq_memory.domains import (
-    DOMAIN_TAXONOMY,
-    VALID_DOMAINS,
-    classify_domain,
-    classify_domains,
-)
 from homeiq_memory.consolidator import (
     ConsolidationAction,
     ConsolidationResult,
@@ -25,6 +20,12 @@ from homeiq_memory.decay import (
     reinforce,
     should_archive,
 )
+from homeiq_memory.domains import (
+    DOMAIN_TAXONOMY,
+    VALID_DOMAINS,
+    classify_domain,
+    classify_domains,
+)
 from homeiq_memory.embeddings import EmbeddingGenerator
 from homeiq_memory.health import HealthStatus, MemoryHealthCheck
 from homeiq_memory.injector import MemoryInjector
@@ -35,7 +36,6 @@ from homeiq_memory.models import (
     MemoryType,
     SourceChannel,
 )
-from homeiq_memory import metrics as memory_metrics
 from homeiq_memory.search import MemorySearch, MemorySearchResult
 
 __all__ = [

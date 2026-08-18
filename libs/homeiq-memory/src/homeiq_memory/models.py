@@ -8,7 +8,7 @@ Schema: memory (PostgreSQL schema isolation)
 """
 
 from datetime import datetime
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any
 
 from pgvector.sqlalchemy import Vector
@@ -45,7 +45,7 @@ class Base(DeclarativeBase):
     }
 
 
-class MemoryType(str, Enum):
+class MemoryType(StrEnum):
     """Classification of memory content type."""
 
     BEHAVIORAL = "behavioral"
@@ -55,7 +55,7 @@ class MemoryType(str, Enum):
     ROUTINE = "routine"
 
 
-class SourceChannel(str, Enum):
+class SourceChannel(StrEnum):
     """How the memory was acquired."""
 
     EXPLICIT = "explicit"

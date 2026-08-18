@@ -18,7 +18,6 @@ import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
 from homeiq_data.database_manager import DatabaseManager
 
 
@@ -31,15 +30,12 @@ def _manager() -> DatabaseManager:
 
 
 class TestRecoversAfterDegradedStart:
-
     @pytest.mark.asyncio
     async def test_get_db_retries_initialize_and_succeeds(self):
         db = _manager()
 
         # Startup: database unreachable.
-        with patch.object(
-            DatabaseManager, "initialize", new=AsyncMock(return_value=False)
-        ):
+        with patch.object(DatabaseManager, "initialize", new=AsyncMock(return_value=False)):
             assert await db.initialize() is False
         db._init_args = {"base": None, "run_alembic": False, "alembic_ini_path": None}
         assert db._available is False
@@ -62,9 +58,10 @@ class TestRecoversAfterDegradedStart:
         db = _manager()
         db._init_args = {"base": None, "run_alembic": False, "alembic_ini_path": None}
 
-        with patch.object(
-            DatabaseManager, "initialize", new=AsyncMock(return_value=False)
-        ), pytest.raises(RuntimeError, match="degraded mode"):
+        with (
+            patch.object(DatabaseManager, "initialize", new=AsyncMock(return_value=False)),
+            pytest.raises(RuntimeError, match="degraded mode"),
+        ):
             async with db.get_db():
                 pass
 
@@ -79,7 +76,6 @@ class TestRecoversAfterDegradedStart:
 
 
 class TestRecoveryIsRateLimited:
-
     @pytest.mark.asyncio
     async def test_second_attempt_within_cooldown_is_skipped(self):
         db = _manager()

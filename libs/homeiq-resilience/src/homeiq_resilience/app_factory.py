@@ -22,13 +22,14 @@ from __future__ import annotations
 import logging
 import time
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from .health_check import StandardHealthCheck
+if TYPE_CHECKING:
+    from .health_check import StandardHealthCheck
 
 logger = logging.getLogger(__name__)
 

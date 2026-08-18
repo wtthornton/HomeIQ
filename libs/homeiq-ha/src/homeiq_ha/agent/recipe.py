@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import abc
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -40,7 +40,7 @@ PHASE_HACS = 5
 PHASE_INTEGRATIONS = 6
 
 
-class CheckStatus(str, Enum):
+class CheckStatus(StrEnum):
     """Outcome of a recipe's read-only check."""
 
     SATISFIED = "satisfied"

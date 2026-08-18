@@ -60,8 +60,7 @@ def _get_influxdb() -> Any:
             _influxdb_module = influxdb_client
         except ImportError as exc:
             raise ImportError(
-                "influxdb-client package is required. "
-                "Install with: pip install influxdb-client"
+                "influxdb-client package is required. Install with: pip install influxdb-client"
             ) from exc
     return _influxdb_module
 
@@ -337,9 +336,7 @@ class InfluxDBManager:
                 "write_errors": self._write_errors,
                 "query_count": self._query_count,
                 "query_errors": self._query_errors,
-                "last_write": (
-                    self._last_write.isoformat() if self._last_write else None
-                ),
+                "last_write": (self._last_write.isoformat() if self._last_write else None),
             }
 
         except Exception as exc:
@@ -374,9 +371,7 @@ class InfluxDBManager:
             "write_errors": self._write_errors,
             "query_count": self._query_count,
             "query_errors": self._query_errors,
-            "last_write": (
-                self._last_write.isoformat() if self._last_write else None
-            ),
+            "last_write": (self._last_write.isoformat() if self._last_write else None),
             "last_error": self._last_error,
             "available": self._available,
         }
@@ -389,10 +384,13 @@ class InfluxDBManager:
         """Verify InfluxDB is reachable via the /health endpoint."""
         import aiohttp
 
-        async with aiohttp.ClientSession() as session, session.get(
-            f"{self._url}/health",
-            timeout=aiohttp.ClientTimeout(total=self._timeout),
-        ) as response:
+        async with (
+            aiohttp.ClientSession() as session,
+            session.get(
+                f"{self._url}/health",
+                timeout=aiohttp.ClientTimeout(total=self._timeout),
+            ) as response,
+        ):
             if response.status != 200:
                 msg = f"InfluxDB health check failed: HTTP {response.status}"
                 raise ConnectionError(msg)

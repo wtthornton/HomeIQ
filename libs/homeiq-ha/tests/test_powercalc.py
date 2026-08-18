@@ -48,6 +48,7 @@ def powercalc_recipe() -> PowercalcRecipe:
         power_state_timeout=0.05,
     )
 
+
 @pytest.mark.asyncio
 async def test_powercalc_check_reports_absence_from_hacs(sim):
     result = await powercalc_recipe().check(sim)
@@ -73,9 +74,7 @@ async def test_powercalc_check_refuses_a_sensor_that_reports_nothing(sim):
     sim.state["config_entries"].append(
         {"entry_id": "pc1", "domain": "powercalc", "state": "loaded"}
     )
-    sim.state["entities"].append(
-        {"entity_id": "sensor.dead_light_power", "platform": "powercalc"}
-    )
+    sim.state["entities"].append({"entity_id": "sensor.dead_light_power", "platform": "powercalc"})
     sim.state["states"] = [{"entity_id": "sensor.dead_light_power", "state": "unavailable"}]
 
     result = await powercalc_recipe().check(sim)
@@ -128,7 +127,11 @@ async def test_powercalc_apply_bootstraps_discovery_via_global_config(sim):
     sim.state["flow_first_step"] = PC_MENU
     sim.state["flow_current_step"] = {"type": "form", "flow_id": "pf1", "data_schema": []}
     sim.state["flow_steps"] = [
-        {"type": "form", "flow_id": "gc1", "data_schema": [{"name": "create_energy_sensors", "default": True}]},
+        {
+            "type": "form",
+            "flow_id": "gc1",
+            "data_schema": [{"name": "create_energy_sensors", "default": True}],
+        },
         {
             "type": "create_entry",
             "result": {"entry_id": "gc1", "domain": "powercalc", "state": "loaded"},
@@ -160,12 +163,20 @@ async def test_powercalc_submits_sections_as_empty_dicts(sim):
             "type": "form",
             "flow_id": "gc1",
             "data_schema": [
-                {"name": "power_options", "required": True, "schema": [
-                    {"name": "power_sensor_precision", "optional": True},
-                ]},
-                {"name": "features", "required": True, "schema": [
-                    {"name": "create_energy_sensors", "default": True},
-                ]},
+                {
+                    "name": "power_options",
+                    "required": True,
+                    "schema": [
+                        {"name": "power_sensor_precision", "optional": True},
+                    ],
+                },
+                {
+                    "name": "features",
+                    "required": True,
+                    "schema": [
+                        {"name": "create_energy_sensors", "default": True},
+                    ],
+                },
             ],
         },
         {
@@ -191,9 +202,13 @@ async def test_powercalc_refuses_a_section_with_a_required_undefaulted_field(sim
             "type": "form",
             "flow_id": "gc1",
             "data_schema": [
-                {"name": "power_options", "required": True, "schema": [
-                    {"name": "which_meter", "required": True},
-                ]},
+                {
+                    "name": "power_options",
+                    "required": True,
+                    "schema": [
+                        {"name": "which_meter", "required": True},
+                    ],
+                },
             ],
         },
     ]

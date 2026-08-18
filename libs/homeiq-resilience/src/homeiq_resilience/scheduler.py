@@ -26,12 +26,14 @@ Usage::
 from __future__ import annotations
 
 import logging
-from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -212,11 +214,13 @@ class ServiceScheduler:
         """Return info about registered jobs."""
         jobs = []
         for job in self._scheduler.get_jobs():
-            jobs.append({
-                "id": job.id,
-                "name": job.name,
-                "next_run_time": job.next_run_time.isoformat() if job.next_run_time else None,
-            })
+            jobs.append(
+                {
+                    "id": job.id,
+                    "name": job.name,
+                    "next_run_time": job.next_run_time.isoformat() if job.next_run_time else None,
+                }
+            )
         return jobs
 
     def get_job_history(self, limit: int = 20) -> list[dict[str, Any]]:
@@ -233,14 +237,16 @@ class ServiceScheduler:
     ) -> None:
         """Record a job execution in history."""
         end_time = datetime.now(UTC)
-        self._job_history.append({
-            "job_id": job_id,
-            "name": name,
-            "start_time": start_time.isoformat(),
-            "end_time": end_time.isoformat(),
-            "duration_seconds": (end_time - start_time).total_seconds(),
-            "success": success,
-        })
+        self._job_history.append(
+            {
+                "job_id": job_id,
+                "name": name,
+                "start_time": start_time.isoformat(),
+                "end_time": end_time.isoformat(),
+                "duration_seconds": (end_time - start_time).total_seconds(),
+                "success": success,
+            }
+        )
         # Keep history bounded
         if len(self._job_history) > 100:
             self._job_history = self._job_history[-50:]

@@ -7,26 +7,24 @@ Tests cover:
 - Error handling when store/query fails
 """
 
+import importlib.util
 import json
 import sys
 from pathlib import Path
 
 import pytest
-
-_project_root = str(Path(__file__).resolve().parents[3])
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
-
 from homeiq_patterns import VerificationResult, VerificationResultStore, VerificationWarning
 
 # Import InfluxDB store directly
 _store_path = (
     Path(__file__).resolve().parents[3]
-    / "domains" / "automation-core" / "ai-automation-service-new" / "src" / "services"
+    / "domains"
+    / "automation-core"
+    / "ai-automation-service-new"
+    / "src"
+    / "services"
 )
 sys.path.insert(0, str(_store_path.parent.parent))
-
-import importlib.util
 
 _spec = importlib.util.spec_from_file_location(
     "verification_store",
@@ -38,6 +36,7 @@ InfluxDBVerificationStore = _mod.InfluxDBVerificationStore
 
 
 # --- Abstract interface tests ---
+
 
 class TestVerificationResultStoreInterface:
     def test_is_abstract(self):
@@ -64,6 +63,7 @@ class TestVerificationResultStoreInterface:
 
 # --- InfluxDBVerificationStore tests ---
 
+
 class TestInfluxDBVerificationStore:
     @pytest.fixture
     def stored_points(self):
@@ -80,12 +80,14 @@ class TestInfluxDBVerificationStore:
         """Create store with mock write/query functions."""
 
         async def mock_write(measurement, tags, fields, timestamp):
-            stored_points.append({
-                "measurement": measurement,
-                "tags": tags,
-                "fields": fields,
-                "timestamp": timestamp,
-            })
+            stored_points.append(
+                {
+                    "measurement": measurement,
+                    "tags": tags,
+                    "fields": fields,
+                    "timestamp": timestamp,
+                }
+            )
 
         async def mock_query(_query):
             return query_results
@@ -194,9 +196,11 @@ class TestInfluxDBVerificationStore:
     @pytest.mark.asyncio
     async def test_query_failures(self, store, query_results):
         """Query failures returns results from backing store."""
-        query_results.extend([
-            {"entity_id": "light.kitchen", "state": "off", "success": "false"},
-        ])
+        query_results.extend(
+            [
+                {"entity_id": "light.kitchen", "state": "off", "success": "false"},
+            ]
+        )
         failures = await store.query_failures("light.kitchen", lookback_hours=24)
         assert len(failures) == 1
 
@@ -217,10 +221,12 @@ class TestInfluxDBVerificationStore:
     @pytest.mark.asyncio
     async def test_query_successes(self, store, query_results):
         """Query successes returns results for multiple entities."""
-        query_results.extend([
-            {"entity_id": "light.kitchen", "success": "true"},
-            {"entity_id": "light.bedroom", "success": "true"},
-        ])
+        query_results.extend(
+            [
+                {"entity_id": "light.kitchen", "success": "true"},
+                {"entity_id": "light.bedroom", "success": "true"},
+            ]
+        )
         successes = await store.query_successes(
             ["light.kitchen", "light.bedroom"],
             lookback_hours=168,

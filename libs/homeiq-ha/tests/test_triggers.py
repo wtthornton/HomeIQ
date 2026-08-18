@@ -7,9 +7,9 @@ instance or on the summary the wizard renders — never on internals.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 import pytest
-
 from homeiq_ha.agent.triggers import (
     PERMIT_COMMAND,
     advance_to_readiness,
@@ -17,7 +17,8 @@ from homeiq_ha.agent.triggers import (
     start_hacs,
 )
 
-from .simulators import SimHA
+if TYPE_CHECKING:
+    from .simulators import SimHA
 
 pytestmark = pytest.mark.asyncio
 

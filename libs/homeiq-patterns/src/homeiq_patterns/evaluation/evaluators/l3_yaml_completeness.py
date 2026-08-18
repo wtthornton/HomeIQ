@@ -7,20 +7,26 @@ and unresolved placeholders in generated YAML.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import yaml
 
 from ..base_evaluator import DetailsEvaluator
-from ..models import EvaluationResult, SessionTrace
+
+if TYPE_CHECKING:
+    from ..models import EvaluationResult, SessionTrace
 
 # Templates known to require a condition block for correct behavior.
 # Kept at module level so evaluator subclasses can reference or extend it.
-CONDITION_EXPECTED_TEMPLATES: frozenset[str] = frozenset({
-    "tmpl_thermostat",
-    "tmpl_presence",
-    "tmpl_time_range",
-    "tmpl_energy_saving",
-    "tmpl_night_mode",
-})
+CONDITION_EXPECTED_TEMPLATES: frozenset[str] = frozenset(
+    {
+        "tmpl_thermostat",
+        "tmpl_presence",
+        "tmpl_time_range",
+        "tmpl_energy_saving",
+        "tmpl_night_mode",
+    }
+)
 
 
 class YAMLCompletenessEvaluator(DetailsEvaluator):
@@ -43,7 +49,8 @@ class YAMLCompletenessEvaluator(DetailsEvaluator):
         if not yaml_str:
             if session.metadata.get("execution_mode") == "preview":
                 return self._result(
-                    0.5, "N/A",
+                    0.5,
+                    "N/A",
                     "No YAML generated (preview may not compile)",
                 )
             return self._result(0.0, "Missing", "No generated YAML in metadata")
@@ -55,7 +62,8 @@ class YAMLCompletenessEvaluator(DetailsEvaluator):
 
         if not isinstance(parsed, dict):
             return self._result(
-                0.0, "Invalid",
+                0.0,
+                "Invalid",
                 f"YAML root is {type(parsed).__name__}, expected dict",
             )
 
@@ -107,9 +115,7 @@ class YAMLCompletenessEvaluator(DetailsEvaluator):
             score_parts.append(0.1)
             checks.append("condition: present (bonus)")
         elif condition_expected:
-            checks.append(
-                f"condition: MISSING (expected for template '{template_id}')"
-            )
+            checks.append(f"condition: MISSING (expected for template '{template_id}')")
 
         score = min(sum(score_parts), 1.0)
         label = "Complete" if score >= 0.8 else "Incomplete"

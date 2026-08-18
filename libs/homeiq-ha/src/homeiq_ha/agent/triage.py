@@ -69,9 +69,7 @@ class LaterStore:
     def add(self, key: str) -> None:
         keys = self._load() | {key}
         tmp = self._path.with_suffix(".tmp")
-        tmp.write_text(
-            json.dumps({"later": sorted(keys)}, indent=2) + "\n", encoding="utf-8"
-        )
+        tmp.write_text(json.dumps({"later": sorted(keys)}, indent=2) + "\n", encoding="utf-8")
         # Group-writable to match the bind-mount convention (the container
         # umask would otherwise land 644 and lock the host group out).
         tmp.chmod(0o664)
@@ -79,6 +77,9 @@ class LaterStore:
 
     def keys(self) -> set[str]:
         return self._load()
+
+    def __contains__(self, key: object) -> bool:
+        return key in self._load()
 
 
 async def _find_flow(ha: HAClient, flow_id: str) -> dict[str, Any] | None:
@@ -98,14 +99,10 @@ async def _apply_add(ha: HAClient, flow_id: str) -> dict[str, Any]:
         # is labelled as the weaker read-back that it is.
         entries = await ha.rest.get_config_entries()
         if step.get("entry_id"):
-            entry = next(
-                (e for e in entries if e.get("entry_id") == step["entry_id"]), None
-            )
+            entry = next((e for e in entries if e.get("entry_id") == step["entry_id"]), None)
             read_back = "entry_id"
         else:
-            entry = next(
-                (e for e in entries if e.get("domain") == step.get("handler")), None
-            )
+            entry = next((e for e in entries if e.get("domain") == step.get("handler")), None)
             read_back = "domain"
         return {
             "decision": "add",
@@ -124,9 +121,7 @@ async def _apply_ignore(ha: HAClient, flow_id: str) -> dict[str, Any]:
     placeholders = (flow.get("context") or {}).get("title_placeholders") or {}
     title = placeholders.get("name") or flow.get("handler") or "Ignored device"
     try:
-        await ha.ws.send_command(
-            "config_entries/ignore_flow", flow_id=flow_id, title=str(title)
-        )
+        await ha.ws.send_command("config_entries/ignore_flow", flow_id=flow_id, title=str(title))
     except HACommandError as exc:
         # Upstream refuses flows without a unique_id — an honest limit,
         # not a failure of this endpoint.

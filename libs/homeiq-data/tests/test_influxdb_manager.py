@@ -152,9 +152,11 @@ class TestWritePoints:
             if call_count == 1:
                 raise ConnectionError("transient")
 
-        with patch("asyncio.to_thread", side_effect=_side_effect):
-            with patch("asyncio.sleep", new_callable=AsyncMock):
-                result = await manager.write_points([MagicMock()])
+        with (
+            patch("asyncio.to_thread", side_effect=_side_effect),
+            patch("asyncio.sleep", new_callable=AsyncMock),
+        ):
+            result = await manager.write_points([MagicMock()])
 
         assert result is True
         assert call_count == 2
@@ -164,11 +166,14 @@ class TestWritePoints:
         manager._available = True
         manager._write_api = MagicMock()
 
-        with patch(
-            "asyncio.to_thread",
-            new_callable=AsyncMock,
-            side_effect=ConnectionError("down"),
-        ), patch("asyncio.sleep", new_callable=AsyncMock):
+        with (
+            patch(
+                "asyncio.to_thread",
+                new_callable=AsyncMock,
+                side_effect=ConnectionError("down"),
+            ),
+            patch("asyncio.sleep", new_callable=AsyncMock),
+        ):
             result = await manager.write_points([MagicMock()])
 
         assert result is False
@@ -185,7 +190,7 @@ class TestQuery:
 
     @pytest.mark.asyncio()
     async def test_query_not_connected(self, manager: InfluxDBManager) -> None:
-        result = await manager.query("from(bucket: \"b\") |> range(start: -1h)")
+        result = await manager.query('from(bucket: "b") |> range(start: -1h)')
         assert result == []
 
     @pytest.mark.asyncio()
@@ -199,7 +204,7 @@ class TestQuery:
         mock_table.records = [mock_record]
 
         with patch("asyncio.to_thread", new_callable=AsyncMock, return_value=[mock_table]):
-            result = await manager.query("from(bucket: \"b\") |> range(start: -1h)")
+            result = await manager.query('from(bucket: "b") |> range(start: -1h)')
 
         assert len(result) == 1
         assert result[0]["_value"] == 42

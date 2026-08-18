@@ -6,13 +6,15 @@ homeiq_ha.agent.backup.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from homeiq_ha.agent import CheckStatus
 from homeiq_ha.agent.recipes import BackupScheduleRecipe, FirstBackupRecipe
 
-from tests.simulators import SimHA
+if TYPE_CHECKING:
+    from tests.simulators import SimHA
+
 
 @pytest.mark.asyncio
 async def test_backup_schedule_detects_a_never_scheduled_instance(sim):

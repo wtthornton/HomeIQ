@@ -263,8 +263,7 @@ class DatabaseManager:
         """
         if not await self._try_recover():
             raise RuntimeError(
-                f"Database not available for {self._service_name}. "
-                "Service is in degraded mode."
+                f"Database not available for {self._service_name}. Service is in degraded mode."
             )
         async with self._session_maker() as session:
             try:
@@ -282,8 +281,7 @@ class DatabaseManager:
         """Context manager for non-FastAPI database session usage."""
         if not await self._try_recover():
             raise RuntimeError(
-                f"Database not available for {self._service_name}. "
-                "Service is in degraded mode."
+                f"Database not available for {self._service_name}. Service is in degraded mode."
             )
         async with self._session_maker() as session:
             try:
@@ -365,9 +363,7 @@ class DatabaseManager:
                 return False
 
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(
-                None, self._alembic_upgrade_sync, str(path)
-            )
+            await loop.run_in_executor(None, self._alembic_upgrade_sync, str(path))
             logger.info(
                 "DatabaseManager[%s] Alembic migrations completed (schema=%s)",
                 self._service_name,

@@ -222,9 +222,7 @@ class SSHHostFiles:
             stderr=asyncio.subprocess.PIPE,
         )
         try:
-            out, err = await asyncio.wait_for(
-                proc.communicate(stdin), timeout=self.timeout
-            )
+            out, err = await asyncio.wait_for(proc.communicate(stdin), timeout=self.timeout)
         except TimeoutError as exc:
             proc.kill()
             await proc.wait()

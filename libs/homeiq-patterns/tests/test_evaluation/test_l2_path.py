@@ -27,14 +27,14 @@ class MockProvider(LLMProvider):
 
 
 def _make_config(**kwargs) -> AgentEvalConfig:
-    defaults = dict(
-        agent_name="test-agent",
-        tools=[
+    defaults = {
+        "agent_name": "test-agent",
+        "tools": [
             ToolDef(name="search_rooms", description="Search rooms"),
             ToolDef(name="book_room", description="Book a room"),
             ToolDef(name="cancel_booking", description="Cancel booking"),
         ],
-        paths=[
+        "paths": [
             PathRule(
                 name="standard_booking",
                 description="Search before booking",
@@ -42,7 +42,7 @@ def _make_config(**kwargs) -> AgentEvalConfig:
                 exceptions=["User provides exact room ID directly"],
             ),
         ],
-    )
+    }
     defaults.update(kwargs)
     return AgentEvalConfig(**defaults)
 

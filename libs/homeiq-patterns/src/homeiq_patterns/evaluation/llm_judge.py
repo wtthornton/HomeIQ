@@ -13,9 +13,10 @@ import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from .models import SessionTrace
+if TYPE_CHECKING:
+    from .models import SessionTrace
 
 logger = logging.getLogger(__name__)
 

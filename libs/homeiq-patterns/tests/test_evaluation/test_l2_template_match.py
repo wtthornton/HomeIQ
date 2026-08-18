@@ -73,9 +73,7 @@ class TestKeywordMatching:
     @pytest.mark.asyncio
     async def test_temperature_keyword(self):
         evaluator = TemplateAppropriatenessEvaluator()
-        session = _make_session(
-            "set the thermostat to 72 degrees", "temperature_control"
-        )
+        session = _make_session("set the thermostat to 72 degrees", "temperature_control")
         result = await evaluator.evaluate(session)
         assert result.score == 1.0
         assert result.label == "Match"
@@ -83,18 +81,14 @@ class TestKeywordMatching:
     @pytest.mark.asyncio
     async def test_scene_keyword(self):
         evaluator = TemplateAppropriatenessEvaluator()
-        session = _make_session(
-            "make it look like a party in the office", "scene_activation"
-        )
+        session = _make_session("make it look like a party in the office", "scene_activation")
         result = await evaluator.evaluate(session)
         assert result.score == 1.0
 
     @pytest.mark.asyncio
     async def test_leave_keyword(self):
         evaluator = TemplateAppropriatenessEvaluator()
-        session = _make_session(
-            "when I leave home turn off everything", "state_based_automation"
-        )
+        session = _make_session("when I leave home turn off everything", "state_based_automation")
         result = await evaluator.evaluate(session)
         assert result.score == 1.0
 
@@ -102,9 +96,7 @@ class TestKeywordMatching:
     async def test_every_not_matched_in_everything(self):
         """'every' should NOT match inside 'everything' — word boundary."""
         evaluator = TemplateAppropriatenessEvaluator()
-        session = _make_session(
-            "when I leave home turn off everything", "scheduled_task"
-        )
+        session = _make_session("when I leave home turn off everything", "scheduled_task")
         result = await evaluator.evaluate(session)
         # "leave" matches before "every" could, and scheduled_task is wrong
         assert result.score == 0.0
@@ -116,9 +108,7 @@ class TestKeywordMatching:
         evaluator = TemplateAppropriatenessEvaluator()
         # "sentry" contains "entry" as substring but not as a word.
         # "notify" is a standalone word matching the notify group.
-        session = _make_session(
-            "notify me about sentry errors", "notification_on_event"
-        )
+        session = _make_session("notify me about sentry errors", "notification_on_event")
         result = await evaluator.evaluate(session)
         # "notify" matches the notify group, not "entry" from "sentry"
         assert result.score == 1.0
@@ -135,9 +125,7 @@ class TestKeywordMatching:
         """'turn off all lights at midnight' — 'at midnight' matches the 'time'
         group (checked before 'turn off'), so time_based_light_on is valid."""
         evaluator = TemplateAppropriatenessEvaluator()
-        session = _make_session(
-            "turn off all lights at midnight", "time_based_light_on"
-        )
+        session = _make_session("turn off all lights at midnight", "time_based_light_on")
         result = await evaluator.evaluate(session)
         assert result.score == 1.0
 
@@ -145,9 +133,7 @@ class TestKeywordMatching:
     async def test_turn_off_without_time(self):
         """Pure 'turn off' without time keywords matches the turn-off group."""
         evaluator = TemplateAppropriatenessEvaluator()
-        session = _make_session(
-            "turn off the bedroom lights", "state_based_automation"
-        )
+        session = _make_session("turn off the bedroom lights", "state_based_automation")
         result = await evaluator.evaluate(session)
         assert result.score == 1.0
 
@@ -194,58 +180,36 @@ class TestEdgeCases:
 class TestLLMFallback:
     @pytest.mark.asyncio
     async def test_fallback_yes(self):
-        provider = MockProvider(
-            '{"label": "Yes", "explanation": "Template matches intent."}'
-        )
-        evaluator = TemplateAppropriatenessEvaluator(
-            llm_judge=LLMJudge(provider=provider)
-        )
+        provider = MockProvider('{"label": "Yes", "explanation": "Template matches intent."}')
+        evaluator = TemplateAppropriatenessEvaluator(llm_judge=LLMJudge(provider=provider))
         # Prompt that matches no keyword group (no substring overlaps)
-        session = _make_session(
-            "lock the front door when it rains", "custom_automation"
-        )
+        session = _make_session("lock the front door when it rains", "custom_automation")
         result = await evaluator.evaluate(session)
         assert result.score == 1.0
         assert provider.call_count == 1
 
     @pytest.mark.asyncio
     async def test_fallback_partial(self):
-        provider = MockProvider(
-            '{"label": "Partial", "explanation": "Somewhat appropriate."}'
-        )
-        evaluator = TemplateAppropriatenessEvaluator(
-            llm_judge=LLMJudge(provider=provider)
-        )
-        session = _make_session(
-            "lock the front door when it rains", "notification_on_event"
-        )
+        provider = MockProvider('{"label": "Partial", "explanation": "Somewhat appropriate."}')
+        evaluator = TemplateAppropriatenessEvaluator(llm_judge=LLMJudge(provider=provider))
+        session = _make_session("lock the front door when it rains", "notification_on_event")
         result = await evaluator.evaluate(session)
         assert result.score == 0.5
 
     @pytest.mark.asyncio
     async def test_fallback_no(self):
-        provider = MockProvider(
-            '{"label": "No", "explanation": "Wrong template."}'
-        )
-        evaluator = TemplateAppropriatenessEvaluator(
-            llm_judge=LLMJudge(provider=provider)
-        )
-        session = _make_session(
-            "lock the front door when it rains", "notification_on_event"
-        )
+        provider = MockProvider('{"label": "No", "explanation": "Wrong template."}')
+        evaluator = TemplateAppropriatenessEvaluator(llm_judge=LLMJudge(provider=provider))
+        session = _make_session("lock the front door when it rains", "notification_on_event")
         result = await evaluator.evaluate(session)
         assert result.score == 0.0
 
     @pytest.mark.asyncio
     async def test_empty_prompt_triggers_fallback(self):
-        provider = MockProvider(
-            '{"label": "Yes", "explanation": "OK."}'
-        )
-        evaluator = TemplateAppropriatenessEvaluator(
-            llm_judge=LLMJudge(provider=provider)
-        )
+        provider = MockProvider('{"label": "Yes", "explanation": "OK."}')
+        evaluator = TemplateAppropriatenessEvaluator(llm_judge=LLMJudge(provider=provider))
         session = _make_session("", "room_entry_light_on")
-        result = await evaluator.evaluate(session)
+        await evaluator.evaluate(session)
         # Empty prompt matches no keywords -> LLM fallback
         assert provider.call_count == 1
 

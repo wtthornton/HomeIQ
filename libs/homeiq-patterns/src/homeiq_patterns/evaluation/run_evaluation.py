@@ -80,14 +80,24 @@ class BaselineMockProvider(LLMProvider):
         if "goal" in prompt_lower or "success" in prompt_lower:
             roll = self._rng.random()
             if roll < 0.6:
-                return json.dumps({"label": "Yes", "explanation": "User's goal was fully achieved."})
+                return json.dumps(
+                    {"label": "Yes", "explanation": "User's goal was fully achieved."}
+                )
             elif roll < 0.85:
-                return json.dumps({"label": "Partial", "explanation": "Goal partially achieved, some steps incomplete."})
+                return json.dumps(
+                    {
+                        "label": "Partial",
+                        "explanation": "Goal partially achieved, some steps incomplete.",
+                    }
+                )
             else:
                 return json.dumps({"label": "No", "explanation": "Goal was not achieved."})
 
         # Quality evaluators — generally positive
-        if any(w in prompt_lower for w in ("correct", "faithful", "coherent", "helpful", "concise", "relevant")):
+        if any(
+            w in prompt_lower
+            for w in ("correct", "faithful", "coherent", "helpful", "concise", "relevant")
+        ):
             labels_positive = [
                 ("Perfectly Correct", "Response is factually accurate."),
                 ("Completely Yes", "Response is faithful to the context."),
@@ -108,8 +118,12 @@ class BaselineMockProvider(LLMProvider):
         if "instruction" in prompt_lower:
             roll = self._rng.random()
             if roll < 0.75:
-                return json.dumps({"label": "Yes", "explanation": "Instructions followed correctly."})
-            return json.dumps({"label": "Partial", "explanation": "Some instructions not fully followed."})
+                return json.dumps(
+                    {"label": "Yes", "explanation": "Instructions followed correctly."}
+                )
+            return json.dumps(
+                {"label": "Partial", "explanation": "Some instructions not fully followed."}
+            )
 
         # System prompt rule checks — mostly pass
         if "pass" in prompt_lower or "fail" in prompt_lower or "rule" in prompt_lower:
@@ -175,9 +189,7 @@ async def run_evaluation(
         registry.register_agent(config)
 
         # Load or generate sessions
-        sessions = _load_sessions(
-            agent_name, config, sessions_source, session_count, seed
-        )
+        sessions = _load_sessions(agent_name, config, sessions_source, session_count, seed)
 
         if not sessions:
             logger.warning("No sessions for '%s' — skipping", agent_name)
@@ -258,9 +270,7 @@ def _write_report(
     return path
 
 
-def _render_baseline_markdown(
-    report: BatchReport, config: AgentEvalConfig
-) -> str:
+def _render_baseline_markdown(report: BatchReport, config: AgentEvalConfig) -> str:
     """Render an enhanced baseline report in markdown."""
     lines: list[str] = []
 
@@ -384,12 +394,14 @@ def _compute_threshold_adjustments(
         if actual is not None and actual < threshold:
             # Recommend threshold = 90% of baseline score (gives room)
             recommended = round(max(0.0, actual * 0.9), 2)
-            adjustments.append({
-                "metric": metric,
-                "current": threshold,
-                "baseline": actual,
-                "recommended": recommended,
-            })
+            adjustments.append(
+                {
+                    "metric": metric,
+                    "current": threshold,
+                    "baseline": actual,
+                    "recommended": recommended,
+                }
+            )
     return sorted(adjustments, key=lambda x: x["baseline"])
 
 
@@ -407,8 +419,7 @@ def main() -> None:
     parser.add_argument(
         "--agent",
         default="all",
-        help="Agent name to evaluate (or 'all'). Choices: "
-        + ", ".join(_AGENT_CONFIGS.keys()),
+        help="Agent name to evaluate (or 'all'). Choices: " + ", ".join(_AGENT_CONFIGS.keys()),
     )
     parser.add_argument(
         "--sessions",
@@ -441,7 +452,8 @@ def main() -> None:
         help="Random seed for reproducible results (default: 42)",
     )
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="Enable verbose logging",
     )
@@ -467,9 +479,9 @@ def main() -> None:
     )
 
     # Print summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("EVALUATION SUMMARY")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     for agent_name, report in reports.items():
         alert_count = len(report.alerts)
         alert_str = f" ({alert_count} alerts)" if alert_count > 0 else ""
@@ -481,7 +493,7 @@ def main() -> None:
             top3 = sorted(report.aggregate_scores.items(), key=lambda x: x[1])[:3]
             for metric, score in top3:
                 print(f"    Lowest: {metric} = {score:.4f}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
 
 if __name__ == "__main__":

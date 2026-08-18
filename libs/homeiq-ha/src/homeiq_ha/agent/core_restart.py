@@ -78,9 +78,7 @@ async def restart_core(
         except (HAClientError, OSError, aiohttp.ClientError):
             pass  # still rebooting; the deadline below bounds the wait
         if asyncio.get_running_loop().time() > deadline:
-            raise HAClientError(
-                f"HA did not reach state RUNNING within {timeout}s of the restart"
-            )
+            raise HAClientError(f"HA did not reach state RUNNING within {timeout}s of the restart")
         await asyncio.sleep(poll_interval)
 
     # The restart killed the WebSocket; reconnect it for the reads that follow

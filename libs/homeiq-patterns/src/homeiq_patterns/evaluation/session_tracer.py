@@ -9,16 +9,19 @@ timing without modifying agent logic.
 
 from __future__ import annotations
 
+import contextvars
 import functools
 import json
 import logging
 import os
 import time
-from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .models import AgentResponse, SessionTrace, ToolCall, UserMessage
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -133,9 +136,7 @@ class PersistentSink(TraceSink):
                     await conn.execute(text(idx_sql))
 
             self._initialized = True
-            logger.info(
-                "PersistentSink initialized with PostgreSQL"
-            )
+            logger.info("PersistentSink initialized with PostgreSQL")
         except Exception:
             logger.exception(
                 "PersistentSink: failed to initialize database",
@@ -259,10 +260,8 @@ class SessionTracerContext:
 # Thread-/task-local storage for the active context
 # ---------------------------------------------------------------------------
 
-import contextvars
-
-_active_context: contextvars.ContextVar[SessionTracerContext | None] = (
-    contextvars.ContextVar("_active_tracer_ctx", default=None)
+_active_context: contextvars.ContextVar[SessionTracerContext | None] = contextvars.ContextVar(
+    "_active_tracer_ctx", default=None
 )
 
 
@@ -369,10 +368,6 @@ def _capture_agent_output(ctx: SessionTracerContext, result: Any) -> None:
         )
         if val and isinstance(val, str):
             # Collect tool calls that belong to the current turn
-            turn_tools = [
-                tc
-                for tc in ctx.trace.tool_calls
-                if tc.turn_index == ctx._turn
-            ]
+            turn_tools = [tc for tc in ctx.trace.tool_calls if tc.turn_index == ctx._turn]
             ctx.record_agent_response(val, tool_calls_in_turn=turn_tools)
             return

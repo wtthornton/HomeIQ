@@ -44,10 +44,14 @@ from homeiq_patterns.evaluation import (
 def _pg_available():
     try:
         import asyncio
+
         import asyncpg
+
         asyncio.get_event_loop().run_until_complete(
             asyncio.wait_for(
-                asyncpg.connect(user="homeiq", password="homeiq", database="homeiq", host="localhost", port=5432),
+                asyncpg.connect(
+                    user="homeiq", password="homeiq", database="homeiq", host="localhost", port=5432
+                ),
                 timeout=2,
             )
         )
@@ -194,6 +198,7 @@ class TestAlertEndpointIntegration:
         engine = AlertEngine()
         report = _make_report(score=0.85)
         from homeiq_patterns.evaluation import AgentEvalConfig
+
         config = AgentEvalConfig(
             agent_name="test-agent",
             thresholds={"goal_success_rate": 0.70},
@@ -205,6 +210,7 @@ class TestAlertEndpointIntegration:
         engine = AlertEngine()
         report = _make_report(score=0.50)
         from homeiq_patterns.evaluation import AgentEvalConfig
+
         config = AgentEvalConfig(
             agent_name="test-agent",
             thresholds={"goal_success_rate": 0.70},
@@ -218,6 +224,7 @@ class TestAlertEndpointIntegration:
         engine = AlertEngine()
         report = _make_report(score=0.50)
         from homeiq_patterns.evaluation import AgentEvalConfig
+
         config = AgentEvalConfig(
             agent_name="test-agent",
             thresholds={"goal_success_rate": 0.70},
@@ -232,6 +239,7 @@ class TestAlertEndpointIntegration:
         engine = AlertEngine()
         report = _make_report(score=0.50)
         from homeiq_patterns.evaluation import AgentEvalConfig
+
         config = AgentEvalConfig(
             agent_name="test-agent",
             thresholds={"goal_success_rate": 0.70, "correctness": 0.70},
@@ -243,6 +251,7 @@ class TestAlertEndpointIntegration:
     def test_auto_resolve_on_recovery(self):
         engine = AlertEngine()
         from homeiq_patterns.evaluation import AgentEvalConfig
+
         config = AgentEvalConfig(
             agent_name="test-agent",
             thresholds={"goal_success_rate": 0.70},
@@ -257,6 +266,7 @@ class TestAlertEndpointIntegration:
     def test_alert_deduplication(self):
         engine = AlertEngine()
         from homeiq_patterns.evaluation import AgentEvalConfig
+
         config = AgentEvalConfig(
             agent_name="test-agent",
             thresholds={"goal_success_rate": 0.70},

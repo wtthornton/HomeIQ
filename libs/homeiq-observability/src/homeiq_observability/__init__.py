@@ -28,7 +28,8 @@ from .logging_config import (
     setup_logging,
 )
 from .metrics_collector import MetricsCollector, get_metrics_collector
-from .tracing_setup import get_tracer, instrument_fastapi as instrument_fastapi_tracing, setup_tracing
+from .tracing_setup import get_tracer, setup_tracing
+from .tracing_setup import instrument_fastapi as instrument_fastapi_tracing
 
 __all__: list[str] = [
     "AlertManager",

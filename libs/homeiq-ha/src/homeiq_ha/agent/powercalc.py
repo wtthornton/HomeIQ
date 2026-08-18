@@ -91,8 +91,7 @@ class PowercalcRecipe(Recipe):
         return [
             e["entity_id"]
             for e in entities or []
-            if e.get("platform") == "powercalc"
-            and str(e.get("entity_id", "")).endswith("_power")
+            if e.get("platform") == "powercalc" and str(e.get("entity_id", "")).endswith("_power")
         ]
 
     async def _reporting(self, ha: Any) -> tuple[list[str], list[str]]:
@@ -103,9 +102,7 @@ class PowercalcRecipe(Recipe):
         sensor.bottom_of_stairs_power stuck 'unavailable').
         """
         powered = await self._power_entities(ha)
-        states = {
-            s.get("entity_id"): s.get("state") for s in await ha.rest.get_states()
-        }
+        states = {s.get("entity_id"): s.get("state") for s in await ha.rest.get_states()}
         return powered, [eid for eid in powered if _is_number(states.get(eid))]
 
     async def check(self, ha: HAClient) -> CheckResult:
@@ -231,9 +228,7 @@ class PowercalcRecipe(Recipe):
         changes.append(await self._confirm_any_discovery(ha, flows))
         return changes
 
-    async def _confirm_any_discovery(
-        self, ha: Any, flows: list[dict[str, Any]]
-    ) -> Change:
+    async def _confirm_any_discovery(self, ha: Any, flows: list[dict[str, Any]]) -> Change:
         """Confirm discovery flows until one yields a live power number.
 
         Observed live 2026-08-13: WLED profiles require ``voltage`` while
@@ -320,9 +315,7 @@ class PowercalcRecipe(Recipe):
             next_step = await ha.rest.advance_config_flow(
                 step["flow_id"], {"next_step_id": "global_configuration"}
             )
-            await self._drive_defaults(
-                ha, step["flow_id"], next_step, "global configuration"
-            )
+            await self._drive_defaults(ha, step["flow_id"], next_step, "global configuration")
         except HAFlowError:
             # Leave nothing behind: an open flow holds the global-config
             # unique_id and aborts every later attempt already_in_progress.
@@ -374,9 +367,7 @@ class PowercalcRecipe(Recipe):
             step = await ha.rest.advance_config_flow(
                 flow_id, self._defaults_only_input(label, step)
             )
-        raise HAFlowError(
-            f"powercalc {label} flow did not complete within 8 steps", step
-        )
+        raise HAFlowError(f"powercalc {label} flow did not complete within 8 steps", step)
 
     @staticmethod
     def _defaults_only_input(label: str, step: dict[str, Any]) -> dict[str, Any]:
@@ -404,8 +395,7 @@ class PowercalcRecipe(Recipe):
                 blockers.append(name)
         if blockers:
             raise HAFlowError(
-                f"powercalc {label} form requires input the agent must "
-                f"not guess: {blockers}",
+                f"powercalc {label} form requires input the agent must not guess: {blockers}",
                 step,
             )
         return payload
@@ -432,7 +422,6 @@ def _is_number(value: Any) -> bool:
     except (TypeError, ValueError):
         return False
     return True
-
 
 
 __all__ = ["PowercalcRecipe"]

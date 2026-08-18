@@ -165,9 +165,7 @@ class MemoryClient:
             RuntimeError: If client is not initialized.
         """
         if not self._available or self._session_maker is None:
-            raise RuntimeError(
-                "MemoryClient not initialized. Call initialize() first."
-            )
+            raise RuntimeError("MemoryClient not initialized. Call initialize() first.")
         async with self._session_maker() as session:
             try:
                 yield session
@@ -267,7 +265,10 @@ class MemoryClient:
             )
             from . import metrics
 
-            metrics.emit("memory_save_count", tags={"type": memory_type.value, "source": source_channel.value})
+            metrics.emit(
+                "memory_save_count",
+                tags={"type": memory_type.value, "source": source_channel.value},
+            )
             return memory
 
     async def get(self, memory_id: int) -> Memory | None:
@@ -462,9 +463,7 @@ class MemoryClient:
             await session.flush()
 
             update_stmt = (
-                update(Memory)
-                .where(Memory.id == old_id)
-                .values(superseded_by=new_memory.id)
+                update(Memory).where(Memory.id == old_id).values(superseded_by=new_memory.id)
             )
             await session.execute(update_stmt)
 

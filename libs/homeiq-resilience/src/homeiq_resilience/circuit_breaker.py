@@ -149,8 +149,7 @@ class CircuitBreaker:
             if (
                 self._state == CircuitState.OPEN
                 and self._last_failure_time is not None
-                and (time.monotonic() - self._last_failure_time)
-                >= self._recovery_timeout
+                and (time.monotonic() - self._last_failure_time) >= self._recovery_timeout
             ):
                 self._state = CircuitState.HALF_OPEN
                 self._half_open_calls = 0

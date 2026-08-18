@@ -44,11 +44,21 @@ def test_all_attribute() -> None:
 
     assert hasattr(homeiq_resilience, "__all__")
     expected = {
-        "CircuitBreaker", "CircuitOpenError", "CrossGroupClient",
-        "DependencyStatus", "GroupHealthCheck", "ManagedHTTPClient",
-        "ServiceAuthValidator", "ServiceLifespan", "ServiceScheduler",
-        "StandardHealthCheck", "TaskManager", "add_prometheus_middleware",
-        "create_app", "create_metrics_registry", "require_service_auth",
+        "CircuitBreaker",
+        "CircuitOpenError",
+        "CrossGroupClient",
+        "DependencyStatus",
+        "GroupHealthCheck",
+        "ManagedHTTPClient",
+        "ServiceAuthValidator",
+        "ServiceLifespan",
+        "ServiceScheduler",
+        "StandardHealthCheck",
+        "TaskManager",
+        "add_prometheus_middleware",
+        "create_app",
+        "create_metrics_registry",
+        "require_service_auth",
         "wait_for_dependency",
     }
     assert set(homeiq_resilience.__all__) == expected

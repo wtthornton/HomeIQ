@@ -11,7 +11,6 @@ import asyncio
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Dict
 
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
@@ -43,7 +42,7 @@ class RateLimiter:
         self.per = per
         self.burst = burst
 
-        self._buckets: Dict[str, Dict] = defaultdict(
+        self._buckets: dict[str, dict] = defaultdict(
             lambda: {"tokens": float(burst), "last_update": datetime.now()}
         )
         self._lock = asyncio.Lock()
@@ -83,9 +82,7 @@ class RateLimiter:
         async with self._lock:
             now = datetime.now()
             cutoff = now - timedelta(hours=1)
-            old_ips = [
-                ip for ip, bucket in self._buckets.items() if bucket["last_update"] < cutoff
-            ]
+            old_ips = [ip for ip, bucket in self._buckets.items() if bucket["last_update"] < cutoff]
             for ip in old_ips:
                 del self._buckets[ip]
             if old_ips:
@@ -101,10 +98,12 @@ class RateLimiter:
         tokens_to_add = elapsed * (self.rate / self.per)
         current = min(self.burst, bucket["tokens"] + tokens_to_add)
         remaining = max(0, int(current))
-        reset_seconds = (self.burst - current) * (self.per / self.rate) if current < self.burst else 0.0
+        reset_seconds = (
+            (self.burst - current) * (self.per / self.rate) if current < self.burst else 0.0
+        )
         return remaining, reset_seconds
 
-    def get_stats(self) -> Dict[str, float | int]:
+    def get_stats(self) -> dict[str, float | int]:
         """Return statistics for observability endpoints."""
         percentage = 0.0
         if self.total_requests:
@@ -161,4 +160,3 @@ async def rate_limit_middleware(request: Request, call_next, limiter: RateLimite
 def create_write_rate_limiter() -> RateLimiter:
     """Create a rate limiter configured for write endpoints (20 req/min)."""
     return RateLimiter(rate=20, per=60, burst=5)
-

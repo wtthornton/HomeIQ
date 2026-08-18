@@ -43,7 +43,9 @@ class MockProvider(LLMProvider):
 class TestCorrectnessEvaluator:
     @pytest.mark.asyncio
     async def test_perfectly_correct(self):
-        provider = MockProvider('{"label": "Perfectly Correct", "explanation": "All data matches."}')
+        provider = MockProvider(
+            '{"label": "Perfectly Correct", "explanation": "All data matches."}'
+        )
         evaluator = CorrectnessEvaluator(llm_judge=LLMJudge(provider=provider))
         session = SessionTrace(
             agent_name="test",
@@ -58,7 +60,9 @@ class TestCorrectnessEvaluator:
 
     @pytest.mark.asyncio
     async def test_partially_correct(self):
-        provider = MockProvider('{"label": "Partially Correct", "explanation": "Some data fabricated."}')
+        provider = MockProvider(
+            '{"label": "Partially Correct", "explanation": "Some data fabricated."}'
+        )
         evaluator = CorrectnessEvaluator(llm_judge=LLMJudge(provider=provider))
         session = SessionTrace(
             agent_name="test",
@@ -177,7 +181,9 @@ class TestHelpfulnessEvaluator:
         session = SessionTrace(
             agent_name="test",
             user_messages=[UserMessage(content="Turn on lights")],
-            agent_responses=[AgentResponse(content="Lights are on! Brightness is at 100%. Want to adjust?")],
+            agent_responses=[
+                AgentResponse(content="Lights are on! Brightness is at 100%. Want to adjust?")
+            ],
         )
         result = await evaluator.evaluate(session)
         assert result.score == 1.0

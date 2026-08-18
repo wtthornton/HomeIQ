@@ -21,6 +21,7 @@ from homeiq_patterns.evaluation.models import (
     ToolCall,
     UserMessage,
 )
+from pydantic import ValidationError
 
 # ---------------------------------------------------------------------------
 # UserMessage
@@ -108,7 +109,9 @@ class TestSessionTrace:
             temperature=0.7,
             user_messages=[UserMessage(content="turn on lights")],
             agent_responses=[AgentResponse(content="Done!")],
-            tool_calls=[ToolCall(tool_name="call_service", parameters={"entity_id": "light.living"})],
+            tool_calls=[
+                ToolCall(tool_name="call_service", parameters={"entity_id": "light.living"})
+            ],
             metadata={"source": "api"},
         )
         assert trace.agent_name == "ha-ai-agent"
@@ -210,7 +213,7 @@ class TestEvaluationResult:
         assert result.passed is True
 
     def test_score_validation_bounds(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             EvaluationResult(
                 evaluator_name="test",
                 level=EvalLevel.OUTCOME,
@@ -218,9 +221,7 @@ class TestEvaluationResult:
             )
 
     def test_score_zero_valid(self):
-        result = EvaluationResult(
-            evaluator_name="test", level=EvalLevel.SAFETY, score=0.0
-        )
+        result = EvaluationResult(evaluator_name="test", level=EvalLevel.SAFETY, score=0.0)
         assert result.score == 0.0
 
 

@@ -1,18 +1,12 @@
 """Tests for PostActionVerifier and related models."""
 
-import sys
-from pathlib import Path
 from typing import Any
 
 import pytest
-
-_project_root = str(Path(__file__).resolve().parents[3])
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
-
 from homeiq_patterns import PostActionVerifier, VerificationResult, VerificationWarning
 
 # --- Test fixtures ---
+
 
 class MockDeployVerifier(PostActionVerifier):
     """Mock verifier that checks state from a provided dict."""
@@ -35,6 +29,7 @@ class MockDeployVerifier(PostActionVerifier):
 
 
 # --- VerificationResult Tests ---
+
 
 class TestVerificationResult:
     def test_success_no_warnings(self):
@@ -70,6 +65,7 @@ class TestVerificationResult:
 
 # --- VerificationWarning Tests ---
 
+
 class TestVerificationWarning:
     def test_defaults(self):
         warning = VerificationWarning(message="Something went wrong")
@@ -90,6 +86,7 @@ class TestVerificationWarning:
 
 # --- PostActionVerifier Tests ---
 
+
 class TestPostActionVerifier:
     @pytest.mark.asyncio
     async def test_verify_success(self):
@@ -101,10 +98,12 @@ class TestPostActionVerifier:
 
     @pytest.mark.asyncio
     async def test_verify_unavailable(self):
-        verifier = MockDeployVerifier({
-            "state": "unavailable",
-            "entity_id": "automation.test",
-        })
+        verifier = MockDeployVerifier(
+            {
+                "state": "unavailable",
+                "entity_id": "automation.test",
+            }
+        )
         result = await verifier.verify({"automation_id": "test"})
         assert result.success is False
         assert result.state == "unavailable"
@@ -120,10 +119,12 @@ class TestPostActionVerifier:
 
     def test_map_warnings_unavailable(self):
         verifier = MockDeployVerifier(None)
-        warnings = verifier.map_warnings({
-            "state": "unavailable",
-            "entity_id": "automation.broken",
-        })
+        warnings = verifier.map_warnings(
+            {
+                "state": "unavailable",
+                "entity_id": "automation.broken",
+            }
+        )
         assert len(warnings) == 1
         assert "unavailable" in warnings[0].message
         assert warnings[0].entity_id == "automation.broken"

@@ -10,6 +10,7 @@ import pytest
 from homeiq_ha.agent import CheckStatus
 from homeiq_ha.agent.recipes import AreasRecipe, DevicesHaveAreasRecipe
 
+
 @pytest.mark.asyncio
 async def test_areas_creates_only_what_is_missing(sim):
     recipe = AreasRecipe(("Living Room", "Kitchen", "Bedroom", "Office"))

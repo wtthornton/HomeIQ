@@ -31,9 +31,9 @@ class MockProvider(LLMProvider):
 
 
 def _make_config(**kwargs) -> AgentEvalConfig:
-    defaults = dict(
-        agent_name="test-agent",
-        tools=[
+    defaults = {
+        "agent_name": "test-agent",
+        "tools": [
             ToolDef(
                 name="book_room",
                 description="Book a room",
@@ -68,7 +68,7 @@ def _make_config(**kwargs) -> AgentEvalConfig:
                 required_params=["room_id", "start_time", "end_time", "date"],
             ),
         ],
-        parameter_rules=[
+        "parameter_rules": [
             ParamRule(
                 tool="book_room",
                 param="start_time",
@@ -82,7 +82,7 @@ def _make_config(**kwargs) -> AgentEvalConfig:
                 valid_values=[1, 2, 3, 4, 5],
             ),
         ],
-    )
+    }
     defaults.update(kwargs)
     return AgentEvalConfig(**defaults)
 

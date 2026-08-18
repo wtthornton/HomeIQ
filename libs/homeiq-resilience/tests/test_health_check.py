@@ -96,7 +96,9 @@ class TestStandardHealthCheck:
     @pytest.mark.asyncio
     async def test_no_timestamp_when_disabled(self) -> None:
         health = StandardHealthCheck(
-            service_name="test", version="1.0.0", include_timestamp=False,
+            service_name="test",
+            version="1.0.0",
+            include_timestamp=False,
         )
         result = await health.get_status()
         assert "timestamp" not in result

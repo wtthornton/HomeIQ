@@ -14,7 +14,10 @@ from __future__ import annotations
 import logging
 import os
 from functools import wraps
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -25,14 +28,15 @@ try:
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
     OPENTELEMETRY_AVAILABLE = True
 except ImportError:
     OPENTELEMETRY_AVAILABLE = False
     logger.info("OpenTelemetry not available -- tracing disabled")
 
 
-def setup_tracing(service_name: str, otlp_endpoint: Optional[str] = None) -> bool:
+def setup_tracing(service_name: str, otlp_endpoint: str | None = None) -> bool:
     """Set up OpenTelemetry tracing for a service.
 
     Args:
@@ -47,27 +51,23 @@ def setup_tracing(service_name: str, otlp_endpoint: Optional[str] = None) -> boo
         return False
 
     try:
-        resource = Resource.create({
-            "service.name": service_name,
-            "service.version": os.getenv("SERVICE_VERSION", "1.0.0"),
-            "deployment.environment": os.getenv("ENVIRONMENT", "production"),
-        })
+        resource = Resource.create(
+            {
+                "service.name": service_name,
+                "service.version": os.getenv("SERVICE_VERSION", "1.0.0"),
+                "deployment.environment": os.getenv("ENVIRONMENT", "production"),
+            }
+        )
 
         provider = TracerProvider(resource=resource)
 
         if otlp_endpoint:
             otlp_exporter = OTLPSpanExporter(endpoint=f"{otlp_endpoint}/v1/traces")
             provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
-            logger.info(
-                "Tracing configured with OTLP HTTP endpoint: %s", otlp_endpoint
-            )
+            logger.info("Tracing configured with OTLP HTTP endpoint: %s", otlp_endpoint)
         else:
-            default_endpoint = os.getenv(
-                "OTEL_EXPORTER_OTLP_ENDPOINT", "http://jaeger:4318"
-            )
-            otlp_exporter = OTLPSpanExporter(
-                endpoint=f"{default_endpoint}/v1/traces"
-            )
+            default_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://jaeger:4318")
+            otlp_exporter = OTLPSpanExporter(endpoint=f"{default_endpoint}/v1/traces")
             provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
             logger.info(
                 "Tracing configured with default OTLP HTTP endpoint: %s",
@@ -82,25 +82,26 @@ def setup_tracing(service_name: str, otlp_endpoint: Optional[str] = None) -> boo
         return False
 
 
-def trace_function(operation_name: Optional[str] = None):
+def trace_function(operation_name: str | None = None):
     """
     Decorator to trace async functions.
-    
+
     Args:
         operation_name: Optional operation name (defaults to function name)
-        
+
     Example:
         @trace_function("process_event")
         async def process_event(event):
             ...
     """
+
     def decorator(func: Callable) -> Callable:
         if not OPENTELEMETRY_AVAILABLE:
             # Return function unchanged if OpenTelemetry not available
             return func
-        
+
         op_name = operation_name or func.__name__
-        
+
         @wraps(func)
         async def async_wrapper(*args, **kwargs):
             tracer = trace.get_tracer(__name__)
@@ -113,7 +114,7 @@ def trace_function(operation_name: Optional[str] = None):
                         for key, value in kwargs.items():
                             if isinstance(value, (str, int, float, bool)):
                                 span.set_attribute(f"function.{key}", value)
-                    
+
                     result = await func(*args, **kwargs)
                     span.set_status(trace.Status(trace.StatusCode.OK))
                     return result
@@ -121,7 +122,7 @@ def trace_function(operation_name: Optional[str] = None):
                     span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
                     span.record_exception(e)
                     raise
-        
+
         @wraps(func)
         def sync_wrapper(*args, **kwargs):
             tracer = trace.get_tracer(__name__)
@@ -134,7 +135,7 @@ def trace_function(operation_name: Optional[str] = None):
                         for key, value in kwargs.items():
                             if isinstance(value, (str, int, float, bool)):
                                 span.set_attribute(f"function.{key}", value)
-                    
+
                     result = func(*args, **kwargs)
                     span.set_status(trace.Status(trace.StatusCode.OK))
                     return result
@@ -142,14 +143,15 @@ def trace_function(operation_name: Optional[str] = None):
                     span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
                     span.record_exception(e)
                     raise
-        
+
         # Return appropriate wrapper based on whether function is async
         import asyncio
+
         if asyncio.iscoroutinefunction(func):
             return async_wrapper
         else:
             return sync_wrapper
-    
+
     return decorator
 
 
@@ -174,4 +176,3 @@ def instrument_fastapi(app: Any, service_name: str) -> bool:
     except Exception as e:
         logger.error("Failed to instrument FastAPI app: %s", e, exc_info=True)
         return False
-

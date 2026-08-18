@@ -4,7 +4,6 @@ Auto-fix engine for applying safe, deterministic fixes.
 
 import sys
 from pathlib import Path
-from typing import List, Tuple
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -26,10 +25,8 @@ class AutoFixer:
         self.fix_mode = fix_mode
 
     def apply_fixes(
-        self,
-        automations: List[AutomationIR],
-        findings: List[Finding]
-    ) -> Tuple[List[AutomationIR], List[str]]:
+        self, automations: list[AutomationIR], findings: list[Finding]
+    ) -> tuple[list[AutomationIR], list[str]]:
         """
         Apply auto-fixes to automations based on findings.
 
@@ -44,7 +41,7 @@ class AutoFixer:
             return automations, []
 
         applied_fixes = []
-        fixed_automations = [auto for auto in automations]  # Shallow copy for now
+        fixed_automations = list(automations)  # Shallow copy for now
 
         # MVP: Only implement safe fixes for MAINTAINABILITY001 and MAINTAINABILITY002
         for finding in findings:
@@ -56,11 +53,7 @@ class AutoFixer:
 
         return fixed_automations, applied_fixes
 
-    def _apply_simple_fix(
-        self,
-        automations: List[AutomationIR],
-        finding: Finding
-    ) -> bool:
+    def _apply_simple_fix(self, automations: list[AutomationIR], finding: Finding) -> bool:
         """
         Apply a simple fix to automations.
 
@@ -87,19 +80,18 @@ class AutoFixer:
                             automation.raw_source["description"] = ""
                             return True
 
-                    elif finding.rule_id == "MAINTAINABILITY002":
-                        # Add missing alias
-                        if not automation.alias:
-                            automation.alias = ""
-                            automation.raw_source["alias"] = ""
-                            return True
+                    # Add missing alias
+                    elif finding.rule_id == "MAINTAINABILITY002" and not automation.alias:
+                        automation.alias = ""
+                        automation.raw_source["alias"] = ""
+                        return True
 
         except (ValueError, IndexError):
             pass
 
         return False
 
-    def _apply_patch(self, _automations: List[AutomationIR], _patch: PatchOperation) -> bool:
+    def _apply_patch(self, _automations: list[AutomationIR], _patch: PatchOperation) -> bool:
         """
         Apply a single patch operation.
 

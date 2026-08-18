@@ -8,10 +8,13 @@ LLM fallback for unrecognised intents.
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
 
 from ..base_evaluator import PathEvaluator
 from ..llm_judge import JudgeRubric, LLMJudge
-from ..models import EvaluationResult, SessionTrace
+
+if TYPE_CHECKING:
+    from ..models import EvaluationResult, SessionTrace
 
 
 class TemplateAppropriatenessEvaluator(PathEvaluator):
@@ -63,11 +66,7 @@ class TemplateAppropriatenessEvaluator(PathEvaluator):
         self._judge = llm_judge or LLMJudge()
 
     async def evaluate(self, session: SessionTrace) -> EvaluationResult:
-        prompt = (
-            session.user_messages[0].content.lower()
-            if session.user_messages
-            else ""
-        )
+        prompt = session.user_messages[0].content.lower() if session.user_messages else ""
         template_id = session.metadata.get("template_id", "")
 
         if not template_id:
@@ -75,7 +74,7 @@ class TemplateAppropriatenessEvaluator(PathEvaluator):
 
         # Deterministic keyword matching
         for keywords, valid_templates in self.INTENT_TEMPLATE_MAP.items():
-            if any(re.search(rf'\b{re.escape(kw)}\b', prompt) for kw in keywords):
+            if any(re.search(rf"\b{re.escape(kw)}\b", prompt) for kw in keywords):
                 if template_id in valid_templates:
                     return self._result(
                         1.0,
@@ -85,16 +84,13 @@ class TemplateAppropriatenessEvaluator(PathEvaluator):
                 return self._result(
                     0.0,
                     "Mismatch",
-                    f"Expected one of {valid_templates} for intent, "
-                    f"got '{template_id}'",
+                    f"Expected one of {valid_templates} for intent, got '{template_id}'",
                 )
 
         # No deterministic match — fall back to LLM judge
         return await self._llm_fallback(session, template_id)
 
-    async def _llm_fallback(
-        self, session: SessionTrace, template_id: str
-    ) -> EvaluationResult:
+    async def _llm_fallback(self, session: SessionTrace, template_id: str) -> EvaluationResult:
         rubric = JudgeRubric(
             name="template_appropriateness",
             prompt_template=(

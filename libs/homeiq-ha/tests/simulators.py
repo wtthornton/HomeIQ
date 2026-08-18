@@ -118,9 +118,7 @@ class SimWs:
             # flow -> not_found; a flow without unique_id is refused; else
             # the flow is dismissed and an ignore-source entry persists it.
             flows = self.state.get("flow_progress", [])
-            flow = next(
-                (f for f in flows if f.get("flow_id") == args.get("flow_id")), None
-            )
+            flow = next((f for f in flows if f.get("flow_id") == args.get("flow_id")), None)
             if flow is None:
                 raise HACommandError(command_type, "not_found", "Flow not found")
             if "unique_id" not in (flow.get("context") or {}):
@@ -307,9 +305,7 @@ class SimRest:
             or {"type": "form", "flow_id": "sim-flow", "data_schema": []}
         )
 
-    async def advance_config_flow(
-        self, flow_id: str, user_input: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def advance_config_flow(self, flow_id: str, user_input: dict[str, Any]) -> dict[str, Any]:
         self.writes.append(f"flow_advance {flow_id}")
         self.state.setdefault("flow_inputs", []).append(dict(user_input))
         queue = self.state.get("flow_steps")

@@ -16,11 +16,13 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
-from .config import AgentEvalConfig
 from .models import BatchReport, SessionTrace
-from .registry import EvaluationRegistry
+
+if TYPE_CHECKING:
+    from .config import AgentEvalConfig
+    from .registry import EvaluationRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +36,7 @@ logger = logging.getLogger(__name__)
 class SessionSource(Protocol):
     """Protocol for objects that can provide recent sessions."""
 
-    async def get_recent(
-        self, agent_name: str, count: int
-    ) -> list[SessionTrace]:
+    async def get_recent(self, agent_name: str, count: int) -> list[SessionTrace]:
         """Return the most recent *count* sessions for the given agent."""
         ...  # pragma: no cover
 
@@ -53,12 +53,8 @@ class InMemorySessionSource:
     def add_many(self, sessions: list[SessionTrace]) -> None:
         self._sessions.extend(sessions)
 
-    async def get_recent(
-        self, agent_name: str, count: int
-    ) -> list[SessionTrace]:
-        matching = [
-            s for s in self._sessions if s.agent_name == agent_name
-        ]
+    async def get_recent(self, agent_name: str, count: int) -> list[SessionTrace]:
+        matching = [s for s in self._sessions if s.agent_name == agent_name]
         # Most recent first (by timestamp)
         matching.sort(key=lambda s: s.timestamp, reverse=True)
         return matching[:count]
@@ -192,9 +188,7 @@ class EvaluationScheduler:
 
         return results
 
-    async def run_agent(
-        self, agent_name: str
-    ) -> BatchReport | None:
+    async def run_agent(self, agent_name: str) -> BatchReport | None:
         """
         Manually trigger evaluation for a specific agent.
 
@@ -234,11 +228,13 @@ class EvaluationScheduler:
                     due_by_priority.setdefault(pe.priority, []).append(pe.metric)
 
             for priority, metrics in due_by_priority.items():
-                due.append({
-                    "agent": agent_name,
-                    "priority": priority,
-                    "metrics": metrics,
-                })
+                due.append(
+                    {
+                        "agent": agent_name,
+                        "priority": priority,
+                        "metrics": metrics,
+                    }
+                )
 
         return due
 
@@ -248,9 +244,7 @@ class EvaluationScheduler:
 
     # -- internals ---------------------------------------------------------
 
-    def _get_due_priorities(
-        self, agent_name: str, now: float
-    ) -> list[str]:
+    def _get_due_priorities(self, agent_name: str, now: float) -> list[str]:
         """Return list of priorities that are due for evaluation."""
         entry = self._agents.get(agent_name)
         if entry is None:
@@ -274,9 +268,7 @@ class EvaluationScheduler:
         start = time.monotonic()
 
         # Get recent sessions
-        sessions = await entry.session_source.get_recent(
-            agent_name, self._batch_size
-        )
+        sessions = await entry.session_source.get_recent(agent_name, self._batch_size)
 
         if not sessions:
             logger.warning(

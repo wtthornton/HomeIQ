@@ -8,13 +8,15 @@ they are WebSocket-only, see :mod:`homeiq_ha.client.ws`.
 from __future__ import annotations
 
 import logging
-from types import TracebackType
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 
 from .errors import HAClientError, HAFlowError, HAHumanGateRequired
 from .redaction import redact
+
+if TYPE_CHECKING:
+    from types import TracebackType
 
 logger = logging.getLogger(__name__)
 
@@ -74,25 +76,19 @@ class HARestClient:
         if self._session is None:
             self._session = aiohttp.ClientSession(timeout=self._timeout)
         url = f"{self._base_url}/{path.lstrip('/')}"
-        async with self._session.request(
-            method, url, headers=self._headers, **kwargs
-        ) as response:
+        async with self._session.request(method, url, headers=self._headers, **kwargs) as response:
             body: Any
             try:
                 body = await response.json()
             except (aiohttp.ContentTypeError, ValueError):
                 body = await response.text()
             if response.status >= 400:
-                raise HAClientError(
-                    f"{method.upper()} {path} -> {response.status}: {redact(body)}"
-                )
+                raise HAClientError(f"{method.upper()} {path} -> {response.status}: {redact(body)}")
             return body
 
     # -- services ----------------------------------------------------------
 
-    async def call_service(
-        self, domain: str, service: str, **data: Any
-    ) -> Any:
+    async def call_service(self, domain: str, service: str, **data: Any) -> Any:
         return await self.request("POST", f"/api/services/{domain}/{service}", json=data)
 
     async def check_config(self) -> dict[str, Any]:
@@ -134,9 +130,7 @@ class HARestClient:
             json={"handler": domain, "show_advanced_options": True, **context},
         )
 
-    async def advance_config_flow(
-        self, flow_id: str, user_input: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def advance_config_flow(self, flow_id: str, user_input: dict[str, Any]) -> dict[str, Any]:
         """Submit one step of a running flow."""
         return await self.request(
             "POST", f"/api/config/config_entries/flow/{flow_id}", json=user_input
@@ -205,8 +199,7 @@ class HARestClient:
 
             if step_type not in _ADVANCEABLE:
                 raise HAFlowError(
-                    f"{domain} config flow returned an unsupported step type "
-                    f"{step_type!r}",
+                    f"{domain} config flow returned an unsupported step type {step_type!r}",
                     step,
                 )
 

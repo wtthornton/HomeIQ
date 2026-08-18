@@ -51,7 +51,9 @@ def test_missing_sections_still_flagged():
 
 
 def test_invalid_service_format_flagged_for_modern_action():
-    ir = parse_one("- alias: Bad\n  triggers:\n    - trigger: time\n      at: '07:00'\n  actions:\n    - action: turnon\n")
+    ir = parse_one(
+        "- alias: Bad\n  triggers:\n    - trigger: time\n      at: '07:00'\n  actions:\n    - action: turnon\n"
+    )
     findings = InvalidServiceFormatRule().check(ir)
     assert len(findings) == 1
     assert "turnon" in findings[0].message

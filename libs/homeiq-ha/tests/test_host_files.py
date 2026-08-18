@@ -132,9 +132,7 @@ async def test_read_text_tests_for_existence_before_reading():
 @pytest.mark.asyncio
 async def test_read_text_raises_not_found_only_for_the_missing_file_code():
     transport = _transport()
-    transport._run = FakeRun(
-        error=HostFileError("exited 44", returncode=MISSING_FILE_EXIT)
-    )
+    transport._run = FakeRun(error=HostFileError("exited 44", returncode=MISSING_FILE_EXIT))
 
     with pytest.raises(HostFileNotFound, match="does not exist"):
         await transport.read_text("/config/custom_zha_quirks/aqara_fp1e.py")

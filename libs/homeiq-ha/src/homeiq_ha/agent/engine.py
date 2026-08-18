@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from homeiq_ha.client.errors import HAHumanGateRequired
@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 BACKUP_PHASE = 1
 
 
-class Mode(str, Enum):
+class Mode(StrEnum):
     AUDIT = "audit"
     PLAN = "plan"
     APPLY = "apply"
@@ -239,9 +239,7 @@ class HAInitAgent:
                 try:
                     await backup(f"pre-phase-{current_phase}")
                 except Exception as exc:
-                    report.halted_reason = (
-                        f"pre-phase-{current_phase} backup failed: {exc}"
-                    )
+                    report.halted_reason = f"pre-phase-{current_phase} backup failed: {exc}"
                     return report
 
             blocked: list[RecipeOutcome] = []
@@ -269,8 +267,7 @@ class HAInitAgent:
                 # because a later phase may depend on what is still blocked.
                 report.blocked_on_human.extend(o.name for o in blocked)
                 report.halted_reason = "; ".join(
-                    f"{o.name} needs a person: "
-                    f"{o.check.human_action or o.check.summary}"
+                    f"{o.name} needs a person: {o.check.human_action or o.check.summary}"
                     for o in blocked
                 )
                 return report

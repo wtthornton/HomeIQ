@@ -35,11 +35,7 @@ if TYPE_CHECKING:
 
 def _schema_fields(step: dict[str, Any]) -> set[str]:
     """Field names in a serialized flow step's ``data_schema``."""
-    return {
-        str(field.get("name"))
-        for field in step.get("data_schema") or []
-        if field.get("name")
-    }
+    return {str(field.get("name")) for field in step.get("data_schema") or [] if field.get("name")}
 
 
 def _require_form(domain: str, step: dict[str, Any], *fields: str) -> None:
@@ -51,9 +47,7 @@ def _require_form(domain: str, step: dict[str, Any], *fields: str) -> None:
     """
     step_type = str(step.get("type") or "form")
     if step_type != "form":
-        raise HAFlowError(
-            f"{domain} flow: expected a form step, got {step_type!r}", step
-        )
+        raise HAFlowError(f"{domain} flow: expected a form step, got {step_type!r}", step)
     present = _schema_fields(step)
     missing = [f for f in fields if f not in present]
     if missing:
@@ -139,7 +133,6 @@ class LocalCalendarRecipe(Recipe):
             f"calendar entities: {existing}" if existing else "no calendar entity",
             {"entity_ids": existing},
         )
-
 
 
 __all__ = ["LocalCalendarRecipe"]

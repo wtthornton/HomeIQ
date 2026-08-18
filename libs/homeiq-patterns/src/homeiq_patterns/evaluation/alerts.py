@@ -17,9 +17,12 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
-from .config import AgentEvalConfig
 from .models import BatchReport, EvalAlert, EvalLevel
+
+if TYPE_CHECKING:
+    from .config import AgentEvalConfig
 
 logger = logging.getLogger(__name__)
 
@@ -95,17 +98,13 @@ class AlertEngine:
         for alert in self._alerts.values():
             if alert.alert_id == alert_id:
                 if alert.status == "resolved":
-                    logger.warning(
-                        "Cannot acknowledge resolved alert %s", alert_id
-                    )
+                    logger.warning("Cannot acknowledge resolved alert %s", alert_id)
                     return alert
                 alert.status = "acknowledged"
                 alert.acknowledged_by = by
                 alert.note = note
                 alert.updated_at = datetime.now(UTC)
-                logger.info(
-                    "Alert %s acknowledged by %s", alert_id, by
-                )
+                logger.info("Alert %s acknowledged by %s", alert_id, by)
                 return alert
 
         logger.warning("Alert %s not found", alert_id)
@@ -120,21 +119,14 @@ class AlertEngine:
                 return alert
         return None
 
-    def get_active_alerts(
-        self, agent_name: str | None = None
-    ) -> list[EvalAlert]:
+    def get_active_alerts(self, agent_name: str | None = None) -> list[EvalAlert]:
         """Get all active (non-resolved) alerts, optionally filtered by agent."""
-        alerts = [
-            a for a in self._alerts.values()
-            if a.status in ("active", "acknowledged")
-        ]
+        alerts = [a for a in self._alerts.values() if a.status in ("active", "acknowledged")]
         if agent_name:
             alerts = [a for a in alerts if a.agent_name == agent_name]
         return sorted(alerts, key=lambda a: a.created_at, reverse=True)
 
-    def get_all_alerts(
-        self, agent_name: str | None = None
-    ) -> list[EvalAlert]:
+    def get_all_alerts(self, agent_name: str | None = None) -> list[EvalAlert]:
         """Get all alerts including resolved, optionally filtered by agent."""
         alerts = list(self._alerts.values())
         if agent_name:
@@ -143,9 +135,7 @@ class AlertEngine:
 
     def clear_resolved(self) -> int:
         """Remove all resolved alerts from tracking. Returns count removed."""
-        resolved_keys = [
-            k for k, a in self._alerts.items() if a.status == "resolved"
-        ]
+        resolved_keys = [k for k, a in self._alerts.items() if a.status == "resolved"]
         for k in resolved_keys:
             del self._alerts[k]
         return len(resolved_keys)

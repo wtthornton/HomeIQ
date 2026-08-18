@@ -240,8 +240,7 @@ class ZigbeeCoordinatorWatchdogRecipe(Recipe):
         problems = []
         if stuck:
             problems.append(
-                "config entries stuck: "
-                + ", ".join(f"{e['domain']}={e['state']}" for e in stuck)
+                "config entries stuck: " + ", ".join(f"{e['domain']}={e['state']}" for e in stuck)
             )
         if reachable is False:
             problems.append(f"coordinator {self.serial_path} unreachable ({probe_detail})")

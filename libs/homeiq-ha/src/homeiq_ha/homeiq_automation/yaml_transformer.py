@@ -67,11 +67,7 @@ class YAMLTransformer:
         # Extensible pattern store for community-contributed examples
         self.example_patterns: dict[str, str] = {}
 
-    async def transform_to_yaml(
-        self,
-        automation: HomeIQAutomation,
-        strategy: str = "auto"
-    ) -> str:
+    async def transform_to_yaml(self, automation: HomeIQAutomation, strategy: str = "auto") -> str:
         """
         Transform HomeIQ JSON Automation to YAML.
 
@@ -174,4 +170,3 @@ class YAMLTransformer:
         except Exception as e:
             logger.error("LLM transformation failed: %s", e)
             raise
-

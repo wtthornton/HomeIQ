@@ -95,7 +95,10 @@ def test_set_top_level_appends_without_touching_a_single_existing_byte():
 
 
 def test_set_top_level_replaces_in_place_and_keeps_neighbouring_comments():
-    text = LIVE_CONFIG + "\nhttp:\n  login_attempts_threshold: -1\n\n# tail comment\nlogger:\n  default: info\n"
+    text = (
+        LIVE_CONFIG
+        + "\nhttp:\n  login_attempts_threshold: -1\n\n# tail comment\nlogger:\n  default: info\n"
+    )
 
     result = set_top_level(text, "http", {"login_attempts_threshold": 5})
 
@@ -136,7 +139,9 @@ async def test_http_check_needs_apply_on_the_stock_file_and_writes_nothing(sim):
 
 @pytest.mark.asyncio
 async def test_http_check_satisfied_when_the_value_is_already_five(sim):
-    files = FakeHostFiles(LIVE_CONFIG + f"\nhttp:\n  login_attempts_threshold: {HTTP_LOGIN_ATTEMPTS_THRESHOLD}\n")
+    files = FakeHostFiles(
+        LIVE_CONFIG + f"\nhttp:\n  login_attempts_threshold: {HTTP_LOGIN_ATTEMPTS_THRESHOLD}\n"
+    )
 
     result = await _recipe(HttpLoginThresholdRecipe, files).check(sim)
 

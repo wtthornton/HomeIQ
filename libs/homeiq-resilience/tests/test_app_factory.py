@@ -86,9 +86,8 @@ class TestCreateApp:
         )
         # The factory should force credentials=False when origins=["*"]
         for middleware in app.user_middleware:
-            if hasattr(middleware, "kwargs"):
-                if middleware.kwargs.get("allow_origins") == ["*"]:
-                    assert middleware.kwargs.get("allow_credentials") is False
+            if hasattr(middleware, "kwargs") and middleware.kwargs.get("allow_origins") == ["*"]:
+                assert middleware.kwargs.get("allow_credentials") is False
 
     def test_no_middleware_when_disabled(self) -> None:
         app = create_app(

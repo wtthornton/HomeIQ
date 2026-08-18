@@ -130,9 +130,7 @@ def parse_config(text: str) -> dict[str, Any]:
     if data is None:
         return {}
     if not isinstance(data, dict):
-        raise ConfigYamlError(
-            f"expected a mapping at the top level, got {type(data).__name__}"
-        )
+        raise ConfigYamlError(f"expected a mapping at the top level, got {type(data).__name__}")
     return data
 
 
@@ -306,9 +304,7 @@ class _ConfigYamlRecipe(Recipe):
         if not changes:
             return ApplyResult((), f"{self.key}: already converged")
 
-        backup = await self._transport.write_text(
-            self.path, set_top_level(text, self.key, merged)
-        )
+        backup = await self._transport.write_text(self.path, set_top_level(text, self.key, merged))
         try:
             await restart_core(
                 ha,

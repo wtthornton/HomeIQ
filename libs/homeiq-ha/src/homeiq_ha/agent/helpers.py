@@ -133,9 +133,7 @@ class ManifestHelpersRecipe(Recipe):
             )
         return ApplyResult(tuple(created), f"created {len(created)} helper(s)")
 
-    async def _adopt_by_name(
-        self, ha: Any, helper: Any, expected: str
-    ) -> Change | None:
+    async def _adopt_by_name(self, ha: Any, helper: Any, expected: str) -> Change | None:
         """Rename an already-created helper to its slug identity.
 
         A helper can exist under a platform-derived entity_id (utility_meter
@@ -161,11 +159,11 @@ class ManifestHelpersRecipe(Recipe):
                 f"{[e['entity_id'] for e in candidates]}"
             )
         await self._rename(ha, candidates[0]["entity_id"], expected)
-        return Change("rename", f"helper:{helper.kind}.{helper.slug}", candidates[0]["entity_id"], expected)
+        return Change(
+            "rename", f"helper:{helper.kind}.{helper.slug}", candidates[0]["entity_id"], expected
+        )
 
-    async def _repair_entity_id(
-        self, ha: Any, helper: Any, expected: str, step: Any
-    ) -> None:
+    async def _repair_entity_id(self, ha: Any, helper: Any, expected: str, step: Any) -> None:
         """Assert the created entity carries the slug id; rename if not."""
         entities = await ha.ws.send_command("config/entity_registry/list")
         ids = {e.get("entity_id") for e in entities or []}

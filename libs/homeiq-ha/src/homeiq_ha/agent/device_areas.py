@@ -156,8 +156,7 @@ class ManifestAreasRemoveRecipe(Recipe):
     async def _occupancy(self, ha: Any) -> dict[str, dict[str, int]]:
         """area_id -> counts of devices/entities still assigned, for rows that exist."""
         existing = {
-            area["area_id"]
-            for area in await ha.ws.send_command("config/area_registry/list") or []
+            area["area_id"] for area in await ha.ws.send_command("config/area_registry/list") or []
         }
         wanted = [r for r in self.manifest.areas_remove if r.area_id in existing]
         if not wanted:
@@ -221,8 +220,7 @@ class ManifestAreasRemoveRecipe(Recipe):
 
     async def verify(self, ha: HAClient) -> VerifyResult:
         existing = {
-            area["area_id"]
-            for area in await ha.ws.send_command("config/area_registry/list") or []
+            area["area_id"] for area in await ha.ws.send_command("config/area_registry/list") or []
         }
         lingering = [r.area_id for r in self.manifest.areas_remove if r.area_id in existing]
         return VerifyResult(

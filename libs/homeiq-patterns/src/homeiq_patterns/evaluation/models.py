@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 # ---------------------------------------------------------------------------
 
 
-class EvalLevel(str, Enum):
+class EvalLevel(StrEnum):
     """Five-level evaluation pyramid."""
 
     OUTCOME = "L1_OUTCOME"
@@ -29,7 +29,7 @@ class EvalLevel(str, Enum):
     SAFETY = "L5_SAFETY"
 
 
-class EvalScope(str, Enum):
+class EvalScope(StrEnum):
     """Scope at which an evaluator operates."""
 
     SESSION = "session"

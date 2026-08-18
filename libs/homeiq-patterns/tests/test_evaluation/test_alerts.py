@@ -173,8 +173,12 @@ class TestDeduplication:
         engine = AlertEngine()
         config_a = _make_config(agent_name="agent-a")
         config_b = _make_config(agent_name="agent-b")
-        report_a = _make_report(agent_name="agent-a", aggregate_scores={"goal_success_rate": 0.70, "correctness": 0.95})
-        report_b = _make_report(agent_name="agent-b", aggregate_scores={"goal_success_rate": 0.70, "correctness": 0.95})
+        report_a = _make_report(
+            agent_name="agent-a", aggregate_scores={"goal_success_rate": 0.70, "correctness": 0.95}
+        )
+        report_b = _make_report(
+            agent_name="agent-b", aggregate_scores={"goal_success_rate": 0.70, "correctness": 0.95}
+        )
 
         engine.check_report(report_a, config_a)
         engine.check_report(report_b, config_b)
@@ -216,7 +220,9 @@ class TestAlertLifecycle:
         assert len(engine.get_active_alerts()) == 1
 
         # Second run: score recovered
-        good_report = _make_report(aggregate_scores={"goal_success_rate": 0.90, "correctness": 0.95})
+        good_report = _make_report(
+            aggregate_scores={"goal_success_rate": 0.90, "correctness": 0.95}
+        )
         engine.check_report(good_report, config)
         assert len(engine.get_active_alerts()) == 0
 
@@ -280,11 +286,17 @@ class TestAlertQueries:
         config_a = _make_config(agent_name="agent-a")
         config_b = _make_config(agent_name="agent-b")
         engine.check_report(
-            _make_report(agent_name="agent-a", aggregate_scores={"goal_success_rate": 0.70, "correctness": 0.95}),
+            _make_report(
+                agent_name="agent-a",
+                aggregate_scores={"goal_success_rate": 0.70, "correctness": 0.95},
+            ),
             config_a,
         )
         engine.check_report(
-            _make_report(agent_name="agent-b", aggregate_scores={"goal_success_rate": 0.70, "correctness": 0.95}),
+            _make_report(
+                agent_name="agent-b",
+                aggregate_scores={"goal_success_rate": 0.70, "correctness": 0.95},
+            ),
             config_b,
         )
 

@@ -50,9 +50,7 @@ async def test_traceparent_injected_when_otel_available(client):
         assert isinstance(headers_arg, dict)
 
         # span attribute was set
-        mock_span.set_attribute.assert_called_once_with(
-            "homeiq.target_group", "core-platform"
-        )
+        mock_span.set_attribute.assert_called_once_with("homeiq.target_group", "core-platform")
 
 
 @pytest.mark.asyncio
@@ -74,9 +72,7 @@ async def test_traceparent_sets_group_attribute(client):
 
         await client.call("GET", "/health")
 
-        mock_span.set_attribute.assert_called_with(
-            "homeiq.target_group", "core-platform"
-        )
+        mock_span.set_attribute.assert_called_with("homeiq.target_group", "core-platform")
 
 
 # ------------------------------------------------------------------

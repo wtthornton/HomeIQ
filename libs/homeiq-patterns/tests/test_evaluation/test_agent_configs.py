@@ -99,16 +99,12 @@ class TestProactiveAgentConfig:
         assert "no_hardcoded_times" in rule_names
 
     def test_device_validation_rule(self, config):
-        rule = next(
-            r for r in config.system_prompt_rules if r.name == "device_validation"
-        )
+        rule = next(r for r in config.system_prompt_rules if r.name == "device_validation")
         assert rule.check_type == "llm_judge"
         assert rule.severity == "critical"
 
     def test_no_hardcoded_times_rule(self, config):
-        rule = next(
-            r for r in config.system_prompt_rules if r.name == "no_hardcoded_times"
-        )
+        rule = next(r for r in config.system_prompt_rules if r.name == "no_hardcoded_times")
         assert rule.check_type == "response_check"
         assert rule.pattern  # Has regex pattern
 
@@ -170,9 +166,7 @@ class TestProactiveAgentRegistration:
         session = SessionTrace(
             agent_name="proactive-agent",
             user_messages=[UserMessage(content="Generate suggestions")],
-            agent_responses=[
-                AgentResponse(content="Found 2 weather-based suggestions")
-            ],
+            agent_responses=[AgentResponse(content="Found 2 weather-based suggestions")],
             tool_calls=[
                 ToolCall(
                     tool_name="fetch_context",
@@ -254,9 +248,7 @@ class TestAIAutomationServiceConfig:
         assert "verify_after_deploy" in path_names
 
     def test_full_pipeline_path(self, config):
-        path = next(
-            p for p in config.paths if p.name == "plan_validate_compile_deploy"
-        )
+        path = next(p for p in config.paths if p.name == "plan_validate_compile_deploy")
         assert path.sequence == [
             "create_plan",
             "validate_plan",
@@ -274,18 +266,12 @@ class TestAIAutomationServiceConfig:
         assert "yaml_safety_check" in rule_names
 
     def test_validation_before_deploy_rule(self, config):
-        rule = next(
-            r
-            for r in config.system_prompt_rules
-            if r.name == "validation_before_deploy"
-        )
+        rule = next(r for r in config.system_prompt_rules if r.name == "validation_before_deploy")
         assert rule.check_type == "path_validation"
         assert rule.severity == "critical"
 
     def test_yaml_safety_check_rule(self, config):
-        rule = next(
-            r for r in config.system_prompt_rules if r.name == "yaml_safety_check"
-        )
+        rule = next(r for r in config.system_prompt_rules if r.name == "yaml_safety_check")
         assert rule.check_type == "response_check"
         assert rule.severity == "critical"
         assert rule.pattern  # Has regex pattern
@@ -355,15 +341,23 @@ class TestAIAutomationServiceRegistration:
                 ),
                 ToolCall(
                     tool_name="validate_plan",
-                    parameters={"plan_id": "p1", "template_id": "t1",
-                                "template_version": "1.0", "parameters": {}},
+                    parameters={
+                        "plan_id": "p1",
+                        "template_id": "t1",
+                        "template_version": "1.0",
+                        "parameters": {},
+                    },
                     result={"valid": True},
                     sequence_index=1,
                 ),
                 ToolCall(
                     tool_name="compile_yaml",
-                    parameters={"plan_id": "p1", "template_id": "t1",
-                                "template_version": "1.0", "parameters": {}},
+                    parameters={
+                        "plan_id": "p1",
+                        "template_id": "t1",
+                        "template_version": "1.0",
+                        "parameters": {},
+                    },
                     result={"compiled_id": "c1", "yaml": "alias: test"},
                     sequence_index=2,
                 ),

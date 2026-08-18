@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import json
 import textwrap
+from typing import TYPE_CHECKING
 
 import pytest
-from homeiq_ha.agent.answers import Answers, apply_answers, merge_device_areas_into_manifest
+from homeiq_ha.agent.answers import Answers, apply_answers
 from homeiq_ha.agent.manifest import load_manifest
 
-from tests.simulators import SimHA
+if TYPE_CHECKING:
+    from tests.simulators import SimHA
 
 MANIFEST = textwrap.dedent(
     """\
@@ -171,7 +173,8 @@ async def test_team_entity_matching_is_anchored(sim: SimHA, manifest_path):
     """'la' must not match team_tracker_lakers (verifier finding)."""
     sim.state["entities"].append({"entity_id": "sensor.team_tracker_lakers"})
     sim.state["flow_first_step"] = {
-        "type": "form", "flow_id": "t2",
+        "type": "form",
+        "flow_id": "t2",
         "data_schema": [{"name": "team_id"}, {"name": "name"}],
     }
     result = await apply_answers(
@@ -184,9 +187,7 @@ async def test_team_entity_matching_is_anchored(sim: SimHA, manifest_path):
 
 
 @pytest.mark.asyncio
-async def test_unknown_device_id_is_rejected_before_the_manifest_write(
-    sim: SimHA, manifest_path
-):
+async def test_unknown_device_id_is_rejected_before_the_manifest_write(sim: SimHA, manifest_path):
     """A display name (or any non-registry id) posted as device_id must
     become a typed failure and leave the manifest byte-identical — a junk
     row would be sticky and could never converge (Wave 7 panel finding)."""

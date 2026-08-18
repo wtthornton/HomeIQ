@@ -261,9 +261,7 @@ async def test_apply_keeps_every_other_line_of_configuration_yaml(sim):
 @pytest.mark.asyncio
 async def test_apply_merges_into_an_existing_zha_block(sim):
     _restart_applies_quirks(_with_devices(sim, INTERVIEWED))
-    files = FakeHostFiles(
-        set_top_level(LIVE_CONFIG, "zha", {"database_path": "/config/zigbee.db"})
-    )
+    files = FakeHostFiles(set_top_level(LIVE_CONFIG, "zha", {"database_path": "/config/zigbee.db"}))
 
     await _recipe(files).apply(sim)
 

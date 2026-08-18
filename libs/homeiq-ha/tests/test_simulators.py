@@ -7,9 +7,12 @@ pinned here (TAP-5921 panel finding: the harness moved without tests).
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 
-from tests.simulators import SimHA
+if TYPE_CHECKING:
+    from tests.simulators import SimHA
 
 
 @pytest.mark.asyncio
@@ -43,7 +46,9 @@ async def test_backup_job_lands_only_after_polling(sim: SimHA):
     """Mirrors HA: backup/generate returns a job handle; the backup appears
     in backup/info only after the job finishes, partway through a poll loop."""
     sim.state["backup_agents"] = [{"agent_id": "backup.local"}]
-    await sim.ws.send_command("backup/generate", fields={"name": "b", "agent_ids": ["backup.local"]})
+    await sim.ws.send_command(
+        "backup/generate", fields={"name": "b", "agent_ids": ["backup.local"]}
+    )
     first = await sim.ws.send_command("backup/info")
     assert first["backups"] == []
     second = await sim.ws.send_command("backup/info")

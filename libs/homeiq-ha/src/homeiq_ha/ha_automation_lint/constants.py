@@ -12,13 +12,14 @@ RULESET_VERSION = "2026.02.1"
 # Supported automation formats
 SUPPORTED_FORMATS = {
     "single_automation",  # Single automation dictionary
-    "automation_list",    # List of automations
+    "automation_list",  # List of automations
 }
 
 
 # Severity levels
 class Severity:
     """Severity levels for lint findings."""
+
     ERROR = "error"
     WARN = "warn"
     INFO = "info"
@@ -27,6 +28,7 @@ class Severity:
 # Rule categories
 class RuleCategory:
     """Categories for organizing lint rules."""
+
     SYNTAX = "syntax"
     SCHEMA = "schema"
     LOGIC = "logic"
@@ -37,6 +39,7 @@ class RuleCategory:
 # Fix modes
 class FixMode:
     """Auto-fix operation modes."""
+
     NONE = "none"
     SAFE = "safe"
     OPINIONATED = "opinionated"  # Future use
@@ -54,8 +57,4 @@ ENTITY_ID_PATTERN = r"^[a-z_]+\.[a-z0-9_]+$"
 VALID_MODES = {"single", "restart", "queued", "parallel"}
 
 # High-frequency trigger platforms that may need debouncing
-HIGH_FREQUENCY_TRIGGERS = {
-    "state",
-    "time_pattern",
-    "event"
-}
+HIGH_FREQUENCY_TRIGGERS = {"state", "time_pattern", "event"}

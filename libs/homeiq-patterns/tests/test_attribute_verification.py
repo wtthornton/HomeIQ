@@ -12,17 +12,12 @@ Tests cover:
 - Integration with TaskExecutionVerifier
 """
 
-import sys
-from pathlib import Path
 from typing import Any
-
-_project_root = str(Path(__file__).resolve().parents[3])
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
 
 from homeiq_patterns import PostActionVerifier, VerificationResult
 
 # --- Test fixtures ---
+
 
 class SimpleVerifier(PostActionVerifier):
     """Minimal verifier for testing base class methods."""
@@ -32,6 +27,7 @@ class SimpleVerifier(PostActionVerifier):
 
 
 # --- verify_state_match() Tests ---
+
 
 class TestVerifyStateMatch:
     def setup_method(self):
@@ -135,9 +131,7 @@ class TestVerifyStateMatch:
         """Explicit entity_id parameter overrides actual dict."""
         actual = {"state": "off", "entity_id": "light.from_dict"}
         expected = {"state": "on"}
-        warnings = self.verifier.verify_state_match(
-            actual, expected, "light.explicit"
-        )
+        warnings = self.verifier.verify_state_match(actual, expected, "light.explicit")
         assert warnings[0].entity_id == "light.explicit"
 
     def test_hvac_mode_attribute(self):
@@ -164,6 +158,7 @@ class TestVerifyStateMatch:
 
 
 # --- VerificationResult new fields ---
+
 
 class TestVerificationResultNewFields:
     def test_default_verified_attributes(self):

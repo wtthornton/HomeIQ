@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import textwrap
 
+import pytest
 from homeiq_ha.agent.manifest import load_manifest
 from homeiq_ha.agent.manifest_edit import merge_device_areas_into_manifest
-
-import pytest
 
 MANIFEST = textwrap.dedent(
     """\
@@ -41,9 +40,15 @@ def manifest_path(tmp_path):
 def test_merge_appends_rows_and_preserves_every_other_byte(manifest_path):
     before = manifest_path.read_text()
     added = merge_device_areas_into_manifest(
-        manifest_path, [("dev1", "Guest Room"), ("dev2", "Office")], reason="wizard submission 2026-08-13"
+        manifest_path,
+        [("dev1", "Guest Room"), ("dev2", "Office")],
+        reason="wizard submission 2026-08-13",
     )
-    assert added == {"areas_added": ["guest_room"], "device_areas_added": ["dev1", "dev2"], "rejected": []}
+    assert added == {
+        "areas_added": ["guest_room"],
+        "device_areas_added": ["dev1", "dev2"],
+        "rejected": [],
+    }
 
     manifest = load_manifest(manifest_path)
     assert {a.area_id for a in manifest.areas} == {"office", "guest_room"}
@@ -57,7 +62,9 @@ def test_merge_appends_rows_and_preserves_every_other_byte(manifest_path):
     for line in before.splitlines():
         assert line in after
     assert "# a leading comment that surgery must never disturb" in after
-    assert after.endswith("design_notes: 'trailing key that marks the end of the manifest mapping'\n")
+    assert after.endswith(
+        "design_notes: 'trailing key that marks the end of the manifest mapping'\n"
+    )
 
 
 def test_merge_is_idempotent_byte_identical(manifest_path):

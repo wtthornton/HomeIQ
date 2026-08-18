@@ -490,9 +490,7 @@ class TestMemoryInjector:
 
     def test_empty_results_returns_empty_string(self, mock_search):
         """Empty results should return empty string by default."""
-        injector = MemoryInjector(
-            search=mock_search, include_no_memories_message=False
-        )
+        injector = MemoryInjector(search=mock_search, include_no_memories_message=False)
         result = injector.format_context_block([])
         assert result == ""
 
@@ -522,9 +520,7 @@ class TestMemoryInjector:
             injector.token_budget = 0
 
     @pytest.mark.asyncio
-    async def test_get_context_returns_formatted_block(
-        self, mock_search, sample_memory
-    ):
+    async def test_get_context_returns_formatted_block(self, mock_search, sample_memory):
         """get_context should return formatted context block."""
         search_result = MemorySearchResult(
             memory=sample_memory,
@@ -552,9 +548,7 @@ class TestMemoryInjector:
         assert result == ""
 
     @pytest.mark.asyncio
-    async def test_get_context_with_memory_types_filter(
-        self, mock_search, sample_memory
-    ):
+    async def test_get_context_with_memory_types_filter(self, mock_search, sample_memory):
         """get_context should pass memory types filter to search."""
         search_result = MemorySearchResult(
             memory=sample_memory,
@@ -731,9 +725,7 @@ class TestRRF:
         assert abs(result_dict[1] - expected_total) < 0.0001
 
     @pytest.mark.asyncio
-    async def test_search_empty_query_returns_empty(
-        self, mock_session_factory
-    ):
+    async def test_search_empty_query_returns_empty(self, mock_session_factory):
         """Search with empty query should return empty list."""
         search = MemorySearch(
             session_factory=mock_session_factory,
@@ -743,9 +735,7 @@ class TestRRF:
         assert result == []
 
     @pytest.mark.asyncio
-    async def test_search_filters_by_min_confidence(
-        self, mock_session_factory
-    ):
+    async def test_search_filters_by_min_confidence(self, mock_session_factory):
         """Search should filter results by minimum effective confidence."""
         mock_session = AsyncMock()
         mock_session_factory.return_value.__aenter__.return_value = mock_session

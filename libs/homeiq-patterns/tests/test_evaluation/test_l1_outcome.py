@@ -48,7 +48,11 @@ class TestGoalSuccessRate:
             user_messages=[UserMessage(content="Turn on the lights")],
             agent_responses=[AgentResponse(content="I've turned on the lights.")],
             tool_calls=[
-                ToolCall(tool_name="call_service", parameters={"entity_id": "light.living"}, result={"success": True})
+                ToolCall(
+                    tool_name="call_service",
+                    parameters={"entity_id": "light.living"},
+                    result={"success": True},
+                )
             ],
         )
         evaluator = GoalSuccessRateEvaluator(llm_judge=judge_yes)
@@ -98,7 +102,9 @@ class TestGoalSuccessRate:
     async def test_error_session_tool_error(self):
         session = SessionTrace(
             agent_name="test",
-            tool_calls=[ToolCall(tool_name="api_call", result={"error": "500 Internal Server Error"})],
+            tool_calls=[
+                ToolCall(tool_name="api_call", result={"error": "500 Internal Server Error"})
+            ],
         )
         evaluator = GoalSuccessRateEvaluator(llm_judge=LLMJudge(provider=MockProvider()))
         result = await evaluator.evaluate(session)
@@ -317,10 +323,12 @@ class TestMetadataSuccessSignals:
         session = SessionTrace(
             agent_name="test",
             user_messages=[UserMessage(content="when I leave home turn off everything")],
-            agent_responses=[AgentResponse(
-                content="Selected template: state_based_automation (confidence: 0.90)\n"
-                        "Pipeline score: 97/100"
-            )],
+            agent_responses=[
+                AgentResponse(
+                    content="Selected template: state_based_automation (confidence: 0.90)\n"
+                    "Pipeline score: 97/100"
+                )
+            ],
             metadata={
                 "execution_mode": "preview",
                 "pipeline_success": True,

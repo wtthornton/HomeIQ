@@ -51,9 +51,7 @@ class FakeWebSocket:
         self.closed = True
 
     def push_event(self, sub_id: int, event: dict[str, Any]) -> None:
-        self._outbox.put_nowait(
-            json.dumps({"id": sub_id, "type": "event", "event": event})
-        )
+        self._outbox.put_nowait(json.dumps({"id": sub_id, "type": "event", "event": event}))
 
     def break_connection(self, exc: Exception) -> None:
         self._broken = exc
@@ -112,7 +110,9 @@ async def test_subscribe_dispatches_events_to_handler(monkeypatch):
     assert sent["event_type"] == "state_changed"
     assert sent["id"] == sub_id
 
-    sockets[0].push_event(sub_id, {"event_type": "state_changed", "data": {"entity_id": "light.office"}})
+    sockets[0].push_event(
+        sub_id, {"event_type": "state_changed", "data": {"entity_id": "light.office"}}
+    )
     await drain()
     assert received == [{"event_type": "state_changed", "data": {"entity_id": "light.office"}}]
     await client.close()
@@ -178,9 +178,7 @@ async def test_auto_reconnect_resubscribes_and_keeps_handler(monkeypatch):
     sockets[0].break_connection(ConnectionError("socket died"))
     for _ in range(200):
         await asyncio.sleep(0.01)
-        if len(sockets) > 1 and any(
-            m.get("type") == "subscribe_events" for m in sockets[-1].sent
-        ):
+        if len(sockets) > 1 and any(m.get("type") == "subscribe_events" for m in sockets[-1].sent):
             break
     assert len(sockets) == 2, "a second connection should have been made"
 
@@ -261,9 +259,7 @@ async def test_clean_server_close_triggers_reconnect(monkeypatch):
     sockets[0].break_connection(StopAsyncIteration())
     for _ in range(200):
         await asyncio.sleep(0.01)
-        if len(sockets) > 1 and any(
-            m.get("type") == "subscribe_events" for m in sockets[-1].sent
-        ):
+        if len(sockets) > 1 and any(m.get("type") == "subscribe_events" for m in sockets[-1].sent):
             break
     assert len(sockets) == 2, "clean server close must trigger a reconnect"
     metrics = client.get_metrics()

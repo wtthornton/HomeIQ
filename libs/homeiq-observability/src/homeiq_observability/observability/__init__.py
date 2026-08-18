@@ -15,14 +15,13 @@ from .logging import setup_structured_logging
 from .tracing import instrument_fastapi, setup_tracing, trace_function
 
 __all__ = [
-    'setup_tracing',
-    'trace_function',
-    'instrument_fastapi',
-    'setup_structured_logging',
-    'CorrelationMiddleware',
-    'get_correlation_id',
-    'set_correlation_id',
-    'get_correlation_id_from_request',
-    'set_correlation_id_in_request',
+    "setup_tracing",
+    "trace_function",
+    "instrument_fastapi",
+    "setup_structured_logging",
+    "CorrelationMiddleware",
+    "get_correlation_id",
+    "set_correlation_id",
+    "get_correlation_id_from_request",
+    "set_correlation_id_in_request",
 ]
-

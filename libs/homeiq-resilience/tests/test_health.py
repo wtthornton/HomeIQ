@@ -67,9 +67,7 @@ def _make_500_response() -> httpx.Response:
 
 class TestAllHealthy:
     @pytest.mark.asyncio
-    async def test_status_healthy_when_all_deps_up(
-        self, health_check: GroupHealthCheck
-    ) -> None:
+    async def test_status_healthy_when_all_deps_up(self, health_check: GroupHealthCheck) -> None:
         mock_client = AsyncMock()
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
@@ -133,9 +131,7 @@ class TestUnhealthy:
         mock_client = AsyncMock()
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
-        mock_client.get = AsyncMock(
-            side_effect=httpx.ConnectError("Connection refused")
-        )
+        mock_client.get = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
 
         with patch("homeiq_resilience.health.httpx.AsyncClient", return_value=mock_client):
             result = await health_check.to_dict()
@@ -145,9 +141,7 @@ class TestUnhealthy:
             assert dep["status"] == "down"
 
     @pytest.mark.asyncio
-    async def test_unhealthy_http_status(
-        self, health_check: GroupHealthCheck
-    ) -> None:
+    async def test_unhealthy_http_status(self, health_check: GroupHealthCheck) -> None:
         """Non-200 responses are 'unhealthy' (not 'unreachable')."""
         mock_client = AsyncMock()
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -169,9 +163,7 @@ class TestUnhealthy:
 
 class TestResponseFormat:
     @pytest.mark.asyncio
-    async def test_response_has_all_required_fields(
-        self, health_check: GroupHealthCheck
-    ) -> None:
+    async def test_response_has_all_required_fields(self, health_check: GroupHealthCheck) -> None:
         mock_client = AsyncMock()
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
@@ -194,9 +186,7 @@ class TestResponseFormat:
         assert isinstance(result["degraded_features"], list)
 
     @pytest.mark.asyncio
-    async def test_latency_is_rounded(
-        self, health_check: GroupHealthCheck
-    ) -> None:
+    async def test_latency_is_rounded(self, health_check: GroupHealthCheck) -> None:
         mock_client = AsyncMock()
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)

@@ -23,6 +23,7 @@ from rules.base import Rule
 # SCHEMA RULES
 # ============================================================================
 
+
 class MissingTriggerRule(Rule):
     """Check for missing trigger key."""
 
@@ -33,14 +34,16 @@ class MissingTriggerRule(Rule):
 
     def check(self, automation: AutomationIR) -> list[Finding]:
         if not automation.trigger:
-            return [Finding(
-                rule_id=self.rule_id,
-                severity=self.severity,
-                message="Automation is missing 'trigger' key",
-                why_it_matters="Every automation must have at least one trigger to activate",
-                path=automation.path,
-                suggested_fix=None  # Manual fix required
-            )]
+            return [
+                Finding(
+                    rule_id=self.rule_id,
+                    severity=self.severity,
+                    message="Automation is missing 'trigger' key",
+                    why_it_matters="Every automation must have at least one trigger to activate",
+                    path=automation.path,
+                    suggested_fix=None,  # Manual fix required
+                )
+            ]
         return []
 
 
@@ -54,14 +57,16 @@ class MissingActionRule(Rule):
 
     def check(self, automation: AutomationIR) -> list[Finding]:
         if not automation.action:
-            return [Finding(
-                rule_id=self.rule_id,
-                severity=self.severity,
-                message="Automation is missing 'action' key",
-                why_it_matters="Automations without actions do nothing when triggered",
-                path=automation.path,
-                suggested_fix=None  # Manual fix required
-            )]
+            return [
+                Finding(
+                    rule_id=self.rule_id,
+                    severity=self.severity,
+                    message="Automation is missing 'action' key",
+                    why_it_matters="Automations without actions do nothing when triggered",
+                    path=automation.path,
+                    suggested_fix=None,  # Manual fix required
+                )
+            ]
         return []
 
 
@@ -74,9 +79,21 @@ class UnknownTopLevelKeysRule(Rule):
     category = RuleCategory.SCHEMA
 
     KNOWN_KEYS = {
-        "id", "alias", "description", "trigger", "condition", "action",
-        "triggers", "conditions", "actions",
-        "mode", "max", "max_exceeded", "variables", "trace", "initial_state"
+        "id",
+        "alias",
+        "description",
+        "trigger",
+        "condition",
+        "action",
+        "triggers",
+        "conditions",
+        "actions",
+        "mode",
+        "max",
+        "max_exceeded",
+        "variables",
+        "trace",
+        "initial_state",
     }
 
     def check(self, automation: AutomationIR) -> list[Finding]:
@@ -84,14 +101,16 @@ class UnknownTopLevelKeysRule(Rule):
         unknown_keys = set(automation.raw_source.keys()) - self.KNOWN_KEYS
 
         if unknown_keys:
-            findings.append(Finding(
-                rule_id=self.rule_id,
-                severity=self.severity,
-                message=f"Unknown top-level keys: {', '.join(sorted(unknown_keys))}",
-                why_it_matters="Unknown keys may indicate typos or deprecated configuration",
-                path=automation.path,
-                suggested_fix=None
-            ))
+            findings.append(
+                Finding(
+                    rule_id=self.rule_id,
+                    severity=self.severity,
+                    message=f"Unknown top-level keys: {', '.join(sorted(unknown_keys))}",
+                    why_it_matters="Unknown keys may indicate typos or deprecated configuration",
+                    path=automation.path,
+                    suggested_fix=None,
+                )
+            )
 
         return findings
 
@@ -125,14 +144,16 @@ class InvalidServiceFormatRule(Rule):
         for action in automation.action:
             # Service should be in format "domain.service"
             if action.service and "." not in action.service:
-                    findings.append(Finding(
+                findings.append(
+                    Finding(
                         rule_id=self.rule_id,
                         severity=self.severity,
                         message=f"Invalid service format: '{action.service}' (should be 'domain.service')",
                         why_it_matters="Services must be in 'domain.service' format to be recognized by Home Assistant",
                         path=action.path,
-                        suggested_fix=None
-                    ))
+                        suggested_fix=None,
+                    )
+                )
 
         return findings
 
@@ -140,6 +161,7 @@ class InvalidServiceFormatRule(Rule):
 # ============================================================================
 # SYNTAX RULES
 # ============================================================================
+
 
 class TriggerMissingPlatformRule(Rule):
     """Check for triggers missing platform key."""
@@ -154,14 +176,16 @@ class TriggerMissingPlatformRule(Rule):
 
         for trigger in automation.trigger:
             if trigger.platform == "unknown":
-                findings.append(Finding(
-                    rule_id=self.rule_id,
-                    severity=self.severity,
-                    message="Trigger is missing 'platform' key",
-                    why_it_matters="Every trigger must specify a platform (state, time, event, etc.)",
-                    path=trigger.path,
-                    suggested_fix=None
-                ))
+                findings.append(
+                    Finding(
+                        rule_id=self.rule_id,
+                        severity=self.severity,
+                        message="Trigger is missing 'platform' key",
+                        why_it_matters="Every trigger must specify a platform (state, time, event, etc.)",
+                        path=trigger.path,
+                        suggested_fix=None,
+                    )
+                )
 
         return findings
 
@@ -169,6 +193,7 @@ class TriggerMissingPlatformRule(Rule):
 # ============================================================================
 # LOGIC RULES
 # ============================================================================
+
 
 class DelayWithSingleModeRule(Rule):
     """Check for delay with mode: single."""
@@ -183,23 +208,22 @@ class DelayWithSingleModeRule(Rule):
 
         # Check if automation has single mode and contains delay
         if automation.mode == "single":
-            has_delay = any(
-                "delay" in action.raw
-                for action in automation.action
-            )
+            has_delay = any("delay" in action.raw for action in automation.action)
 
             if has_delay:
-                findings.append(Finding(
-                    rule_id=self.rule_id,
-                    severity=self.severity,
-                    message="Automation uses delay with mode: single",
-                    why_it_matters="With mode: single, new triggers are ignored while automation is running. Consider using mode: restart, queued, or parallel",
-                    path=automation.path,
-                    suggested_fix=SuggestedFix(
-                        type="manual",
-                        summary="Change mode to restart, queued, or parallel depending on your use case"
+                findings.append(
+                    Finding(
+                        rule_id=self.rule_id,
+                        severity=self.severity,
+                        message="Automation uses delay with mode: single",
+                        why_it_matters="With mode: single, new triggers are ignored while automation is running. Consider using mode: restart, queued, or parallel",
+                        path=automation.path,
+                        suggested_fix=SuggestedFix(
+                            type="manual",
+                            summary="Change mode to restart, queued, or parallel depending on your use case",
+                        ),
                     )
-                ))
+                )
 
         return findings
 
@@ -222,17 +246,19 @@ class HighFrequencyTriggerRule(Rule):
                 has_debounce = "for" in trigger.raw
 
                 if not has_debounce and trigger.platform == "state":
-                    findings.append(Finding(
-                        rule_id=self.rule_id,
-                        severity=self.severity,
-                        message=f"High-frequency trigger (platform: {trigger.platform}) without debounce",
-                        why_it_matters="State triggers can fire very frequently. Consider adding 'for: HH:MM:SS' to debounce",
-                        path=trigger.path,
-                        suggested_fix=SuggestedFix(
-                            type="manual",
-                            summary="Add 'for: 00:00:05' or similar to debounce rapid state changes"
+                    findings.append(
+                        Finding(
+                            rule_id=self.rule_id,
+                            severity=self.severity,
+                            message=f"High-frequency trigger (platform: {trigger.platform}) without debounce",
+                            why_it_matters="State triggers can fire very frequently. Consider adding 'for: HH:MM:SS' to debounce",
+                            path=trigger.path,
+                            suggested_fix=SuggestedFix(
+                                type="manual",
+                                summary="Add 'for: 00:00:05' or similar to debounce rapid state changes",
+                            ),
                         )
-                    ))
+                    )
 
         return findings
 
@@ -254,17 +280,18 @@ class ChooseWithoutDefaultRule(Rule):
                 has_default = "default" in action.raw
 
                 if not has_default:
-                    findings.append(Finding(
-                        rule_id=self.rule_id,
-                        severity=self.severity,
-                        message="Choose action without default sequence",
-                        why_it_matters="Without a default, nothing happens if no conditions match. Consider adding a default action or logging",
-                        path=action.path,
-                        suggested_fix=SuggestedFix(
-                            type="manual",
-                            summary="Add 'default:' key with fallback actions"
+                    findings.append(
+                        Finding(
+                            rule_id=self.rule_id,
+                            severity=self.severity,
+                            message="Choose action without default sequence",
+                            why_it_matters="Without a default, nothing happens if no conditions match. Consider adding a default action or logging",
+                            path=action.path,
+                            suggested_fix=SuggestedFix(
+                                type="manual", summary="Add 'default:' key with fallback actions"
+                            ),
                         )
-                    ))
+                    )
 
         return findings
 
@@ -280,14 +307,16 @@ class EmptyTriggerListRule(Rule):
     def check(self, automation: AutomationIR) -> list[Finding]:
         # This is redundant with SCHEMA001 but kept for completeness
         if len(automation.trigger) == 0:
-            return [Finding(
-                rule_id=self.rule_id,
-                severity=self.severity,
-                message="Automation has empty trigger list",
-                why_it_matters="Automation will never execute without triggers",
-                path=automation.path,
-                suggested_fix=None
-            )]
+            return [
+                Finding(
+                    rule_id=self.rule_id,
+                    severity=self.severity,
+                    message="Automation has empty trigger list",
+                    why_it_matters="Automation will never execute without triggers",
+                    path=automation.path,
+                    suggested_fix=None,
+                )
+            ]
         return []
 
 
@@ -302,20 +331,23 @@ class EmptyActionListRule(Rule):
     def check(self, automation: AutomationIR) -> list[Finding]:
         # This is redundant with SCHEMA002 but kept for completeness
         if len(automation.action) == 0:
-            return [Finding(
-                rule_id=self.rule_id,
-                severity=self.severity,
-                message="Automation has empty action list",
-                why_it_matters="Automation does nothing when triggered without actions",
-                path=automation.path,
-                suggested_fix=None
-            )]
+            return [
+                Finding(
+                    rule_id=self.rule_id,
+                    severity=self.severity,
+                    message="Automation has empty action list",
+                    why_it_matters="Automation does nothing when triggered without actions",
+                    path=automation.path,
+                    suggested_fix=None,
+                )
+            ]
         return []
 
 
 # ============================================================================
 # RELIABILITY RULES
 # ============================================================================
+
 
 class ServiceMissingTargetRule(Rule):
     """Check for service actions missing target/entity_id."""
@@ -331,7 +363,12 @@ class ServiceMissingTargetRule(Rule):
         for action in automation.action:
             if action.service:
                 # Check if action has target or entity_id
-                has_target = "target" in action.raw or "entity_id" in action.raw or "device_id" in action.raw or "area_id" in action.raw
+                has_target = (
+                    "target" in action.raw
+                    or "entity_id" in action.raw
+                    or "device_id" in action.raw
+                    or "area_id" in action.raw
+                )
 
                 # Some services don't require targets (e.g., homeassistant.restart)
                 # Skip those
@@ -339,17 +376,25 @@ class ServiceMissingTargetRule(Rule):
                 if len(service_parts) == 2:
                     domain = service_parts[0]
                     # Services that don't need targets
-                    no_target_domains = {"homeassistant", "persistent_notification", "script", "automation", "notify"}
+                    no_target_domains = {
+                        "homeassistant",
+                        "persistent_notification",
+                        "script",
+                        "automation",
+                        "notify",
+                    }
 
                     if domain not in no_target_domains and not has_target:
-                        findings.append(Finding(
-                            rule_id=self.rule_id,
-                            severity=self.severity,
-                            message=f"Service '{action.service}' is missing target/entity_id",
-                            why_it_matters="Most services require a target to know what to act on",
-                            path=action.path,
-                            suggested_fix=None
-                        ))
+                        findings.append(
+                            Finding(
+                                rule_id=self.rule_id,
+                                severity=self.severity,
+                                message=f"Service '{action.service}' is missing target/entity_id",
+                                why_it_matters="Most services require a target to know what to act on",
+                                path=action.path,
+                                suggested_fix=None,
+                            )
+                        )
 
         return findings
 
@@ -370,28 +415,32 @@ class InvalidEntityIDFormatRule(Rule):
             if "entity_id" in trigger.raw:
                 entity_id = trigger.raw["entity_id"]
                 if isinstance(entity_id, str) and not self._is_valid_entity_id(entity_id):
-                    findings.append(Finding(
-                        rule_id=self.rule_id,
-                        severity=self.severity,
-                        message=f"Invalid entity_id format: '{entity_id}'",
-                        why_it_matters="Entity IDs should be in format 'domain.object_id' (lowercase with underscores)",
-                        path=trigger.path,
-                        suggested_fix=None
-                    ))
+                    findings.append(
+                        Finding(
+                            rule_id=self.rule_id,
+                            severity=self.severity,
+                            message=f"Invalid entity_id format: '{entity_id}'",
+                            why_it_matters="Entity IDs should be in format 'domain.object_id' (lowercase with underscores)",
+                            path=trigger.path,
+                            suggested_fix=None,
+                        )
+                    )
 
         # Check actions
         for action in automation.action:
             if "entity_id" in action.raw:
                 entity_id = action.raw["entity_id"]
                 if isinstance(entity_id, str) and not self._is_valid_entity_id(entity_id):
-                    findings.append(Finding(
-                        rule_id=self.rule_id,
-                        severity=self.severity,
-                        message=f"Invalid entity_id format: '{entity_id}'",
-                        why_it_matters="Entity IDs should be in format 'domain.object_id' (lowercase with underscores)",
-                        path=action.path,
-                        suggested_fix=None
-                    ))
+                    findings.append(
+                        Finding(
+                            rule_id=self.rule_id,
+                            severity=self.severity,
+                            message=f"Invalid entity_id format: '{entity_id}'",
+                            why_it_matters="Entity IDs should be in format 'domain.object_id' (lowercase with underscores)",
+                            path=action.path,
+                            suggested_fix=None,
+                        )
+                    )
 
         return findings
 
@@ -407,6 +456,7 @@ class InvalidEntityIDFormatRule(Rule):
 # MAINTAINABILITY RULES
 # ============================================================================
 
+
 class MissingDescriptionRule(Rule):
     """Check for missing description."""
 
@@ -417,17 +467,16 @@ class MissingDescriptionRule(Rule):
 
     def check(self, automation: AutomationIR) -> list[Finding]:
         if not automation.description:
-            return [Finding(
-                rule_id=self.rule_id,
-                severity=self.severity,
-                message="Automation is missing 'description' field",
-                why_it_matters="Descriptions help document the purpose of automations for future maintenance",
-                path=automation.path,
-                suggested_fix=SuggestedFix(
-                    type="auto",
-                    summary="Add description field"
+            return [
+                Finding(
+                    rule_id=self.rule_id,
+                    severity=self.severity,
+                    message="Automation is missing 'description' field",
+                    why_it_matters="Descriptions help document the purpose of automations for future maintenance",
+                    path=automation.path,
+                    suggested_fix=SuggestedFix(type="auto", summary="Add description field"),
                 )
-            )]
+            ]
         return []
 
 
@@ -441,23 +490,23 @@ class MissingAliasRule(Rule):
 
     def check(self, automation: AutomationIR) -> list[Finding]:
         if not automation.alias:
-            return [Finding(
-                rule_id=self.rule_id,
-                severity=self.severity,
-                message="Automation is missing 'alias' field",
-                why_it_matters="Aliases provide a friendly name for automations in the UI",
-                path=automation.path,
-                suggested_fix=SuggestedFix(
-                    type="auto",
-                    summary="Add alias field"
+            return [
+                Finding(
+                    rule_id=self.rule_id,
+                    severity=self.severity,
+                    message="Automation is missing 'alias' field",
+                    why_it_matters="Aliases provide a friendly name for automations in the UI",
+                    path=automation.path,
+                    suggested_fix=SuggestedFix(type="auto", summary="Add alias field"),
                 )
-            )]
+            ]
         return []
 
 
 # ============================================================================
 # RULE REGISTRY
 # ============================================================================
+
 
 def get_all_rules() -> list[Rule]:
     """
@@ -473,21 +522,17 @@ def get_all_rules() -> list[Rule]:
         UnknownTopLevelKeysRule(),
         DuplicateIDRule(),
         InvalidServiceFormatRule(),
-
         # Syntax rules
         TriggerMissingPlatformRule(),
-
         # Logic rules
         DelayWithSingleModeRule(),
         HighFrequencyTriggerRule(),
         ChooseWithoutDefaultRule(),
         EmptyTriggerListRule(),
         EmptyActionListRule(),
-
         # Reliability rules
         ServiceMissingTargetRule(),
         InvalidEntityIDFormatRule(),
-
         # Maintainability rules
         MissingDescriptionRule(),
         MissingAliasRule(),

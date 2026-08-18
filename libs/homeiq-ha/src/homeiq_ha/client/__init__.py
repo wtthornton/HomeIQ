@@ -17,7 +17,7 @@ Typical use::
 from __future__ import annotations
 
 import os
-from types import TracebackType
+from typing import TYPE_CHECKING
 
 from .errors import (
     HAAuthError,
@@ -34,6 +34,9 @@ from .ws import (
     SUPERVISOR_INSTALL_TIMEOUT,
     HAWebSocketClient,
 )
+
+if TYPE_CHECKING:
+    from types import TracebackType
 
 __all__ = [
     "DEFAULT_COMMAND_TIMEOUT",

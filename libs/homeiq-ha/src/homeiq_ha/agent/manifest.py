@@ -154,9 +154,7 @@ def load_manifest(path: str | Path = DEFAULT_MANIFEST_PATH) -> OrganizationManif
     body = document["manifest"]
     return OrganizationManifest(
         managed_label_prefixes=tuple(body.get("managed_label_prefixes") or ()),
-        areas=tuple(
-            Area(row["area_id"], row["name"]) for row in body.get("areas") or ()
-        ),
+        areas=tuple(Area(row["area_id"], row["name"]) for row in body.get("areas") or ()),
         areas_remove=tuple(
             AreaRemoval(row["area_id"], row.get("reason", ""))
             for row in body.get("areas_remove") or ()

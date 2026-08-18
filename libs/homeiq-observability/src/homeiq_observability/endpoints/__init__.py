@@ -8,11 +8,10 @@ from .simple_health import SimpleHealthService, simple_health_service
 from .simple_health import router as simple_health_router
 
 __all__ = [
-    'ServiceController',
-    'service_controller',
-    'SimpleHealthService',
-    'simple_health_service',
-    'simple_health_router',
-    'create_integration_router',
+    "ServiceController",
+    "service_controller",
+    "SimpleHealthService",
+    "simple_health_service",
+    "simple_health_router",
+    "create_integration_router",
 ]
-
