@@ -19,6 +19,8 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .agentforge import AgentForgeClient
 from .catalogue import load_catalogue
 from .const import (
+    AGENTFORGE_ASYNC_WAIT_SECONDS,
+    AGENTFORGE_POLL_INTERVAL_SECONDS,
     AGENTFORGE_TIMEOUT_SECONDS,
     CONF_AGENTFORGE_API_KEY,
     CONF_AGENTFORGE_PROJECT,
@@ -76,6 +78,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: HomeIQConfigEntry) -> bo
         entry.data[CONF_AGENTFORGE_API_KEY],
         entry.options.get(CONF_AGENTFORGE_PROJECT, DEFAULT_AGENTFORGE_PROJECT),
         AGENTFORGE_TIMEOUT_SECONDS,
+        AGENTFORGE_POLL_INTERVAL_SECONDS,
+        AGENTFORGE_ASYNC_WAIT_SECONDS,
     )
 
     catalogue_version, specs = await hass.async_add_executor_job(load_catalogue)

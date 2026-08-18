@@ -7,7 +7,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 from aiohttp import ClientError, ClientSession
-from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
+from pytest_homeassistant_custom_component.test_util.aiohttp import (
+    AiohttpClientMocker,
+    AiohttpClientMockResponse,
+)
 
 from custom_components.homeiq.agentforge import (
     AgentForgeClient,
@@ -17,6 +20,14 @@ from custom_components.homeiq.agentforge import (
 )
 
 from .conftest import AGENTFORGE_ENDPOINT, AGENTFORGE_URL, task_response
+
+STEERED = {
+    "invocation_id": "b9d8cae7",
+    "status": "running",
+    "invoke_steered": True,
+    "steer_reason": "exceeds_sync_invoke_steering_threshold",
+}
+RESULT_URL = f"{AGENTFORGE_URL}/projects/homeiq/invocations/b9d8cae7/result"
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -39,7 +50,9 @@ async def session(mocker: AiohttpClientMocker) -> AsyncGenerator[ClientSession]:
 @pytest.fixture
 def client(session: ClientSession) -> AgentForgeClient:
     """Return a client pointed at the mocked AgentForge."""
-    return AgentForgeClient(session, AGENTFORGE_URL, "afp_test", "homeiq", 5)
+    return AgentForgeClient(
+        session, AGENTFORGE_URL, "afp_test", "homeiq", 5, poll_interval=0, async_wait=5
+    )
 
 
 async def test_invoke_posts_the_project_route(
@@ -256,3 +269,76 @@ async def test_verify_rejects_a_bad_key(
 
     with pytest.raises(AgentForgeUnauthorizedError):
         await client.async_verify()
+
+
+async def test_steered_invoke_is_followed_to_its_result(
+    client: AgentForgeClient, mocker: AiohttpClientMocker
+) -> None:
+    """A 202 with only an invocation id is collected from the result route.
+
+    AgentForge steers a long prompt onto its async queue instead of answering
+    inline. Before this was handled the entity got an empty string, which Home
+    Assistant surfaced as a bare "Unable to get response".
+    """
+    mocker.post(AGENTFORGE_ENDPOINT, json=STEERED, status=202)
+    mocker.get(RESULT_URL, json=task_response(status="complete"))
+
+    response = await client.async_invoke("Which areas exist in this home?")
+
+    assert response.text == "The kitchen light was on for 4 hours."
+    assert response.is_error is False
+    assert response.agent_used == "homeiq-analyst"
+    assert str(mocker.mock_calls[-1][1]) == RESULT_URL
+
+
+async def test_steered_invoke_waits_while_the_result_is_not_terminal(
+    client: AgentForgeClient, mocker: AiohttpClientMocker
+) -> None:
+    """A 404 means "not finished yet", so polling continues rather than failing."""
+    mocker.post(AGENTFORGE_ENDPOINT, json=STEERED, status=202)
+    # The mocker returns its first matching registration every time, so the
+    # run has to settle through a side effect rather than two registrations.
+    polls = 0
+
+    async def settle_on_the_third_poll(method, url, _data):
+        nonlocal polls
+        polls += 1
+        if polls < 3:
+            return AiohttpClientMockResponse(
+                method, url, status=404, json={"detail": "not found or not terminal"}
+            )
+        return AiohttpClientMockResponse(method, url, json=task_response())
+
+    mocker.get(RESULT_URL, side_effect=settle_on_the_third_poll)
+
+    response = await client.async_invoke("Which areas exist in this home?")
+
+    assert polls == 3
+    assert response.text == "The kitchen light was on for 4 hours."
+
+
+async def test_steered_invoke_gives_up_with_a_readable_message(
+    client: AgentForgeClient, mocker: AiohttpClientMocker
+) -> None:
+    """A run that never settles is a readable timeout, not a hang or a stack trace."""
+    mocker.post(AGENTFORGE_ENDPOINT, json=STEERED, status=202)
+    for _ in range(50):
+        mocker.get(RESULT_URL, json={"detail": "not found or not terminal"}, status=404)
+
+    with pytest.raises(AgentForgeError) as caught:
+        await client.async_invoke("Which areas exist in this home?")
+
+    assert caught.value.code == "timeout"
+    assert "queued" in caught.value.user_message
+
+
+async def test_invoke_without_result_or_invocation_is_a_contract_violation(
+    client: AgentForgeClient, mocker: AiohttpClientMocker
+) -> None:
+    """Neither an answer nor something to follow is AgentForge breaking its contract."""
+    mocker.post(AGENTFORGE_ENDPOINT, json={"status": "running"}, status=202)
+
+    with pytest.raises(AgentForgeError) as caught:
+        await client.async_invoke("Which areas exist in this home?")
+
+    assert caught.value.code == "contract_violation"

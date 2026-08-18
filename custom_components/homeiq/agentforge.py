@@ -1,9 +1,18 @@
 """AgentForge invocation client for HomeIQ (TAP-5307, TAP-5309).
 
 Every conversation turn and every AI Task is answered by AgentForge through
-``POST <base>/projects/<project>/tasks/invoke`` with a project API key. The
-route is sync-only JSON — AgentForge's SSE endpoint (``POST /tasks/stream``) is
-unscoped and would bypass project auth, so it is deliberately not used.
+``POST <base>/projects/<project>/tasks/invoke`` with a project API key.
+AgentForge's SSE endpoint (``POST /tasks/stream``) is unscoped and would bypass
+project auth, so it is deliberately not used.
+
+That route answers in one of two shapes. A short prompt comes back 200 with the
+finished ``TaskResponse``. A longer one is *steered* onto the async queue and
+comes back 202 with only ``invocation_id`` and ``status`` — no ``result``
+(``invoke_steered: true``, ``steer_reason: exceeds_sync_invoke_steering_threshold``).
+The answer then has to be collected from
+``GET <base>/projects/<project>/invocations/<invocation_id>/result``, which
+answers 404 ``"not found or not terminal"`` until the run finishes. Both shapes
+are handled here, so callers always get a settled :class:`AgentForgeResponse`.
 
 AgentForge signals a budget refusal in-band rather than with an HTTP status:
 the call succeeds with ``is_error: true`` and prose in ``result``
@@ -18,7 +27,9 @@ Like :mod:`.mcp_client`, this module imports nothing from Home Assistant.
 
 from __future__ import annotations
 
+import asyncio
 import json
+import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -110,6 +121,21 @@ def _http_failure(status: int, body: str) -> AgentForgeError:
     return AgentForgeError("http_error", f"AgentForge returned HTTP {status}: {detail}", detail)
 
 
+def _decode(raw: str) -> dict[str, Any]:
+    """Parse an AgentForge JSON object, or fail with a readable contract error."""
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as err:
+        raise AgentForgeError(
+            "contract_violation", "AgentForge returned a body that is not JSON."
+        ) from err
+    if not isinstance(parsed, dict):
+        raise AgentForgeError(
+            "contract_violation", "AgentForge returned a body that is not an object."
+        )
+    return parsed
+
+
 def _error_code_of(body: str) -> str | None:
     """Return AgentForge's structured ``error_code``, when the body carries one."""
     try:
@@ -146,15 +172,21 @@ class AgentForgeClient:
         api_key: str,
         project: str,
         timeout: float,
+        poll_interval: float = 3.0,
+        async_wait: float = 180.0,
     ) -> None:
         """Initialise the client."""
         self._session = session
-        self._endpoint = f"{base_url.rstrip('/')}/projects/{project}/tasks/invoke"
+        root = f"{base_url.rstrip('/')}/projects/{project}"
+        self._endpoint = f"{root}/tasks/invoke"
+        self._result_endpoint = f"{root}/invocations/{{invocation_id}}/result"
         self._headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}",
         }
         self._timeout = ClientTimeout(total=timeout)
+        self._poll_interval = poll_interval
+        self._async_wait = async_wait
 
     async def _post(self, body: dict[str, Any]) -> str:
         """Send one invocation and return the raw response body."""
@@ -171,6 +203,46 @@ class AgentForgeClient:
             raise AgentForgeError(
                 "unreachable", f"HomeIQ could not reach AgentForge: {err}"
             ) from err
+
+    async def _fetch_result(self, invocation_id: str) -> dict[str, Any] | None:
+        """Return the terminal payload for an invocation, or ``None`` if still running.
+
+        AgentForge uses 404 for both "no such invocation" and "not finished
+        yet", so a 404 is a signal to keep waiting rather than an error. Every
+        other failing status is a real failure and is raised.
+        """
+        url = self._result_endpoint.format(invocation_id=invocation_id)
+        try:
+            response = await self._session.get(
+                url, headers=self._headers, timeout=self._timeout
+            )
+            async with response:
+                raw = await response.text()
+                if response.status == 404:
+                    return None
+                if response.status >= 400:
+                    raise _http_failure(response.status, raw)
+        except (TimeoutError, ClientError, OSError) as err:
+            raise AgentForgeError(
+                "unreachable", f"HomeIQ could not reach AgentForge: {err}"
+            ) from err
+        return _decode(raw)
+
+    async def _await_result(self, invocation_id: str) -> dict[str, Any]:
+        """Poll until the steered invocation settles, or give up with a readable error."""
+        deadline = time.monotonic() + self._async_wait
+        while True:
+            payload = await self._fetch_result(invocation_id)
+            if payload is not None:
+                return payload
+            if time.monotonic() + self._poll_interval >= deadline:
+                raise AgentForgeError(
+                    "timeout",
+                    "AgentForge is still working on that request. "
+                    "It was queued rather than answered directly; try again shortly.",
+                    invocation_id,
+                )
+            await asyncio.sleep(self._poll_interval)
 
     async def async_verify(self) -> None:
         """Confirm the endpoint answers and accepts the API key.
@@ -194,17 +266,21 @@ class AgentForgeClient:
         body: dict[str, Any] = {"prompt": prompt}
         if config_hint:
             body["config_hint"] = config_hint
-        raw = await self._post(body)
+        parsed = _decode(await self._post(body))
 
-        try:
-            parsed: dict[str, Any] = json.loads(raw)
-        except json.JSONDecodeError as err:
-            raise AgentForgeError(
-                "contract_violation", "AgentForge returned a body that is not JSON."
-            ) from err
+        # A steered invoke carries an id instead of an answer; collect the answer.
+        if parsed.get("result") is None:
+            invocation_id = parsed.get("invocation_id")
+            if not invocation_id:
+                raise AgentForgeError(
+                    "contract_violation",
+                    "AgentForge returned neither a result nor an invocation to follow.",
+                    ",".join(sorted(parsed)),
+                )
+            parsed = await self._await_result(str(invocation_id))
 
         return AgentForgeResponse(
-            text=str(parsed.get("result", "")),
+            text=str(parsed.get("result") or ""),
             is_error=bool(parsed.get("is_error", False)),
             agent_used=str(parsed.get("agent_used", "")),
             orchestration_state=parsed.get("orchestration_state"),

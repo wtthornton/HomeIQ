@@ -34,3 +34,8 @@ CATALOGUE_FILENAME: Final = "mcp_tools.schema.json"
 # Network budgets.
 MCP_TIMEOUT_SECONDS: Final = 30
 AGENTFORGE_TIMEOUT_SECONDS: Final = 120
+# AgentForge steers an invoke to the async queue when the prompt exceeds its
+# sync threshold, answering 202 with only an invocation id. These bound the
+# follow-up polling of /invocations/<id>/result.
+AGENTFORGE_POLL_INTERVAL_SECONDS: Final = 3
+AGENTFORGE_ASYNC_WAIT_SECONDS: Final = 180
