@@ -23,7 +23,19 @@ from .logging_config import get_logger
 logger = get_logger(__name__)
 
 # Schema name validator — prevents SQL injection in SET search_path
-_SAFE_SCHEMA = re.compile(r'^[a-z_][a-z0-9_]*$', re.IGNORECASE)
+_SAFE_SCHEMA = re.compile(r"^[a-z_][a-z0-9_]*$", re.IGNORECASE)
+
+
+def validate_schema_name(schema: str) -> str:
+    """Return `schema` if it is a plain identifier; raise ValueError otherwise.
+
+    Every `SET search_path TO {schema}` in the codebase must go through this so an
+    env-sourced value can never smuggle SQL.
+    """
+    if not _SAFE_SCHEMA.match(schema):
+        raise ValueError(f"Invalid schema name: {schema!r}")
+    return schema
+
 
 # Global engine instances (one per database path)
 _engines: dict[str, AsyncEngine] = {}
@@ -119,9 +131,7 @@ def create_shared_session_maker(
                 autoflush=False,
             )
 
-            logger.info(
-                f"Created shared session maker: {database_path or database_url}"
-            )
+            logger.info(f"Created shared session maker: {database_path or database_url}")
 
     return _session_makers[database_url]
 
@@ -189,19 +199,17 @@ def check_pool_health(database_url: str) -> dict:
     total_capacity = stats["pool_size"] + max(0, stats.get("overflow", 0))
     checked_out = stats["checked_out"]
 
-    if total_capacity > 0:
-        utilization = (checked_out / total_capacity) * 100
-    else:
-        utilization = 0.0
+    utilization = (checked_out / total_capacity) * 100 if total_capacity > 0 else 0.0
 
     stats["utilization_percent"] = round(utilization, 1)
     stats["pool_checkedout_overflow"] = max(0, checked_out - stats["pool_size"])
 
     if utilization >= 80:
         logger.warning(
-            "Pool exhaustion warning: %.1f%% utilization "
-            "(checked_out=%d, capacity=%d)",
-            utilization, checked_out, total_capacity,
+            "Pool exhaustion warning: %.1f%% utilization (checked_out=%d, capacity=%d)",
+            utilization,
+            checked_out,
+            total_capacity,
         )
 
     return stats
@@ -229,6 +237,28 @@ async def close_all_engines_async():
     logger.info("All shared database engines disposed")
 
 
+def apply_search_path(dbapi_conn, schema: str) -> None:
+    """Set the session search_path OUTSIDE a transaction.
+
+    The asyncpg adapter opens an implicit transaction on the first statement and
+    the pool issues ROLLBACK when a connection is returned; PostgreSQL undoes a
+    session-level ``SET`` made inside a rolled-back transaction, so the schema
+    silently reverted to the role default (``public, core, ...``) and unqualified
+    table names resolved into other services' schemas (device-intelligence's
+    ``devices`` hit ``core.devices``). Toggling autocommit around the SET is the
+    SQLAlchemy-documented pattern for asyncpg.
+    """
+    validate_schema_name(schema)
+    previous_autocommit = dbapi_conn.autocommit
+    dbapi_conn.autocommit = True
+    cursor = dbapi_conn.cursor()
+    try:
+        cursor.execute(f"SET search_path TO {schema}, public")
+    finally:
+        cursor.close()
+        dbapi_conn.autocommit = previous_autocommit
+
+
 def create_pg_engine(
     database_url: str,
     schema: str,
@@ -254,8 +284,7 @@ def create_pg_engine(
     Returns:
         AsyncEngine configured for the specified schema
     """
-    if not _SAFE_SCHEMA.match(schema):
-        raise ValueError(f"Invalid schema name: {schema!r}")
+    validate_schema_name(schema)
 
     engine = create_async_engine(
         database_url,
@@ -269,9 +298,7 @@ def create_pg_engine(
 
     @event.listens_for(engine.sync_engine, "connect")
     def set_search_path(dbapi_conn, _connection_record):
-        cursor = dbapi_conn.cursor()
-        cursor.execute(f"SET search_path TO {schema}, public")
-        cursor.close()
+        apply_search_path(dbapi_conn, schema)
 
     logger.info(
         f"Created PostgreSQL engine: schema={schema} "

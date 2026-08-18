@@ -10,6 +10,7 @@ from .alembic_helpers import (
 from .base_settings import BaseServiceSettings
 from .database_manager import DatabaseManager
 from .database_pool import (
+    apply_search_path,
     check_pg_connection,
     check_pool_health,
     close_all_engines,
@@ -21,6 +22,7 @@ from .database_pool import (
     get_pool_stats,
     get_shared_db_session,
     validate_database_url,
+    validate_schema_name,
 )
 from .influxdb_manager import InfluxDBManager
 from .openai_client import StandardOpenAIClient
@@ -36,6 +38,8 @@ __all__ = [
     "check_pool_health",
     "close_all_engines",
     "close_all_engines_async",
+    "apply_search_path",
+    "validate_schema_name",
     "create_pg_engine",
     "create_shared_db_engine",
     "create_shared_session_maker",

@@ -209,3 +209,40 @@ def test_build_readings_motion() -> None:
     readings = build_readings(events)
     assert len(readings) == 1
     assert readings[0].motion == 1.0
+
+
+def test_parse_state_value_bare_state_with_attributes_json() -> None:
+    """New rows (2026-08-18+): bare state + separately stored attributes JSON."""
+    state, temp, hum, power = parse_state_value(
+        "21.5", '{"temperature": 21.5, "humidity": 45.0, "power": 120.0}'
+    )
+    assert state == "21.5" and temp == 21.5 and hum == 45.0 and power == 120.0
+
+
+def test_parse_state_value_bare_state_without_attributes() -> None:
+    assert parse_state_value("on") == ("on", None, None, None)
+    assert parse_state_value("on", "not json") == ("on", None, None, None)
+
+
+def test_parse_state_value_legacy_repr_still_wins_for_attrs() -> None:
+    s = "{'state': 'on', 'attributes': {'power': 5.0}}"
+    assert parse_state_value(s, None) == ("on", None, None, 5.0)
+
+
+def test_group_influx_records_reads_pivoted_columns() -> None:
+    from datetime import UTC, datetime
+    from unittest.mock import MagicMock
+
+    from src.data_fetcher import group_influx_records
+
+    rec = MagicMock()
+    rec.values = {
+        "entity_id": "light.garage",
+        "state_value": "on",
+        "attributes": '{"brightness": 200}',
+    }
+    rec.get_time.return_value = datetime(2026, 8, 18, tzinfo=UTC)
+    table = MagicMock()
+    table.records = [rec]
+    (event,) = group_influx_records([table])
+    assert event["state_value"] == "on" and event["attributes"] == '{"brightness": 200}'

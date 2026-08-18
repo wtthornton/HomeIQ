@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import json
 import re
 from contextlib import suppress
 from datetime import datetime
@@ -46,20 +47,40 @@ def extract_attrs(attrs: dict[str, Any]) -> tuple[float | None, float | None, fl
 
 def parse_state_value(
     state_value: str | None,
+    attributes: Any = None,
 ) -> tuple[str | None, float | None, float | None, float | None]:
-    """Parse a state_value string to extract state, temp, humidity, power."""
+    """Extract (state, temp, humidity, power) from an event's state and attributes.
+
+    ``state_value`` is the bare HA state ("on", "21.5") since 2026-08-18; rows written
+    before that hold the repr of the whole HA state object (state + attributes), which
+    is still recognised. ``attributes`` is the event's separately-stored attributes field
+    (JSON string or dict) and is where temp/humidity/power come from for new rows.
+    """
     if not state_value:
         return None, None, None, None
-    with suppress(Exception):
-        obj = ast.literal_eval(state_value)
-        if isinstance(obj, dict):
-            state_str = str(obj.get("state", ""))
-            attrs = obj.get("attributes") or {}
-            if isinstance(attrs, dict):
-                temp, humidity, power = extract_attrs(attrs)
-                return state_str, temp, humidity, power
-            return state_str, None, None, None
-    return None, None, None, None
+    attrs: dict[str, Any] = _coerce_attributes(attributes)
+    text = str(state_value)
+    if text.startswith("{"):
+        with suppress(Exception):
+            obj = ast.literal_eval(text)
+            if isinstance(obj, dict):
+                if isinstance(obj.get("attributes"), dict) and not attrs:
+                    attrs = obj["attributes"]
+                temp, humidity, power = extract_attrs(attrs) if attrs else (None, None, None)
+                return str(obj.get("state", "")), temp, humidity, power
+    temp, humidity, power = extract_attrs(attrs) if attrs else (None, None, None)
+    return text, temp, humidity, power
+
+
+def _coerce_attributes(attributes: Any) -> dict[str, Any]:
+    if isinstance(attributes, dict):
+        return attributes
+    if isinstance(attributes, str) and attributes.startswith("{"):
+        with suppress(ValueError):
+            parsed = json.loads(attributes)
+            if isinstance(parsed, dict):
+                return parsed
+    return {}
 
 
 def parse_event_timestamp(ts: Any) -> datetime | None:

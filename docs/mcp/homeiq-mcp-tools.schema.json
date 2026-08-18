@@ -1,10 +1,10 @@
 {
-  "$comment": "HomeIQ MCP tool contract (TAP-5292). Machine-readable source of truth; docs/mcp/homeiq-mcp-tool-catalogue.md is the human view. TAP-5297 contract tests pin this file against the running server's list_tools output.",
-  "catalogue_version": "1.1.1",
+  "$comment": "HomeIQ MCP tool contract (TAP-5292). Machine-readable source of truth; docs/mcp/homeiq-mcp-tool-catalogue.md is the human view. TAP-5297 contract tests pin this file against the running server's list_tools output. v1.2.0 (2026-08-17, TAP-5293/5295): tools 14/15 carry status=deferred (energy-correlator has no live output; see TAP-5910/TAP-5301); every list-returning output declares optional `truncated` + `hint` so the server can honour design rule 2 under additionalProperties=false. v1.2.1 (2026-08-18, verifier round on TAP-5293..5297): id inputs that reach an upstream URL path carry a strict pattern; detect_anomalies drops the never-honoured `hours`; search_events `hours` max is 72 (data-api's search times out beyond that today); downsample_minutes is first-observed-per-bucket; error code set drops the unused truncated_upstream; notes on the power/top_consumers pipelines being empty until TAP-5301. v1.2.2 (2026-08-18, verifier round 2): trace_automation.chain maxItems 100 (max_depth bounds levels; upstream emits up to 100 events per level, byte budget bounds size); get_entity_history drops the never-emitted points[].value; list_areas/list_entities use the effective area (entity area, else its device's — HA leaves inherited entity areas null); list_synergies area filter is applied after the upstream limit. v1.2.3 (2026-08-18): trace_automation carries an honesty caveat — websocket-ingestion does not yet write context_parent_id, so chains resolve empty on live data (TAP-6107); list_entities rows carry the effective area.",
+  "catalogue_version": "1.2.3",
   "tools": [
     {
       "name": "get_entity_history",
-      "description": "Entity state history over a bounded window, optionally downsampled to N-minute mean buckets. Time precedence: start_time/end_time (both required together) override hours; with neither pair member present, hours applies.",
+      "description": "Entity state history over a bounded window, optionally downsampled to the first observed point per N-minute bucket. Time precedence: start_time/end_time (both required together) override hours; with neither pair member present, hours applies.",
       "annotations": {
         "readOnlyHint": true
       },
@@ -15,9 +15,8 @@
         "properties": {
           "entity_id": {
             "type": "string",
-            "minLength": 3,
-            "maxLength": 255,
-            "description": "HA entity id, e.g. sensor.total_power"
+            "description": "HA entity id, e.g. sensor.total_power (id charset: letters, digits, . _ : @ -)",
+            "pattern": "^[A-Za-z0-9._:@-]{1,255}$"
           },
           "hours": {
             "type": "integer",
@@ -41,7 +40,7 @@
             "minimum": 0,
             "maximum": 1440,
             "default": 0,
-            "description": "0 = raw rows (capped at limit); N = mean per N-minute bucket"
+            "description": "0 = raw rows (capped at limit); N = first observed point per N-minute bucket"
           },
           "limit": {
             "type": "integer",
@@ -82,12 +81,6 @@
                 "state": {
                   "type": "string",
                   "maxLength": 255
-                },
-                "value": {
-                  "type": [
-                    "number",
-                    "null"
-                  ]
                 }
               },
               "required": [
@@ -136,8 +129,9 @@
           "hours": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 8760,
-            "default": 24
+            "maximum": 72,
+            "default": 24,
+            "description": "Trailing window to search; data-api's search cannot serve windows longer than ~72h today (times out), so the bound is honest, not the store's retention."
           },
           "limit": {
             "type": "integer",
@@ -201,6 +195,11 @@
           },
           "truncated": {
             "type": "boolean"
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
@@ -312,6 +311,11 @@
           },
           "truncated": {
             "type": "boolean"
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
@@ -323,7 +327,7 @@
     },
     {
       "name": "trace_automation",
-      "description": "Follow an event context-id chain to see what triggered what.",
+      "description": "Follow an event context-id chain to see what triggered what. NOTE: chains resolve empty on live data today — the ingestion pipeline stores context_id but not context_parent_id, so the parent walk finds nothing (TAP-6107 tracks ingesting it).",
       "annotations": {
         "readOnlyHint": true
       },
@@ -334,8 +338,8 @@
         "properties": {
           "context_id": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 64
+            "pattern": "^[A-Za-z0-9._:@-]{1,255}$",
+            "description": "(id charset: letters, digits, . _ : @ -)"
           },
           "max_depth": {
             "type": "integer",
@@ -386,7 +390,7 @@
                 "event_type"
               ]
             },
-            "maxItems": 10
+            "maxItems": 100
           },
           "count": {
             "type": "integer",
@@ -394,6 +398,11 @@
           },
           "truncated": {
             "type": "boolean"
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
@@ -500,6 +509,11 @@
           },
           "truncated": {
             "type": "boolean"
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
@@ -522,8 +536,8 @@
         "properties": {
           "device_id": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 128
+            "pattern": "^[A-Za-z0-9._:@-]{1,255}$",
+            "description": "(id charset: letters, digits, . _ : @ -)"
           }
         },
         "required": [
@@ -620,12 +634,22 @@
           "entity_count": {
             "type": "integer",
             "minimum": 0
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "True when the server dropped rows to stay within max_response_bytes or the row cap."
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
           "device",
           "entities",
-          "entity_count"
+          "entity_count",
+          "truncated"
         ]
       }
     },
@@ -646,7 +670,8 @@
           },
           "area_id": {
             "type": "string",
-            "maxLength": 128
+            "maxLength": 128,
+            "description": "Matches the effective area: the entity's own area_id, else its device's."
           },
           "device_id": {
             "type": "string",
@@ -690,7 +715,8 @@
                   "type": [
                     "string",
                     "null"
-                  ]
+                  ],
+                  "description": "Effective area: the entity's own area_id, else its device's."
                 },
                 "friendly_name": {
                   "type": [
@@ -722,6 +748,11 @@
           },
           "truncated": {
             "type": "boolean"
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
@@ -733,7 +764,7 @@
     },
     {
       "name": "list_areas",
-      "description": "Areas with entity counts and the domains present in each.",
+      "description": "Areas with entity counts and the domains present in each. Areas are derived from the effective area of entities (the entity's own area_id, else its device's — HA leaves an inherited entity area null).",
       "annotations": {
         "readOnlyHint": true
       },
@@ -782,17 +813,27 @@
           "count": {
             "type": "integer",
             "minimum": 0
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "True when the server dropped rows to stay within max_response_bytes or the row cap."
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
           "areas",
-          "count"
+          "count",
+          "truncated"
         ]
       }
     },
     {
       "name": "get_entity_state",
-      "description": "Last OBSERVED state of one entity from the event store, with its timestamp. HomeIQ observes HA; this is the most recent recorded state change within the hours window (default 24), not a live HA read \u2014 check 't' for staleness.",
+      "description": "Last OBSERVED state of one entity from the event store, with its timestamp. HomeIQ observes HA; this is the most recent recorded state change within the hours window (default 24), not a live HA read — check 't' for staleness.",
       "annotations": {
         "readOnlyHint": true
       },
@@ -803,9 +844,8 @@
         "properties": {
           "entity_id": {
             "type": "string",
-            "minLength": 3,
-            "maxLength": 255,
-            "description": "HA entity id, e.g. light.office_go"
+            "description": "HA entity id, e.g. light.office_go (id charset: letters, digits, . _ : @ -)",
+            "pattern": "^[A-Za-z0-9._:@-]{1,255}$"
           },
           "hours": {
             "type": "integer",
@@ -870,7 +910,8 @@
         "properties": {
           "automation_id": {
             "type": "string",
-            "maxLength": 128
+            "pattern": "^[A-Za-z0-9._:@-]{1,255}$",
+            "description": "(id charset: letters, digits, . _ : @ -)"
           },
           "view": {
             "type": "string",
@@ -980,6 +1021,11 @@
           },
           "truncated": {
             "type": "boolean"
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
@@ -1096,6 +1142,11 @@
           },
           "truncated": {
             "type": "boolean"
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
@@ -1130,7 +1181,8 @@
           },
           "area": {
             "type": "string",
-            "maxLength": 128
+            "maxLength": 128,
+            "description": "Applied after the upstream limit (the backing has no area filter), so a page can under-fill; raise limit if needed."
           },
           "limit": {
             "type": "integer",
@@ -1219,6 +1271,11 @@
           },
           "truncated": {
             "type": "boolean"
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
@@ -1231,7 +1288,7 @@
     },
     {
       "name": "get_energy_summary",
-      "description": "Whole-home energy snapshot: current power, daily kWh, peak, top consumers, carbon.",
+      "description": "Whole-home energy snapshot: current power, daily kWh, peak, top consumers, carbon. NOTE: top_consumers comes from the energy-correlator measurement (event_energy_correlation) which has never been written (TAP-5910); it is [] until TAP-5301. current_power_w/daily_kwh are data-api's smart_meter figures and read 0.0 when that measurement is empty.",
       "annotations": {
         "readOnlyHint": true
       },
@@ -1328,12 +1385,22 @@
             "required": [
               "grams_per_kwh"
             ]
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "True when the server dropped rows to stay within max_response_bytes or the row cap."
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
           "current_power_w",
           "daily_kwh",
-          "top_consumers"
+          "top_consumers",
+          "truncated"
         ]
       }
     },
@@ -1431,6 +1498,11 @@
           },
           "truncated": {
             "type": "boolean"
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
@@ -1438,7 +1510,9 @@
           "count",
           "truncated"
         ]
-      }
+      },
+      "status": "deferred",
+      "status_reason": "Deferred out of v1 (Decision E, 2026-08-17): backing energy-correlator has never written a correlation (TAP-5910) and shows no non-health activity live; re-enable when TAP-5301 model server provides power-delta correlations."
     },
     {
       "name": "get_device_energy_impact",
@@ -1505,7 +1579,9 @@
           "domain",
           "total_state_changes"
         ]
-      }
+      },
+      "status": "deferred",
+      "status_reason": "Deferred out of v1 (Decision E, 2026-08-17): backing energy-correlator has never written a correlation (TAP-5910) and shows no non-health activity live; re-enable when TAP-5301 model server provides power-delta correlations."
     },
     {
       "name": "get_device_health",
@@ -1520,7 +1596,8 @@
         "properties": {
           "device_id": {
             "type": "string",
-            "maxLength": 128
+            "pattern": "^[A-Za-z0-9._:@-]{1,255}$",
+            "description": "(id charset: letters, digits, . _ : @ -)"
           },
           "min_score": {
             "type": "integer",
@@ -1657,6 +1734,11 @@
           },
           "truncated": {
             "type": "boolean"
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
@@ -1666,7 +1748,7 @@
     },
     {
       "name": "detect_anomalies",
-      "description": "Anomaly surface: power anomalies and ML-predicted device failure risk.",
+      "description": "Anomaly surface: power anomalies and ML-predicted device failure risk. NOTE: kind=power reads data-api /api/devices/power-anomalies, whose actual-power source is the energy-correlator pipeline that has never written a row (TAP-5910); power_anomalies is empty until TAP-5301 provides a live source. kind=failure_risk needs device-intelligence's device inventory populated.",
       "annotations": {
         "readOnlyHint": true
       },
@@ -1684,12 +1766,6 @@
             ],
             "default": "all",
             "description": "power = live power anomalies; failure_risk = ML failure predictions; all = both"
-          },
-          "hours": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 168,
-            "default": 24
           },
           "min_probability": {
             "type": "number",
@@ -1802,6 +1878,11 @@
           },
           "truncated": {
             "type": "boolean"
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [

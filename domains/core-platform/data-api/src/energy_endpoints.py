@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Query, status
 from influxdb_client import InfluxDBClient
+from influxdb_client.rest import ApiException
 from pydantic import BaseModel
 
 from .flux_utils import flux_time, sanitize_flux_value
@@ -589,12 +590,11 @@ async def get_current_carbon_intensity():
     Data is written by carbon-intensity-service.
     """
     client = None
+    # Carbon intensity data is stored in its own bucket (written by carbon-intensity-service).
+    carbon_bucket = os.getenv("INFLUXDB_CARBON_BUCKET", "carbon_data")
     try:
         client = get_influxdb_client()
         query_api = client.query_api()
-
-        # Carbon intensity data is stored in carbon_data bucket
-        carbon_bucket = os.getenv("INFLUXDB_CARBON_BUCKET", "carbon_data")
 
         # Query for most recent carbon intensity data
         flux_query = f'''
@@ -630,6 +630,24 @@ async def get_current_carbon_intensity():
 
     except HTTPException:
         raise
+    except ApiException as e:
+        if e.status == 404:
+            # InfluxDB answers 404 when the bucket (or org) is unknown on this instance —
+            # carbon-intensity-service not deployed here. That is "no data", not a fault.
+            logger.info(
+                "carbon intensity unavailable: InfluxDB 404 for bucket %r (%s)",
+                carbon_bucket,
+                e.reason,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No carbon intensity source: InfluxDB has no bucket {carbon_bucket!r}",
+            ) from e
+        logger.error(f"Error getting current carbon intensity: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to query carbon intensity: {str(e)}",
+        ) from e
     except Exception as e:
         logger.error(f"Error getting current carbon intensity: {e}")
         raise HTTPException(

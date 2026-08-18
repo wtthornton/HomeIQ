@@ -73,6 +73,38 @@ class TestInfluxDBSchema:
             # Test without InfluxDB Point
             assert point is None
 
+    def test_state_fields_hold_bare_state_not_state_object_repr(self):
+        """HA delivers new_state/old_state as full state dicts; only `.state` is stored."""
+        event_data = {
+            "event_type": "state_changed",
+            "entity_id": "light.garage",
+            "new_state": {
+                "entity_id": "light.garage",
+                "state": "on",
+                "attributes": {"brightness": 200, "friendly_name": "Garage"},
+                "last_changed": "2026-08-17T10:00:00+00:00",
+            },
+            "old_state": {"entity_id": "light.garage", "state": "off", "attributes": {}},
+            "time_fired": "2026-08-17T10:00:00Z",
+        }
+        point = self.schema.create_event_point(event_data)
+        assert point is not None
+        assert point._fields["state_value"] == "on"
+        assert point._fields["previous_state"] == "off"
+
+    def test_missing_old_state_writes_no_previous_state_field(self):
+        event_data = {
+            "event_type": "state_changed",
+            "entity_id": "sensor.t",
+            "new_state": {"entity_id": "sensor.t", "state": "21.5", "attributes": {}},
+            "old_state": None,
+            "time_fired": "2026-08-17T10:00:00Z",
+        }
+        point = self.schema.create_event_point(event_data)
+        assert point is not None
+        assert point._fields["state_value"] == "21.5"
+        assert "previous_state" not in point._fields
+
     def test_create_event_point_with_weather(self):
         """Test creating event point with weather data"""
         event_data = {

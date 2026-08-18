@@ -477,6 +477,18 @@ class TestCarbonIntensityCurrent:
         assert resp.status_code == 404
         assert "No carbon intensity data" in resp.json()["detail"]
 
+    async def test_carbon_current_404_when_bucket_missing(self, client):
+        from influxdb_client.rest import ApiException
+
+        def _bucket_missing(*_args, **_kwargs):
+            raise ApiException(status=404, reason="Not Found")
+
+        mock_client, _ = _make_mock_client(query_side_effect=_bucket_missing)
+        with patch("src.energy_endpoints.get_influxdb_client", return_value=mock_client):
+            resp = await client.get("/api/v1/energy/carbon-intensity/current")
+        assert resp.status_code == 404
+        assert "bucket" in resp.json()["detail"]
+
 
 # ---------------------------------------------------------------------------
 # 8. GET /api/v1/energy/carbon-intensity/trends

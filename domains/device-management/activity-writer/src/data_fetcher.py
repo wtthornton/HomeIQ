@@ -62,6 +62,7 @@ def normalize_single_event(e: dict[str, Any]) -> dict[str, Any] | None:
         "entity_id": str(e.get("entity_id", "")),
         "timestamp": ts,
         "state_value": state_value,
+        "attributes": e.get("attributes"),
         "event_type": e.get("event_type", "state_changed"),
     }
 
@@ -72,17 +73,28 @@ def normalize_data_api_events(events: list[dict[str, Any]]) -> list[dict[str, An
 
 
 def group_influx_records(result: Any) -> list[dict[str, Any]]:
-    """Group InfluxDB records by (entity_id, time)."""
+    """Turn pivoted InfluxDB records (one row per event, `state_value` / `attributes`
+    as columns) into internal events; tolerate un-pivoted rows (`_field`/`_value`) too."""
     by_key: dict[tuple[str, str], dict[str, Any]] = {}
     for table in result:
         for record in table.records:
-            entity_id = str(record.values.get("entity_id", ""))
+            values = record.values
+            entity_id = str(values.get("entity_id", ""))
             if not entity_id:
                 continue
             t = record.get_time()
             key = (entity_id, t.isoformat())
-            if key not in by_key:
-                by_key[key] = {"entity_id": entity_id, "timestamp": t, "state_value": None}
-            if record.values.get("_field") == "state_value" and record.values.get("_value"):
-                by_key[key]["state_value"] = str(record.values["_value"])
+            event = by_key.setdefault(
+                key,
+                {"entity_id": entity_id, "timestamp": t, "state_value": None, "attributes": None},
+            )
+            if values.get("state_value"):
+                event["state_value"] = str(values["state_value"])
+            if values.get("attributes"):
+                event["attributes"] = values["attributes"]
+            field, value = values.get("_field"), values.get("_value")
+            if field == "state_value" and value:
+                event["state_value"] = str(value)
+            elif field == "attributes" and value:
+                event["attributes"] = value
     return list(by_key.values())

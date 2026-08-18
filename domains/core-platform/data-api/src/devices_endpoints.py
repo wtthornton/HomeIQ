@@ -55,6 +55,11 @@ def _get_shared_influxdb_client():
 
 
 # Response Models
+def _effective_area_column():
+    """Entity area with device-area fallback (HA leaves the entity's area NULL when inherited)."""
+    return func.coalesce(func.nullif(Entity.area_id, ""), Device.area_id)
+
+
 class DeviceResponse(BaseModel):
     """Device response model"""
 
@@ -505,118 +510,6 @@ async def list_devices(
         ) from e
 
 
-@router.get("/api/devices/{device_id}", response_model=DeviceResponse)
-async def get_device(device_id: str, db: AsyncSession = Depends(get_db)):
-    """Get device by ID - Story 22.2"""
-    try:
-        # Simple SELECT with entity count (including Phase 1.1 device intelligence fields)
-        device_columns = [
-            Device.device_id,
-            Device.name,
-            Device.manufacturer,
-            Device.model,
-            Device.sw_version,
-            Device.area_id,
-            Device.integration,
-            Device.config_entry_id,
-            Device.via_device,
-            Device.device_type,
-            Device.device_category,
-            Device.power_consumption_idle_w,
-            Device.power_consumption_active_w,
-            Device.power_consumption_max_w,
-            Device.setup_instructions_url,
-            Device.troubleshooting_notes,
-            Device.device_features_json,
-            Device.community_rating,
-            Device.last_capability_sync,
-            Device.last_seen,
-            # Phase 2-3: Device Registry 2025 Attributes (may not exist before migration)
-            Device.labels,
-            Device.serial_number,
-            Device.model_id,
-        ]
-
-        query = (
-            select(*device_columns, func.count(Entity.entity_id).label("entity_count"))
-            .outerjoin(Entity, Device.device_id == Entity.device_id)
-            .where(Device.device_id == device_id)
-            .group_by(Device.device_id)
-        )
-
-        result = await db.execute(query)
-        row = result.first()
-
-        if not row:
-            raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
-
-        # Unpack row tuple (including Phase 1.1 fields and Phase 2-3 2025 attributes)
-        (
-            device_id_col,
-            name,
-            manufacturer,
-            model,
-            sw_version,
-            area_id,
-            integration,
-            config_entry_id,
-            via_device,
-            device_type,
-            device_category,
-            power_consumption_idle_w,
-            power_consumption_active_w,
-            power_consumption_max_w,
-            setup_instructions_url,
-            troubleshooting_notes,
-            device_features_json,
-            community_rating,
-            last_capability_sync,
-            last_seen,
-            labels,
-            serial_number,
-            model_id,
-            entity_count,
-        ) = row
-
-        # Compute device status based on last_seen
-        device_status = compute_device_status(last_seen)
-
-        return DeviceResponse(
-            device_id=device_id_col,
-            name=name,
-            manufacturer=manufacturer or "Unknown",
-            model=model or "Unknown",
-            integration=integration,
-            sw_version=sw_version,
-            area_id=area_id,
-            config_entry_id=config_entry_id,
-            via_device=via_device,
-            device_type=device_type,
-            device_category=device_category,
-            power_consumption_idle_w=power_consumption_idle_w,
-            power_consumption_active_w=power_consumption_active_w,
-            power_consumption_max_w=power_consumption_max_w,
-            setup_instructions_url=setup_instructions_url,
-            troubleshooting_notes=troubleshooting_notes,
-            device_features_json=device_features_json,
-            community_rating=community_rating,
-            last_capability_sync=last_capability_sync.isoformat() if last_capability_sync else None,
-            # Phase 2-3: Device Registry 2025 Attributes
-            labels=labels if isinstance(labels, list) else None,
-            serial_number=serial_number,
-            model_id=model_id,
-            status=device_status,
-            entity_count=entity_count,
-            timestamp=last_seen.isoformat() if last_seen else datetime.now(UTC).isoformat(),
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting device {device_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve device: {str(e)}") from e
-
-
-# Epic 23.5: Device Reliability Endpoint
 @router.get("/api/devices/reliability", response_model=dict[str, Any])
 async def get_device_reliability(
     period: str = Query(default="7d", description="Time period for analysis (1d, 7d, 30d)"),
@@ -738,17 +631,22 @@ async def list_areas(db: AsyncSession = Depends(get_db)):
         return cached
 
     try:
-        # Distinct areas with entity counts
+        # Distinct areas with entity counts. HA's entity registry leaves entity.area_id
+        # NULL when the entity inherits its device's area, so the effective area is
+        # coalesce(entity.area_id, device.area_id).
+        effective_area = _effective_area_column()
         query = (
             select(
-                Entity.area_id,
+                effective_area.label("area_id"),
                 func.count(Entity.entity_id).label("entity_count"),
                 func.array_agg(func.distinct(Entity.domain)).label("domains"),
             )
-            .where(Entity.area_id.isnot(None))
-            .where(Entity.area_id != "")
-            .group_by(Entity.area_id)
-            .order_by(Entity.area_id)
+            .select_from(Entity)
+            .outerjoin(Device, Device.device_id == Entity.device_id)
+            .where(effective_area.isnot(None))
+            .where(effective_area != "")
+            .group_by(effective_area)
+            .order_by(effective_area)
         )
         result = await db.execute(query)
         rows = result.all()
@@ -824,6 +722,7 @@ async def list_entities(
     domain: str | None = Query(default=None, description="Filter by domain (light, sensor, etc)"),
     platform: str | None = Query(default=None, description="Filter by platform"),
     device_id: str | None = Query(default=None, description="Filter by device ID"),
+    area_id: str | None = Query(default=None, description="Filter by area/room ID"),
     label: list[str] | None = Query(
         default=None, description="Filter by label (JSONB containment, repeatable)"
     ),
@@ -849,7 +748,11 @@ async def list_entities(
                 limit = int(raw_query.get("limit", 100))
 
         # Build query
-        query = select(Entity)
+        # Select the effective area alongside the entity so responses carry the area the
+        # filter matches on (entity's own area_id, else its device's — see /api/areas).
+        query = select(Entity, _effective_area_column().label("effective_area")).outerjoin(
+            Device, Device.device_id == Entity.device_id
+        )
 
         # Apply filters
         if domain:
@@ -858,6 +761,8 @@ async def list_entities(
             query = query.where(Entity.platform == platform)
         if device_id:
             query = query.where(func.lower(Entity.device_id) == func.lower(device_id))
+        if area_id:
+            query = query.where(_effective_area_column() == area_id)
 
         # Story 62.2: Label filter (JSONB containment — uses GIN index)
         if label:
@@ -889,7 +794,7 @@ async def list_entities(
 
         # Execute
         result = await db.execute(query)
-        entities_data = result.scalars().all()
+        rows = result.all()
 
         # Convert to response
         entity_responses = [
@@ -899,7 +804,7 @@ async def list_entities(
                 domain=entity.domain,
                 platform=entity.platform or "unknown",
                 unique_id=entity.unique_id,
-                area_id=entity.area_id,
+                area_id=effective_area,
                 disabled=entity.disabled,
                 # Entity Registry Name Fields (2025 HA API)
                 name=entity.name,
@@ -930,7 +835,7 @@ async def list_entities(
                     else datetime.now(UTC).isoformat()
                 ),
             )
-            for entity in entities_data
+            for entity, effective_area in rows
         ]
 
         return EntitiesListResponse(
@@ -2976,6 +2881,119 @@ async def compare_devices(
     except Exception as e:
         logger.error(f"Error comparing devices: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to compare devices: {str(e)}") from e
+
+@router.get("/api/devices/{device_id}", response_model=DeviceResponse)
+async def get_device(device_id: str, db: AsyncSession = Depends(get_db)):
+    """Get device by ID - Story 22.2"""
+    try:
+        # Simple SELECT with entity count (including Phase 1.1 device intelligence fields)
+        device_columns = [
+            Device.device_id,
+            Device.name,
+            Device.manufacturer,
+            Device.model,
+            Device.sw_version,
+            Device.area_id,
+            Device.integration,
+            Device.config_entry_id,
+            Device.via_device,
+            Device.device_type,
+            Device.device_category,
+            Device.power_consumption_idle_w,
+            Device.power_consumption_active_w,
+            Device.power_consumption_max_w,
+            Device.setup_instructions_url,
+            Device.troubleshooting_notes,
+            Device.device_features_json,
+            Device.community_rating,
+            Device.last_capability_sync,
+            Device.last_seen,
+            # Phase 2-3: Device Registry 2025 Attributes (may not exist before migration)
+            Device.labels,
+            Device.serial_number,
+            Device.model_id,
+        ]
+
+        query = (
+            select(*device_columns, func.count(Entity.entity_id).label("entity_count"))
+            .outerjoin(Entity, Device.device_id == Entity.device_id)
+            .where(Device.device_id == device_id)
+            .group_by(Device.device_id)
+        )
+
+        result = await db.execute(query)
+        row = result.first()
+
+        if not row:
+            raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
+
+        # Unpack row tuple (including Phase 1.1 fields and Phase 2-3 2025 attributes)
+        (
+            device_id_col,
+            name,
+            manufacturer,
+            model,
+            sw_version,
+            area_id,
+            integration,
+            config_entry_id,
+            via_device,
+            device_type,
+            device_category,
+            power_consumption_idle_w,
+            power_consumption_active_w,
+            power_consumption_max_w,
+            setup_instructions_url,
+            troubleshooting_notes,
+            device_features_json,
+            community_rating,
+            last_capability_sync,
+            last_seen,
+            labels,
+            serial_number,
+            model_id,
+            entity_count,
+        ) = row
+
+        # Compute device status based on last_seen
+        device_status = compute_device_status(last_seen)
+
+        return DeviceResponse(
+            device_id=device_id_col,
+            name=name,
+            manufacturer=manufacturer or "Unknown",
+            model=model or "Unknown",
+            integration=integration,
+            sw_version=sw_version,
+            area_id=area_id,
+            config_entry_id=config_entry_id,
+            via_device=via_device,
+            device_type=device_type,
+            device_category=device_category,
+            power_consumption_idle_w=power_consumption_idle_w,
+            power_consumption_active_w=power_consumption_active_w,
+            power_consumption_max_w=power_consumption_max_w,
+            setup_instructions_url=setup_instructions_url,
+            troubleshooting_notes=troubleshooting_notes,
+            device_features_json=device_features_json,
+            community_rating=community_rating,
+            last_capability_sync=last_capability_sync.isoformat() if last_capability_sync else None,
+            # Phase 2-3: Device Registry 2025 Attributes
+            labels=labels if isinstance(labels, list) else None,
+            serial_number=serial_number,
+            model_id=model_id,
+            status=device_status,
+            entity_count=entity_count,
+            timestamp=last_seen.isoformat() if last_seen else datetime.now(UTC).isoformat(),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting device {device_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve device: {str(e)}") from e
+
+
+# Epic 23.5: Device Reliability Endpoint
 
 
 @router.get("/api/devices/similar/{device_id}")

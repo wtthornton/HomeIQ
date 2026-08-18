@@ -111,6 +111,11 @@ jobs:
           # all of them. Stripping --cov instead would have discarded coverage
           # signal the repo deliberately configured.
           pip install pytest pytest-asyncio pytest-timeout pytest-cov
+          # Test-only deps (respx, factories, ...) live in requirements-dev.txt where a
+          # service keeps its runtime image lean; install them when present.
+          if [ -f "domains/${{ inputs.domain_dir }}/${{ matrix.service }}/requirements-dev.txt" ]; then
+            pip install -r domains/${{ inputs.domain_dir }}/${{ matrix.service }}/requirements-dev.txt
+          fi
 
       - name: Initialize PostgreSQL schemas
         run: |

@@ -551,9 +551,8 @@ class TestListEntitiesEndpoint:
         mock_entity = _make_mock_entity()
         mock_session = AsyncMock()
         mock_result = MagicMock()
-        mock_scalars = MagicMock()
-        mock_scalars.all.return_value = [mock_entity]
-        mock_result.scalars.return_value = mock_scalars
+        # Rows are (entity, effective_area) tuples since the device-area fallback join.
+        mock_result.all.return_value = [(mock_entity, "office")]
         mock_session.execute = AsyncMock(return_value=mock_result)
 
         app = FastAPI()
@@ -563,7 +562,9 @@ class TestListEntitiesEndpoint:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get("/api/entities")
         assert resp.status_code == 200
-        assert resp.json()["count"] == 1
+        body = resp.json()
+        assert body["count"] == 1
+        assert body["entities"][0]["area_id"] == "office"
 
     @pytest.mark.asyncio
     async def test_domain_filter(self):
@@ -584,6 +585,54 @@ class TestListEntitiesEndpoint:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get("/api/entities?domain=light")
         assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_area_id_filter_is_applied_to_the_query(self):
+        """`area_id` was advertised (MCP list_entities) but silently dropped; it now filters."""
+        from src.database import get_db
+        from src.devices_endpoints import router
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = []
+        mock_result.scalars.return_value = mock_scalars
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        app = FastAPI()
+        app.include_router(router)
+        app.dependency_overrides[get_db] = _make_db_override(mock_session)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get("/api/entities?area_id=office")
+        assert resp.status_code == 200
+        sql = str(
+            mock_session.execute.call_args[0][0].compile(compile_kwargs={"literal_binds": True})
+        )
+        # Effective area: the entity's own area_id, else its device's (HA inherits it).
+        assert "coalesce" in sql.lower() and "devices" in sql.lower() and "office" in sql
+
+    @pytest.mark.asyncio
+    async def test_areas_join_devices_for_inherited_area(self):
+        from src.database import get_db
+        from src.devices_endpoints import router
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.all.return_value = []
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        app = FastAPI()
+        app.include_router(router)
+        app.dependency_overrides[get_db] = _make_db_override(mock_session)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get("/api/areas")
+        assert resp.status_code == 200
+        sql = str(
+            mock_session.execute.call_args[0][0].compile(compile_kwargs={"literal_binds": True})
+        )
+        assert "coalesce" in sql.lower() and "left outer join" in sql.lower()
 
 
 class TestGetEntityEndpoint:

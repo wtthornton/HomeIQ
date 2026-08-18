@@ -150,21 +150,6 @@ def _build_app(mock_session):
     return app
 
 
-def _build_unshadowed_app(mock_session, endpoint_fn, path, method="get"):
-    """Build a FastAPI app with a single endpoint to avoid route-shadowing.
-
-    Routes like /api/devices/health-summary are shadowed by /api/devices/{device_id}
-    (registered first in devices_endpoints.py). This helper mounts the endpoint
-    function directly so its logic can be tested in isolation.
-    """
-    from src.database import get_db
-
-    app = FastAPI()
-    getattr(app, method)(path)(endpoint_fn)
-    app.dependency_overrides[get_db] = _make_db_override(mock_session)
-    return app
-
-
 def _mock_scalars_all(mock_session, items):
     """Configure mock_session.execute to return items via scalars().all()."""
     mock_result = MagicMock()
@@ -682,14 +667,11 @@ class TestDeviceHealth:
 class TestHealthSummary:
     """GET /api/devices/health-summary
 
-    Note: This route is shadowed by /api/devices/{device_id} in production
-    (registered first in devices_endpoints.py). Tests use _build_unshadowed_app
-    to test the endpoint logic in isolation.
+    Note: Route is now correctly registered after /api/devices/{device_id}.
     """
 
     @pytest.mark.asyncio
     async def test_happy_path(self):
-        from src.devices_endpoints import get_health_summary
 
         mock_session = AsyncMock()
 
@@ -711,7 +693,7 @@ class TestHealthSummary:
             return result
 
         mock_session.execute = AsyncMock(side_effect=_multi_execute)
-        app = _build_unshadowed_app(mock_session, get_health_summary, "/api/devices/health-summary")
+        app = _build_app(mock_session)
 
         mock_health = MagicMock()
         mock_health.get_device_health = AsyncMock(
@@ -731,13 +713,11 @@ class TestHealthSummary:
 class TestMaintenanceAlerts:
     """GET /api/devices/maintenance-alerts
 
-    Note: Route shadowed by /api/devices/{device_id} in production.
-    Tests use _build_unshadowed_app.
+    Note: Route is now correctly registered after /api/devices/{device_id}.
     """
 
     @pytest.mark.asyncio
     async def test_returns_alerts(self):
-        from src.devices_endpoints import get_maintenance_alerts
 
         mock_session = AsyncMock()
 
@@ -758,9 +738,7 @@ class TestMaintenanceAlerts:
             return result
 
         mock_session.execute = AsyncMock(side_effect=_multi_execute)
-        app = _build_unshadowed_app(
-            mock_session, get_maintenance_alerts, "/api/devices/maintenance-alerts"
-        )
+        app = _build_app(mock_session)
 
         mock_health = MagicMock()
         mock_health.get_device_health = AsyncMock(
@@ -891,19 +869,15 @@ class TestDeviceEfficiency:
 class TestPowerAnomalies:
     """GET /api/devices/power-anomalies
 
-    Note: Route shadowed by /api/devices/{device_id} in production.
-    Tests use _build_unshadowed_app.
+    Note: Route is now correctly registered after /api/devices/{device_id}.
     """
 
     @pytest.mark.asyncio
     async def test_no_anomalies(self):
-        from src.devices_endpoints import get_power_anomalies
 
         mock_session = AsyncMock()
         _mock_scalars_all(mock_session, [])
-        app = _build_unshadowed_app(
-            mock_session, get_power_anomalies, "/api/devices/power-anomalies"
-        )
+        app = _build_app(mock_session)
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get("/api/devices/power-anomalies")
@@ -1232,19 +1206,15 @@ class TestEnrichEntities:
 class TestDeviceRecommendations:
     """GET /api/devices/recommendations
 
-    Note: Route shadowed by /api/devices/{device_id} in production.
-    Tests use _build_unshadowed_app.
+    Note: Route is now correctly registered after /api/devices/{device_id}.
     """
 
     @pytest.mark.asyncio
     async def test_happy_path(self):
-        from src.devices_endpoints import get_device_recommendations
 
         mock_session = AsyncMock()
         _mock_scalars_all(mock_session, [_make_mock_device()])
-        app = _build_unshadowed_app(
-            mock_session, get_device_recommendations, "/api/devices/recommendations"
-        )
+        app = _build_app(mock_session)
 
         mock_recommender = MagicMock()
         mock_recommender.recommend_devices = AsyncMock(
@@ -1262,12 +1232,9 @@ class TestDeviceRecommendations:
 
     @pytest.mark.asyncio
     async def test_missing_device_type_422(self):
-        from src.devices_endpoints import get_device_recommendations
 
         mock_session = AsyncMock()
-        app = _build_unshadowed_app(
-            mock_session, get_device_recommendations, "/api/devices/recommendations"
-        )
+        app = _build_app(mock_session)
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get("/api/devices/recommendations")
@@ -1278,20 +1245,18 @@ class TestDeviceRecommendations:
 class TestCompareDevices:
     """GET /api/devices/compare
 
-    Note: Route shadowed by /api/devices/{device_id} in production.
-    Tests use _build_unshadowed_app.
+    Note: Route is now correctly registered after /api/devices/{device_id}.
     """
 
     @pytest.mark.asyncio
     async def test_happy_path(self):
-        from src.devices_endpoints import compare_devices
 
         mock_session = AsyncMock()
 
         d1 = _make_mock_device(device_id="d1", name="Light A")
         d2 = _make_mock_device(device_id="d2", name="Light B")
         _mock_scalars_all(mock_session, [d1, d2])
-        app = _build_unshadowed_app(mock_session, compare_devices, "/api/devices/compare")
+        app = _build_app(mock_session)
 
         mock_recommender = MagicMock()
         mock_recommender.compare_devices.return_value = {
@@ -1306,10 +1271,9 @@ class TestCompareDevices:
 
     @pytest.mark.asyncio
     async def test_less_than_2_ids(self):
-        from src.devices_endpoints import compare_devices
 
         mock_session = AsyncMock()
-        app = _build_unshadowed_app(mock_session, compare_devices, "/api/devices/compare")
+        app = _build_app(mock_session)
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get("/api/devices/compare?device_ids=d1")
@@ -1318,11 +1282,10 @@ class TestCompareDevices:
 
     @pytest.mark.asyncio
     async def test_not_all_found(self):
-        from src.devices_endpoints import compare_devices
 
         mock_session = AsyncMock()
         _mock_scalars_all(mock_session, [_make_mock_device(device_id="d1")])  # only 1 found
-        app = _build_unshadowed_app(mock_session, compare_devices, "/api/devices/compare")
+        app = _build_app(mock_session)
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             resp = await c.get("/api/devices/compare?device_ids=d1,d2")
@@ -1547,18 +1510,14 @@ class TestDeviceHierarchy:
 class TestDeviceReliability:
     """GET /api/devices/reliability
 
-    Note: Route shadowed by /api/devices/{device_id} in production.
-    Tests use _build_unshadowed_app.
+    Note: Route is now correctly registered after /api/devices/{device_id}.
     """
 
     @pytest.mark.asyncio
     async def test_happy_path(self):
-        from src.devices_endpoints import get_device_reliability
 
         mock_session = AsyncMock()
-        app = _build_unshadowed_app(
-            mock_session, get_device_reliability, "/api/devices/reliability"
-        )
+        app = _build_app(mock_session)
 
         mock_query_api = MagicMock()
         mock_query_api.query.return_value = []
@@ -1578,12 +1537,9 @@ class TestDeviceReliability:
 
     @pytest.mark.asyncio
     async def test_custom_params(self):
-        from src.devices_endpoints import get_device_reliability
 
         mock_session = AsyncMock()
-        app = _build_unshadowed_app(
-            mock_session, get_device_reliability, "/api/devices/reliability"
-        )
+        app = _build_app(mock_session)
 
         mock_query_api = MagicMock()
         mock_query_api.query.return_value = []
@@ -1657,3 +1613,240 @@ class TestClearDevices:
         assert resp.status_code == 200
         assert resp.json()["devices_deleted"] == 0
         assert resp.json()["entities_deleted"] == 0
+
+
+# ===========================================================================
+# Regression Tests: Formerly-Shadowed Routes (TAP-6071)
+# ===========================================================================
+
+
+class TestNonShadowedStaticRoutes:
+    """Regression tests for routes that were shadowed by /api/devices/{device_id}.
+
+    These tests verify that the following static routes are no longer shadowed
+    after moving get_device to after all static single-segment routes:
+    - /api/devices/reliability
+    - /api/devices/health-summary
+    - /api/devices/maintenance-alerts
+    - /api/devices/power-anomalies
+    - /api/devices/recommendations
+    - /api/devices/compare
+
+    The key verification: these routes should NOT return 404 (which would indicate
+    they're being matched by /api/devices/{device_id}). Instead they should return
+    200 with their respective response structures.
+    """
+
+    @pytest.mark.asyncio
+    async def test_reliability_endpoint_not_shadowed(self):
+        """GET /api/devices/reliability returns 200 (not 404)."""
+        mock_session = AsyncMock()
+        app = _build_app(mock_session)
+
+        with patch("src.devices_endpoints._get_shared_influxdb_client"):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+                resp = await c.get("/api/devices/reliability")
+
+        # Critical assertion: Should return 200, not 404 from get_device
+        assert resp.status_code == 200
+        data = resp.json()
+        # Verify it's the reliability response, not a device 404
+        assert "period" in data
+        assert "group_by" in data
+        assert "timestamp" in data
+
+    @pytest.mark.asyncio
+    async def test_health_summary_endpoint_not_shadowed(self):
+        """GET /api/devices/health-summary returns 200 (not 404)."""
+        mock_session = AsyncMock()
+
+        # Mock devices list for health summary
+        device1 = _make_mock_device(device_id="d1")
+        device2 = _make_mock_device(device_id="d2")
+
+        call_count = 0
+
+        async def _multi_execute(query, *args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            result = MagicMock()
+            mock_scalars = MagicMock()
+            if call_count == 1:
+                mock_scalars.all.return_value = [device1, device2]
+            else:
+                mock_scalars.all.return_value = []
+            result.scalars.return_value = mock_scalars
+            return result
+
+        mock_session.execute = AsyncMock(side_effect=_multi_execute)
+
+        mock_health = MagicMock()
+        mock_health.get_device_health = AsyncMock(
+            return_value={"overall_status": "healthy", "issues": []}
+        )
+
+        app = _build_app(mock_session)
+
+        with patch("src.devices_endpoints.get_health_service", return_value=mock_health):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+                resp = await c.get("/api/devices/health-summary")
+
+        # Critical assertion: Should return 200, not 404 from get_device
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "total_devices" in data
+        assert "timestamp" in data
+
+    @pytest.mark.asyncio
+    async def test_maintenance_alerts_endpoint_not_shadowed(self):
+        """GET /api/devices/maintenance-alerts returns 200 (not 404)."""
+        mock_session = AsyncMock()
+
+        # Mock devices list for maintenance alerts
+        device1 = _make_mock_device(device_id="d1")
+
+        call_count = 0
+
+        async def _multi_execute(query, *args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            result = MagicMock()
+            mock_scalars = MagicMock()
+            if call_count == 1:
+                mock_scalars.all.return_value = [device1]
+            else:
+                mock_scalars.all.return_value = []
+            result.scalars.return_value = mock_scalars
+            return result
+
+        mock_session.execute = AsyncMock(side_effect=_multi_execute)
+        app = _build_app(mock_session)
+
+        mock_health = MagicMock()
+        mock_health.get_device_health = AsyncMock(return_value={"issues": []})
+
+        with patch("src.devices_endpoints.get_health_service", return_value=mock_health):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+                resp = await c.get("/api/devices/maintenance-alerts")
+
+        # Critical assertion: Should return 200, not 404 from get_device
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "alerts" in data
+        assert "timestamp" in data
+
+    @pytest.mark.asyncio
+    async def test_power_anomalies_endpoint_not_shadowed(self):
+        """GET /api/devices/power-anomalies returns 200 (not 404)."""
+        mock_session = AsyncMock()
+
+        # Mock for power anomalies
+        device1 = _make_mock_device(
+            device_id="d1", power_consumption_active_w=100.0, power_consumption_idle_w=10.0
+        )
+        device2 = _make_mock_device(
+            device_id="d2", power_consumption_active_w=50.0, power_consumption_idle_w=5.0
+        )
+
+        call_count = 0
+
+        async def _multi_execute(query, *args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            result = MagicMock()
+            mock_scalars = MagicMock()
+            if call_count == 1:
+                mock_scalars.all.return_value = [device1, device2]
+            else:
+                mock_scalars.all.return_value = []
+            result.scalars.return_value = mock_scalars
+            return result
+
+        mock_session.execute = AsyncMock(side_effect=_multi_execute)
+        app = _build_app(mock_session)
+
+        with patch("src.devices_endpoints._get_shared_influxdb_client"):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+                resp = await c.get("/api/devices/power-anomalies")
+
+        # Critical assertion: Should return 200, not 404 from get_device
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "anomalies" in data
+        assert "timestamp" in data
+
+    @pytest.mark.asyncio
+    async def test_recommendations_endpoint_not_shadowed(self):
+        """GET /api/devices/recommendations returns 200 (not 404)."""
+        mock_session = AsyncMock()
+
+        # Mock devices for recommendations
+        device1 = _make_mock_device(device_id="d1", device_type="light")
+        device2 = _make_mock_device(device_id="d2", device_type="sensor")
+
+        call_count = 0
+
+        async def _multi_execute(query, *args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            result = MagicMock()
+            mock_scalars = MagicMock()
+            mock_scalars.all.return_value = [device1, device2]
+            result.scalars.return_value = mock_scalars
+            return result
+
+        mock_session.execute = AsyncMock(side_effect=_multi_execute)
+        app = _build_app(mock_session)
+
+        mock_recommender = MagicMock()
+        mock_recommender.recommend_devices = AsyncMock(return_value=[])
+
+        with patch(
+            "src.devices_endpoints.get_recommender_service", return_value=mock_recommender
+        ):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+                # Note: device_type is a required query parameter
+                resp = await c.get("/api/devices/recommendations?device_type=light")
+
+        # Critical assertion: Should return 200, not 404 from get_device
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "recommendations" in data
+        assert "timestamp" in data
+
+    @pytest.mark.asyncio
+    async def test_compare_endpoint_not_shadowed(self):
+        """GET /api/devices/compare returns 200 (not 404)."""
+        mock_session = AsyncMock()
+
+        # Mock devices for comparison
+        device1 = _make_mock_device(device_id="d1", name="Device 1")
+        device2 = _make_mock_device(device_id="d2", name="Device 2")
+
+        call_count = 0
+
+        async def _multi_execute(query, *args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            result = MagicMock()
+            mock_scalars = MagicMock()
+            mock_scalars.all.return_value = [device1, device2]
+            result.scalars.return_value = mock_scalars
+            return result
+
+        mock_session.execute = AsyncMock(side_effect=_multi_execute)
+        app = _build_app(mock_session)
+
+        mock_recommender = MagicMock()
+        mock_recommender.compare_devices = MagicMock(
+            return_value={"devices": [device1, device2], "comparison": {}}
+        )
+
+        with patch(
+            "src.devices_endpoints.get_recommender_service", return_value=mock_recommender
+        ):
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+                resp = await c.get("/api/devices/compare?device_ids=d1,d2")
+
+        # Critical assertion: Should return 200, not 404 from get_device
+        assert resp.status_code == 200

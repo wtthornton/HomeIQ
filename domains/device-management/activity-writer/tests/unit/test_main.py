@@ -84,8 +84,8 @@ def test_parse_state_from_value_with_attrs() -> None:
 
 
 def test_parse_state_from_value_invalid() -> None:
-    """Invalid string returns all None."""
-    assert parse_state_value("not valid python") == (None, None, None, None)
+    """A non-repr string is a bare HA state (any string can be one), with no attributes."""
+    assert parse_state_value("not valid python") == ("not valid python", None, None, None)
 
 
 # ---------------------------------------------------------------------------

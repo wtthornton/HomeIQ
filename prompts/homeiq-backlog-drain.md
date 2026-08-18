@@ -38,23 +38,25 @@ Land the two surviving ha-init-agent recipes (TAP-5431, TAP-5430), burn the
 order — MCP surface → genome/safety gate → HA front door → destructive
 data-plane collapse — every closure carrying independent-verifier evidence.
 
-## The live backlog (read 2026-08-13 evening via `linear-read` — 50 open)
+## The live backlog (re-read 2026-08-17 via `linear-read` — 46 open after Phase 0 triage; plan: `docs/planning/backlog-implementation-plan-2026-08-17.md`)
 
 | Sub-goal | Group | Open issues (priority) |
 |---|---|---|
-| 1 | P0 resume — TAP-5431 (M) | Local Calendar config entry · Powercalc via HACS (unblocked) · power-sensor template aliases |
-| 2 | TAP-5430 (H) | recorder + http hardening recipes ONLY (automation editor already delivered — acceptance box checked on the ticket) |
-| 3 | Follow-up defect batch (filed 2026-08-13) | **6036 (H — committed creds in tracked env files)** · 6034 (H — wizard page wiring) · 6035 (M — DNS-rebinding guard) · 6037 (M — libs test suites never run in CI) |
-| 4 | Wave 8 — MCP server, epic TAP-5282 (**Urgent**) | 5292 (U) · 5293 (U) · 5294 (U) · 5295 (U) · 5296 (U) · 5297 (H) |
-| 5 | Wave 9a — genome, epic TAP-5285 (H) | 5311 · 5312 · **5313 (U)** · 5314 · 5315 · 5316 · 5317 · **5318 (U)** |
-| 6 | Wave 9b — safety gate, epic TAP-5286 (H) | **5319 (U)** · **5320 (U)** · 5321 (H) · **5322 (U)** · 5323 (M) · 5325 (M) |
-| 7 | Wave 10 — HA integration, epic TAP-5284 (H) | 5305 · 5306 · 5307 · 5308 (H) · 5309 (M) · 5310 (H) |
-| 8 | Wave 11 — data-plane collapse, epic TAP-5283 (**In Progress**) — destructive, last | **5298 (U)** · 5299 · 5300 (started) · 5301 · 5302 (started) · 5303 (M) · 5304 (M) · 5910 |
-| standing | Wave 4 — office presence physical, epic TAP-5977 (H), HUMAN-BLOCKED | 5978 · 5979 · 5980 · 6018 (FP1E custom quirk) — re-check once per run, then skip |
+| 1 | P0 resume — TAP-5431 (M) | **DONE 2026-08-13** (PR #83 merged 2026-08-18) |
+| 2 | TAP-5430 (H) | recorder + http hardening recipes ONLY — owner Decision A (agent SSH credential in `core_ssh`); shares its blocker with 6018 |
+| 3 | Follow-up defect batch (filed 2026-08-13) | **all DONE** (6034 · 6035 · 6036 · 6037) |
+| 4 | Wave 8 — MCP server, epic TAP-5282 (**Urgent**) | 5292 **DONE** · **6071 (H, first — unblocks `detect_anomalies`)** · 5293 (U) · 5294 (U) · 5295 (U, tools 14/15 deferred — Decision E) · 5296 (U) · 5297 (H) |
+| 5 | Wave 9a — genome, epic TAP-5285 (H) | 5311 · **5318 (U, pull forward — every gene lands through the pipeline)** · 5312 · **5313 (U)** · 5319/5316 · 5314 · 5315 · 5317 |
+| 6 | Wave 9b — safety gate, epic TAP-5286 (H) | **5320 (U)** · 5321 (H) · 5323 (M) · 5325 (M) · **6102 (H, cutover) → 5322 (U)** |
+| 6.5 | Wave 11a — evidence-backed deletions, epic TAP-5283 (Decision D: **before** Wave 10) | 5910 (absorbs 5300 + 5298 deletion half) · 5303 (M) · then 6103 (CI debt) |
+| 7 | Wave 10 — HA integration, epic TAP-5284 (H) | 5305 · 5306 · 5307 · 5308 (H) · 5309 (M) · 5310 (H) · 5304 (M, last) |
+| 8 | Wave 11b — consolidations, epic TAP-5283 — destructive, last | 5299 · 5301 |
+| standing | Wave 4 — office presence, epic TAP-5977 (H) | 6018 (**agent-workable quirk**, file drop needs Decision A) → 5979 (human) → 5978 (human) → 5980 · re-check 6018 once per run |
+| anytime | small | 6066 (M, libs undeclared imports) |
 
-12 open issues are **Urgent** (5292–5296, 5298, 5313, 5318–5320, 5322, plus epic
-5282). Closed work is closed: epics 5281/5942/5405/5413/5973/5981/5985 and every
-defect listed in the header are Done with evidence on the tickets — never reopen.
+Canceled as duplicates of 5910 on 2026-08-17: 5298, 5300, 5302 (see comments).
+Closed work is closed: epics 5281/5942/5405/5413/5973/5981/5985 and every
+defect above are Done with evidence on the tickets — never reopen.
 
 ## Done-when (ground truth, not narration)
 
@@ -215,11 +217,11 @@ the rest.
      upstream and out of scope).
    - Each: fix-with-evidence or re-scope-with-reason via `linear-issue`.
 
-4. **Wave 8 — MCP server (epic TAP-5282, Urgent; 5292→5297 in id order).**
-   Required lookup before code: MCP server SDK docs. The tool catalogue + JSON
-   schemas (5292) gate everything downstream — design them in-session at
-   frontier quality. Reconcile the TAP-5298 / TAP-5322 credential-move duplicate
-   **before** Wave 9: decide the owner, note it on the other, do it once.
+4. **Wave 8 — MCP server (epic TAP-5282, Urgent; 6071 → 5293 → 5294 → 5295 →
+   5296 → 5297).** Required lookup before code: MCP server SDK docs. The
+   catalogue + schema (5292, v1.1.1 NORMATIVE at `docs/mcp/`) gate everything
+   downstream; bump to v1.2.0 marking tools 14/15 `deferred` (Decision E).
+   Credential-move duplicate is reconciled: 5322 owns it, gated on 6102.
 
 5. **Wave 9a — genome (epic TAP-5285; 5311–5318).** AF workflow traps apply
    (see Guardrails research grant). Offline kit validation is the evidence.
@@ -230,12 +232,16 @@ the rest.
 7. **Wave 10 — HA integration (epic TAP-5284; 5305–5310).** Installing on live
    HA is an apply — gateway path or hard-stop.
 
-8. **Wave 11 — data-plane collapse (epic TAP-5283; 5298–5304, 5910) —
-   destructive, last.** 5300/5302 are already In Progress — read their current
-   state before continuing them. Never delete a service before a pasted call
-   proves its capability reachable elsewhere; each deletion is an Autonomy
-   hard-stop. Container target ≤15 and ≥8 with every retirement
-   capability-proven.
+6.5. **Wave 11a — evidence-backed deletions (TAP-5910 → 5303 → 6103) —
+   runs after Wave 8 and BEFORE Wave 10 (Decision D).** 5298/5300/5302 are
+   canceled into 5910. Never delete a service before a pasted call proves its
+   capability reachable elsewhere (or an explicit "no capability" finding);
+   each deletion is an Autonomy hard-stop. 5910's evidence table needs a
+   per-service "re-homed in / dropped" column (ai-core-service orphans four ML
+   services → 5301).
+
+8. **Wave 11b — consolidations (epic TAP-5283; 5299, 5301) — destructive,
+   last.** Container target ≤15 and ≥8 with every retirement capability-proven.
 
 ## Plane map (mechanism + literal dispatch parameters per chunk)
 

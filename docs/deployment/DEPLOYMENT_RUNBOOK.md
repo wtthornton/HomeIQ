@@ -985,6 +985,32 @@ docker compose logs | grep -i error
 
 ---
 
+### Schema resolution after homeiq-data ≥ 2.0.0 (2026-08-18)
+
+`homeiq_data.create_pg_engine` now sets `search_path` outside a transaction, so
+each service resolves unqualified table names in **its own** schema
+(`DATABASE_SCHEMA`, then `public`) instead of falling back to the role default
+`public, core, automation, ...`. Before the fix the SET was silently undone by the
+pool's rollback-on-return, and services whose table names collide with `core`
+(device-intelligence's `devices`) were reading `core.devices` and 500ing.
+
+Deploy note: services that never populated their own schema will now honestly
+return empty results instead of another schema's rows. Known case:
+`devices.devices` (device-intelligence) is empty until its discovery/sync runs —
+`GET /api/health/scores` and `/api/predictions/failures` answer `[]` rather than
+500. Verify per service after deploy:
+
+```bash
+docker exec homeiq-postgres psql -U homeiq -d homeiq -At \
+  -c "select count(*) from devices.devices; select count(*) from core.devices;"
+```
+
+New homeiq-mcp (`:8050`) needs `HOMEIQ_MCP_READ_TOKENS` in `.env` (compose refuses to
+start without it); publish address via `HOMEIQ_MCP_BIND` (default `0.0.0.0`; pin to the
+docker gateway AgentForge dials to keep it off the LAN). Rotate a token by editing the
+CSV, restarting `homeiq-mcp`, then updating the AgentForge vault entry
+`HOMEIQ_MCP_AUTHORIZATION` (scope `project:homeiq`).
+
 ## Rollback Procedure
 
 ### Automatic Rollback

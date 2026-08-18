@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from homeiq_data import validate_database_url
-from homeiq_data.database_pool import get_database_url
+from homeiq_data.database_pool import apply_search_path, get_database_url, validate_schema_name
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, create_engine, event
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -92,11 +92,12 @@ class SpecRegistry:
             pool_pre_ping=True,
         )
 
+        schema = validate_schema_name(_schema)
+
         @event.listens_for(self.engine, "connect")
         def set_search_path(dbapi_conn, _connection_record):
-            cursor = dbapi_conn.cursor()
-            cursor.execute(f"SET search_path TO {_schema}, public")
-            cursor.close()
+            # Outside a transaction (autocommit) so the pool's rollback-on-return cannot undo it.
+            apply_search_path(dbapi_conn, schema)
 
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
 

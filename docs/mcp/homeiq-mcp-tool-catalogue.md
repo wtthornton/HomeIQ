@@ -5,7 +5,39 @@
 integration. Changing a shape here is a contract change: bump `catalogue_version`
 and update the contract tests (TAP-5297) in the same commit.
 
-**catalogue_version:** 1.1.1
+**catalogue_version:** 1.2.3
+
+**v1.2.3 changes (2026-08-18):** `trace_automation` carries an honesty caveat —
+ingestion stores `context_id` but not `context_parent_id`, so chains resolve
+empty on live data until TAP-6107 lands. `list_entities` rows carry the
+effective area.
+
+**v1.2.2 changes (2026-08-18, verifier round 2):** `trace_automation.chain`
+`maxItems` 100 (`max_depth` bounds levels; upstream emits up to 100 events per
+level; the 16 KB budget bounds size). `get_entity_history` drops the never-emitted
+`points[].value`. `list_areas` / `list_entities(area_id)` use the effective area
+(entity area, else its device's — HA leaves inherited entity areas null; before
+this, both answered empty for every area). `list_synergies.area` is applied after
+the upstream limit.
+
+**v1.2.1 changes (2026-08-18, verifier round):** id inputs that reach an upstream URL
+path (`device_id`, `automation_id`, `context_id`, `entity_id`) carry a strict
+charset `pattern` and the server percent-encodes them (a `../` id must never steer
+the server's authenticated request). `detect_anomalies` drops `hours` (neither
+backing honours a window). `search_events.hours` max is 72 (data-api's search
+times out beyond that). `downsample_minutes` is first-observed-per-bucket, not
+a mean. Error code set drops the unused `truncated_upstream`. `kind=power`
+anomalies and `get_energy_summary.top_consumers` are empty until TAP-5301
+provides the energy-correlator data they read.
+
+**v1.2.0 changes (2026-08-17, TAP-5293/TAP-5295):** tools 14 `get_energy_correlations`
+and 15 `get_device_energy_impact` are `status: deferred` (owner Decision E —
+their backing `energy-correlator` has never written a correlation, TAP-5910; the
+server does not register deferred tools; they return when TAP-5301 provides a
+live power-delta source). Every list-returning output schema now declares
+optional `truncated` + `hint`, so the server can honour design rule 2 under
+`additionalProperties: false`. Error code set gains `contract_violation` (see
+server-level notes).
 
 **Normative schemas:** `docs/mcp/homeiq-mcp-tools.schema.json` — every tool's
 full JSON Schema (draft 2020-12, metaschema-validated) lives there; this
@@ -24,7 +56,9 @@ tools. On any divergence, the JSON file wins.
    history tools return row-level data, and both are hard-capped. Every tool
    declares `max_response_bytes`; the server truncates at the cap and sets
    `"truncated": true` plus a `"hint"` naming the narrowing parameter — agent
-   context is the scarce resource this protects.
+   context is the scarce resource this protects. Both fields are declared on
+   every list-returning output schema (v1.2.0); `hint` is present only when
+   `truncated` is true.
 3. **Typed schemas, no free-form URLs.** Inputs and outputs are JSON Schema
    (draft 2020-12). No tool accepts a path, URL, or Flux/SQL fragment.
 4. **Time is explicit.** Range inputs are `hours` (integer, bounded) or RFC3339
@@ -56,7 +90,7 @@ without changing these contracts.
 
 ---
 
-## Tool catalogue — 17 tools
+## Tool catalogue — 17 tools (15 active, 2 deferred in v1.2.0)
 
 ### Group 1 — Entity history & events (data-api)
 
@@ -73,7 +107,7 @@ Entity state history over a bounded window, optionally downsampled. Time precede
    "start_time": {"type": "string", "format": "date-time"},
    "end_time": {"type": "string", "format": "date-time"},
    "downsample_minutes": {"type": "integer", "minimum": 0, "maximum": 1440, "default": 0,
-     "description": "0 = raw rows (capped); N = mean per N-minute bucket"},
+     "description": "0 = raw rows (capped); N = first observed point per N-minute bucket"},
    "limit": {"type": "integer", "minimum": 1, "maximum": 500, "default": 500}},
  "required": ["entity_id"]}
 ```
@@ -96,7 +130,7 @@ Entity state history over a bounded window, optionally downsampled. Time precede
 Text search over stored HA events (entity ids and event types).
 - **Backing:** data-api `POST /api/v1/events/search` (TAP-5997 hardened path)
 - **Annotations:** `readOnlyHint: true` · **Budget:** 32 KB / 200 events
-- **Input:** `{query: string (1..200 chars, required), hours: int 1..8760 = 24, limit: int 1..200 = 50}`
+- **Input:** `{query: string (1..200 chars, required), hours: int 1..72 = 24, limit: int 1..200 = 50}`
 - **Output:** `{events: [{t, entity_id, event_type, old_state?, new_state?}], count, truncated}`
 
 #### 3. `get_recent_events`
@@ -187,14 +221,14 @@ Whole-home energy snapshot: current, daily, peak, top consumers.
 - **Input:** `{top_n: int 1..20 = 10}`
 - **Output:** `{current_power_w, daily_kwh, peak_power_w, peak_time?, average_power_w, top_consumers: [{entity_id, average_power_on_w, estimated_daily_kwh}], carbon?: {grams_per_kwh, source}}`
 
-#### 14. `get_energy_correlations`
+#### 14. `get_energy_correlations` — **DEFERRED (v1.2.0, Decision E)**
 State-change ↔ power-delta correlations (the energy-correlator's output).
 - **Backing:** data-api `GET /api/v1/energy/correlations`
 - **Annotations:** `readOnlyHint: true` · **Budget:** 32 KB / 200 rows
 - **Input:** `{entity_id?, domain?, hours: int 1..168 = 24, min_delta_w: number >= 0 = 5, limit: int 1..200 = 100}`
 - **Output:** `{correlations: [{t, entity_id, domain, state, previous_state?, power_delta_w, power_delta_pct?}], count, truncated}`
 
-#### 15. `get_device_energy_impact`
+#### 15. `get_device_energy_impact` — **DEFERRED (v1.2.0, Decision E)**
 Per-device consumption estimate derived from correlations.
 - **Backing:** data-api `GET /api/v1/energy/device-impact/{entity_id}`
 - **Annotations:** `readOnlyHint: true` · **Budget:** 4 KB
@@ -213,12 +247,12 @@ Health scores: fleet summary or one device with factor breakdown and trend.
 #### 17. `detect_anomalies`
 Anomaly surface across the two production detectors: power anomalies and
 predicted device failures.
-- **Backing:** data-api `GET /api/devices/power-anomalies` **(currently SHADOWED
-  in production by the `/api/devices/{device_id}` matcher registered first —
-  TAP-6071 must land before TAP-5294 implements `kind: power`)** +
+- **Backing:** data-api `GET /api/devices/power-anomalies` (route un-shadowed by
+  TAP-6071; its actual-power source is the energy-correlator pipeline that has
+  never written a row, so `power_anomalies` is `[]` until TAP-5301) +
   device-intelligence `GET /api/predictions/failures`
 - **Annotations:** `readOnlyHint: true` · **Budget:** 32 KB / 100 rows
-- **Input:** `{kind: enum["power","failure_risk","all"] = "all", hours: int 1..168 = 24, min_probability: number 0..1 = 0.5, risk_level?: enum["low","medium","high"], limit: int 1..100 = 50}`
+- **Input:** `{kind: enum["power","failure_risk","all"] = "all", min_probability: number 0..1 = 0.5, risk_level?: enum["low","medium","high"], limit: int 1..100 = 50}`
 - **Output:** `{power_anomalies?: [{entity_id, t, observed_w, expected_w?, severity}], failure_predictions?: [{device_id, failure_probability, risk_level, top_recommendation?}], counts: {power: integer, failure_risk: integer}, truncated}`
 - Note: ai-pattern-service also carries an ML anomaly router
   (`anomaly/routes.py`), but it is **not registered** in that app today —
@@ -233,7 +267,7 @@ predicted device failures.
 |---|---|---|
 | get_entity_history | 64 KB | 500 |
 | search_events / get_recent_events | 32 KB | 200 |
-| trace_automation | 16 KB | depth 10 |
+| trace_automation | 16 KB | 100 rows (depth ≤ 10) |
 | list_devices | 48 KB | 300 |
 | get_device | 24 KB | 500 entities |
 | list_entities | 48 KB | 500 |
@@ -293,12 +327,22 @@ is the capability no other MCP surface has.
 
 ## Server-level contract notes (for TAP-5293)
 
-- Transport: streamable-http (`mcp` Python SDK, `MCPServer(...).streamable_http_app()`), mounted at `/mcp`; `/health` beside it.
+- Transport: streamable-http (`mcp` Python SDK low-level `Server` + `StreamableHTTPSessionManager`, JSON responses, stateless) at the exact route `/mcp`; `/health` beside it. The low-level server is used so `list_tools` serves this catalogue's schemas verbatim.
 - Auth: bearer token required (LAN-internal); tools themselves carry no auth
   parameters.
 - Errors: tool errors return MCP tool-error content with a `code` from
-  `{backing_unavailable, invalid_input, not_found, truncated_upstream}` —
-  never a raw upstream traceback.
+  `{backing_unavailable, invalid_input, not_found, contract_violation}` — never
+  a raw upstream traceback. `contract_violation`
+  is raised when a backing's response cannot be projected into the tool's
+  output schema (a server-side defect, surfaced instead of shipping an
+  off-contract payload).
+- Auth model: `/mcp` requires `Authorization: Bearer <token>`; tokens come from
+  `HOMEIQ_MCP_READ_TOKENS` (read scope) and `HOMEIQ_MCP_WRITE_TOKENS` (read +
+  mutate). `/health` is unauthenticated. Mutating tools additionally require the
+  per-tool grant `HOMEIQ_MCP_ALLOW_WRITES` (design rule 1). Stdio transport is
+  process-local and unauthenticated; the write grant still applies.
+- Deferred tools (`status: deferred` in the JSON) are not registered and are
+  invisible to `list_tools`; contract tests assert this.
 - Registration: AgentForge overlay MCP registry (TAP-5296), server name
   `homeiq` — genes declare `mcp_servers: [homeiq]` and must be published via
   `install-from-yaml` (the plain agents endpoint drops the list).
