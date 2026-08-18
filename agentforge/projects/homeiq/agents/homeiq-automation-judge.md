@@ -20,6 +20,7 @@ approved: true
 allowed_tools: ''
 mcp_servers: []
 risk_level: medium
+max_budget_usd: 0.3
 role: judge
 failure_mode: required
 capability:
@@ -27,6 +28,72 @@ capability:
   object: quality-verdict
   modality: structured
 output_schema: '{"type":"object","properties":{"pass":{"type":"boolean"},"score":{"type":"number","minimum":0,"maximum":100},"confidence":{"type":"number","minimum":0,"maximum":1},"findings":{"type":"array","items":{"type":"object","properties":{"severity":{"type":"string","enum":["critical","high","medium","low"]},"dimension":{"type":"string","enum":["correctness","safety","extensibility","schema"]},"finding":{"type":"string"},"recommendation":{"type":"string"}},"required":["severity","dimension","finding","recommendation"],"additionalProperties":false}}},"required":["pass","score","confidence","findings"],"additionalProperties":false}'
+golden_cases:
+- id: verdict-shape
+  shape_only_because: >-
+    conformance only, on a minimal automation. The verdicts this gene must reach are asserted
+    in the behaviour cases.
+  prompt: >-
+    Judge this minimal Home Assistant automation YAML against an inventory with light.garage, 
+    sensor.presence_garage, and area garage.
+    Automation: `triggers: []; conditions: []; actions: []`
+  trials: 5
+  pass_threshold: 1.0
+  assertions:
+  - kind: output_schema_valid
+  - kind: guardrails_clean
+- id: missing-entity-blocks
+  prompt: >-
+    Inventory: areas [office, garage, patio]; entities [light.garage, light.office, 
+    sensor.presence_garage, sensor.presence_office]; devices in those areas.
+    
+    Requirement: presence-based lighting for garage.
+    
+    Authored automation: presence trigger on sensor.presence_garage, turn on light.missing 
+    (entity absent from inventory).
+  trials: 5
+  pass_threshold: 1.0
+  assertions:
+  - kind: output_schema_valid
+  - kind: guardrails_clean
+  - kind: rubric
+    rubric: >-
+      pass is false with at least one critical/correctness finding that names the missing 
+      entity light.missing as absent from the inventory. The automation references an entity 
+      not in the supplied inventory, which is correctness-critical and must block. 
+      Score only the properties this criterion names; a defect in anything else is outside 
+      this criterion and is not grounds for a deduction.
+    threshold: 0.9
+    judge_model: opus
+    require_cross_family: true
+- id: correct-presence-automation-passes
+  prompt: >-
+    Inventory: areas [office, garage]; entities [light.garage, light.office, 
+    sensor.presence_garage (binary_sensor group), sensor.manual_off_garage]; 
+    no other presence sources.
+    
+    Requirement: turn on light.garage when presence detected (any sensor on), 
+    turn off after 5 minutes all-clear, respect manual-off.
+    
+    Authored automation (modern HA 2026.x): triggers [state change on sensor.presence_garage 
+    to 'on']; conditions []; actions [turn_on light.garage]. With second automation for 
+    turn_off via delay and all-clear check. design_notes state fusion on group, 5m delay, 
+    manual-off respected via trigger not re-firing while manual-off active.
+  trials: 5
+  pass_threshold: 1.0
+  assertions:
+  - kind: output_schema_valid
+  - kind: guardrails_clean
+  - kind: rubric
+    rubric: >-
+      pass is true with zero critical findings. The automation implements the requirement 
+      correctly: presence source is inventory entity, exit delay and all-clear logic present, 
+      manual-override mechanism stated and correct, no missing entities. Every finding 
+      (if any) is low/medium only. Score only the properties this criterion names; 
+      a defect in anything else is outside this criterion and is not grounds for a deduction.
+    threshold: 0.9
+    judge_model: opus
+    require_cross_family: true
 memory_footprint:
   recall_topics:
   - homeiq-ha-automation

@@ -1,0 +1,110 @@
+---
+name: home-atlas
+description: Home structural ground truth — 18 areas, key entity groups, naming conventions, integration inventory (ZHA via SLZB-06P7, Hue, Powercalc, local calendar), and manifest authority. Reference is config/ha-organization-manifest.yaml.
+version: 1.0.0
+allowed_tools: ""
+---
+# Home Atlas — Structural Ground Truth
+
+Genes that resolve entities, explain anomalies, or draft automations consult this skill to understand the home's physical structure, organization, and integration topology. This skill is read-only and normative — `config/ha-organization-manifest.yaml` is the system of record.
+
+## Areas (18)
+
+The home has these 18 areas. Entity area assignment is managed in the manifest; this list is the ground truth for naming and topology.
+
+| Area ID | Friendly Name | Notes |
+|---------|---------------|-------|
+| `backyard` | Backyard | Outdoor space; has motion/temperature sensors |
+| `bar` | Bar | WLED controller present |
+| `dining_room` | Dining Room | TV and lighting |
+| `driveway` | Driveway | Outdoor; monitored space |
+| `family_room` | Family Room | TV and seating area |
+| `garage` | Garage | Door control; motion/temp sensors; WLED controller |
+| `garage_hallway` | Garage Hallway | Transitional space; lighting only |
+| `guest_room` | Guest Room | TV and lighting; guest-specific automations |
+| `hallway` | Hallway | Interior circulation; motion detection |
+| `kitchen` | Kitchen | TV (50" Frame); WLED controller; power-intensive appliances |
+| `living_room` | Living Room | Primary entertaining space; TV; Hue lighting groups; button/dial |
+| `master_bedroom` | Master Bedroom | Hue lighting; smart button |
+| `masters_closet` | Masters Closet | Storage; minimal automation |
+| `office` | Office | TV; Hue downlights; Go light; occupancy sensor |
+| `patio` | Patio | Outdoor; Hue downlights; no automation triggers |
+| `porch` | Porch | Front/back transitions; Hue downlights |
+| `stairs` | Stairs | Circulation; lighting automation |
+
+## Removed Areas
+
+These areas were empty and have been removed from the manifest (owner decision 2026-08-12):
+
+- `bedroom` — legacy duplicate of `master_bedroom`
+- `tv` — Hue zone import artifact; devices reassigned to their physical rooms
+
+## Key Entity Groups (Helpers)
+
+These group entities provide stable automation-facing aliases for multi-entity logic:
+
+| Group ID | Friendly Name | Members | Purpose |
+|----------|---------------|---------|---------|
+| `binary_sensor.office_presence_group` | Office Presence | Aqara occupancy + person sensors | Office occupancy routing |
+| `binary_sensor.backyard_presence_group` | Backyard Presence | Hue motion sensors (outdoor 1) | Backyard motion detection |
+| `binary_sensor.garage_presence_group` | Garage Presence | Hue motion sensors (outdoor 2) | Garage occupancy for door control |
+| `sensor.backyard_temperature_group` | Backyard Temperature | Hue temp (outdoor 1) | Backyard ambient temperature |
+| `sensor.garage_temperature_group` | Garage Temperature | Hue temp (outdoor 2) | Garage ambient temperature |
+| `sensor.backyard_illuminance_group` | Backyard Illuminance | Hue lux (outdoor 1) | Backyard daylight sensor |
+| `sensor.garage_illuminance_group` | Garage Illuminance | Hue lux (outdoor 2) | Garage daylight sensor |
+
+## Naming Conventions
+
+All entity IDs follow the pattern `{domain}.{area}_{device_type}_{qualifier}` (lowercase, underscores). Friendly names follow `{Area} {Position} {Device Type} {Qualifier}` (title case, spaces).
+
+**Examples:**
+- `light.kitchen_ceiling_main` → "Kitchen Ceiling Main"
+- `light.office_desk_lamp` → "Office Desk Lamp"
+- `sensor.garden_temperature` → "Garden Temperature"
+- `cover.garage_door` → "Garage Door"
+
+See `docs/ha-naming-convention.md` for full rules and rationale.
+
+## Integration Inventory
+
+The home connects to these integrations:
+
+| Integration | Key Hub/Bridge | Status | Purpose |
+|-------------|----------------|--------|---------|
+| **ZHA** (Zigbee Home Automation) | SLZB-06P7 CoordinatorSlice | Active | Native HA Zigbee; general device routing |
+| **Hue** | Philips Hue Bridge | Active | Lights, motion, temperature, illuminance, groups, scenes |
+| **Powercalc** | — (addon) | Active | Power estimation for unmetered devices |
+| **Local Calendar** | HA built-in | Active | Events for automation triggers and presence inference |
+| **MQTT** | Broker: home.local:1883 | Active | Climate and sensor devices (future expansion) |
+| **Template** | — (built-in) | Active | Derived sensors and helpers |
+| **WLED** | Network-attached | Active | LED strip controllers (bar, kitchen, living_room, office) |
+| **Z-Wave** | — (inactive) | Not present | No Z-Wave coordinator currently |
+| **Matter** | — (inactive) | Not present | Waiting for HA Matter support to mature |
+
+## Authority on Manifest
+
+The authoritative record of areas, device assignments, and device metadata is `config/ha-organization-manifest.yaml`. This file is generated by the `homeiq-ha-organization-author` AF agent and judged by `homeiq-ha-organization-judge`. Updates flow through that workflow, not directly into the manifest file.
+
+**Do not edit the manifest by hand.** To propose changes (area rename, device reassignment, integration addition), file a story in Linear or contact the home administrator.
+
+**Last manifest sync:** 2026-08-12T22:17:08Z (supersedes run 379fcd101abc497fb957e502ef5c884b)
+
+## Presence and Away Mode
+
+**Presence group logic:**
+- `group.all_people` — OR of all person entities (phone location, HA companion app)
+- `binary_sensor.away_mode_active` — True when ALL people are away (or manually toggled)
+
+**Automation uses:**
+- **Away mode automations** reference `binary_sensor.away_mode_active` to unlock doors, arm security, close shades
+- **Coming-home automations** watch for `person.*` state changes from `away` → `home`
+- **Room occupancy** uses area-specific motion groups to trigger lights and climate
+
+**Precedent:** Manual `away_mode` toggle overrides person-based detection (useful for vacations, long absences).
+
+## Related Skills
+
+- **home-taxonomy**: Labels for events and anomalies (device types, integration names)
+- **automation-safety-rules**: Uses area names (e.g., `living_room` in away mode) for safety deny rules
+- **ha-yaml-rules**: References entity names and groups for validation
+- **energy-truth**: Power consumption scoped to areas and device types

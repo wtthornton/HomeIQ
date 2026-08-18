@@ -1,0 +1,50 @@
+# Automation Safety Hard-Deny List — TAP-5319
+#
+# These rules are absolute blocks. Automations or manual actions matching any rule
+# cannot be drafted, approved, or executed without explicit human escalation and
+# safety override. Everything outside this list is annotate-only risk scoring.
+
+rules:
+  - rule_id: SAFETY001
+    matcher: "Entity domain = lock AND service contains unlock OR open"
+    description: Lock unlocking — always requires human confirmation
+    rationale: "Physical access control. Unlocking remotely without verification of the intent actor creates liability."
+    severity: critical
+
+  - rule_id: SAFETY002
+    matcher: "Entity domain = alarm_control_panel AND service contains disarm OR alarm_disarm"
+    description: Alarm/security system disarming — always requires human confirmation
+    rationale: "Security system circumvention. Disarming without human presence verification is a critical safety gap."
+    severity: critical
+
+  - rule_id: SAFETY003
+    matcher: "Entity domain = sensor OR binary_sensor AND contains smoke OR fire OR co_detector OR carbon_monoxide AND service contains turn_off OR disable"
+    description: Smoke detector or CO detector disablement — always requires human confirmation
+    rationale: "Fire and carbon monoxide detection are critical safety systems. Disabling them removes lifesaving protection."
+    severity: critical
+
+  - rule_id: SAFETY004
+    matcher: "Entity domain = automation AND action modifies ANY rule with rule_id = SAFETY001-004 OR entity = alarm OR entity = smoke OR entity = lock"
+    description: Safety automation self-modification — always requires human confirmation
+    rationale: "An automation that disables or modifies safety rules is itself a safety risk. Only humans can authorize changes to safety systems."
+    severity: critical
+
+  - rule_id: SAFETY005
+    matcher: "Entity domain = cover AND entity_id contains garage_door OR gate AND (presence_entity = away OR presence_group = away_mode) AND service contains open OR open_cover"
+    description: Garage door or gate opening while home is in away mode — always requires human confirmation
+    rationale: "Opening garage/gate during away mode is a break-in risk. Automation must not open access points when no one is home."
+    severity: critical
+
+  - rule_id: SAFETY006
+    matcher: "Entity domain = lock AND entity_id = lock.* AND automation owner is not explicitly human-approved AND trigger source is not state_changed from known person presence"
+    description: Autonomous lock control via LLM without explicit approval — always requires human confirmation
+    rationale: "Lock control from AI must be explicitly approved by a human in the moment, not delegated to standing automations."
+    severity: critical
+
+# Precedence:
+# 1. HARD-DENY (this list): automation fails validation and is logged to safety audit trail.
+# 2. ANNOTATE-ONLY (everything outside this list): automation is annotated with risk label
+#    (low/medium/high) and reason, but validation passes.
+
+# Versioning: This list is versioned in git. Updates trigger a safety audit review.
+# The deny list can be expanded by TAP-5319 owner. Never delete rules, only add.

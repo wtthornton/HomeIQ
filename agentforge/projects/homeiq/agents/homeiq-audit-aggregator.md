@@ -19,6 +19,7 @@ approved: true
 allowed_tools: ''
 mcp_servers: []
 risk_level: medium
+max_budget_usd: 0.3
 role: aggregator
 failure_mode: required
 capability:
@@ -26,6 +27,64 @@ capability:
   object: quality-verdict
   modality: structured
 output_schema: '{"type":"object","properties":{"assessment_status":{"type":"string","enum":["complete","needs_revision","blocked","skipped"]},"confidence":{"type":"number","minimum":0,"maximum":1},"build_summary":{"type":"string"},"reason":{"type":"string"},"spend_usd":{"type":"number","minimum":0},"decision":{"type":"string","enum":["ship","block"]},"blocking_findings":{"type":"array","items":{"type":"string"}}},"required":["assessment_status","confidence","build_summary","reason","spend_usd","decision","blocking_findings"],"additionalProperties":false}'
+golden_cases:
+- id: verdict-shape
+  shape_only_because: >-
+    conformance only, on an audit with no findings. The verdicts this gene must reach are 
+    asserted in the behaviour cases.
+  prompt: >-
+    Audit findings envelope: assessment_status complete, findings [], confidence 0.95, 
+    reason: "clean audit".
+  trials: 3
+  pass_threshold: 1.0
+  assertions:
+  - kind: output_schema_valid
+  - kind: guardrails_clean
+- id: high-severity-blocks
+  prompt: >-
+    Audit findings envelope: assessment_status complete, findings [
+      {severity: high, location: "service.py:45-60", defect: "swallowed exception in 
+        state update", consequence: "silent failures mask real defects"},
+      {severity: medium, location: "api.py:120", defect: "no timeout on outbound HTTP call", 
+        consequence: "potential hang under slow network"}
+    ], confidence 0.92.
+  trials: 3
+  pass_threshold: 1.0
+  assertions:
+  - kind: output_schema_valid
+  - kind: guardrails_clean
+  - kind: rubric
+    rubric: >-
+      decision is "block" with blocking_findings containing the exact location of the 
+      high-severity finding ("service.py:45-60"). reason names the rule that produced the 
+      block (high-severity finding present). build_summary is non-generic and names the 
+      defect. blocking_findings is NOT empty, and "ship" is not emitted when high findings 
+      exist. Score only the properties this criterion names; a defect in anything else is 
+      outside this criterion and is not grounds for a deduction.
+    threshold: 0.9
+    judge_model: opus
+    require_cross_family: true
+- id: clean-audit-ships
+  prompt: >-
+    Audit findings envelope: assessment_status complete, findings [
+      {severity: low, location: "readme.md:15", defect: "outdated example", 
+        consequence: "documentation drift"}
+    ], confidence 0.98, reason: "one low finding only".
+  trials: 3
+  pass_threshold: 1.0
+  assertions:
+  - kind: output_schema_valid
+  - kind: guardrails_clean
+  - kind: rubric
+    rubric: >-
+      decision is "ship" with an empty blocking_findings array. No high-severity findings 
+      exist, so the manifest ships despite the low finding (backlog item). reason states the 
+      rule that produced the decision (zero high-severity findings). build_summary is 
+      specific and non-hedged. Score only the properties this criterion names; a defect in 
+      anything else is outside this criterion and is not grounds for a deduction.
+    threshold: 0.9
+    judge_model: opus
+    require_cross_family: true
 memory_footprint:
   recall_topics:
   - homeiq-service-audit

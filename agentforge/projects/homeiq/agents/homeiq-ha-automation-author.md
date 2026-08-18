@@ -19,6 +19,7 @@ approved: true
 allowed_tools: ''
 mcp_servers: []
 risk_level: medium
+max_budget_usd: 0.5
 role: producer
 failure_mode: required
 capability:
@@ -26,6 +27,68 @@ capability:
   object: spec
   modality: structured
 output_schema: '{"type":"object","properties":{"automation_yaml":{"type":"string"},"design_notes":{"type":"string"},"entities_referenced":{"type":"array","items":{"type":"string"}},"confidence":{"type":"number","minimum":0,"maximum":1}},"required":["automation_yaml","design_notes","entities_referenced","confidence"],"additionalProperties":false}'
+golden_cases:
+- id: automation-shape
+  shape_only_because: >-
+    conformance only, on a minimal requirement. The verdicts this gene must reach are asserted 
+    in the behaviour cases.
+  prompt: >-
+    Inventory: area garage with light.garage and sensor.presence_garage (binary_sensor group).
+    Requirement: turn on light.garage when presence detected.
+  trials: 3
+  pass_threshold: 1.0
+  assertions:
+  - kind: output_schema_valid
+  - kind: guardrails_clean
+- id: presence-lighting-modern-schema
+  prompt: >-
+    Inventory: area garage with entities [light.garage, sensor.presence_garage, 
+    sensor.manual_off_garage]; area office with [light.office, sensor.presence_office]; 
+    no other presence sources per area.
+    
+    Requirement: presence-based lighting for garage — turn on light.garage when presence 
+    detected, turn off after 5 minutes all-clear, respect manual-off by not retriggering 
+    while suppressed.
+  trials: 3
+  pass_threshold: 1.0
+  assertions:
+  - kind: output_schema_valid
+  - kind: guardrails_clean
+  - kind: rubric
+    rubric: >-
+      automation_yaml parses as valid YAML, uses modern HA 2026.x schema (plural 
+      triggers:/conditions:/actions:, trigger:/action: inside items), references only inventory 
+      entities (all in entities_referenced), includes presence trigger and light control, 
+      design_notes state the fusion mechanism (group), exit delay (5m), and manual-override 
+      choice. No legacy singular keys and no invented entities. Score only the properties 
+      this criterion names; a defect in anything else is outside this criterion and is not 
+      grounds for a deduction.
+    threshold: 0.85
+    judge_model: opus
+    require_cross_family: true
+- id: multiple-presence-sources-with-group
+  prompt: >-
+    Inventory: area garage with entities [light.garage, sensor.pir_garage, sensor.door_garage, 
+    binary_sensor.presence_garage_group (already exists, on when any PIR or door sensor on)]. 
+    Other areas: office [light.office, sensor.presence_office].
+    
+    Requirement: presence-based lighting for garage, using the group for multi-source fusion.
+  trials: 3
+  pass_threshold: 1.0
+  assertions:
+  - kind: output_schema_valid
+  - kind: guardrails_clean
+  - kind: rubric
+    rubric: >-
+      automation_yaml correctly triggers on the group entity (binary_sensor.presence_garage_group) 
+      rather than hard-coding individual sensors, ensuring extensibility if presence sources 
+      are added later. design_notes name the group as the fusion mechanism and explain why. 
+      All entities referenced are in the inventory. Automation is modern HA schema. Score only 
+      the properties this criterion names; a defect in anything else is outside this criterion 
+      and is not grounds for a deduction.
+    threshold: 0.85
+    judge_model: opus
+    require_cross_family: true
 memory_footprint:
   recall_topics:
   - homeiq-ha-automation

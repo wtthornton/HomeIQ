@@ -41,3 +41,21 @@ class TestSettings:
         with patch.dict(os.environ, {"SERVICE_PORT": "9000"}):
             s = Settings()
             assert s.service_port == 9000
+
+    def test_default_agentforge_url(self):
+        s = Settings()
+        assert s.agentforge_url == "http://localhost:8010"
+
+    def test_default_agentforge_api_key(self):
+        s = Settings()
+        assert s.agentforge_api_key == ""
+
+    def test_env_override_agentforge_url(self):
+        with patch.dict(os.environ, {"AGENTFORGE_URL": "http://custom-af:9999"}):
+            s = Settings()
+            assert s.agentforge_url == "http://custom-af:9999"
+
+    def test_env_override_agentforge_api_key(self):
+        with patch.dict(os.environ, {"AGENTFORGE_API_KEY": "secret-key-123"}):
+            s = Settings()
+            assert s.agentforge_api_key == "secret-key-123"

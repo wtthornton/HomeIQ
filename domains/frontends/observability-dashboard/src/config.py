@@ -33,6 +33,16 @@ class Settings(BaseServiceSettings):
         description="Admin API base URL",
     )
 
+    # AgentForge APIs (for ops view)
+    agentforge_url: str = Field(
+        default="http://localhost:8010",
+        description="AgentForge API base URL",
+    )
+    agentforge_api_key: str = Field(
+        default="",
+        description="AgentForge API key (bearer auth)",
+    )
+
     # Cross-app switcher URLs
     ai_automation_ui_url: str = Field(
         default="http://localhost:3001",

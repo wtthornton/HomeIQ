@@ -1,0 +1,19 @@
+# Policy rules for homeiq.
+#
+# Capability-based routing and gating for HomeIQ genes. The quarantine gate is
+# the primary control — it has an allow that passes cleared items to other genes.
+#
+# Semantics worth knowing before you edit:
+#   * conditions AND together; an empty list matches anything
+#   * deny always wins, regardless of priority
+#   * nothing matching = ALLOW, so every restriction must be explicit
+#
+# And the part that is easy to miss: an authored rules file is a
+# SPECIFICATION until the runtime is proven to load and enforce it. Check
+# what your engine actually does before treating this as a control.
+rules:
+  - rule_id: homeiq-quarantine-gate
+    description: "Quarantine gate for Home-Assistant-sourced text injection scanning (TAP-5313)."
+    capabilities: ["hiq.judge.quarantine"]
+    decision: allow
+    priority: 100

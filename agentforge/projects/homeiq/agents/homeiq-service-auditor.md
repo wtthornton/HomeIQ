@@ -19,6 +19,7 @@ approved: true
 allowed_tools: Read, Grep, Glob
 mcp_servers: []
 risk_level: low
+max_budget_usd: 1.0
 completion_criteria: 'Done when every reported finding cites a concrete file path
   and line range that exists under the requested service directory, each finding carries
   a severity of high/medium/low, and findings are ordered most-severe first. Report
@@ -35,6 +36,67 @@ capability:
 input_schema: '{"type":"object","properties":{"service_path":{"type":"string","description":"Repo-relative
   path to the HomeIQ service directory to audit"}},"required":["service_path"],"additionalProperties":false}'
 output_schema: '{"type":"object","properties":{"assessment_status":{"type":"string","enum":["complete","needs_revision","blocked","skipped"]},"confidence":{"type":"number","minimum":0,"maximum":1},"build_summary":{"type":"string"},"reason":{"type":"string"},"spend_usd":{"type":"number","minimum":0},"score":{"type":"number","minimum":0,"maximum":100},"pass":{"type":"boolean"},"converge":{"type":"boolean"},"findings":{"type":"array","items":{"type":"object","properties":{"severity":{"type":"string","enum":["high","medium","low"]},"location":{"type":"string","description":"file.py:LINE-RANGE"},"defect":{"type":"string"},"consequence":{"type":"string"}},"required":["severity","location","defect","consequence"],"additionalProperties":false}}},"required":["assessment_status","confidence","build_summary","reason","spend_usd","score","pass","converge","findings"],"additionalProperties":false}'
+golden_cases:
+- id: verdict-shape
+  shape_only_because: >-
+    conformance only, on an empty service with no files. The verdicts this gene must reach 
+    are asserted in the behaviour cases.
+  prompt: >-
+    Service path: domains/test-service. Contents: minimal __init__.py file only.
+  trials: 5
+  pass_threshold: 1.0
+  assertions:
+  - kind: output_schema_valid
+  - kind: guardrails_clean
+- id: swallowed-exception-high
+  prompt: >-
+    Service path: domains/core-platform. Files include state_handler.py with code:
+    
+    ```python
+    def update_state(entity_id, new_state):
+        try:
+            db.update(entity_id, new_state)
+        except Exception:
+            pass  # silently fail
+    ```
+  trials: 5
+  pass_threshold: 1.0
+  assertions:
+  - kind: output_schema_valid
+  - kind: guardrails_clean
+  - kind: rubric
+    rubric: >-
+      pass is false with at least one high-severity finding that cites 
+      "state_handler.py:3-5" (swallowed exception), names the defect as "bare except with 
+      pass" or similar, and explains the consequence as "silent failures hide real defects". 
+      The location is specific (file:LINE-RANGE), severity is high (swallowed exceptions hide 
+      defects), and findings are ordered most-severe first. build_summary is direct and 
+      non-hedged. Score only the properties this criterion names; a defect in anything else 
+      is outside this criterion and is not grounds for a deduction.
+    threshold: 0.9
+    judge_model: opus
+    require_cross_family: true
+- id: clean-service-passes
+  prompt: >-
+    Service path: domains/websocket-ingestion. Files include event_handler.py with no 
+    swallowed exceptions, no SQL injection risks, proper async/await, all imports used, 
+    type hints present, test coverage exists.
+  trials: 5
+  pass_threshold: 1.0
+  assertions:
+  - kind: output_schema_valid
+  - kind: guardrails_clean
+  - kind: rubric
+    rubric: >-
+      pass is true, findings is empty, score is high (80+), and build_summary names the 
+      audit as clean with no high or medium findings. The verdict is grounded in the actual 
+      code read (or the absence thereof). If there are minor items (low-severity style, 
+      lint), they are included as low findings and do not block pass. Score only the properties 
+      this criterion names; a defect in anything else is outside this criterion and is not 
+      grounds for a deduction.
+    threshold: 0.9
+    judge_model: opus
+    require_cross_family: true
 memory_footprint:
   recall_topics:
   - homeiq-service-audit
