@@ -50,6 +50,8 @@ services:
       - JAEGER_API_URL=http://jaeger:16686/api
       - DATA_API_URL=http://data-api:8006
       - ADMIN_API_URL=http://admin-api:8004
+      - AGENTFORGE_URL=${AGENTFORGE_URL:-http://localhost:8010}
+      - AGENTFORGE_API_KEY=${AGENTFORGE_API_KEY:-}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     depends_on:
       jaeger:

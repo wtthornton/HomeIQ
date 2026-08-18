@@ -10,6 +10,7 @@ This service provides internal/admin dashboards for:
 """
 
 import streamlit as st
+
 from config import settings
 
 # Configure Streamlit page
@@ -63,6 +64,7 @@ def main() -> None:
             "🔍 Traces",
             "⚡ Performance",
             "📡 Live",
+            "🤖 AgentForge Ops",
         ],
     )
 
@@ -79,6 +81,10 @@ def main() -> None:
         from dashboard_pages import real_time_monitoring
 
         real_time_monitoring.show()
+    elif page == "🤖 AgentForge Ops":
+        from dashboard_pages import agentforge_ops
+
+        agentforge_ops.show()
 
 
 if __name__ == "__main__":
