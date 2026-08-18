@@ -5,7 +5,16 @@
 integration. Changing a shape here is a contract change: bump `catalogue_version`
 and update the contract tests (TAP-5297) in the same commit.
 
-**catalogue_version:** 1.1.1
+**catalogue_version:** 1.2.0
+
+**v1.2.0 changes (2026-08-17, TAP-5293/TAP-5295):** tools 14 `get_energy_correlations`
+and 15 `get_device_energy_impact` are `status: deferred` (owner Decision E —
+their backing `energy-correlator` has never written a correlation, TAP-5910; the
+server does not register deferred tools; they return when TAP-5301 provides a
+live power-delta source). Every list-returning output schema now declares
+optional `truncated` + `hint`, so the server can honour design rule 2 under
+`additionalProperties: false`. Error code set gains `contract_violation` (see
+server-level notes).
 
 **Normative schemas:** `docs/mcp/homeiq-mcp-tools.schema.json` — every tool's
 full JSON Schema (draft 2020-12, metaschema-validated) lives there; this
@@ -24,7 +33,9 @@ tools. On any divergence, the JSON file wins.
    history tools return row-level data, and both are hard-capped. Every tool
    declares `max_response_bytes`; the server truncates at the cap and sets
    `"truncated": true` plus a `"hint"` naming the narrowing parameter — agent
-   context is the scarce resource this protects.
+   context is the scarce resource this protects. Both fields are declared on
+   every list-returning output schema (v1.2.0); `hint` is present only when
+   `truncated` is true.
 3. **Typed schemas, no free-form URLs.** Inputs and outputs are JSON Schema
    (draft 2020-12). No tool accepts a path, URL, or Flux/SQL fragment.
 4. **Time is explicit.** Range inputs are `hours` (integer, bounded) or RFC3339
@@ -56,7 +67,7 @@ without changing these contracts.
 
 ---
 
-## Tool catalogue — 17 tools
+## Tool catalogue — 17 tools (15 active, 2 deferred in v1.2.0)
 
 ### Group 1 — Entity history & events (data-api)
 
@@ -187,14 +198,14 @@ Whole-home energy snapshot: current, daily, peak, top consumers.
 - **Input:** `{top_n: int 1..20 = 10}`
 - **Output:** `{current_power_w, daily_kwh, peak_power_w, peak_time?, average_power_w, top_consumers: [{entity_id, average_power_on_w, estimated_daily_kwh}], carbon?: {grams_per_kwh, source}}`
 
-#### 14. `get_energy_correlations`
+#### 14. `get_energy_correlations` — **DEFERRED (v1.2.0, Decision E)**
 State-change ↔ power-delta correlations (the energy-correlator's output).
 - **Backing:** data-api `GET /api/v1/energy/correlations`
 - **Annotations:** `readOnlyHint: true` · **Budget:** 32 KB / 200 rows
 - **Input:** `{entity_id?, domain?, hours: int 1..168 = 24, min_delta_w: number >= 0 = 5, limit: int 1..200 = 100}`
 - **Output:** `{correlations: [{t, entity_id, domain, state, previous_state?, power_delta_w, power_delta_pct?}], count, truncated}`
 
-#### 15. `get_device_energy_impact`
+#### 15. `get_device_energy_impact` — **DEFERRED (v1.2.0, Decision E)**
 Per-device consumption estimate derived from correlations.
 - **Backing:** data-api `GET /api/v1/energy/device-impact/{entity_id}`
 - **Annotations:** `readOnlyHint: true` · **Budget:** 4 KB
@@ -297,8 +308,18 @@ is the capability no other MCP surface has.
 - Auth: bearer token required (LAN-internal); tools themselves carry no auth
   parameters.
 - Errors: tool errors return MCP tool-error content with a `code` from
-  `{backing_unavailable, invalid_input, not_found, truncated_upstream}` —
-  never a raw upstream traceback.
+  `{backing_unavailable, invalid_input, not_found, truncated_upstream,
+  contract_violation}` — never a raw upstream traceback. `contract_violation`
+  is raised when a backing's response cannot be projected into the tool's
+  output schema (a server-side defect, surfaced instead of shipping an
+  off-contract payload).
+- Auth model: `/mcp` requires `Authorization: Bearer <token>`; tokens come from
+  `HOMEIQ_MCP_READ_TOKENS` (read scope) and `HOMEIQ_MCP_WRITE_TOKENS` (read +
+  mutate). `/health` is unauthenticated. Mutating tools additionally require the
+  per-tool grant `HOMEIQ_MCP_ALLOW_WRITES` (design rule 1). Stdio transport is
+  process-local and unauthenticated; the write grant still applies.
+- Deferred tools (`status: deferred` in the JSON) are not registered and are
+  invisible to `list_tools`; contract tests assert this.
 - Registration: AgentForge overlay MCP registry (TAP-5296), server name
   `homeiq` — genes declare `mcp_servers: [homeiq]` and must be published via
   `install-from-yaml` (the plain agents endpoint drops the list).

@@ -29,4 +29,4 @@ jobs:
     with:
       group_name: core
       domain_dir: core-platform
-      services: '["websocket-ingestion","data-api","admin-api","health-dashboard","data-retention"]'
+      services: '["websocket-ingestion","data-api","admin-api","health-dashboard","data-retention","homeiq-mcp"]'

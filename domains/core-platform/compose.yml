@@ -3,7 +3,7 @@ name: homeiq-core-platform
 # The data backbone. If this is down, everything is down.
 # Deploy cadence: Low — changes require staging + canary
 #
-# Services: influxdb, postgres, data-api, websocket-ingestion, admin-api, health-dashboard, data-retention, ha-simulator
+# Services: influxdb, postgres, data-api, websocket-ingestion, admin-api, health-dashboard, data-retention, homeiq-mcp, ha-simulator
 # Depends on: Nothing (root of dependency tree)
 # Depended on by: All other groups
 
@@ -408,6 +408,52 @@ services:
       start_period: 30s
     volumes:
       - data_retention_backups:/backups
+
+  homeiq-mcp:
+    build:
+      context: ../..
+      dockerfile: domains/core-platform/homeiq-mcp/Dockerfile
+    container_name: homeiq-mcp
+    restart: unless-stopped
+    ports:
+      - "8050:8050"
+    env_file:
+      - ../../.env
+    environment:
+      - HOMEIQ_MCP_PORT=8050
+      - HOMEIQ_MCP_READ_TOKENS=${HOMEIQ_MCP_READ_TOKENS:?required}
+      - HOMEIQ_MCP_WRITE_TOKENS=${HOMEIQ_MCP_WRITE_TOKENS:-}
+      - HOMEIQ_MCP_ALLOW_WRITES=${HOMEIQ_MCP_ALLOW_WRITES:-}
+      - HOMEIQ_MCP_ALLOWED_HOSTS=${HOMEIQ_MCP_ALLOWED_HOSTS:-host.docker.internal}
+      - DATA_API_URL=http://data-api:8006
+      - API_KEY=${API_KEY:-}
+      - PATTERN_SERVICE_URL=http://ai-pattern-service:8020
+      - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8019
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      data-api:
+        condition: service_healthy
+    networks:
+      - homeiq-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8050/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 64M
+          cpus: '0.1'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   ha-simulator:
     build:

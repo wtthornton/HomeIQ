@@ -1,6 +1,6 @@
 {
-  "$comment": "HomeIQ MCP tool contract (TAP-5292). Machine-readable source of truth; docs/mcp/homeiq-mcp-tool-catalogue.md is the human view. TAP-5297 contract tests pin this file against the running server's list_tools output.",
-  "catalogue_version": "1.1.1",
+  "$comment": "HomeIQ MCP tool contract (TAP-5292). Machine-readable source of truth; docs/mcp/homeiq-mcp-tool-catalogue.md is the human view. TAP-5297 contract tests pin this file against the running server's list_tools output. v1.2.0 (2026-08-17, TAP-5293/5295): tools 14/15 carry status=deferred (energy-correlator has no live output; see TAP-5910/TAP-5301); every list-returning output declares optional `truncated` + `hint` so the server can honour design rule 2 under additionalProperties=false.",
+  "catalogue_version": "1.2.0",
   "tools": [
     {
       "name": "get_entity_history",
@@ -201,6 +201,11 @@
           },
           "truncated": {
             "type": "boolean"
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
@@ -312,6 +317,11 @@
           },
           "truncated": {
             "type": "boolean"
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
@@ -394,6 +404,11 @@
           },
           "truncated": {
             "type": "boolean"
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
@@ -500,6 +515,11 @@
           },
           "truncated": {
             "type": "boolean"
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
@@ -620,12 +640,22 @@
           "entity_count": {
             "type": "integer",
             "minimum": 0
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "True when the server dropped rows to stay within max_response_bytes or the row cap."
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
           "device",
           "entities",
-          "entity_count"
+          "entity_count",
+          "truncated"
         ]
       }
     },
@@ -722,6 +752,11 @@
           },
           "truncated": {
             "type": "boolean"
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
@@ -782,17 +817,27 @@
           "count": {
             "type": "integer",
             "minimum": 0
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "True when the server dropped rows to stay within max_response_bytes or the row cap."
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
           "areas",
-          "count"
+          "count",
+          "truncated"
         ]
       }
     },
     {
       "name": "get_entity_state",
-      "description": "Last OBSERVED state of one entity from the event store, with its timestamp. HomeIQ observes HA; this is the most recent recorded state change within the hours window (default 24), not a live HA read \u2014 check 't' for staleness.",
+      "description": "Last OBSERVED state of one entity from the event store, with its timestamp. HomeIQ observes HA; this is the most recent recorded state change within the hours window (default 24), not a live HA read — check 't' for staleness.",
       "annotations": {
         "readOnlyHint": true
       },
@@ -980,6 +1025,11 @@
           },
           "truncated": {
             "type": "boolean"
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
@@ -1096,6 +1146,11 @@
           },
           "truncated": {
             "type": "boolean"
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
@@ -1219,6 +1274,11 @@
           },
           "truncated": {
             "type": "boolean"
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
@@ -1328,12 +1388,22 @@
             "required": [
               "grams_per_kwh"
             ]
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "True when the server dropped rows to stay within max_response_bytes or the row cap."
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
           "current_power_w",
           "daily_kwh",
-          "top_consumers"
+          "top_consumers",
+          "truncated"
         ]
       }
     },
@@ -1431,6 +1501,11 @@
           },
           "truncated": {
             "type": "boolean"
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
@@ -1438,7 +1513,9 @@
           "count",
           "truncated"
         ]
-      }
+      },
+      "status": "deferred",
+      "status_reason": "Deferred out of v1 (Decision E, 2026-08-17): backing energy-correlator has never written a correlation (TAP-5910) and shows no non-health activity live; re-enable when TAP-5301 model server provides power-delta correlations."
     },
     {
       "name": "get_device_energy_impact",
@@ -1505,7 +1582,9 @@
           "domain",
           "total_state_changes"
         ]
-      }
+      },
+      "status": "deferred",
+      "status_reason": "Deferred out of v1 (Decision E, 2026-08-17): backing energy-correlator has never written a correlation (TAP-5910) and shows no non-health activity live; re-enable when TAP-5301 model server provides power-delta correlations."
     },
     {
       "name": "get_device_health",
@@ -1657,6 +1736,11 @@
           },
           "truncated": {
             "type": "boolean"
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
@@ -1802,6 +1886,11 @@
           },
           "truncated": {
             "type": "boolean"
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
           }
         },
         "required": [
