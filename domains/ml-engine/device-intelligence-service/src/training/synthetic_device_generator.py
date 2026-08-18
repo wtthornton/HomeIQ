@@ -261,9 +261,11 @@ class SyntheticDeviceGenerator:
             home_type: Optional home type to influence device distribution
                       (single_family_house, apartment, condo, townhouse, cottage, studio, multi_story, ranch_house)
         """
-        if random_seed is not None:
-            random.seed(random_seed)
-            np.random.seed(random_seed)
+        # Own the RNG per instance. Seeding the global `random` module made
+        # reproducibility depend on construction order: two generators built
+        # with the same seed shared one stream, so whichever generated second
+        # continued from where the first stopped.
+        self._rng = random.Random(random_seed)
 
         self.home_type = home_type
         if home_type and home_type not in self.HOME_TYPE_DEVICE_PATTERNS:
@@ -334,7 +336,6 @@ class SyntheticDeviceGenerator:
                 device_type=device_type,
                 days=days,
                 failure_scenario=None,
-                home_type=effective_home_type,
                 reference_date=reference_date,
             )
             training_samples.append(sample)
@@ -344,14 +345,13 @@ class SyntheticDeviceGenerator:
         for i in range(failure_count):
             device_type = self._select_device_type(device_types, effective_home_type)
             device_id = f"synthetic_device_{normal_count + i + 1:04d}"
-            failure_scenario = random.choice(failure_scenarios)
+            failure_scenario = self._rng.choice(failure_scenarios)
 
             sample = self._generate_device_sample(
                 device_id=device_id,
                 device_type=device_type,
                 days=days,
                 failure_scenario=failure_scenario,
-                home_type=effective_home_type,
                 reference_date=reference_date,
             )
             training_samples.append(sample)
@@ -432,7 +432,7 @@ class SyntheticDeviceGenerator:
             weight = distribution.get(device_type, 10)
             weighted_types.extend([device_type] * weight)
 
-        return random.choice(weighted_types)
+        return self._rng.choice(weighted_types)
 
     def _generate_device_sample(
         self,
@@ -440,7 +440,6 @@ class SyntheticDeviceGenerator:
         device_type: str,
         days: int = 180,
         failure_scenario: str | None = None,
-        _home_type: str | None = None,
         reference_date: datetime | None = None,
     ) -> dict[str, Any]:
         """
@@ -540,9 +539,9 @@ class SyntheticDeviceGenerator:
             failure_params = self.FAILURE_SCENARIOS[failure_scenario]
 
             # Apply multipliers
-            error_rate *= random.uniform(*failure_params["error_rate_multiplier"])
-            response_time *= random.uniform(*failure_params["response_time_multiplier"])
-            connection_drops += random.randint(*failure_params["connection_drops_increase"])
+            error_rate *= self._rng.uniform(*failure_params["error_rate_multiplier"])
+            response_time *= self._rng.uniform(*failure_params["response_time_multiplier"])
+            connection_drops += self._rng.randint(*failure_params["connection_drops_increase"])
 
             # Battery depletion
             if failure_params["battery_depletion_rate"] > 0:
@@ -580,7 +579,7 @@ class SyntheticDeviceGenerator:
         }
 
         # Add optional health score (if device would have one)
-        if random.random() > 0.3:  # 70% of devices have health score
+        if self._rng.random() > 0.3:  # 70% of devices have health score
             # Calculate health score based on metrics
             health_score = self._calculate_health_score(sample)
             sample["health_score"] = round(health_score, 2)
@@ -608,7 +607,7 @@ class SyntheticDeviceGenerator:
             Realistic value within range
         """
         min_val, max_val = base_range
-        base_value = random.uniform(min_val, max_val)
+        base_value = self._rng.uniform(min_val, max_val)
 
         # Use current date if not provided (2025: timezone-aware)
         if reference_date is None:
@@ -619,7 +618,7 @@ class SyntheticDeviceGenerator:
 
         if pattern == "stable":
             # Small random variation around base
-            variation = random.uniform(-0.1, 0.1) * (max_val - min_val)
+            variation = self._rng.uniform(-0.1, 0.1) * (max_val - min_val)
             return base_value + variation
 
         elif pattern == "daily_cycle":
@@ -668,9 +667,9 @@ class SyntheticDeviceGenerator:
             # Weekend-specific peak pattern (2025: behavior-aware)
             weekday = reference_date.weekday()
             if weekday >= 5:  # Weekend
-                peak_factor = 0.2 + random.uniform(-0.05, 0.05)
+                peak_factor = 0.2 + self._rng.uniform(-0.05, 0.05)
             else:  # Weekday
-                peak_factor = -0.1 + random.uniform(-0.05, 0.05)
+                peak_factor = -0.1 + self._rng.uniform(-0.05, 0.05)
             variation = peak_factor * (max_val - min_val)
             return base_value + variation
 
@@ -688,12 +687,12 @@ class SyntheticDeviceGenerator:
 
         elif pattern == "variation":
             # Random variation within range
-            variation = random.uniform(-0.2, 0.2) * (max_val - min_val)
+            variation = self._rng.uniform(-0.2, 0.2) * (max_val - min_val)
             return base_value + variation
 
         else:
             # Default: stable with small variation
-            variation = random.uniform(-0.1, 0.1) * (max_val - min_val)
+            variation = self._rng.uniform(-0.1, 0.1) * (max_val - min_val)
             return base_value + variation
 
     def _calculate_health_score(self, sample: dict[str, Any]) -> float:
