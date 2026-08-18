@@ -203,6 +203,190 @@ python .../af_export.py --slug homeiq --name <agent> --layout scout --repo-root 
 
 AgentForge never pushes to this repo's Git remote.
 
+## Per-gene budget caps (TAP-5321)
+
+Every one of the 23 genes under `agentforge/projects/homeiq/agents/` declares
+`max_budget_usd`. An undeclared cap is not "the platform default" for this fleet —
+`resolve_fallback_max_budget_usd` in AgentForge treats `<= 0` as *unlimited*, so a
+missing or zero cap is unbounded spend on a runaway loop.
+
+### What the cap actually enforces
+
+`max_budget_usd` is a **per-invocation** ceiling on combined Path A (OAuth) + Path B
+(Platform API) spend for one agent node — not a monthly or cumulative allowance.
+Enforcement differs by lane (`AgentForge/docs/AGENT_AUTHORING.md`, TAP-5346):
+
+| Lane | Enforcement |
+|---|---|
+| Host CLI (`AF_AGENT_RUNTIME=legacy`) | Hard ceiling — CLI stops the run, `error_max_budget_usd` |
+| SdkRunner (default `AF_AGENT_RUNTIME=sdk`) | Hard ceiling — native SDK budget option, overrun fails the run |
+| `invoke_internal` (template dispatch post-check) | **Advisory only** — logs a warning after the fact |
+
+### Sizing rule
+
+`cap = the smallest value on the ladder {0.10, 0.25, 0.50, 0.75, 1.00, 1.50, 2.00, 3.50}`
+`that is >= 3x the highest observed single-invocation cost`.
+
+3x, not 1.5x, because the observed sample is small and a cap that merely clears today's
+p90 turns any prompt-size growth into a hard refusal. A gene with no invocations yet
+inherits the band of the nearest observed peer with the same model and role — that is an
+**estimate**, flagged as such in the table below, and should be re-derived once the gene
+has real traffic.
+
+### Evidence basis
+
+Snapshot taken 2026-08-18 from the live AF instance, 87 project invocations:
+
+```bash
+curl -H "Authorization: Bearer $AGENTFORGE_API_KEY" \
+  "$AGENTFORGE_URL/projects/homeiq/stats"
+curl -H "Authorization: Bearer $AGENTFORGE_API_KEY" \
+  "$AGENTFORGE_URL/projects/homeiq/invocations?limit=200"
+```
+
+`GET /projects/homeiq/stats/costs` does **not** exist on AF 4.59.1 (404); per-invocation
+cost comes from `/invocations`, project rollup from `/stats` and `/spend`.
+
+`by_agent` in `/stats` reports the **namespaced** name AF stamps on a published gene
+(`homeiq-hiq-summarize`), and pre-namespace rows for the same gene appear bare
+(`hiq-summarize`). Both map to one gene file; the observed maxima below are across both.
+
+### Caps
+
+`obs max` = highest single-invocation `cost_usd`; `n` = invocations in the snapshot.
+"peer estimate" rows have no traffic and were sized from model + role against the named peer.
+
+| Gene | Model / role | obs max (n) | Cap | Basis |
+|---|---|---|---|---|
+| `hiq-anomaly-triage` | haiku / router | $0.0545 (2) | 0.25 | 3x = $0.16; was 0.50 (over-provisioned) |
+| `hiq-classify` | haiku / router | — (0) | 0.25 | peer estimate — `hiq-anomaly-triage`; was 0.10 |
+| `hiq-correlate` | sonnet / aggregator | — (0) | 0.50 | peer estimate — `homeiq-audit-aggregator`; unchanged |
+| `hiq-device-health-triage` | haiku / router | — (0) | 0.25 | peer estimate — `hiq-anomaly-triage`; was 0.50 |
+| `hiq-draft-automation` | sonnet / producer | — (0) | 1.50 | peer estimate — `homeiq-ha-automation-author` ($0.3676); **was 0.30, below peer cost** |
+| `hiq-energy-digest` | haiku / producer | — (0) | 0.25 | peer estimate — `hiq-summarize`; was 0.50 |
+| `hiq-explain-anomaly` | sonnet / judge | $0.1654 (2) | 0.50 | 3x = $0.50; unchanged |
+| `hiq-extract` | sonnet / producer | — (0) | 0.50 | peer estimate — structured extraction, `hiq-correlate` band; unchanged |
+| `hiq-judge-automation` | sonnet / judge | $0.2042 (1) | 0.75 | 3x = $0.61; **was 0.30, only 1.5x its own observed cost** |
+| `hiq-kb-librarian` | haiku / producer | — (0) | 0.25 | peer estimate — `hiq-summarize`; was 0.10 |
+| `hiq-memory-curator` | haiku / producer | — (0) | 0.25 | peer estimate — `hiq-summarize`; was 0.10 |
+| `hiq-notify` | haiku / gateway | $0.0000 (2, both errored) | 0.10 | **no valid observation** — the 2 runs failed on incomplete config before spending. Deliberately tight: a `high` risk_level effector that only formats and sends. Unchanged |
+| `hiq-pattern-summary` | sonnet / producer | — (0) | 0.50 | peer estimate — `hiq-correlate` band; unchanged |
+| `hiq-rank` | haiku / producer | — (0) | 0.25 | peer estimate — `hiq-summarize`; was 0.10 |
+| `hiq-scan-injectionpayload` | sonnet / judge | — (0) | 0.75 | peer estimate — sonnet-judge band (`hiq-judge-automation`); was 0.50 |
+| `hiq-summarize` | haiku / producer | $0.0520 (2) | 0.25 | 3x = $0.16; **was 0.10, under 2x** |
+| `homeiq-audit-aggregator` | sonnet / aggregator | $0.1551 (21) | 0.50 | 3x = $0.47; was 0.30 |
+| `homeiq-automation-judge` | sonnet / judge | $0.2509 (3) | 1.00 | 3x = $0.75; **was 0.30, only 1.2x its own observed cost** |
+| `homeiq-ha-automation-author` | sonnet / producer | $0.3676 (4) | 1.50 | 3x = $1.10; **was 0.50, only 1.4x** |
+| `homeiq-ha-organization-author` | sonnet / producer | $1.1019 (4) | 3.50 | 3x = $3.31; unchanged (matches the provenance note in `config/ha-organization-manifest.yaml`) |
+| `homeiq-ha-organization-judge` | sonnet / judge | $0.9749 (3) | 3.50 | 3x = $2.92; unchanged |
+| `homeiq-mcp-probe` | sonnet / producer | $0.2222 (4, all errored) | 0.75 | 3x = $0.67. The 4 runs errored but **still incurred cost** — a cap must cover failed runs too. Was 0.30 |
+| `homeiq-service-auditor` | sonnet / judge | $0.6432 (24) | 2.00 | 3x = $1.93; was 1.00 |
+
+The pattern the numbers exposed: caps were assigned in uniform buckets
+(0.10 / 0.30 / 0.50), so the heaviest genes sat closest to their own ceiling. Four genes
+were within 1.5x of their observed cost and one (`hiq-draft-automation`) was capped
+*below* what its direct peer already spends — all latent false refusals.
+
+### Refusal evidence
+
+The cap refuses; it does not silently degrade to a cheaper answer. Verified end-to-end on
+`homeiq-service-auditor` (24 invocations, observed max $0.6432) by publishing it at
+`max_budget_usd: 0.01`, invoking it, then restoring `2.00`.
+
+Under the $0.01 cap — `POST /projects/homeiq/tasks/invoke`, terminal event from
+`GET /projects/homeiq/invocations/{id}/events`:
+
+```json
+{"type":"result","usage":{...},"result":"","subtype":"error_max_budget_usd",
+ "is_error":true,"num_turns":1,
+ "session_id":"0377a6ee-8c09-4ee1-8224-dc11bde8d8d9",
+ "duration_ms":6080,"total_cost_usd":0.20689100000000002}
+```
+
+`GET /projects/homeiq/invocations/31283659-58ca-4bc5-9403-ad45ce9656c0/result`:
+
+```json
+{"invocation_id":"31283659-58ca-4bc5-9403-ad45ce9656c0","id":19482,"status":"error",
+ "result":"","goal_status":null,"goal_turns":null,"goal_verifier_reason":null,
+ "is_error":true,"agent_used":"homeiq-homeiq-service-auditor","result_length":0,
+ "transport_ok":false,"result_is_json":false}
+```
+
+Note `result_length: 0` and `transport_ok: false`. The turn stream shows the model had
+already emitted a `StructuredOutput` tool-use block, and the budget kill discarded it —
+the caller receives an error envelope, never a partial or degraded answer. The run still
+cost $0.2069 because the cap is checked against accumulated spend and the first turn's
+cache-creation tokens land in one shot: **a cap bounds the blast radius, it does not make
+an over-cap invocation free.**
+
+After restoring `max_budget_usd: 2.0` and republishing with `--activate` (v6), the same
+route succeeded — `GET /.../4ab9af47-7911-4800-b31d-308e81a0fb93/result`:
+
+```json
+{"invocation_id":"4ab9af47-7911-4800-b31d-308e81a0fb93","id":19535,"status":"complete",
+ "result":"{\"assessment_status\":\"complete\",\"confidence\":0.85,...}",
+ "is_error":false,"agent_used":"homeiq-homeiq-service-auditor",
+ "result_length":1242,"transport_ok":true,"result_is_json":true}
+```
+
+Cost $0.0765718, `is_error: false`. Reproduce with:
+
+```bash
+python .../af_publish.py --slug homeiq --layout scout --repo-root . \
+  --only agent:homeiq-service-auditor --activate --skip-workflow-check
+```
+
+### Project-level cap is owner-gated — not settable from this repo
+
+There is **no project-level budget write endpoint** on AF 4.59.1:
+`GET /projects/{slug}/spend` is read-only, and the OpenAPI document exposes no
+`PUT`/`POST` counterpart. The soft/hard monthly ceiling is `AF_MONTHLY_BUDGET_USD`, an
+**instance-wide environment variable on the AgentForge deployment**, which lives outside
+this repo and is AgentForge-operator territory (see *Credential custody* above).
+
+Consequence: the per-gene caps in the table are the only spend ceiling HomeIQ controls.
+They bound a single runaway invocation, not a month of them. Aggregate control needs the
+AF operator to set `AF_MONTHLY_BUDGET_USD`; until then, monitor
+`GET /projects/homeiq/spend` on the AgentForge Ops dashboard page.
+
+### Publish state
+
+All 23 genes are published and active with the caps in this checkout, verified by reading
+each gene's active version back from AF (`GET /projects/homeiq/agents/{name}`) and matching
+`max_budget_usd` against the repo file.
+
+Getting there needed the content gate cleared first: `af_publish.py --check-only` was red
+for 10 genes on **pre-existing** conformance findings (`body_conformance/section/*`,
+`interface/envelope_base_fields_present`) unrelated to budgets. `--autofix-safe` wrote the
+fixes into the 10 gene files locally (`still_safe_residual=0`, no hand-editing needed), and
+`--check-only` then went green across all 23. Reach for that lane before hand-editing a
+gene body — the remaining `[warn/propose]` and `[warn/none]` findings do not gate publish.
+
+**A republish returns HTTP 200 and does not activate.** Always pass `--activate`.
+
+### Operator surface
+
+`domains/frontends/observability-dashboard` renders these caps on the **AgentForge Ops**
+page: `agent_budget_loader.load_agent_budgets` parses the frontmatter, `agentforge_client`
+joins it to live `/invocations` spend, and `agentforge_ops_view` builds the table plus the
+over-cap warning. Do not duplicate that parsing elsewhere.
+
+The page grades the cap against the figure it actually governs: `budget_status` compares
+`AgentStats.max_invocation_cost_usd` — the costliest single run — against the per-run cap,
+and reports cumulative spend as its own column. `homeiq-service-auditor` therefore reads
+`OK` (peak run $0.6432, 32% of its $2.00 cap) where the earlier cumulative comparison read
+`OVER BUDGET` at $7.67 with nothing ever refused. The authoritative refusal signal remains
+`subtype: error_max_budget_usd` in the invocation event stream.
+
+Two caveats on that page:
+
+1. Caps are read from **this checkout**, not from the AF version store. A gene edited
+   locally but not yet published shows its local cap while AF still enforces the activated
+   version.
+2. A cap the loader cannot read (I/O or permission failure) renders as `unknown` /
+   `UNKNOWN CAP`, never as "no cap" — AF treats an absent cap as unlimited, so the two
+   must not collapse.
+
 ---
 
 ## Out of scope (platform purity)

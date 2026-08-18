@@ -12,7 +12,7 @@ import streamlit as st
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-from services.agent_budget_loader import load_agent_budgets  # noqa: E402
+from services.agent_budget_loader import BudgetCap, load_agent_budgets  # noqa: E402
 from services.agentforge_client import AgentForgeClient  # noqa: E402
 from services.agentforge_ops_view import (  # noqa: E402
     agent_rows,
@@ -38,16 +38,26 @@ def _render_spend(spend) -> None:
 
 
 def _render_agents(stats: list) -> None:
-    st.subheader("Per-agent spend against declared caps")
+    st.subheader("Per-agent spend against declared per-invocation caps")
     if not stats:
         st.info("No invocations recorded for this project yet")
         return
+    st.caption(
+        "`max_budget_usd` caps a **single invocation**, so Status compares the peak run "
+        "against it. Cumulative cost is shown alongside and is bounded by nothing here — "
+        "the aggregate ceiling is the AF instance's AF_MONTHLY_BUDGET_USD."
+    )
     st.dataframe(pd.DataFrame(agent_rows(stats)), use_container_width=True)
     for s in stats:
-        if s.max_budget_usd and s.total_cost_usd >= s.max_budget_usd:
+        if s.budget_cap_unreadable:
+            st.error(
+                f"⛔ {s.agent}: its declared cap could not be read, so this page cannot "
+                "tell an uncapped gene from an unreadable one — check the gene file."
+            )
+        elif s.max_budget_usd and s.max_invocation_cost_usd >= s.max_budget_usd:
             st.warning(
-                f"⚠️ {s.agent} is over its declared cap: "
-                f"${s.total_cost_usd:.4f} / ${s.max_budget_usd:.2f}"
+                f"⚠️ {s.agent} had a single invocation reach its per-run cap: "
+                f"${s.max_invocation_cost_usd:.4f} / ${s.max_budget_usd:.2f}"
             )
 
 
@@ -59,7 +69,7 @@ def _render_gates(decisions: list) -> None:
     st.dataframe(pd.DataFrame(gate_rows(decisions)), use_container_width=True)
 
 
-def _render_budgets(budgets: dict[str, float | None], stats: list) -> None:
+def _render_budgets(budgets: dict[str, BudgetCap], stats: list) -> None:
     st.subheader("Declared budgets (from the repo's agent frontmatter)")
     if not budgets:
         st.info("No agent declares max_budget_usd in this checkout")

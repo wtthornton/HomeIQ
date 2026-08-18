@@ -31,7 +31,7 @@ mcp_servers: []
 capabilities:
 - hiq.cognition.classify
 failure_mode: required
-max_budget_usd: 0.1
+max_budget_usd: 0.25
 guardrails:
 - type: anti-pii
   pii_types:

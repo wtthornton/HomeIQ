@@ -1,9 +1,22 @@
 """Tests for agent budget loader."""
 
+import logging
+from pathlib import Path
+
 from services.agent_budget_loader import (
+    UnreadableCap,
     _extract_budget_from_frontmatter,
     load_agent_budgets,
 )
+
+
+def _raise(exc):
+    """A `read_text` stand-in that fails, so the I/O branch is exercised at any uid."""
+
+    def _read_text(self, *args, **kwargs):
+        raise exc
+
+    return _read_text
 
 
 class TestExtractBudgetFromFrontmatter:
@@ -85,8 +98,9 @@ No closing delimiter
 
         assert budget is None
 
-    def test_extract_budget_non_numeric_value(self, tmp_path):
-        """Test non-numeric budget value returns None."""
+    def test_extract_budget_non_numeric_value(self, tmp_path, caplog):
+        """A malformed cap is legitimately "not declared", but it is logged where an
+        operator sees it rather than swallowed at debug."""
         agent_file = tmp_path / "test-agent.md"
         agent_file.write_text(
             """---
@@ -97,9 +111,42 @@ Content
 """
         )
 
-        budget = _extract_budget_from_frontmatter(agent_file)
+        with caplog.at_level(logging.WARNING):
+            budget = _extract_budget_from_frontmatter(agent_file)
 
         assert budget is None
+        assert "is not a number" in caplog.text
+
+    def test_extract_budget_unreadable_file_is_not_no_cap(self, tmp_path, monkeypatch, caplog):
+        """AF reads a missing cap as unlimited, so an I/O failure must not look like one."""
+        agent_file = tmp_path / "test-agent.md"
+        agent_file.write_text("---\nmax_budget_usd: 10.0\n---\n\nContent\n")
+        monkeypatch.setattr(Path, "read_text", _raise(PermissionError(13, "Permission denied")))
+
+        with caplog.at_level(logging.ERROR):
+            budget = _extract_budget_from_frontmatter(agent_file)
+
+        assert isinstance(budget, UnreadableCap)
+        assert "PermissionError" in budget.reason
+        assert "Cannot read agent definition" in caplog.text
+
+    def test_extract_budget_undecodable_file_is_unreadable(self, tmp_path, caplog):
+        agent_file = tmp_path / "test-agent.md"
+        agent_file.write_bytes(b"---\nmax_budget_usd: \xff\xfe10.0\n---\n")
+
+        with caplog.at_level(logging.ERROR):
+            budget = _extract_budget_from_frontmatter(agent_file)
+
+        assert isinstance(budget, UnreadableCap)
+        assert "UnicodeDecodeError" in budget.reason
+        assert "Cannot read agent definition" in caplog.text
+
+    def test_extract_budget_non_mapping_frontmatter(self, tmp_path):
+        """A frontmatter block that is not a mapping declares no cap."""
+        agent_file = tmp_path / "test-agent.md"
+        agent_file.write_text("---\n- just\n- a list\n---\n\nContent\n")
+
+        assert _extract_budget_from_frontmatter(agent_file) is None
 
     def test_extract_budget_zero(self, tmp_path):
         """Test zero budget is valid."""
@@ -286,3 +333,21 @@ Content
         # Should gracefully handle and return None for this agent
         assert "hiq-bad" in budgets
         assert budgets["hiq-bad"] is None
+
+    def test_load_agent_budgets_surfaces_unreadable_definitions(self, tmp_path, caplog):
+        """A gene whose file cannot be read is reported, not silently filed as uncapped."""
+        agents_dir = tmp_path / "agentforge" / "projects" / "homeiq" / "agents"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        (tmp_path / ".git").mkdir()
+
+        (agents_dir / "hiq-ok.md").write_text("---\nmax_budget_usd: 0.25\n---\n\nFine\n")
+        # A directory where a gene file is expected: an OSError on read, not a parse miss.
+        (agents_dir / "hiq-locked.md").mkdir()
+
+        with caplog.at_level(logging.ERROR):
+            budgets = load_agent_budgets(tmp_path)
+
+        assert budgets["hiq-ok"] == 0.25
+        assert isinstance(budgets["hiq-locked"], UnreadableCap)
+        assert "hiq-locked" in caplog.text
+        assert "ungoverned" in caplog.text

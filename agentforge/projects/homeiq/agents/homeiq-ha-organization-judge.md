@@ -1,8 +1,8 @@
 ---
 name: homeiq-ha-organization-judge
 description: Judges an authored HA organization manifest for correctness, safety,
-  and completeness against the same inventory the author saw; returns structured
-  findings and a verdict, never a converge decision.
+  and completeness against the same inventory the author saw; returns structured findings
+  and a verdict, never a converge decision.
 keywords:
 - home-assistant
 - organization
@@ -28,68 +28,63 @@ capability:
   verb: evaluate
   object: quality-verdict
   modality: structured
-output_schema: '{"type":"object","properties":{"pass":{"type":"boolean"},"score":{"type":"number","minimum":0,"maximum":100},"confidence":{"type":"number","minimum":0,"maximum":1},"findings":{"type":"array","items":{"type":"object","properties":{"severity":{"type":"string","enum":["critical","high","medium","low"]},"dimension":{"type":"string","enum":["correctness","safety","completeness","discipline"]},"finding":{"type":"string"},"recommendation":{"type":"string"}},"required":["severity","dimension","finding","recommendation"],"additionalProperties":false}}},"required":["pass","score","confidence","findings"],"additionalProperties":false}'
+output_schema: '{"additionalProperties":false,"properties":{"assessment_status":{"enum":["blocked","complete","needs_revision","skipped"],"type":"string"},"build_summary":{"type":"string"},"confidence":{"maximum":1,"minimum":0,"type":"number"},"findings":{"items":{"additionalProperties":false,"properties":{"dimension":{"enum":["correctness","safety","completeness","discipline"],"type":"string"},"finding":{"type":"string"},"recommendation":{"type":"string"},"severity":{"enum":["critical","high","medium","low"],"type":"string"}},"required":["severity","dimension","finding","recommendation"],"type":"object"},"type":"array"},"pass":{"type":"boolean"},"reason":{"type":"object"},"score":{"maximum":100,"minimum":0,"type":"number"},"spend_usd":{"type":"number"}},"required":["pass","score","confidence","findings","assessment_status","build_summary","reason","spend_usd"],"type":"object"}'
 golden_cases:
 - id: verdict-shape
-  shape_only_because: >-
-    conformance only, on a minimal manifest. The verdicts this gene must reach are asserted 
-    in the behaviour cases.
-  prompt: >-
-    Inventory: 3 devices, 2 areas (office, garage), 5 entities. 
-    Authored manifest: empty manifest, no assignments, no labels. design_notes explain 
-    the decision.
+  shape_only_because: conformance only, on a minimal manifest. The verdicts this gene
+    must reach are asserted  in the behaviour cases.
+  prompt: 'Inventory: 3 devices, 2 areas (office, garage), 5 entities.  Authored manifest:
+    empty manifest, no assignments, no labels. design_notes explain  the decision.'
   trials: 5
   pass_threshold: 1.0
   assertions:
   - kind: output_schema_valid
   - kind: guardrails_clean
 - id: undeclared-label-prefix-critical
-  prompt: >-
-    Inventory: 3 devices (device_1 in office, device_2 in garage, device_3 unassigned); 
-    entities with light.office, light.garage, sensor.total_power; areas [office, garage].
-    
-    Authored manifest: device_areas [device_1 -> office, device_2 -> garage]; 
-    entity_labels [light.office -> ["area:office", "role:primary"]]; 
-    managed_label_prefixes ["area:"]. The label prefix "role:" is used but NOT declared.
+  prompt: 'Inventory: 3 devices (device_1 in office, device_2 in garage, device_3
+    unassigned);  entities with light.office, light.garage, sensor.total_power; areas
+    [office, garage].
+
+    Authored manifest: device_areas [device_1 -> office, device_2 -> garage];  entity_labels
+    [light.office -> ["area:office", "role:primary"]];  managed_label_prefixes ["area:"].
+    The label prefix "role:" is used but NOT declared.'
   trials: 5
   pass_threshold: 1.0
   assertions:
   - kind: output_schema_valid
   - kind: guardrails_clean
   - kind: rubric
-    rubric: >-
-      pass is false with at least one critical/safety finding that names the undeclared 
-      label prefix "role:" as not in managed_label_prefixes. Recipe reconciliation requires 
-      all label prefixes to be declared — undeclared prefixes cause recipe safety failures. 
-      Score only the properties this criterion names; a defect in anything else is outside 
-      this criterion and is not grounds for a deduction.
+    rubric: pass is false with at least one critical/safety finding that names the
+      undeclared  label prefix "role:" as not in managed_label_prefixes. Recipe reconciliation
+      requires  all label prefixes to be declared — undeclared prefixes cause recipe
+      safety failures.  Score only the properties this criterion names; a defect in
+      anything else is outside  this criterion and is not grounds for a deduction.
     threshold: 0.9
     judge_model: opus
     require_cross_family: true
 - id: correct-manifest-passes
-  prompt: >-
-    Inventory: 3 devices (garage_motion=device_1 in garage, office_light=device_2 in office, 
-    bridge=device_3 unassigned virtual); 5 entities (light.garage, light.office, 
-    sensor.presence_garage, sensor.presence_office, system.bridge); areas [office, garage].
-    
-    Authored manifest: device_areas [device_1 -> garage (reason: name), device_2 -> office]; 
-    entity_labels [light.garage -> ["area:garage"], sensor.presence_garage -> ["role:presence"]]; 
-    entity_aliases [light.garage -> ["main_light"]]; helpers [group for presence]; 
-    not_applicable [device_3 scope:device status:not_applicable reason:virtual]. 
-    managed_label_prefixes ["area:", "role:"]. design_notes cover all decisions.
+  prompt: 'Inventory: 3 devices (garage_motion=device_1 in garage, office_light=device_2
+    in office,  bridge=device_3 unassigned virtual); 5 entities (light.garage, light.office,  sensor.presence_garage,
+    sensor.presence_office, system.bridge); areas [office, garage].
+
+    Authored manifest: device_areas [device_1 -> garage (reason: name), device_2 ->
+    office];  entity_labels [light.garage -> ["area:garage"], sensor.presence_garage
+    -> ["role:presence"]];  entity_aliases [light.garage -> ["main_light"]]; helpers
+    [group for presence];  not_applicable [device_3 scope:device status:not_applicable
+    reason:virtual].  managed_label_prefixes ["area:", "role:"]. design_notes cover
+    all decisions.'
   trials: 5
   pass_threshold: 1.0
   assertions:
   - kind: output_schema_valid
   - kind: guardrails_clean
   - kind: rubric
-    rubric: >-
-      pass is true with zero critical findings. The manifest correctly assigns every physical 
-      device to an area or not_applicable, declares all label prefixes used, references only 
-      inventory ids, carries no entity_id renames, and every entry has a checkable reason. 
-      The verdict is reproducible from the findings alone. Score only the properties this 
-      criterion names; a defect in anything else is outside this criterion and is not grounds 
-      for a deduction.
+    rubric: pass is true with zero critical findings. The manifest correctly assigns
+      every physical  device to an area or not_applicable, declares all label prefixes
+      used, references only  inventory ids, carries no entity_id renames, and every
+      entry has a checkable reason.  The verdict is reproducible from the findings
+      alone. Score only the properties this  criterion names; a defect in anything
+      else is outside this criterion and is not grounds  for a deduction.
     threshold: 0.9
     judge_model: opus
     require_cross_family: true
@@ -97,21 +92,22 @@ memory_footprint:
   recall_topics:
   - homeiq-ha-organization
   write_topics: []
-completion_criteria: >
-  Done when every finding names the manifest entry or id it concerns, pass is
-  false whenever any critical finding exists, and the verdict is reproducible
-  from the findings alone. Passing a manifest that references an id absent
-  from the inventory, proposes an entity_id rename, uses a label prefix not
-  declared in managed_label_prefixes, or asserts a room placement the
-  inventory's evidence does not support, is a failure. The verdict is advisory
-  data — converge gating is the caller's deterministic code, never this agent.
+completion_criteria: 'Done when every finding names the manifest entry or id it concerns,
+  pass is false whenever any critical finding exists, and the verdict is reproducible
+  from the findings alone. Passing a manifest that references an id absent from the
+  inventory, proposes an entity_id rename, uses a label prefix not declared in managed_label_prefixes,
+  or asserts a room placement the inventory''s evidence does not support, is a failure.
+  The verdict is advisory data — converge gating is the caller''s deterministic code,
+  never this agent.
+
+  '
 schema_version: '2.1'
 brain_profile: agent_brain
 memory_profile: readonly
 share_scope: private
-brain_rationale: 'Judging rubric consistency: recalls prior HomeIQ organization
-  verdicts so the bar stays stable across manifest regenerations, but never
-  writes — run records are the authoritative history.'
+brain_rationale: 'Judging rubric consistency: recalls prior HomeIQ organization verdicts
+  so the bar stays stable across manifest regenerations, but never writes — run records
+  are the authoritative history.'
 ---
 
 # HomeIQ HA Organization Judge

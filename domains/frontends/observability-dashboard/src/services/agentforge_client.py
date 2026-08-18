@@ -10,8 +10,12 @@ from typing import Any
 
 import httpx
 from pydantic import BaseModel, Field
+from services.agent_budget_loader import BudgetCap, UnreadableCap
 
 logger = logging.getLogger(__name__)
+
+BUDGET_KILL_FRACTION = 0.95
+"""How close one invocation's cost must come to its cap to read as a budget-limited kill."""
 
 
 class SpendBySource(BaseModel):
@@ -39,7 +43,7 @@ class Invocation(BaseModel):
     status: str  # "success", "error", etc.
     is_error: bool
     cost_usd: float
-    duration_ms: int
+    duration_ms: float  # AF serializes a fractional millisecond duration
     timestamp: str  # ISO 8601
     mcp_call_count: int = 0
     mcp_hosts: list[str] = Field(default_factory=list)
@@ -47,14 +51,22 @@ class Invocation(BaseModel):
 
 
 class AgentStats(BaseModel):
-    """Aggregated stats for one agent."""
+    """Aggregated stats for one agent.
+
+    `max_budget_usd` is AgentForge's **per-invocation** ceiling, so the figure it
+    governs is `max_invocation_cost_usd` — the costliest single run — not the
+    cumulative `total_cost_usd`, which no cap in this project bounds.
+    """
 
     agent: str
+    budget_key: str = ""  # Gene filename the cap was matched on (see resolve_budget_key)
     invocation_count: int = 0
     error_count: int = 0
     total_cost_usd: float = 0.0
     avg_cost_usd: float = 0.0
-    max_budget_usd: float | None = None
+    max_invocation_cost_usd: float = 0.0  # Costliest single run — what the cap governs
+    max_budget_usd: float | None = None  # Per-invocation cap; None when none is declared
+    budget_cap_unreadable: bool = False  # Cap could not be read, so it is unknown, not absent
     over_budget_kills: int = 0  # Count of budget-limited kills
 
 
@@ -67,6 +79,21 @@ class GateDecision(BaseModel):
     rule_id: str | None = None
     cost_usd: float
     timestamp: str
+
+
+def resolve_budget_key(agent_used: str, agent_budgets: dict[str, BudgetCap], project: str) -> str:
+    """Map an invocation's `agent_used` onto the gene filename that declares its cap.
+
+    `load_agent_budgets` keys on the gene filename (`hiq-summarize`), while AF stamps
+    published genes with the project namespace (`homeiq-hiq-summarize`). Try the bare
+    name first so a gene genuinely named `homeiq-service-auditor` is not mis-stripped
+    down to `service-auditor`. Returns `agent_used` unchanged when nothing matches, so
+    the caller still gets a stable grouping key for an undeclared agent.
+    """
+    if agent_used in agent_budgets:
+        return agent_used
+    stripped = agent_used.removeprefix(f"{project}-")
+    return stripped if stripped in agent_budgets else agent_used
 
 
 class AgentForgeClient:
@@ -150,11 +177,12 @@ class AgentForgeClient:
         # For now, just return empty dict; budget will be read from local repo
         return {}
 
-    async def get_per_agent_stats(self, agent_budgets: dict[str, float | None]) -> list[AgentStats]:
+    async def get_per_agent_stats(self, agent_budgets: dict[str, BudgetCap]) -> list[AgentStats]:
         """Aggregate spend and invocation stats per agent.
 
         Args:
-            agent_budgets: Mapping of agent name -> max_budget_usd
+            agent_budgets: Mapping of agent name -> per-invocation cap (see
+                `agent_budget_loader.load_agent_budgets`)
 
         Returns:
             List of per-agent stats, sorted by cost descending.
@@ -166,18 +194,24 @@ class AgentForgeClient:
         for inv in invocations:
             agent = inv.agent_used or "unknown"
             if agent not in stats_map:
+                budget_key = resolve_budget_key(agent, agent_budgets, self.project)
+                cap = agent_budgets.get(budget_key)
                 stats_map[agent] = AgentStats(
                     agent=agent,
-                    max_budget_usd=agent_budgets.get(agent),
+                    budget_key=budget_key,
+                    max_budget_usd=None if isinstance(cap, UnreadableCap) else cap,
+                    budget_cap_unreadable=isinstance(cap, UnreadableCap),
                 )
 
             s = stats_map[agent]
             s.invocation_count += 1
             s.total_cost_usd += inv.cost_usd
+            s.max_invocation_cost_usd = max(s.max_invocation_cost_usd, inv.cost_usd)
             if inv.is_error:
                 s.error_count += 1
-                # Check if budget-killed by looking at cost near budget cap
-                if s.max_budget_usd and s.total_cost_usd >= s.max_budget_usd * 0.95:
+                # A budget kill is one invocation whose own cost reached its own cap —
+                # cumulative spend crossing a per-invocation cap kills nothing.
+                if s.max_budget_usd and inv.cost_usd >= s.max_budget_usd * BUDGET_KILL_FRACTION:
                     s.over_budget_kills += 1
 
         # Compute averages
