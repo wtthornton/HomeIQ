@@ -129,13 +129,9 @@ class MemoryConsolidator:
             limit=5,
         )
 
-        similar_with_scores = await self._calculate_cosine_similarities(
-            content, similar_memories
-        )
+        similar_with_scores = await self._calculate_cosine_similarities(content, similar_memories)
 
-        action, existing_memory, reason = await self._determine_action(
-            content, similar_with_scores
-        )
+        action, existing_memory, reason = await self._determine_action(content, similar_with_scores)
 
         logger.info(
             "Consolidation decision: action=%s reason=%s",
@@ -326,10 +322,7 @@ class MemoryConsolidator:
         for result, similarity in similar_memories:
             memory = result.memory
 
-            if (
-                similarity >= self.DUPLICATE_THRESHOLD
-                and memory.created_at >= recent_cutoff
-            ):
+            if similarity >= self.DUPLICATE_THRESHOLD and memory.created_at >= recent_cutoff:
                 return (
                     ConsolidationAction.SKIP,
                     memory,
@@ -378,9 +371,7 @@ class MemoryConsolidator:
         existing_has_negation = bool(self.NEGATION_PATTERNS.search(existing.content))
         candidate_has_negation = bool(self.NEGATION_PATTERNS.search(candidate))
 
-        existing_has_affirmative = bool(
-            self.AFFIRMATIVE_PATTERNS.search(existing.content)
-        )
+        existing_has_affirmative = bool(self.AFFIRMATIVE_PATTERNS.search(existing.content))
         candidate_has_affirmative = bool(self.AFFIRMATIVE_PATTERNS.search(candidate))
 
         return (existing_has_negation and candidate_has_affirmative) or (
@@ -430,26 +421,20 @@ class MemoryConsolidator:
 
         if similarity > 0.9:
             # Very similar — keep newer (more recent = more accurate)
-            logger.debug(
-                "Merge: keeping newer content (similarity=%.2f)", similarity
-            )
+            logger.debug("Merge: keeping newer content (similarity=%.2f)", similarity)
             return new
 
         if similarity >= 0.7:
             # Moderately similar — deduplicate by keeping the more detailed version
             # and appending any unique info from the other
-            logger.debug(
-                "Merge: combining content (similarity=%.2f)", similarity
-            )
+            logger.debug("Merge: combining content (similarity=%.2f)", similarity)
             # Use the longer as base, append the shorter's unique info
             if len(new) >= len(existing):
                 return new
             return f"{existing}. Additionally: {new}"
 
         # Low similarity — different aspects, concatenate both
-        logger.debug(
-            "Merge: concatenating different aspects (similarity=%.2f)", similarity
-        )
+        logger.debug("Merge: concatenating different aspects (similarity=%.2f)", similarity)
         return f"{existing}. {new}"
 
     async def run_garbage_collection(self, archive_threshold: float = 0.15) -> int:
@@ -544,9 +529,8 @@ class MemoryConsolidator:
                     list(memory1.embedding), list(memory2.embedding)
                 )
 
-                if (
-                    similarity >= self.SIMILARITY_THRESHOLD
-                    and self._is_contradiction(memory1, memory2.content)
+                if similarity >= self.SIMILARITY_THRESHOLD and self._is_contradiction(
+                    memory1, memory2.content
                 ):
                     contradictions.append((memory1, memory2))
                     logger.debug(

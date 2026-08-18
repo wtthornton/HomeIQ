@@ -6,12 +6,14 @@ and hard-coded `old_state=None, new_state=None`, so every consumer of
 saw null states forever.
 """
 
+import inspect
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+from fastapi import HTTPException
 
 sys.path.insert(0, str(Path(__file__).parent / ".."))
 
@@ -58,7 +60,9 @@ async def test_raw_events_pivot_and_expose_states(monkeypatch):
     assert 'r._field == "context_id"' in flux
     assert 'pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")' in flux
     # selective tag filters push down to storage BEFORE the pivot; pivot before the global group()
-    assert flux.index('r.entity_id == "light.office"') < flux.index("pivot(") < flux.index("group()")
+    assert (
+        flux.index('r.entity_id == "light.office"') < flux.index("pivot(") < flux.index("group()")
+    )
     assert len(events) == 1
     assert events[0].id == "01CTX"
     assert events[0].new_state == {"state": "on"}
@@ -112,6 +116,7 @@ async def test_downsampled_rows_do_not_use_the_aggregate_as_an_id(monkeypatch):
     _get_events_from_influxdb turned that into an empty 200, so every window over
     10 days looked like "no events occurred".
     """
+
     def _stat_row(entity_id: str) -> MagicMock:
         # What a downsampled row actually looks like: no context_id, no states,
         # the aggregate in _value.
@@ -138,3 +143,74 @@ async def test_downsampled_rows_do_not_use_the_aggregate_as_an_id(monkeypatch):
     assert len(events) == 2
     assert {e.entity_id for e in events} == {"sensor.a", "sensor.b"}
     assert all(isinstance(e.id, str) for e in events)
+
+
+@pytest.mark.asyncio
+async def test_query_failure_raises_instead_of_returning_empty(monkeypatch):
+    """A broken query must not look like a quiet window (TAP-6151).
+
+    _get_events_from_influxdb used to catch everything and return [], so an
+    unreachable InfluxDB, a rejected Flux query and an EventData validation
+    error all arrived at the caller as a successful "no events occurred".
+    """
+    client, query_api = _stub([])
+    query_api.query.side_effect = RuntimeError("unauthorized: token expired")
+    monkeypatch.setattr(ee, "_get_shared_influxdb_client", lambda: client)
+
+    with pytest.raises(RuntimeError, match="token expired"):
+        await EventsEndpoints()._get_events_from_influxdb(EventFilter(), limit=10, offset=0)
+
+
+@pytest.mark.asyncio
+async def test_empty_window_still_returns_an_empty_list(monkeypatch):
+    """The genuinely-empty case is unchanged, and distinguishable from failure."""
+    client, _ = _stub([])
+    monkeypatch.setattr(ee, "_get_shared_influxdb_client", lambda: client)
+
+    events = await EventsEndpoints()._get_events_from_influxdb(EventFilter(), limit=10, offset=0)
+
+    assert events == []
+
+
+@pytest.mark.asyncio
+async def test_get_all_events_maps_a_query_failure_to_503(monkeypatch):
+    """The HTTP layer reports the failure rather than a 200 with no events."""
+    client, query_api = _stub([])
+    query_api.query.side_effect = RuntimeError("connection refused")
+    monkeypatch.setattr(ee, "_get_shared_influxdb_client", lambda: client)
+
+    with pytest.raises(HTTPException) as excinfo:
+        await EventsEndpoints()._get_all_events(EventFilter(), limit=10, offset=0)
+
+    assert excinfo.value.status_code == 503
+    assert "connection refused" in excinfo.value.detail
+
+
+def test_events_route_does_not_offer_an_entity_category_filter():
+    """The tag was never written, so the filter could only return empty (TAP-6156)."""
+    assert "entity_category" not in EventFilter.model_fields
+    assert "exclude_category" not in EventFilter.model_fields
+
+    params = {
+        p.name
+        for route in EventsEndpoints().router.routes
+        if getattr(route, "path", None) == "/events"
+        for p in inspect.signature(route.endpoint).parameters.values()
+    }
+    assert "entity_category" not in params and "exclude_category" not in params
+    # event_category is the classification tag ingestion actually writes.
+    assert "event_category" in params
+
+
+@pytest.mark.asyncio
+async def test_flux_never_filters_on_the_nonexistent_entity_category_tag(monkeypatch):
+    client, query_api = _stub([])
+    monkeypatch.setattr(ee, "_get_shared_influxdb_client", lambda: client)
+
+    await EventsEndpoints()._get_events_from_influxdb(
+        EventFilter(event_category="lighting"), limit=1, offset=0
+    )
+
+    flux = query_api.query.call_args[0][0]
+    assert "entity_category" not in flux
+    assert 'r.event_category == "lighting"' in flux

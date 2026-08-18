@@ -14,12 +14,13 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from .decay import effective_confidence
 from .models import Memory, MemoryType, SourceChannel
 
 if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
     from .embeddings import EmbeddingGenerator
 
 logger = logging.getLogger(__name__)
@@ -125,9 +126,7 @@ class MemorySearch:
         if self._embedding_generator is not None:
             try:
                 query_embedding = await self._embedding_generator.generate(query)
-                vector_results = await self._vector_search(
-                    query_embedding, filters, expanded_limit
-                )
+                vector_results = await self._vector_search(query_embedding, filters, expanded_limit)
                 logger.debug("Vector search returned %d results", len(vector_results))
             except Exception as e:
                 logger.warning("Vector search failed, using FTS-only: %s", e)
@@ -143,8 +142,8 @@ class MemorySearch:
             fused = [(mid, self._fts_weight / (self.K + rank)) for mid, rank in fts_results]
 
         memory_ids = [mid for mid, _ in fused]
-        fts_ranks = {mid: rank for mid, rank in fts_results}
-        vector_ranks = {mid: rank for mid, rank in vector_results}
+        fts_ranks = dict(fts_results)
+        vector_ranks = dict(vector_results)
 
         async with self._session_factory() as session:
             memories_query = text("""
@@ -224,9 +223,7 @@ class MemorySearch:
 
         return results[:limit]
 
-    async def _fts_search(
-        self, query: str, filters: dict, limit: int
-    ) -> list[tuple[int, int]]:
+    async def _fts_search(self, query: str, filters: dict, limit: int) -> list[tuple[int, int]]:
         """Execute PostgreSQL full-text search.
 
         Uses to_tsvector and plainto_tsquery for robust text matching
@@ -240,9 +237,7 @@ class MemorySearch:
         Returns:
             List of (memory_id, rank) tuples ordered by relevance.
         """
-        where_clauses = [
-            "to_tsvector('english', content) @@ plainto_tsquery('english', :query)"
-        ]
+        where_clauses = ["to_tsvector('english', content) @@ plainto_tsquery('english', :query)"]
         params: dict = {"query": query, "limit": limit}
 
         if filters.get("memory_types"):

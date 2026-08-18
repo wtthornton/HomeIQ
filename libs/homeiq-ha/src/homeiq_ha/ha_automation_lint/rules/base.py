@@ -5,7 +5,6 @@ Base class for all lint rules.
 import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -28,7 +27,7 @@ class Rule(ABC):
     enabled: bool = True
 
     @abstractmethod
-    def check(self, automation: AutomationIR) -> List[Finding]:
+    def check(self, automation: AutomationIR) -> list[Finding]:
         """
         Check this rule against an automation and return findings.
 

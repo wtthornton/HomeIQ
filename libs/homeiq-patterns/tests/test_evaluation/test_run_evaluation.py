@@ -73,7 +73,7 @@ class TestSyntheticSessionGenerator:
         s1 = gen.generate(count=5, seed=42)
         s2 = gen.generate(count=5, seed=42)
         assert len(s1) == len(s2)
-        for a, b in zip(s1, s2):
+        for a, b in zip(s1, s2, strict=False):
             assert a.session_id == b.session_id
             assert a.agent_name == b.agent_name
 
@@ -270,7 +270,11 @@ class TestRunEvaluation:
             tool_calls=[
                 ToolCall(
                     tool_name="preview_automation_from_prompt",
-                    parameters={"user_prompt": "test", "automation_yaml": "alias: test", "alias": "test"},
+                    parameters={
+                        "user_prompt": "test",
+                        "automation_yaml": "alias: test",
+                        "alias": "test",
+                    },
                     result={"preview_id": "p1"},
                 )
             ],

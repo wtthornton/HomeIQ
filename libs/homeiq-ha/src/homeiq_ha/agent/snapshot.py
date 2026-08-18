@@ -104,8 +104,9 @@ async def capture(ha: HAClient) -> Snapshot:
 
     for registry, id_field in REGISTRY_KEYS.items():
         entries = await ha.ws.send_command(f"config/{registry}/list") or []
-        attr = {"area_registry": "areas", "floor_registry": "floors",
-                "label_registry": "labels"}[registry]
+        attr = {"area_registry": "areas", "floor_registry": "floors", "label_registry": "labels"}[
+            registry
+        ]
         target = getattr(snapshot, attr)
         for entry in entries:
             target[str(entry[id_field])] = {"name": entry.get("name")}
@@ -174,8 +175,12 @@ async def diff(ha: HAClient, baseline: Snapshot) -> list[Change]:
             for name in fields:
                 if before[key].get(name) != after[key].get(name):
                     changes.append(
-                        Change("changed", f"{kind}:{key}.{name}",
-                               before[key].get(name), after[key].get(name))
+                        Change(
+                            "changed",
+                            f"{kind}:{key}.{name}",
+                            before[key].get(name),
+                            after[key].get(name),
+                        )
                     )
 
     for entry_id in current.config_entries.keys() - baseline.config_entries.keys():
@@ -193,23 +198,29 @@ async def diff(ha: HAClient, baseline: Snapshot) -> list[Change]:
     for name in CORE_CONFIG_FIELDS:
         if baseline.core_config.get(name) != current.core_config.get(name):
             changes.append(
-                Change("changed", f"core_config.{name}",
-                       baseline.core_config.get(name), current.core_config.get(name))
+                Change(
+                    "changed",
+                    f"core_config.{name}",
+                    baseline.core_config.get(name),
+                    current.core_config.get(name),
+                )
             )
 
     for name in ("schedule", "retention"):
         if baseline.backup_config.get(name) != current.backup_config.get(name):
             changes.append(
-                Change("changed", f"backup_config.{name}",
-                       baseline.backup_config.get(name), current.backup_config.get(name))
+                Change(
+                    "changed",
+                    f"backup_config.{name}",
+                    baseline.backup_config.get(name),
+                    current.backup_config.get(name),
+                )
             )
 
     before_agents = _agent_ids(baseline.backup_config)
     after_agents = _agent_ids(current.backup_config)
     if before_agents != after_agents:
-        changes.append(
-            Change("changed", "backup_config.agent_ids", before_agents, after_agents)
-        )
+        changes.append(Change("changed", "backup_config.agent_ids", before_agents, after_agents))
 
     for backup_id in set(current.backup_ids) - set(baseline.backup_ids):
         changes.append(Change("added", f"backup:{backup_id}", after=backup_id))
@@ -278,9 +289,7 @@ async def restore(ha: HAClient, baseline: Snapshot, *, strict: bool = True) -> l
                 if before[key].get(name) != after[key].get(name)
             }
             if drift:
-                await ha.ws.send_command(
-                    f"config/{registry}/update", **{id_field: key}, **drift
-                )
+                await ha.ws.send_command(f"config/{registry}/update", **{id_field: key}, **drift)
                 reverted.append(Change("revert", f"{kind}:{key}", after=list(drift)))
 
     # Config entries that appeared -> remove.

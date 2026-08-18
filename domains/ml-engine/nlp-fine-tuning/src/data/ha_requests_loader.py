@@ -134,7 +134,9 @@ class HARequestsLoader:
 
         # Identify columns (dataset structure may vary)
         prompt_col = self._find_column(columns, ["request", "user_request", "prompt", "input"])
-        response_col = self._find_column(columns, ["response", "assistant_response", "completion", "output"])
+        response_col = self._find_column(
+            columns, ["response", "assistant_response", "completion", "output"]
+        )
         intent_col = self._find_column(columns, ["intent", "intent_type", "label"])
         entities_col = self._find_column(columns, ["entities", "slots", "extracted_entities"])
 
@@ -156,7 +158,7 @@ class HARequestsLoader:
                 pl.col(entities_col)
                 .map_elements(
                     lambda x: json.dumps(x) if isinstance(x, (dict, list)) else str(x),
-                    return_dtype=pl.Utf8
+                    return_dtype=pl.Utf8,
                 )
                 .alias("entities")
             )
@@ -166,14 +168,16 @@ class HARequestsLoader:
 
         # Extract domain and area from entities if available
         if "entities" in df.columns:
-            df = df.with_columns([
-                pl.col("entities")
-                .map_elements(self._extract_domain, return_dtype=pl.Utf8)
-                .alias("domain"),
-                pl.col("entities")
-                .map_elements(self._extract_area, return_dtype=pl.Utf8)
-                .alias("area"),
-            ])
+            df = df.with_columns(
+                [
+                    pl.col("entities")
+                    .map_elements(self._extract_domain, return_dtype=pl.Utf8)
+                    .alias("domain"),
+                    pl.col("entities")
+                    .map_elements(self._extract_area, return_dtype=pl.Utf8)
+                    .alias("area"),
+                ]
+            )
 
         logger.info(f"Preprocessed {len(df):,} examples with {len(df.columns)} columns")
 
@@ -190,7 +194,9 @@ class HARequestsLoader:
     def _extract_domain(self, entities_json: str) -> str:
         """Extract domain from entities JSON."""
         try:
-            entities = json.loads(entities_json) if isinstance(entities_json, str) else entities_json
+            entities = (
+                json.loads(entities_json) if isinstance(entities_json, str) else entities_json
+            )
             if isinstance(entities, dict):
                 return entities.get("domain", "")
             elif isinstance(entities, list):
@@ -204,7 +210,9 @@ class HARequestsLoader:
     def _extract_area(self, entities_json: str) -> str:
         """Extract area from entities JSON."""
         try:
-            entities = json.loads(entities_json) if isinstance(entities_json, str) else entities_json
+            entities = (
+                json.loads(entities_json) if isinstance(entities_json, str) else entities_json
+            )
             if isinstance(entities, dict):
                 return entities.get("area", "")
             elif isinstance(entities, list):
@@ -319,12 +327,16 @@ class HARequestsLoader:
         # Filter rows with valid intents
         classification_df = df.filter(
             pl.col("intent").is_not_null() & (pl.col("intent") != "")
-        ).select([
-            pl.col("prompt").alias("text"),
-            pl.col("intent").alias("label"),
-        ])
+        ).select(
+            [
+                pl.col("prompt").alias("text"),
+                pl.col("intent").alias("label"),
+            ]
+        )
 
-        logger.info(f"Created intent classification dataset with {len(classification_df):,} examples")
+        logger.info(
+            f"Created intent classification dataset with {len(classification_df):,} examples"
+        )
 
         return classification_df
 
@@ -361,11 +373,12 @@ class HARequestsLoader:
             raise ValueError("DataFrame must have 'intent' column")
 
         return (
-            df
-            .group_by("intent")
-            .agg([
-                pl.count().alias("count"),
-            ])
+            df.group_by("intent")
+            .agg(
+                [
+                    pl.count().alias("count"),
+                ]
+            )
             .sort("count", descending=True)
         )
 
@@ -375,12 +388,13 @@ class HARequestsLoader:
             raise ValueError("DataFrame must have 'domain' column")
 
         return (
-            df
-            .filter(pl.col("domain") != "")
+            df.filter(pl.col("domain") != "")
             .group_by("domain")
-            .agg([
-                pl.count().alias("count"),
-            ])
+            .agg(
+                [
+                    pl.count().alias("count"),
+                ]
+            )
             .sort("count", descending=True)
         )
 
@@ -415,8 +429,7 @@ class HARequestsLoader:
         test_df = df[val_end:]
 
         logger.info(
-            f"Split dataset: train={len(train_df):,}, "
-            f"val={len(val_df):,}, test={len(test_df):,}"
+            f"Split dataset: train={len(train_df):,}, val={len(val_df):,}, test={len(test_df):,}"
         )
 
         return train_df, val_df, test_df

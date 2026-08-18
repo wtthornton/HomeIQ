@@ -13,22 +13,24 @@ Supports all Home Assistant 2025.10+ features:
 - Error handling
 """
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
 
-class AutomationMode(str, Enum):
+class AutomationMode(StrEnum):
     """Automation execution mode."""
+
     SINGLE = "single"
     RESTART = "restart"
     QUEUED = "queued"
     PARALLEL = "parallel"
 
 
-class MaxExceeded(str, Enum):
+class MaxExceeded(StrEnum):
     """Behavior when max_exceeded is triggered."""
+
     SILENT = "silent"
     WARNING = "warning"
     ERROR = "error"
@@ -36,17 +38,26 @@ class MaxExceeded(str, Enum):
 
 class TriggerSpec(BaseModel):
     """Trigger specification."""
-    platform: str = Field(..., description="Trigger platform (e.g., 'state', 'time', 'time_pattern')")
+
+    platform: str = Field(
+        ..., description="Trigger platform (e.g., 'state', 'time', 'time_pattern')"
+    )
     entity_id: str | list[str] | None = Field(None, description="Entity ID(s) for state triggers")
     to: str | None = Field(None, description="Target state for state triggers")
-    from_state: str | None = Field(None, alias="from", description="Source state for state triggers")
+    from_state: str | None = Field(
+        None, alias="from", description="Source state for state triggers"
+    )
     at: str | None = Field(None, description="Time for time triggers (HH:MM:SS)")
-    seconds: str | int | None = Field(None, description="Seconds pattern for time_pattern triggers (e.g., '/1' for every second)")
+    seconds: str | int | None = Field(
+        None, description="Seconds pattern for time_pattern triggers (e.g., '/1' for every second)"
+    )
     minutes: str | int | None = Field(None, description="Minutes pattern for time_pattern triggers")
     hours: str | int | None = Field(None, description="Hours pattern for time_pattern triggers")
     days: str | int | None = Field(None, description="Days pattern for time_pattern triggers")
     # Additional trigger fields can be added as needed
-    extra: dict[str, Any] = Field(default_factory=dict, description="Additional trigger-specific fields")
+    extra: dict[str, Any] = Field(
+        default_factory=dict, description="Additional trigger-specific fields"
+    )
 
     class Config:
         populate_by_name = True
@@ -54,27 +65,39 @@ class TriggerSpec(BaseModel):
 
 class ConditionSpec(BaseModel):
     """Condition specification."""
-    condition: str = Field(..., description="Condition type (e.g., 'state', 'numeric_state', 'time', 'template')")
+
+    condition: str = Field(
+        ..., description="Condition type (e.g., 'state', 'numeric_state', 'time', 'template')"
+    )
     entity_id: str | list[str] | None = Field(None, description="Entity ID(s) for state conditions")
     state: str | None = Field(None, description="State value for state conditions")
     above: float | None = Field(None, description="Above value for numeric_state conditions")
     below: float | None = Field(None, description="Below value for numeric_state conditions")
     value_template: str | None = Field(None, description="Jinja2 template for condition: template")
     # Additional condition fields can be added as needed
-    extra: dict[str, Any] = Field(default_factory=dict, description="Additional condition-specific fields")
+    extra: dict[str, Any] = Field(
+        default_factory=dict, description="Additional condition-specific fields"
+    )
 
 
 class ActionSpec(BaseModel):
     """Action specification."""
+
     service: str | None = Field(None, description="Service to call (e.g., 'light.turn_on')")
     scene: str | None = Field(None, description="Scene to activate")
     delay: str | None = Field(None, description="Delay duration (e.g., '00:00:05')")
-    target: dict[str, Any] | None = Field(None, description="Target specification (entity_id, area_id, device_id)")
+    target: dict[str, Any] | None = Field(
+        None, description="Target specification (entity_id, area_id, device_id)"
+    )
     data: dict[str, Any] = Field(default_factory=dict, description="Service data")
     # Variables action - defines variables for use in subsequent actions
-    variables: dict[str, Any] | None = Field(None, description="Variables to set for use in subsequent actions")
+    variables: dict[str, Any] | None = Field(
+        None, description="Variables to set for use in subsequent actions"
+    )
     # Advanced action types
-    choose: list[dict[str, Any]] | None = Field(None, description="Choose action (list of conditions/sequences)")
+    choose: list[dict[str, Any]] | None = Field(
+        None, description="Choose action (list of conditions/sequences)"
+    )
     repeat: dict[str, Any] | None = Field(
         None,
         description="Repeat action. Supports 'count', 'for_each' (list), 'until' (list of conditions with template)",
@@ -83,9 +106,13 @@ class ActionSpec(BaseModel):
     sequence: list[dict[str, Any]] | None = Field(None, description="Sequence actions")
     # Error handling
     error: str | None = Field(None, description="Error handling ('continue', 'stop', 'abort')")
-    continue_on_error: bool | None = Field(None, description="Legacy error handling (deprecated, use 'error')")
+    continue_on_error: bool | None = Field(
+        None, description="Legacy error handling (deprecated, use 'error')"
+    )
     # Additional action fields
-    extra: dict[str, Any] = Field(default_factory=dict, description="Additional action-specific fields")
+    extra: dict[str, Any] = Field(
+        default_factory=dict, description="Additional action-specific fields"
+    )
 
     @field_validator("service", "scene", "delay", "variables", mode="before")
     @classmethod
@@ -94,14 +121,23 @@ class ActionSpec(BaseModel):
         field_name = info.field_name
         current_field_has_value = bool(v)
 
-        has_service = info.data.get("service") if field_name != "service" else current_field_has_value
+        has_service = (
+            info.data.get("service") if field_name != "service" else current_field_has_value
+        )
         has_scene = info.data.get("scene") if field_name != "scene" else current_field_has_value
         has_delay = info.data.get("delay") if field_name != "delay" else current_field_has_value
-        has_variables = info.data.get("variables") if field_name != "variables" else current_field_has_value
+        has_variables = (
+            info.data.get("variables") if field_name != "variables" else current_field_has_value
+        )
 
         if has_service or has_scene or has_delay or has_variables:
             return v
-        if info.data.get("choose") or info.data.get("repeat") or info.data.get("parallel") or info.data.get("sequence"):
+        if (
+            info.data.get("choose")
+            or info.data.get("repeat")
+            or info.data.get("parallel")
+            or info.data.get("sequence")
+        ):
             return v
         raise ValueError(
             "Action must have at least one of: service, scene, delay, variables, choose, repeat, parallel, or sequence"
@@ -111,23 +147,29 @@ class ActionSpec(BaseModel):
 class AutomationSpec(BaseModel):
     """
     Canonical automation specification.
-    
+
     This is the internal representation of a Home Assistant automation.
     YAML is rendered FROM this schema, ensuring consistency and correctness.
     """
+
     id: str | None = Field(None, description="Automation ID (optional, can be generated)")
     alias: str = Field(..., description="Automation alias/name")
     description: str | None = Field(None, description="Automation description")
     initial_state: bool = Field(True, description="Initial state (required for 2025.10+)")
     mode: AutomationMode = Field(AutomationMode.SINGLE, description="Automation execution mode")
-    trigger: list[TriggerSpec] = Field(..., description="List of triggers (singular 'trigger', not 'triggers')")
+    trigger: list[TriggerSpec] = Field(
+        ..., description="List of triggers (singular 'trigger', not 'triggers')"
+    )
     condition: list[ConditionSpec] | None = Field(None, description="List of conditions")
-    action: list[ActionSpec] = Field(..., description="List of actions (singular 'action', not 'actions')")
+    action: list[ActionSpec] = Field(
+        ..., description="List of actions (singular 'action', not 'actions')"
+    )
     max_exceeded: MaxExceeded | str | None = Field(None, description="Behavior when max_exceeded")
     tags: list[str] | None = Field(None, description="Automation tags")
     # Additional fields
-    extra: dict[str, Any] = Field(default_factory=dict, description="Additional automation-specific fields")
+    extra: dict[str, Any] = Field(
+        default_factory=dict, description="Additional automation-specific fields"
+    )
 
     class Config:
         use_enum_values = True
-

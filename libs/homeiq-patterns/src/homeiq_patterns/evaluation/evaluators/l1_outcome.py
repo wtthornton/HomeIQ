@@ -8,10 +8,13 @@ Evaluators:
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ..base_evaluator import OutcomeEvaluator
 from ..llm_judge import JudgeRubric, LLMJudge
-from ..models import EvaluationResult, SessionTrace
+
+if TYPE_CHECKING:
+    from ..models import EvaluationResult, SessionTrace
 
 _RUBRICS_DIR = Path(__file__).resolve().parent.parent / "rubrics"
 
@@ -151,10 +154,7 @@ class GoalSuccessRateEvaluator(OutcomeEvaluator):
                 return self._result(
                     score=0.5,
                     label="Partial",
-                    explanation=(
-                        f"Pipeline succeeded but YAML invalid "
-                        f"(score={pipeline_score})"
-                    ),
+                    explanation=(f"Pipeline succeeded but YAML invalid (score={pipeline_score})"),
                 )
 
         # Ambiguous — fall through to LLM judge

@@ -314,7 +314,8 @@ async def deploy_compiled_automation(
             elif auto_data.pop("id", None) is not None:
                 logger.warning(
                     "Compiled artifact %s carried an embedded automation id; "
-                    "stripped for create semantics", compiled_id
+                    "stripped for create semantics",
+                    compiled_id,
                 )
                 deploy_yaml = _yaml.dump(auto_data, default_flow_style=False, sort_keys=False)
 

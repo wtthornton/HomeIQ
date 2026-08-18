@@ -10,10 +10,13 @@ Evaluators:
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ..base_evaluator import SafetyEvaluator
 from ..llm_judge import JudgeRubric, LLMJudge
-from ..models import EvaluationResult, SessionTrace
+
+if TYPE_CHECKING:
+    from ..models import EvaluationResult, SessionTrace
 
 _RUBRICS_DIR = Path(__file__).resolve().parent.parent / "rubrics"
 

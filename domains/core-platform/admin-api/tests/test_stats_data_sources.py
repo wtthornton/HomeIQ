@@ -37,9 +37,7 @@ def _stats_with_client(**client_attrs) -> StatsEndpoints:
 async def test_get_active_data_sources_from_influxdb():
     """Data sources come from the client's real measurement listing."""
     stats = _stats_with_client()
-    stats.influxdb_client.list_active_measurements.return_value = [
-        "home_assistant_events"
-    ]
+    stats.influxdb_client.list_active_measurements.return_value = ["home_assistant_events"]
 
     result = await stats._get_active_data_sources()
 
@@ -51,9 +49,7 @@ async def test_get_active_data_sources_from_influxdb():
 async def test_get_active_data_sources_influxdb_error():
     """Errors degrade to [] (with a warning), never hardcoded values."""
     stats = _stats_with_client()
-    stats.influxdb_client.list_active_measurements.side_effect = Exception(
-        "Query failed"
-    )
+    stats.influxdb_client.list_active_measurements.side_effect = Exception("Query failed")
 
     result = await stats._get_active_data_sources()
 

@@ -60,15 +60,10 @@ def get_state_fixture(
 ) -> Callable[[], dict[str, str]]:
     """Fixture that can state for all synthetic home entities."""
 
-    entity_state = EntityStateFixture(
-        hass, synthetic_home_config_entry, entity_registry
-    )
+    entity_state = EntityStateFixture(hass, synthetic_home_config_entry, entity_registry)
 
     def func() -> dict[str, str]:
-        return {
-            entity_id: state.state
-            for entity_id, state in entity_state.get_state().items()
-        }
+        return {entity_id: state.state for entity_id, state in entity_state.get_state().items()}
 
     return func
 
@@ -116,9 +111,7 @@ async def automation_fixture(
     """Fixture to set up the blueprint, returns false if the automation seems invalid."""
     if not blueprint_content.status.valid:
         return blueprint_content.status
-    assert await async_setup_component(
-        hass, "automation", {"automation": [automation_config]}
-    )
+    assert await async_setup_component(hass, "automation", {"automation": [automation_config]})
     await hass.async_block_till_done()
 
     # Verify the automation is loaded
@@ -127,7 +120,5 @@ async def automation_fixture(
     states = hass.states.get(entity_id)
     assert states
     if states.state == "unavailable":
-        return BlueprintContentStatus(
-            valid=False, error_details="Unable to load automation."
-        )
+        return BlueprintContentStatus(valid=False, error_details="Unable to load automation.")
     return VALID_BLUEPRINT

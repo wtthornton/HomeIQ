@@ -122,9 +122,7 @@ class ConfigManager:
             raise FileNotFoundError(f"Configuration file not found: {env_file}")
 
         if not self.allow_secret_writes:
-            blocked = [
-                key for key, value in updates.items() if self._is_sensitive(key, value)
-            ]
+            blocked = [key for key, value in updates.items() if self._is_sensitive(key, value)]
             if blocked:
                 raise PermissionError(
                     f"Updating sensitive keys via API is disabled: {', '.join(blocked)}"

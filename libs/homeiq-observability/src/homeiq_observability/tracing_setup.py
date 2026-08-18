@@ -33,21 +33,17 @@ def setup_tracing(
 
     try:
         from opentelemetry import trace
-        from opentelemetry.sdk.trace import TracerProvider
-        from opentelemetry.sdk.trace.export import BatchSpanProcessor
-        from opentelemetry.sdk.resources import Resource
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
             OTLPSpanExporter,
         )
+        from opentelemetry.sdk.resources import Resource
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
     except ImportError:
-        logger.info(
-            "OpenTelemetry not installed -- tracing disabled for %s", service_name
-        )
+        logger.info("OpenTelemetry not installed -- tracing disabled for %s", service_name)
         return False
 
-    endpoint = otlp_endpoint or os.getenv(
-        "OTEL_EXPORTER_OTLP_ENDPOINT", "http://jaeger:4318"
-    )
+    endpoint = otlp_endpoint or os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://jaeger:4318")
 
     resource = Resource.create(
         {
@@ -78,7 +74,7 @@ def instrument_fastapi(app: Any) -> None:
     try:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
-        def _server_request_hook(span: Any, scope: dict) -> None:
+        def _server_request_hook(span: Any, _scope: dict) -> None:
             if span and span.is_recording():
                 if _SERVICE_GROUP:
                     span.set_attribute("service.group", _SERVICE_GROUP)

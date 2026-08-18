@@ -33,12 +33,9 @@ NEW_VALUES = "'behavioral', 'preference', 'boundary', 'outcome', 'routine'"
 def upgrade() -> None:
     """Update memory_type CHECK constraints to match application enums."""
     # Drop old constraints
+    op.execute("ALTER TABLE memory.memories DROP CONSTRAINT IF EXISTS chk_memory_type")
     op.execute(
-        "ALTER TABLE memory.memories DROP CONSTRAINT IF EXISTS chk_memory_type"
-    )
-    op.execute(
-        "ALTER TABLE memory.memory_archive "
-        "DROP CONSTRAINT IF EXISTS chk_archive_memory_type"
+        "ALTER TABLE memory.memory_archive DROP CONSTRAINT IF EXISTS chk_archive_memory_type"
     )
 
     # Migrate any existing rows with old enum values
@@ -76,12 +73,9 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Revert memory_type CHECK constraints to original values."""
+    op.execute("ALTER TABLE memory.memories DROP CONSTRAINT IF EXISTS chk_memory_type")
     op.execute(
-        "ALTER TABLE memory.memories DROP CONSTRAINT IF EXISTS chk_memory_type"
-    )
-    op.execute(
-        "ALTER TABLE memory.memory_archive "
-        "DROP CONSTRAINT IF EXISTS chk_archive_memory_type"
+        "ALTER TABLE memory.memory_archive DROP CONSTRAINT IF EXISTS chk_archive_memory_type"
     )
 
     # Revert data

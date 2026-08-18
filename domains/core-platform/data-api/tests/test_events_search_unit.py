@@ -163,9 +163,7 @@ async def test_store_failure_surfaces_as_502_not_silent_empty():
     assert isinstance(app, FastAPI)
 
     endpoints = EventsEndpoints()
-    with patch.object(
-        EventsEndpoints, "_search_events", new_callable=AsyncMock
-    ) as mock:
+    with patch.object(EventsEndpoints, "_search_events", new_callable=AsyncMock) as mock:
         mock.side_effect = Exception("store down")
         test_app = FastAPI()
         test_app.include_router(endpoints.router)

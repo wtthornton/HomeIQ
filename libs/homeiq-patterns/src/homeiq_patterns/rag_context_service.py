@@ -16,14 +16,13 @@ Usage:
 
 import logging
 import re
-from abc import ABC
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 logger = logging.getLogger(__name__)
 
 
-class RAGContextService(ABC):
+class RAGContextService:
     """
     Abstract base class for keyword-triggered RAG context injection.
 
@@ -73,12 +72,12 @@ class RAGContextService(ABC):
                 continue
 
             # Check for whole-word match using word boundaries
-            pattern = r'\b' + re.escape(kw_lower) + r'\b'
+            pattern = r"\b" + re.escape(kw_lower) + r"\b"
             is_whole_word = bool(re.search(pattern, lower))
 
             base_weight = 1.0 if is_whole_word else 0.3
             # Multi-word keywords are more specific, give 1.5x
-            if ' ' in kw_lower:
+            if " " in kw_lower:
                 base_weight *= 1.5
 
             total_weight += base_weight
@@ -116,9 +115,7 @@ class RAGContextService(ABC):
 
         try:
             self._corpus_cache = self.corpus_path.read_text(encoding="utf-8")
-            logger.debug(
-                f"[{self.name}] Loaded corpus ({len(self._corpus_cache)} chars)"
-            )
+            logger.debug(f"[{self.name}] Loaded corpus ({len(self._corpus_cache)} chars)")
         except Exception as e:
             logger.warning(f"[{self.name}] Could not load corpus: {e}")
             self._corpus_cache = ""
@@ -137,7 +134,6 @@ class RAGContextService(ABC):
         Returns:
             Formatted context string
         """
-        label = self.name.upper().replace(" ", "_")
         return (
             f"\n---\n\n"
             f"RAG CONTEXT ({self.name} patterns):\n"

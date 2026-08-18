@@ -5,16 +5,9 @@ Tests for BlueprintValidationRouter, SetupValidationRouter,
 BlueprintDeployVerifier, and SetupVerifier.
 """
 
-import sys
-from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
-
-_project_root = str(Path(__file__).resolve().parents[3])
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
-
 from homeiq_patterns import (
     PostActionVerifier,
     UnifiedValidationRouter,
@@ -27,6 +20,7 @@ from homeiq_patterns import (
 # ================================================================== #
 # Blueprint Validation Router Tests (inline implementation)
 # ================================================================== #
+
 
 class _BlueprintValidationRouter(UnifiedValidationRouter):
     """Test-friendly inline version of BlueprintValidationRouter."""
@@ -113,9 +107,7 @@ class TestBlueprintValidationRouter:
     @pytest.mark.asyncio
     async def test_score_decreases_with_errors(self):
         router = _BlueprintValidationRouter()
-        req_valid = ValidationRequest(
-            content="blueprint:\n  name: Test\n  domain: automation\n"
-        )
+        req_valid = ValidationRequest(content="blueprint:\n  name: Test\n  domain: automation\n")
         req_invalid = ValidationRequest(content="alias: test\n")
         resp_valid = await router.run_validation(req_valid)
         resp_invalid = await router.run_validation(req_invalid)
@@ -145,6 +137,7 @@ class TestBlueprintValidationRouter:
 # ================================================================== #
 # Setup Validation Router Tests (inline implementation)
 # ================================================================== #
+
 
 class _SetupValidationRouter(UnifiedValidationRouter):
     """Test-friendly inline version of SetupValidationRouter."""
@@ -238,6 +231,7 @@ class TestSetupValidationRouter:
 # Blueprint Deploy Verifier Tests
 # ================================================================== #
 
+
 class _BlueprintDeployVerifier(PostActionVerifier):
     """Test-friendly inline BlueprintDeployVerifier."""
 
@@ -277,9 +271,11 @@ class TestBlueprintDeployVerifier:
             return_value={"state": "on", "entity_id": "automation.test", "attributes": {}}
         )
         verifier = _BlueprintDeployVerifier(get_state)
-        result = await verifier.verify({
-            "automation_ids": ["automation.test1", "automation.test2"],
-        })
+        result = await verifier.verify(
+            {
+                "automation_ids": ["automation.test1", "automation.test2"],
+            }
+        )
         assert result.success is True
         assert result.state == "on"
         assert not result.has_warnings
@@ -292,9 +288,11 @@ class TestBlueprintDeployVerifier:
             return {"state": "on", "entity_id": eid, "attributes": {}}
 
         verifier = _BlueprintDeployVerifier(mock_state)
-        result = await verifier.verify({
-            "automation_ids": ["automation.test1", "automation.test2"],
-        })
+        result = await verifier.verify(
+            {
+                "automation_ids": ["automation.test1", "automation.test2"],
+            }
+        )
         assert result.success is False
         assert result.state == "partial"
         assert result.has_warnings
@@ -329,6 +327,7 @@ class TestBlueprintDeployVerifier:
 # ================================================================== #
 # Setup Verifier Tests
 # ================================================================== #
+
 
 class _SetupVerifier(PostActionVerifier):
     """Test-friendly inline SetupVerifier."""
@@ -373,10 +372,12 @@ class TestSetupVerifier:
     async def test_all_entities_healthy(self):
         get_state = AsyncMock(return_value={"state": "on", "entity_id": "light.test"})
         verifier = _SetupVerifier(get_state)
-        result = await verifier.verify({
-            "entity_ids": ["light.test1", "light.test2"],
-            "integration": "hue",
-        })
+        result = await verifier.verify(
+            {
+                "entity_ids": ["light.test1", "light.test2"],
+                "integration": "hue",
+            }
+        )
         assert result.success is True
         assert result.state == "healthy"
         assert not result.has_warnings
@@ -385,10 +386,12 @@ class TestSetupVerifier:
     async def test_entity_not_found(self):
         get_state = AsyncMock(return_value=None)
         verifier = _SetupVerifier(get_state)
-        result = await verifier.verify({
-            "entity_ids": ["binary_sensor.missing"],
-            "integration": "zigbee2mqtt",
-        })
+        result = await verifier.verify(
+            {
+                "entity_ids": ["binary_sensor.missing"],
+                "integration": "zigbee2mqtt",
+            }
+        )
         assert result.success is False
         assert result.state == "degraded"
         assert result.has_warnings
@@ -396,14 +399,14 @@ class TestSetupVerifier:
 
     @pytest.mark.asyncio
     async def test_entity_unavailable(self):
-        get_state = AsyncMock(
-            return_value={"state": "unavailable", "entity_id": "sensor.offline"}
-        )
+        get_state = AsyncMock(return_value={"state": "unavailable", "entity_id": "sensor.offline"})
         verifier = _SetupVerifier(get_state)
-        result = await verifier.verify({
-            "entity_ids": ["sensor.offline"],
-            "integration": "zwave",
-        })
+        result = await verifier.verify(
+            {
+                "entity_ids": ["sensor.offline"],
+                "integration": "zwave",
+            }
+        )
         assert result.success is False
         assert result.state == "degraded"
 
@@ -423,10 +426,12 @@ class TestSetupVerifier:
             return {"state": "on", "entity_id": eid}
 
         verifier = _SetupVerifier(mock_state)
-        result = await verifier.verify({
-            "entity_ids": ["light.good", "sensor.bad"],
-            "integration": "zigbee",
-        })
+        result = await verifier.verify(
+            {
+                "entity_ids": ["light.good", "sensor.bad"],
+                "integration": "zigbee",
+            }
+        )
         assert result.success is False
         assert result.state == "degraded"
         assert len(result.warnings) == 1
@@ -435,10 +440,12 @@ class TestSetupVerifier:
     async def test_verification_warning_backward_compat(self):
         get_state = AsyncMock(return_value=None)
         verifier = _SetupVerifier(get_state)
-        result = await verifier.verify({
-            "entity_ids": ["light.missing"],
-            "integration": "hue",
-        })
+        result = await verifier.verify(
+            {
+                "entity_ids": ["light.missing"],
+                "integration": "hue",
+            }
+        )
         # verification_warning property returns first warning message
         assert result.verification_warning is not None
         assert "missing" in result.verification_warning

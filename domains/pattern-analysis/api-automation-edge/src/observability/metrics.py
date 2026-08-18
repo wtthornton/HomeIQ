@@ -45,7 +45,9 @@ class MetricsCollector:
         self.influxdb_url = influxdb_url or settings.influxdb_url
         token = influxdb_token or settings.influxdb_token
         # settings.influxdb_token is a SecretStr; the InfluxDB client needs the plain value.
-        self.influxdb_token = token.get_secret_value() if hasattr(token, "get_secret_value") else token
+        self.influxdb_token = (
+            token.get_secret_value() if hasattr(token, "get_secret_value") else token
+        )
         self.influxdb_org = influxdb_org or settings.influxdb_org
         self.influxdb_bucket = influxdb_bucket or settings.influxdb_bucket
 

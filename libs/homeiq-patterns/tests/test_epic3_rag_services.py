@@ -5,27 +5,32 @@ Tests for SecurityRAGService, ComfortRAGService, SceneScriptRAGService,
 DeviceCapabilityRAGService.
 """
 
-import sys
-from pathlib import Path
-
 import pytest
-
-_project_root = str(Path(__file__).resolve().parents[3])
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
-
 from homeiq_patterns import RAGContextRegistry, RAGContextService
 
 # ------------------------------------------------------------------ #
 # Inline test implementations
 # ------------------------------------------------------------------ #
 
+
 class _SecurityRAG(RAGContextService):
     name = "security"
     keywords = (
-        "camera", "alarm", "lock", "doorbell", "siren", "motion", "presence",
-        "person", "arm", "disarm", "intrusion", "geofence", "away mode",
-        "nobody home", "security",
+        "camera",
+        "alarm",
+        "lock",
+        "doorbell",
+        "siren",
+        "motion",
+        "presence",
+        "person",
+        "arm",
+        "disarm",
+        "intrusion",
+        "geofence",
+        "away mode",
+        "nobody home",
+        "security",
     )
     corpus_path = None
 
@@ -41,9 +46,20 @@ class _SecurityRAG(RAGContextService):
 class _ComfortRAG(RAGContextService):
     name = "comfort"
     keywords = (
-        "thermostat", "hvac", "heat", "cool", "climate", "temperature",
-        "humidity", "setpoint", "fan", "schedule", "eco mode", "comfort",
-        "away mode thermostat", "zone",
+        "thermostat",
+        "hvac",
+        "heat",
+        "cool",
+        "climate",
+        "temperature",
+        "humidity",
+        "setpoint",
+        "fan",
+        "schedule",
+        "eco mode",
+        "comfort",
+        "away mode thermostat",
+        "zone",
     )
     corpus_path = None
 
@@ -59,8 +75,16 @@ class _ComfortRAG(RAGContextService):
 class _SceneScriptRAG(RAGContextService):
     name = "scene_script"
     keywords = (
-        "scene", "script", "movie night", "morning routine", "bedtime",
-        "good night", "sequence", "workflow", "turn_on", "turn_off",
+        "scene",
+        "script",
+        "movie night",
+        "morning routine",
+        "bedtime",
+        "good night",
+        "sequence",
+        "workflow",
+        "turn_on",
+        "turn_off",
     )
     corpus_path = None
 
@@ -76,9 +100,20 @@ class _SceneScriptRAG(RAGContextService):
 class _DeviceCapabilityRAG(RAGContextService):
     name = "device_capability"
     keywords = (
-        "wled", "effect_list", "segment", "hue scene", "smart plug",
-        "power monitoring", "sonoff", "shelly", "tasmota", "esphome",
-        "cover", "blind", "media_player", "tts",
+        "wled",
+        "effect_list",
+        "segment",
+        "hue scene",
+        "smart plug",
+        "power monitoring",
+        "sonoff",
+        "shelly",
+        "tasmota",
+        "esphome",
+        "cover",
+        "blind",
+        "media_player",
+        "tts",
     )
     corpus_path = None
 
@@ -94,6 +129,7 @@ class _DeviceCapabilityRAG(RAGContextService):
 # ================================================================== #
 # SecurityRAGService Tests
 # ================================================================== #
+
 
 class TestSecurityRAGService:
     def test_detect_intent_security(self):
@@ -133,6 +169,7 @@ class TestSecurityRAGService:
 # ComfortRAGService Tests
 # ================================================================== #
 
+
 class TestComfortRAGService:
     def test_detect_intent_thermostat(self):
         svc = _ComfortRAG()
@@ -170,6 +207,7 @@ class TestComfortRAGService:
 # SceneScriptRAGService Tests
 # ================================================================== #
 
+
 class TestSceneScriptRAGService:
     def test_detect_intent_scene(self):
         svc = _SceneScriptRAG()
@@ -206,6 +244,7 @@ class TestSceneScriptRAGService:
 # ================================================================== #
 # DeviceCapabilityRAGService Tests
 # ================================================================== #
+
 
 class TestDeviceCapabilityRAGService:
     def test_detect_intent_wled(self):
@@ -251,6 +290,7 @@ class TestDeviceCapabilityRAGService:
 # ================================================================== #
 # Registry Integration — All Phase 4 RAG Services
 # ================================================================== #
+
 
 class TestRegistryPhase4:
     @pytest.mark.asyncio

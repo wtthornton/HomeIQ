@@ -12,41 +12,40 @@ from src.config_manager import MASK_VALUE, ConfigManager
 
 
 class TestSettings:
-    """Test Settings (BaseServiceSettings subclass) construction."""
+    """Test Settings (BaseServiceSettings subclass) construction.
 
-    def test_settings_with_api_key(self, monkeypatch):
-        monkeypatch.setenv("DATA_API_API_KEY", "test-secret-key")
-        monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://localhost/test")
-        # Force re-import to pick up new env
+    Every test here takes ``settings_env`` rather than raw ``monkeypatch``: it
+    is what makes the verdict depend on the values the test sets instead of on
+    the working directory pytest was invoked from (TAP-6154).
+    """
+
+    def test_settings_with_api_key(self, settings_env):
+        settings_env.setenv("DATA_API_API_KEY", "test-secret-key")
+        settings_env.setenv("DATABASE_URL", "postgresql+asyncpg://localhost/test")
         from src.config import Settings
 
         s = Settings()
         assert s.api_key == "test-secret-key"
 
-    def test_settings_anonymous_generates_key(self, monkeypatch):
-        monkeypatch.delenv("DATA_API_API_KEY", raising=False)
-        monkeypatch.delenv("DATA_API_KEY", raising=False)
-        monkeypatch.setenv("DATA_API_ALLOW_ANONYMOUS", "true")
-        monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://localhost/test")
+    def test_settings_anonymous_generates_key(self, settings_env):
+        settings_env.setenv("DATA_API_ALLOW_ANONYMOUS", "true")
+        settings_env.setenv("DATABASE_URL", "postgresql+asyncpg://localhost/test")
         from src.config import Settings
 
         s = Settings()
         assert s.api_key is not None
         assert len(s.api_key) > 10
 
-    def test_settings_no_key_no_anonymous_raises(self, monkeypatch):
-        monkeypatch.delenv("DATA_API_API_KEY", raising=False)
-        monkeypatch.delenv("DATA_API_KEY", raising=False)
-        monkeypatch.delenv("DATA_API_ALLOW_ANONYMOUS", raising=False)
-        monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://localhost/test")
+    def test_settings_no_key_no_anonymous_raises(self, settings_env):
+        settings_env.setenv("DATABASE_URL", "postgresql+asyncpg://localhost/test")
         from src.config import Settings
 
         with pytest.raises(ValueError, match="DATA_API_API_KEY must be set"):
-            Settings(allow_anonymous=False)
+            Settings()
 
-    def test_settings_defaults(self, monkeypatch):
-        monkeypatch.setenv("DATA_API_API_KEY", "key")
-        monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://localhost/test")
+    def test_settings_defaults(self, settings_env):
+        settings_env.setenv("DATA_API_API_KEY", "key")
+        settings_env.setenv("DATABASE_URL", "postgresql+asyncpg://localhost/test")
         from src.config import Settings
 
         s = Settings()
@@ -57,14 +56,28 @@ class TestSettings:
         assert s.request_timeout == 30
         assert s.db_query_timeout == 10
 
-    def test_settings_resolves_data_api_key_fallback(self, monkeypatch):
-        monkeypatch.delenv("DATA_API_API_KEY", raising=False)
-        monkeypatch.setenv("DATA_API_KEY", "fallback-key")
-        monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://localhost/test")
+    def test_settings_resolves_data_api_key_fallback(self, settings_env):
+        settings_env.setenv("DATA_API_KEY", "fallback-key")
+        settings_env.setenv("DATABASE_URL", "postgresql+asyncpg://localhost/test")
         from src.config import Settings
 
         s = Settings()
         assert s.api_key == "fallback-key"
+
+    def test_settings_ignore_repository_dotenv(self, settings_env, tmp_path):
+        """A .env beside the process must not decide the outcome.
+
+        This is the mechanism behind the working-directory sensitivity: from
+        the repository root pydantic-settings found the repository .env and
+        injected a real key into tests that had just removed it.
+        """
+        (tmp_path / ".env").write_text("DATA_API_API_KEY=key-from-a-dotenv\n")
+        settings_env.setenv("DATABASE_URL", "postgresql+asyncpg://localhost/test")
+        from src.config import Settings
+
+        # Documents the behaviour rather than asserting it away: the file IS
+        # read, which is exactly why the fixture chdirs somewhere without one.
+        assert Settings().api_key == "key-from-a-dotenv"
 
 
 # ---------------------------------------------------------------------------

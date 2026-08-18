@@ -29,7 +29,6 @@ __all__ = [
     "Severity",
     "RuleCategory",
     "FixMode",
-
     # Models
     "AutomationIR",
     "TriggerIR",
@@ -39,7 +38,6 @@ __all__ = [
     "LintReport",
     "SuggestedFix",
     "PatchOperation",
-
     # Core classes
     "LintEngine",
     "AutomationParser",

@@ -34,8 +34,15 @@ _OPTIONAL_MODEL_EXTRAS = ("pattern_context", "safety_checks", "energy_impact")
 
 # Action fields copied directly when truthy
 _ACTION_DIRECT_FIELDS = (
-    "service", "scene", "delay", "data",
-    "choose", "repeat", "parallel", "sequence", "error",
+    "service",
+    "scene",
+    "delay",
+    "data",
+    "choose",
+    "repeat",
+    "parallel",
+    "sequence",
+    "error",
 )
 
 # Condition fields copied when not None
@@ -62,7 +69,8 @@ class HomeIQToAutomationSpecConverter:
         triggers = [self._convert_trigger(t) for t in homeiq_automation.triggers]
         conditions = (
             [self._convert_condition(c) for c in homeiq_automation.conditions]
-            if homeiq_automation.conditions else None
+            if homeiq_automation.conditions
+            else None
         )
         actions = [self._convert_action(a) for a in homeiq_automation.actions]
 
@@ -79,7 +87,7 @@ class HomeIQToAutomationSpecConverter:
             action=actions,
             max_exceeded=homeiq_automation.max_exceeded,
             tags=homeiq_automation.tags,
-            extra=extra
+            extra=extra,
         )
 
         logger.debug("Converted HomeIQ automation '%s' to AutomationSpec", homeiq_automation.alias)
@@ -106,17 +114,9 @@ class HomeIQToAutomationSpecConverter:
 
     def _target_to_dict(self, target: Target) -> dict[str, Any]:
         """Convert Target model to YAML-compatible dict."""
-        return {
-            field: getattr(target, field)
-            for field in _TARGET_FIELDS
-            if getattr(target, field)
-        }
+        return {field: getattr(target, field) for field in _TARGET_FIELDS if getattr(target, field)}
 
-    def _map_trigger_config_to_yaml(
-        self,
-        _platform: str,
-        config: TriggerConfig
-    ) -> dict[str, Any]:
+    def _map_trigger_config_to_yaml(self, _platform: str, config: TriggerConfig) -> dict[str, Any]:
         """
         Map generic trigger configuration to YAML-compatible fields.
 
@@ -146,8 +146,7 @@ class HomeIQToAutomationSpecConverter:
 
         # Map trigger config to YAML fields
         yaml_fields = self._map_trigger_config_to_yaml(
-            _platform=trigger.platform,
-            config=trigger.config
+            _platform=trigger.platform, config=trigger.config
         )
         trigger_data.setdefault("extra", {}).update(yaml_fields)
 
@@ -209,4 +208,3 @@ class HomeIQToAutomationSpecConverter:
             action_data.setdefault("extra", {}).update(action.extra)
 
         return ActionSpec(**action_data)
-

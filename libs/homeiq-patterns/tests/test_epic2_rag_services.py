@@ -4,22 +4,7 @@ Tests for Epic 2: High-Value Domain Extensions — RAG Services
 Tests for EnergyRAGService, BlueprintRAGService, DeviceSetupRAGService.
 """
 
-import sys
-from pathlib import Path
-
 import pytest
-
-_project_root = str(Path(__file__).resolve().parents[3])
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
-
-# Add ha-ai-agent-service to path for the RAG service imports
-_agent_service_root = str(
-    Path(__file__).resolve().parents[3] / "services" / "ha-ai-agent-service" / "src"
-)
-if _agent_service_root not in sys.path:
-    sys.path.insert(0, _agent_service_root)
-
 from homeiq_patterns import RAGContextRegistry, RAGContextService
 
 # ------------------------------------------------------------------ #
@@ -27,12 +12,25 @@ from homeiq_patterns import RAGContextRegistry, RAGContextService
 # which have heavy dependencies). These mirror the real classes.
 # ------------------------------------------------------------------ #
 
+
 class _EnergyRAG(RAGContextService):
     name = "energy"
     keywords = (
-        "electricity", "solar", "battery", "tou", "time-of-use", "peak",
-        "off-peak", "kwh", "ev charging", "load shift", "demand",
-        "smart meter", "grid", "charge", "discharge",
+        "electricity",
+        "solar",
+        "battery",
+        "tou",
+        "time-of-use",
+        "peak",
+        "off-peak",
+        "kwh",
+        "ev charging",
+        "load shift",
+        "demand",
+        "smart meter",
+        "grid",
+        "charge",
+        "discharge",
     )
     corpus_path = None
 
@@ -47,8 +45,14 @@ class _EnergyRAG(RAGContextService):
 class _BlueprintRAG(RAGContextService):
     name = "blueprint"
     keywords = (
-        "blueprint", "template", "prebuilt", "pre-built", "starter",
-        "ready-made", "import blueprint", "suggest blueprint",
+        "blueprint",
+        "template",
+        "prebuilt",
+        "pre-built",
+        "starter",
+        "ready-made",
+        "import blueprint",
+        "suggest blueprint",
     )
     corpus_path = None
 
@@ -63,9 +67,22 @@ class _BlueprintRAG(RAGContextService):
 class _DeviceSetupRAG(RAGContextService):
     name = "device_setup"
     keywords = (
-        "zigbee", "z-wave", "zwave", "hue", "mqtt", "matter", "thread",
-        "pairing", "setup", "set up", "configure", "add device", "discover",
-        "zigbee2mqtt", "inclusion", "commissioning",
+        "zigbee",
+        "z-wave",
+        "zwave",
+        "hue",
+        "mqtt",
+        "matter",
+        "thread",
+        "pairing",
+        "setup",
+        "set up",
+        "configure",
+        "add device",
+        "discover",
+        "zigbee2mqtt",
+        "inclusion",
+        "commissioning",
     )
     corpus_path = None
 
@@ -81,6 +98,7 @@ class _DeviceSetupRAG(RAGContextService):
 # ================================================================== #
 # EnergyRAGService Tests
 # ================================================================== #
+
 
 class TestEnergyRAGService:
     def test_detect_intent_solar(self):
@@ -121,9 +139,15 @@ class TestEnergyRAGService:
     def test_keywords_comprehensive(self):
         svc = _EnergyRAG()
         must_match = [
-            "electricity bill", "solar panel output", "battery charge",
-            "tou schedule", "off-peak pricing", "ev charging schedule",
-            "load shift strategy", "smart meter reading", "grid export",
+            "electricity bill",
+            "solar panel output",
+            "battery charge",
+            "tou schedule",
+            "off-peak pricing",
+            "ev charging schedule",
+            "load shift strategy",
+            "smart meter reading",
+            "grid export",
             "demand response",
         ]
         for prompt in must_match:
@@ -133,6 +157,7 @@ class TestEnergyRAGService:
 # ================================================================== #
 # BlueprintRAGService Tests
 # ================================================================== #
+
 
 class TestBlueprintRAGService:
     def test_detect_intent_blueprint(self):
@@ -171,8 +196,11 @@ class TestBlueprintRAGService:
     def test_keywords_comprehensive(self):
         svc = _BlueprintRAG()
         must_match = [
-            "blueprint exchange", "starter automation", "ready-made",
-            "pre-built template", "suggest blueprint",
+            "blueprint exchange",
+            "starter automation",
+            "ready-made",
+            "pre-built template",
+            "suggest blueprint",
         ]
         for prompt in must_match:
             assert svc.detect_intent(prompt), f"Should match: {prompt}"
@@ -181,6 +209,7 @@ class TestBlueprintRAGService:
 # ================================================================== #
 # DeviceSetupRAGService Tests
 # ================================================================== #
+
 
 class TestDeviceSetupRAGService:
     def test_detect_intent_zigbee(self):
@@ -238,6 +267,7 @@ class TestDeviceSetupRAGService:
 # ================================================================== #
 # RAGContextRegistry Integration Tests
 # ================================================================== #
+
 
 class TestRAGRegistryWithNewServices:
     @pytest.mark.asyncio

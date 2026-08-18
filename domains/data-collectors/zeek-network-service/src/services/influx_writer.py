@@ -56,11 +56,7 @@ class InfluxWriter:
             if ":" in host_port:
                 port = host_port.split(":")[1].split("/")[0]
 
-        fallbacks = [
-            h.strip()
-            for h in settings.influxdb_fallback_hosts.split(",")
-            if h.strip()
-        ]
+        fallbacks = [h.strip() for h in settings.influxdb_fallback_hosts.split(",") if h.strip()]
         for host in fallbacks:
             url = f"http://{host}:{port}"
             if url != primary:
@@ -127,8 +123,7 @@ class InfluxWriter:
                 error_str = str(e)
                 self.last_write_error = error_str
                 is_dns_error = (
-                    "Name does not resolve" in error_str
-                    or "Failed to resolve" in error_str
+                    "Name does not resolve" in error_str or "Failed to resolve" in error_str
                 )
 
                 if is_dns_error:
@@ -183,8 +178,7 @@ class InfluxWriter:
                 error_str = str(e)
                 self.last_write_error = error_str
                 is_dns_error = (
-                    "Name does not resolve" in error_str
-                    or "Failed to resolve" in error_str
+                    "Name does not resolve" in error_str or "Failed to resolve" in error_str
                 )
 
                 if is_dns_error:
@@ -199,9 +193,7 @@ class InfluxWriter:
 
                 if attempt >= self._max_retries:
                     self.write_failure_count += 1
-                    logger.error(
-                        "InfluxDB write failed after %d attempts: %s", attempt, e
-                    )
+                    logger.error("InfluxDB write failed after %d attempts: %s", attempt, e)
                     await self._buffer_point(point)
                     return
 

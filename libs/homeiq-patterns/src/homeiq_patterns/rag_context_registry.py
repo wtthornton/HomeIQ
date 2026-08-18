@@ -15,7 +15,7 @@ Usage:
 """
 
 import logging
-from typing import Sequence
+from collections.abc import Sequence
 
 from .rag_context_service import RAGContextService
 
@@ -69,9 +69,7 @@ class RAGContextRegistry:
         """Return registered services (read-only)."""
         return tuple(self._services)
 
-    async def get_scored_context(
-        self, prompt: str
-    ) -> list[tuple[str, float, str]]:
+    async def get_scored_context(self, prompt: str) -> list[tuple[str, float, str]]:
         """
         Score all services and return matching contexts ranked by relevance.
 
@@ -94,8 +92,7 @@ class RAGContextRegistry:
                 context = service.format_context(corpus)
                 results.append((service.name, score, context))
                 logger.debug(
-                    f"RAG scored: {service.name} "
-                    f"(score={score:.2f}, {len(context)} chars)"
+                    f"RAG scored: {service.name} (score={score:.2f}, {len(context)} chars)"
                 )
             except Exception as e:
                 logger.warning(f"RAG service {service.name} failed: {e}")
@@ -124,7 +121,7 @@ class RAGContextRegistry:
         used_chars = 0
         contexts: list[str] = []
 
-        for name, score, context in scored:
+        for name, _score, context in scored:
             context_len = len(context)
             if used_chars + context_len > budget_chars and contexts:
                 logger.info(
@@ -150,9 +147,7 @@ class RAGContextRegistry:
         contexts = await self.get_all_context(prompt)
         return "\n".join(contexts)
 
-    async def get_context_for_domains(
-        self, domains: list[str]
-    ) -> list[str]:
+    async def get_context_for_domains(self, domains: list[str]) -> list[str]:
         """
         Load context for specific domains by name, bypassing keyword detection.
 

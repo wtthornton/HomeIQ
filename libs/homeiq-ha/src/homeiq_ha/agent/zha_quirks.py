@@ -93,9 +93,7 @@ def quirk_source(filename: str = FP1E_QUIRK_FILENAME) -> str:
     Read through :mod:`importlib.resources` rather than ``__file__`` so the
     recipe works from an installed wheel as well as a source checkout.
     """
-    return (resources.files(__package__) / "quirks" / filename).read_text(
-        encoding="utf-8"
-    )
+    return (resources.files(__package__) / "quirks" / filename).read_text(encoding="utf-8")
 
 
 class AqaraFP1EQuirkRecipe(Recipe):

@@ -43,6 +43,7 @@ if TYPE_CHECKING:
 
     from .recipe import Recipe
 
+
 def _slugify(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
 
@@ -137,13 +138,13 @@ async def _drive_team_flow(ha: HAClient, team: dict[str, str]) -> _Item:
     if missing and not user_input:
         await ha.rest.abort_config_flow(flow_id)
         return _Item(
-            item_id, "failed", {"error": f"no answer fields match flow schema {sorted(schema_fields)}"}
+            item_id,
+            "failed",
+            {"error": f"no answer fields match flow schema {sorted(schema_fields)}"},
         )
     step = await ha.rest.advance_config_flow(flow_id, user_input)
     if ha.rest.classify_flow_step(step) != "create_entry":
-        return _Item(
-            item_id, "blocked", {"step": step.get("step_id"), "type": step.get("type")}
-        )
+        return _Item(item_id, "blocked", {"step": step.get("step_id"), "type": step.get("type")})
     verified = await _team_entities(ha, team_slug)
     return _Item(
         item_id,
@@ -161,9 +162,7 @@ async def _validated_device_areas(
     a junk manifest row that no converge can ever match — refused up front
     instead (Wave 7 panel finding).
     """
-    known_ids = {
-        d.get("id") for d in await ha.ws.send_command("config/device_registry/list") or []
-    }
+    known_ids = {d.get("id") for d in await ha.ws.send_command("config/device_registry/list") or []}
     valid: list[tuple[str, str]] = []
     failures: list[_Item] = []
     for device_id, area in device_areas:
@@ -199,9 +198,7 @@ async def apply_answers(
 
     reason = f"wizard submission {datetime.now(UTC).date().isoformat()}"
     try:
-        merged = merge_device_areas_into_manifest(
-            manifest_path, valid_areas, reason=reason
-        )
+        merged = merge_device_areas_into_manifest(manifest_path, valid_areas, reason=reason)
         items.append(
             _Item(
                 "manifest",

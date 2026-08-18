@@ -222,12 +222,9 @@ validate_epic23_enhancements() {
         fi
     done
     
-    # Epic 23.4: Entity categorization
-    if echo "$sample_data" | grep -q "\"entity_category\""; then
-        print_success "Epic 23.4 tag 'entity_category' found"
-    else
-        print_warning "Epic 23.4 tag 'entity_category' not found (may not be in sample data)"
-    fi
+    # Epic 23.4 entity_category is intentionally not checked: no collector
+    # writes it (TAP-6156). Warning about a tag nothing produces trained
+    # readers to ignore this section.
     
     # Epic 23.5: Device metadata
     local device_metadata_fields=("manufacturer" "model" "sw_version")

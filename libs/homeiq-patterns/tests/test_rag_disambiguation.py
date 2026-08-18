@@ -15,7 +15,14 @@ if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
 # Load RAG service modules directly (avoid __init__.py import chain)
-_agent_services = Path(__file__).resolve().parents[3] / "domains" / "automation-core" / "ha-ai-agent-service" / "src" / "services"
+_agent_services = (
+    Path(__file__).resolve().parents[3]
+    / "domains"
+    / "automation-core"
+    / "ha-ai-agent-service"
+    / "src"
+    / "services"
+)
 
 
 def _load_module(name: str):
@@ -37,6 +44,7 @@ EnergyRAGService = _energy_mod.EnergyRAGService
 
 
 # --- Security RAG Disambiguation ---
+
 
 class TestSecurityDisambiguation:
     def setup_method(self):
@@ -69,6 +77,7 @@ class TestSecurityDisambiguation:
 
 # --- Comfort RAG Disambiguation ---
 
+
 class TestComfortDisambiguation:
     def setup_method(self):
         self.service = ComfortRAGService()
@@ -96,6 +105,7 @@ class TestComfortDisambiguation:
 
 # --- Sports RAG Disambiguation ---
 
+
 class TestSportsDisambiguation:
     def setup_method(self):
         self.service = AutomationRAGService()
@@ -122,6 +132,7 @@ class TestSportsDisambiguation:
 
 
 # --- Energy RAG Disambiguation ---
+
 
 class TestEnergyDisambiguation:
     def setup_method(self):

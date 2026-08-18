@@ -4,7 +4,7 @@ Render IR back to stable, formatted YAML.
 
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import yaml
 
@@ -17,7 +17,7 @@ from models import AutomationIR
 class YAMLRenderer:
     """Render AutomationIR back to YAML string."""
 
-    def render(self, automations: List[AutomationIR]) -> str:
+    def render(self, automations: list[AutomationIR]) -> str:
         """
         Render list of AutomationIR to formatted YAML.
 
@@ -38,7 +38,7 @@ class YAMLRenderer:
                 sort_keys=False,
                 allow_unicode=True,
                 width=120,  # Reasonable line width
-                indent=2
+                indent=2,
             )
         else:
             output = yaml.dump(
@@ -47,12 +47,12 @@ class YAMLRenderer:
                 sort_keys=False,
                 allow_unicode=True,
                 width=120,
-                indent=2
+                indent=2,
             )
 
         return output
 
-    def _ir_to_dict(self, ir: AutomationIR) -> Dict[str, Any]:
+    def _ir_to_dict(self, ir: AutomationIR) -> dict[str, Any]:
         """
         Convert AutomationIR back to dict format.
 
@@ -62,7 +62,7 @@ class YAMLRenderer:
         Returns:
             Dictionary representation of the automation
         """
-        result: Dict[str, Any] = {}
+        result: dict[str, Any] = {}
 
         # Add fields in conventional order
         if ir.id:
@@ -111,8 +111,8 @@ class YAMLRenderer:
             Diff summary string
         """
         # Simple line-based diff for MVP
-        original_lines = original.strip().split('\n')
-        fixed_lines = fixed.strip().split('\n')
+        original_lines = original.strip().split("\n")
+        fixed_lines = fixed.strip().split("\n")
 
         if original_lines == fixed_lines:
             return "No changes"

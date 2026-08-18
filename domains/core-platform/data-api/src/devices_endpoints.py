@@ -2882,6 +2882,7 @@ async def compare_devices(
         logger.error(f"Error comparing devices: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to compare devices: {str(e)}") from e
 
+
 @router.get("/api/devices/{device_id}", response_model=DeviceResponse)
 async def get_device(device_id: str, db: AsyncSession = Depends(get_db)):
     """Get device by ID - Story 22.2"""

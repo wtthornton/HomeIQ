@@ -28,8 +28,10 @@ logger = logging.getLogger(__name__)
 
 # --- Standard Request / Response Models ---
 
+
 class ValidationRequest(BaseModel):
     """Standard validation request model. Extend for domain-specific fields."""
+
     content: str = Field(..., description="Content to validate (YAML, JSON, etc.)")
     normalize: bool = Field(True, description="Normalize content to canonical format")
     validate_entities: bool = Field(True, description="Validate entity references exist")
@@ -38,6 +40,7 @@ class ValidationRequest(BaseModel):
 
 class ValidationSubsection(BaseModel):
     """Validation subsection for a specific category (entity, service, device, etc.)."""
+
     performed: bool = True
     passed: bool = True
     errors: list[str] = Field(default_factory=list)
@@ -50,6 +53,7 @@ class ValidationResponse(BaseModel):
     All validation endpoints return this shape for consistency.
     Domain-specific subsections are added via the `subsections` dict.
     """
+
     valid: bool
     errors: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
@@ -61,6 +65,7 @@ class ValidationResponse(BaseModel):
 
 
 # --- Pluggable Validation Backend ---
+
 
 class ValidationBackend(ABC):
     """
@@ -88,6 +93,7 @@ class ValidationBackend(ABC):
 
 
 # --- Error Categorization ---
+
 
 def categorize_errors(
     errors: list[str],
@@ -127,23 +133,21 @@ def categorize_errors(
 # Maps error patterns to RAG domain names for corpus selection
 ERROR_DOMAIN_MAP: dict[str, list[tuple[str, ...]]] = {
     "device_capability": (
-        ("entity_id", "not found", "unknown entity", "invalid entity",
-         "entity does not exist", "no such entity"),
+        (
+            "entity_id",
+            "not found",
+            "unknown entity",
+            "invalid entity",
+            "entity does not exist",
+            "no such entity",
+        ),
     ),
     "automation": (
-        ("service", "invalid service", "service not found",
-         "unknown service", "service call"),
+        ("service", "invalid service", "service not found", "unknown service", "service call"),
     ),
-    "comfort": (
-        ("brightness", "color_temp", "temperature", "hvac",
-         "climate", "thermostat"),
-    ),
-    "energy": (
-        ("power", "energy", "kwh", "battery", "solar", "charge"),
-    ),
-    "security": (
-        ("alarm", "lock", "camera", "motion sensor", "arm", "disarm"),
-    ),
+    "comfort": (("brightness", "color_temp", "temperature", "hvac", "climate", "thermostat"),),
+    "energy": (("power", "energy", "kwh", "battery", "solar", "charge"),),
+    "security": (("alarm", "lock", "camera", "motion sensor", "arm", "disarm"),),
 }
 
 
@@ -176,6 +180,7 @@ def get_error_domain_hints(errors: list[str]) -> list[str]:
 
 
 # --- Base Router Template ---
+
 
 class UnifiedValidationRouter(ABC):
     """
@@ -261,8 +266,7 @@ class UnifiedValidationRouter(ABC):
             errors=errors,
             warnings=backend_result.get("warnings", []),
             score=backend_result.get("score", 0.0),
-            fixed_content=backend_result.get("fixed_yaml")
-            or backend_result.get("fixed_content"),
+            fixed_content=backend_result.get("fixed_yaml") or backend_result.get("fixed_content"),
             fixes_applied=backend_result.get("fixes_applied", []),
             subsections=subsections,
         )

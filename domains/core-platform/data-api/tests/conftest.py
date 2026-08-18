@@ -3,16 +3,60 @@ from __future__ import annotations
 import importlib.util
 import os
 from pathlib import Path
+from urllib.parse import quote
 
 import pytest
 import pytest_asyncio
 
+_REPO_ROOT = Path(__file__).resolve().parents[4]
+
+
+def _compose_setting(name: str, default: str) -> str:
+    """Read one setting the way compose does: environment first, then ``.env``.
+
+    Only the three PostgreSQL connection keys are read, and nothing is written
+    back into ``os.environ`` — the repository ``.env`` leaking into the process
+    environment is exactly what made the settings tests answer differently
+    depending on where pytest was invoked (TAP-6154).
+    """
+    if value := os.environ.get(name):
+        return value
+    env_file = _REPO_ROOT / ".env"
+    if not env_file.exists():
+        return default
+    for line in env_file.read_text(encoding="utf-8").splitlines():
+        key, sep, value = line.partition("=")
+        if sep and key.strip() == name:
+            return value.strip().strip("\"'") or default
+    return default
+
+
+def _test_database_url() -> str:
+    """Connection URL for the PostgreSQL these tests run against.
+
+    ``TEST_DATABASE_URL`` wins outright. Otherwise reconstruct the connection
+    ``domains/core-platform/compose.yml`` actually publishes: it maps the
+    container's 5432 to ``HOMEIQ_POSTGRES_HOST_PORT`` and takes its credentials
+    from ``POSTGRES_USER`` / ``POSTGRES_PASSWORD``.
+
+    The previous hardcoded ``homeiq:homeiq@localhost:5432`` matched none of that
+    on a machine that remaps the port. Worse than failing to connect, it
+    connected to whatever unrelated service happened to hold 5432 and every
+    database test died on that stranger's authentication.
+    """
+    user = _compose_setting("POSTGRES_USER", "homeiq")
+    password = _compose_setting("POSTGRES_PASSWORD", "homeiq")
+    host = _compose_setting("POSTGRES_HOST", "localhost")
+    port = _compose_setting("HOMEIQ_POSTGRES_HOST_PORT", "5432")
+    return (
+        f"postgresql+asyncpg://{quote(user, safe='')}:{quote(password, safe='')}"
+        f"@{host}:{port}/homeiq_test"
+    )
+
+
 # Set test database URL BEFORE any imports
 # This ensures the database module uses the test PostgreSQL database
-os.environ["DATABASE_URL"] = os.environ.get(
-    "TEST_DATABASE_URL",
-    "postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq_test",
-)
+os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL") or _test_database_url()
 # Allow data-api to start without DATA_API_API_KEY (for test_main and app imports)
 os.environ.setdefault("DATA_API_ALLOW_ANONYMOUS", "true")
 
@@ -64,6 +108,37 @@ async def client():
         yield ac
 
 
+@pytest.fixture
+def settings_env(monkeypatch, tmp_path):
+    """Construct Settings from a known-empty environment (TAP-6154).
+
+    Two things leak into a bare ``Settings()`` and made these tests answer
+    differently depending on where pytest was invoked:
+
+    1. ``model_config.env_file = ".env"`` is resolved against the process
+       working directory, so running from the repository root loaded the
+       repository ``.env`` and re-supplied the very keys a test had just
+       deleted. Running from this service directory found no ``.env`` and the
+       same test passed.
+    2. Several fields carry generic names — ``API_KEY`` above all, which
+       env.required documents as the shared service-to-service key — so any
+       ambient value in the developer's or runner's shell satisfies them.
+
+    Chdir into an empty tmp_path to close (1) and clear every name the model
+    can read to close (2). The name list is derived from the model, so a new
+    field cannot silently reintroduce the leak.
+
+    Returns the monkeypatch instance so a test can set what it wants to assert.
+    """
+    from src.config import Settings
+
+    monkeypatch.chdir(tmp_path)
+    for name, field in Settings.model_fields.items():
+        for key in {name, field.alias or name}:
+            monkeypatch.delenv(key.upper(), raising=False)
+    return monkeypatch
+
+
 # ✅ Context7 Best Practice: Shared mock fixture with cleanup
 @pytest.fixture
 def mock_influxdb():
@@ -86,6 +161,58 @@ def mock_database():
         yield mock
 
 
+# Reason the database cannot be used, once that is known. Cached so an absent
+# service is diagnosed once rather than re-probed by every test.
+_db_unavailable: str | None = None
+# Whether a real connection has ever succeeded this session.
+_db_probed = False
+
+
+async def _database_ready() -> tuple[bool, str]:
+    """Return whether the test PostgreSQL is usable, and why not when it isn't.
+
+    ``init_db`` assigns ``database.async_engine = db.engine`` before it knows
+    whether initialisation worked, so a database that refuses every connection
+    still leaves a non-None engine behind. A guard of ``if async_engine is
+    None`` therefore only ever fired for the first database test: that one
+    skipped honestly and the remaining 105 walked straight into
+    ``engine.begin()`` and raised out of the fixture. One absent service read as
+    106 broken tests, which is precisely the noise that hides a real failure.
+
+    So connect for real before trusting the engine, and carry the connection
+    error into the skip message — a wrong port and a stopped container need
+    different fixes, and the old message named neither.
+
+    The engine is still re-established when it is missing: tests that exercise
+    the degraded path clear ``async_engine``, and every test after them needs it
+    back.
+    """
+    global _db_unavailable, _db_probed
+
+    import src.database as database
+    import src.models  # noqa: F401  (register models with Base before create_all)
+    from sqlalchemy import text
+    from src.database import init_db
+
+    if _db_unavailable is not None:
+        return False, _db_unavailable
+
+    if database.async_engine is None and (not await init_db() or database.async_engine is None):
+        _db_unavailable = "init_db() reported the database as unavailable"
+        return False, _db_unavailable
+
+    if not _db_probed:
+        try:
+            async with database.async_engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+        except Exception as err:
+            _db_unavailable = f"{type(err).__name__}: {err}"
+            return False, _db_unavailable
+        _db_probed = True
+
+    return True, ""
+
+
 # ✅ Context7 Best Practice: Fresh database for each test
 @pytest_asyncio.fixture(autouse=True)
 async def fresh_db(request):
@@ -103,16 +230,11 @@ async def fresh_db(request):
 
     # Register all models with Base before create_all (else entities, devices, etc. missing)
     import src.database as database
-    import src.models  # noqa: F401
-    from src.database import Base, init_db
+    from src.database import Base
 
-    # `async_engine` is a module-level alias that starts as None and is only
-    # populated by init_db(). Reference it through the module (not a
-    # from-import, which would bind None at import time) and initialize first.
-    if database.async_engine is None:
-        initialized = await init_db()
-        if not initialized or database.async_engine is None:
-            pytest.skip("PostgreSQL not available for data-api tests")
+    ready, reason = await _database_ready()
+    if not ready:
+        pytest.skip(f"PostgreSQL not available for data-api tests: {reason}")
 
     engine = database.async_engine
 

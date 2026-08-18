@@ -35,6 +35,7 @@ async def deployments_for(db, compiled_ids):
     )
     return rows
 
+
 BENIGN_YAML_A = """\
 alias: Office presence lighting
 triggers:

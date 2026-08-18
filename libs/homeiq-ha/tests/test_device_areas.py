@@ -93,9 +93,7 @@ async def test_manifest_areas_are_created_before_assignment(sim):
 def _removal_manifest(**overrides: Any) -> OrganizationManifest:
     from homeiq_ha.agent.manifest import AreaRemoval
 
-    return _manifest(
-        areas_remove=(AreaRemoval("tv", "Hue zone import artifact"),), **overrides
-    )
+    return _manifest(areas_remove=(AreaRemoval("tv", "Hue zone import artifact"),), **overrides)
 
 
 @pytest.mark.asyncio

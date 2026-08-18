@@ -133,8 +133,7 @@ async def _redacted_validation_error(
     ``backup_password``. Locations and error types are kept; values are not.
     """
     errors = [
-        {k: v for k, v in error.items() if k not in ("input", "ctx")}
-        for error in exc.errors()
+        {k: v for k, v in error.items() if k not in ("input", "ctx")} for error in exc.errors()
     ]
     return JSONResponse(status_code=422, content={"detail": errors})
 

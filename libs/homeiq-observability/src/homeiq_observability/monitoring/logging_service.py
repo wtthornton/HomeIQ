@@ -1,6 +1,7 @@
 """Structured logging service for comprehensive logging and monitoring."""
 
 import asyncio
+import contextlib
 import gzip
 import json
 import logging
@@ -19,6 +20,7 @@ from typing import Any
 
 class LogLevel(Enum):
     """Log level enumeration."""
+
     DEBUG = "DEBUG"
     INFO = "INFO"
     WARNING = "WARNING"
@@ -29,6 +31,7 @@ class LogLevel(Enum):
 @dataclass
 class LogEntry:
     """Structured log entry."""
+
     timestamp: str
     level: str
     service: str
@@ -58,7 +61,7 @@ class StructuredLogger:
     def __init__(self, service_name: str, component: str = "main"):
         """
         Initialize structured logger.
-        
+
         Args:
             service_name: Name of the service
             component: Component name within the service
@@ -69,19 +72,26 @@ class StructuredLogger:
         self.session_id = None
         self.user_id = None
 
-    def set_context(self, correlation_id: str | None = None,
-                   session_id: str | None = None,
-                   user_id: str | None = None):
+    def set_context(
+        self,
+        correlation_id: str | None = None,
+        session_id: str | None = None,
+        user_id: str | None = None,
+    ):
         """Set logging context."""
         self.correlation_id = correlation_id
         self.session_id = session_id
         self.user_id = user_id
 
-    def _create_log_entry(self, level: str, message: str,
-                         event_id: str | None = None,
-                         entity_id: str | None = None,
-                         processing_time_ms: float | None = None,
-                         metadata: dict[str, Any] | None = None) -> LogEntry:
+    def _create_log_entry(
+        self,
+        level: str,
+        message: str,
+        event_id: str | None = None,
+        entity_id: str | None = None,
+        processing_time_ms: float | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> LogEntry:
         """Create a structured log entry."""
         return LogEntry(
             timestamp=datetime.now(UTC).isoformat(),
@@ -95,7 +105,7 @@ class StructuredLogger:
             correlation_id=self.correlation_id,
             user_id=self.user_id,
             session_id=self.session_id,
-            metadata=metadata
+            metadata=metadata,
         )
 
     def debug(self, message: str, **kwargs):
@@ -135,17 +145,17 @@ class LogAggregator:
             log_dir: Directory for log files. Defaults to $HOMEIQ_LOG_DIR, or
                 /app/logs (the in-container path) when that is unset.
         """
-        self.log_dir = Path(log_dir or os.getenv('HOMEIQ_LOG_DIR', '/app/logs'))
+        self.log_dir = Path(log_dir or os.getenv("HOMEIQ_LOG_DIR", "/app/logs"))
 
         # Log storage
         self.log_entries: list[LogEntry] = []
         self.log_lock = threading.Lock()
-        self.max_memory_entries = int(os.getenv('LOG_MAX_MEMORY_ENTRIES', '10000'))
+        self.max_memory_entries = int(os.getenv("LOG_MAX_MEMORY_ENTRIES", "10000"))
 
         # Log rotation settings
-        self.max_file_size = int(os.getenv('LOG_MAX_FILE_SIZE_MB', '100')) * 1024 * 1024
-        self.backup_count = int(os.getenv('LOG_BACKUP_COUNT', '10'))
-        self.rotation_interval = os.getenv('LOG_ROTATION_INTERVAL', 'midnight')
+        self.max_file_size = int(os.getenv("LOG_MAX_FILE_SIZE_MB", "100")) * 1024 * 1024
+        self.backup_count = int(os.getenv("LOG_BACKUP_COUNT", "10"))
+        self.rotation_interval = os.getenv("LOG_ROTATION_INTERVAL", "midnight")
 
         # Background processing
         self.processing_queue = Queue()
@@ -168,14 +178,12 @@ class LogAggregator:
     def _setup_log_handlers(self):
         """Setup log handlers for structured logging."""
         # Create formatter for structured logs
-        formatter = logging.Formatter('%(message)s')
+        formatter = logging.Formatter("%(message)s")
 
         # File handler with rotation
         log_file = self.log_dir / "homeiq.log"
         file_handler = RotatingFileHandler(
-            log_file,
-            maxBytes=self.max_file_size,
-            backupCount=self.backup_count
+            log_file, maxBytes=self.max_file_size, backupCount=self.backup_count
         )
         file_handler.setFormatter(formatter)
         file_handler.setLevel(logging.INFO)
@@ -185,7 +193,7 @@ class LogAggregator:
             self.log_dir / "homeiq-time.log",
             when=self.rotation_interval,
             interval=1,
-            backupCount=self.backup_count
+            backupCount=self.backup_count,
         )
         time_handler.setFormatter(formatter)
         time_handler.setLevel(logging.INFO)
@@ -202,7 +210,7 @@ class LogAggregator:
         root_logger.addHandler(time_handler)
 
         # Add console handler in development
-        if os.getenv('ENVIRONMENT', 'production').lower() == 'development':
+        if os.getenv("ENVIRONMENT", "production").lower() == "development":
             root_logger.addHandler(console_handler)
 
     async def start(self):
@@ -222,10 +230,8 @@ class LogAggregator:
         self.is_processing = False
         if self.processing_task:
             self.processing_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self.processing_task
-            except asyncio.CancelledError:
-                pass
 
     async def _process_logs(self):
         """Process log entries in background."""
@@ -256,27 +262,31 @@ class LogAggregator:
 
             # Limit memory usage
             if len(self.log_entries) > self.max_memory_entries:
-                self.log_entries = self.log_entries[-self.max_memory_entries:]
+                self.log_entries = self.log_entries[-self.max_memory_entries :]
 
     async def _cleanup_old_entries(self):
         """Cleanup old log entries based on retention policy."""
-        retention_hours = int(os.getenv('LOG_RETENTION_HOURS', '168'))  # 7 days default
+        retention_hours = int(os.getenv("LOG_RETENTION_HOURS", "168"))  # 7 days default
         cutoff_time = datetime.now(UTC) - timedelta(hours=retention_hours)
 
         with self.log_lock:
             self.log_entries = [
-                entry for entry in self.log_entries
-                if datetime.fromisoformat(entry.timestamp.replace('Z', '+00:00')) > cutoff_time
+                entry
+                for entry in self.log_entries
+                if datetime.fromisoformat(entry.timestamp.replace("Z", "+00:00")) > cutoff_time
             ]
 
     def add_log_entry(self, log_entry: LogEntry):
         """Add log entry to processing queue."""
         self.processing_queue.put(log_entry)
 
-    def get_recent_logs(self, limit: int = 100,
-                       level: str | None = None,
-                       service: str | None = None,
-                       component: str | None = None) -> list[dict[str, Any]]:
+    def get_recent_logs(
+        self,
+        limit: int = 100,
+        level: str | None = None,
+        service: str | None = None,
+        component: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Get recent log entries."""
         with self.log_lock:
             logs = self.log_entries.copy()
@@ -305,7 +315,7 @@ class LogAggregator:
                 "service_counts": {},
                 "component_counts": {},
                 "oldest_entry": None,
-                "newest_entry": None
+                "newest_entry": None,
             }
 
         # Count by level
@@ -335,7 +345,7 @@ class LogAggregator:
             "component_counts": component_counts,
             "oldest_entry": oldest_entry,
             "newest_entry": newest_entry,
-            "memory_usage_mb": len(logs) * 0.001  # Rough estimate
+            "memory_usage_mb": len(logs) * 0.001,  # Rough estimate
         }
 
     def compress_old_logs(self) -> int:
@@ -344,12 +354,14 @@ class LogAggregator:
         compressed_count = 0
 
         for log_file in self.log_dir.glob("*.log.*"):
-            if not log_file.name.endswith('.gz'):
+            if not log_file.name.endswith(".gz"):
                 try:
                     # Compress the file
-                    with open(log_file, 'rb') as f_in:
-                        with gzip.open(f"{log_file}.gz", 'wb') as f_out:
-                            shutil.copyfileobj(f_in, f_out)
+                    with (
+                        log_file.open("rb") as f_in,
+                        gzip.open(f"{log_file}.gz", "wb") as f_out,
+                    ):
+                        shutil.copyfileobj(f_in, f_out)
 
                     # Remove original file
                     log_file.unlink()

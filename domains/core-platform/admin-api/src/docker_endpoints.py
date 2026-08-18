@@ -118,9 +118,7 @@ class DockerEndpoints:
             except HTTPException:
                 raise
             except DockerUnavailableError as e:
-                raise HTTPException(
-                    status_code=503, detail=f"Docker unavailable: {e}"
-                ) from e
+                raise HTTPException(status_code=503, detail=f"Docker unavailable: {e}") from e
             except Exception as e:
                 logger.error(f"Error listing containers: {e}")
                 raise HTTPException(
@@ -153,9 +151,7 @@ class DockerEndpoints:
             except HTTPException:
                 raise
             except DockerUnavailableError as e:
-                raise HTTPException(
-                    status_code=503, detail=f"Docker unavailable: {e}"
-                ) from e
+                raise HTTPException(status_code=503, detail=f"Docker unavailable: {e}") from e
             except Exception as e:
                 logger.error(f"Error starting container {service_name}: {e}")
                 raise HTTPException(
@@ -188,9 +184,7 @@ class DockerEndpoints:
             except HTTPException:
                 raise
             except DockerUnavailableError as e:
-                raise HTTPException(
-                    status_code=503, detail=f"Docker unavailable: {e}"
-                ) from e
+                raise HTTPException(status_code=503, detail=f"Docker unavailable: {e}") from e
             except Exception as e:
                 logger.error(f"Error stopping container {service_name}: {e}")
                 raise HTTPException(
@@ -223,9 +217,7 @@ class DockerEndpoints:
             except HTTPException:
                 raise
             except DockerUnavailableError as e:
-                raise HTTPException(
-                    status_code=503, detail=f"Docker unavailable: {e}"
-                ) from e
+                raise HTTPException(status_code=503, detail=f"Docker unavailable: {e}") from e
             except Exception as e:
                 logger.error(f"Error restarting container {service_name}: {e}")
                 raise HTTPException(
@@ -254,9 +246,7 @@ class DockerEndpoints:
             except HTTPException:
                 raise
             except DockerUnavailableError as e:
-                raise HTTPException(
-                    status_code=503, detail=f"Docker unavailable: {e}"
-                ) from e
+                raise HTTPException(status_code=503, detail=f"Docker unavailable: {e}") from e
             except Exception as e:
                 logger.error(f"Error getting logs for {service_name}: {e}")
                 raise HTTPException(
@@ -285,9 +275,7 @@ class DockerEndpoints:
             except HTTPException:
                 raise
             except DockerUnavailableError as e:
-                raise HTTPException(
-                    status_code=503, detail=f"Docker unavailable: {e}"
-                ) from e
+                raise HTTPException(status_code=503, detail=f"Docker unavailable: {e}") from e
             except Exception as e:
                 logger.error(f"Error getting stats for {service_name}: {e}")
                 raise HTTPException(
@@ -323,9 +311,7 @@ class DockerEndpoints:
             except HTTPException:
                 raise
             except DockerUnavailableError as e:
-                raise HTTPException(
-                    status_code=503, detail=f"Docker unavailable: {e}"
-                ) from e
+                raise HTTPException(status_code=503, detail=f"Docker unavailable: {e}") from e
             except Exception as e:
                 logger.error(f"Error getting API keys: {e}")
                 raise HTTPException(
@@ -368,9 +354,7 @@ class DockerEndpoints:
             except HTTPException:
                 raise
             except DockerUnavailableError as e:
-                raise HTTPException(
-                    status_code=503, detail=f"Docker unavailable: {e}"
-                ) from e
+                raise HTTPException(status_code=503, detail=f"Docker unavailable: {e}") from e
             except Exception as e:
                 logger.error(f"Error updating API key for {service}: {e}")
                 raise HTTPException(
@@ -406,9 +390,7 @@ class DockerEndpoints:
             except HTTPException:
                 raise
             except DockerUnavailableError as e:
-                raise HTTPException(
-                    status_code=503, detail=f"Docker unavailable: {e}"
-                ) from e
+                raise HTTPException(status_code=503, detail=f"Docker unavailable: {e}") from e
             except Exception as e:
                 logger.error(f"Error testing API key for {service}: {e}")
                 raise HTTPException(
@@ -429,9 +411,7 @@ class DockerEndpoints:
             except HTTPException:
                 raise
             except DockerUnavailableError as e:
-                raise HTTPException(
-                    status_code=503, detail=f"Docker unavailable: {e}"
-                ) from e
+                raise HTTPException(status_code=503, detail=f"Docker unavailable: {e}") from e
             except Exception as e:
                 logger.error(f"Error getting API key status for {service}: {e}")
                 raise HTTPException(

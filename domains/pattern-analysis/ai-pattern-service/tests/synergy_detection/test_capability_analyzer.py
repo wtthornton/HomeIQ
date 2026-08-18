@@ -30,9 +30,7 @@ class TestCapabilityAnalyzerCircuitBreaker:
 
             analyzer = DeviceCapabilityAnalyzer()
             mock_client = AsyncMock()
-            with patch.object(
-                analyzer, "_get_client", new=AsyncMock(return_value=mock_client)
-            ):
+            with patch.object(analyzer, "_get_client", new=AsyncMock(return_value=mock_client)):
                 result = await analyzer.analyze_device_capabilities("light.test")
 
             assert result == []

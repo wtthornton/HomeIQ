@@ -202,14 +202,9 @@ class MqttParser:
         """Return active topics with message counts."""
         return [
             {"topic": topic, "message_count": count}
-            for topic, count in sorted(
-                self._topic_counts.items(), key=lambda x: x[1], reverse=True
-            )
+            for topic, count in sorted(self._topic_counts.items(), key=lambda x: x[1], reverse=True)
         ]
 
     def get_clients(self) -> list[dict]:
         """Return connected MQTT clients."""
-        return [
-            {"client_id": cid, **info}
-            for cid, info in self._known_clients.items()
-        ]
+        return [{"client_id": cid, **info} for cid, info in self._known_clients.items()]

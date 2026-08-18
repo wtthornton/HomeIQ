@@ -9,12 +9,14 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ..base_evaluator import DetailsEvaluator
 from ..config import AgentEvalConfig, ParamRule, ToolDef
 from ..llm_judge import JudgeRubric, LLMJudge
-from ..models import EvaluationResult, SessionTrace
+
+if TYPE_CHECKING:
+    from ..models import EvaluationResult, SessionTrace
 
 _RUBRICS_DIR = Path(__file__).resolve().parent.parent / "rubrics"
 
@@ -76,9 +78,7 @@ class ToolParameterAccuracyEvaluator(DetailsEvaluator):
                     if req in tc.parameters:
                         correct_params += 1
                     else:
-                        issues.append(
-                            f"{tc.tool_name}: missing required param '{req}'"
-                        )
+                        issues.append(f"{tc.tool_name}: missing required param '{req}'")
 
             # Validate parameters against rules
             for rule in param_rules:
@@ -90,9 +90,7 @@ class ToolParameterAccuracyEvaluator(DetailsEvaluator):
                 if valid:
                     correct_params += 1
                 else:
-                    issues.append(
-                        f"{tc.tool_name}.{rule.param}: {reason}"
-                    )
+                    issues.append(f"{tc.tool_name}.{rule.param}: {reason}")
 
             # Check params defined in tool_def but not covered by rules
             if tool_def:
@@ -104,15 +102,11 @@ class ToolParameterAccuracyEvaluator(DetailsEvaluator):
                     if pname in tc.parameters:
                         total_params += 1
                         value = tc.parameters[pname]
-                        valid, reason = self._validate_param_def(
-                            value, param_def
-                        )
+                        valid, reason = self._validate_param_def(value, param_def)
                         if valid:
                             correct_params += 1
                         else:
-                            issues.append(
-                                f"{tc.tool_name}.{pname}: {reason}"
-                            )
+                            issues.append(f"{tc.tool_name}.{pname}: {reason}")
 
         # If no parameters to validate, fall through to LLM judge
         if total_params == 0:
@@ -131,9 +125,8 @@ class ToolParameterAccuracyEvaluator(DetailsEvaluator):
 
         score = correct_params / total_params
         label = "Yes" if score == 1.0 else "No"
-        explanation = (
-            f"{correct_params}/{total_params} parameters valid."
-            + (f" Issues: {'; '.join(issues)}" if issues else "")
+        explanation = f"{correct_params}/{total_params} parameters valid." + (
+            f" Issues: {'; '.join(issues)}" if issues else ""
         )
 
         return self._result(score=score, label=label, explanation=explanation)
@@ -147,11 +140,8 @@ class ToolParameterAccuracyEvaluator(DetailsEvaluator):
         """Validate a parameter value against its rule."""
 
         # Enum validation from rule
-        if rule.valid_values:
-            if value not in rule.valid_values:
-                return False, (
-                    f"value {value!r} not in allowed: {rule.valid_values}"
-                )
+        if rule.valid_values and value not in rule.valid_values:
+            return False, (f"value {value!r} not in allowed: {rule.valid_values}")
 
         # Format validation from rule
         if rule.format:
@@ -183,23 +173,16 @@ class ToolParameterAccuracyEvaluator(DetailsEvaluator):
                 try:
                     int(value)
                 except (ValueError, TypeError):
-                    return False, (
-                        f"expected integer, got {type(value).__name__}"
-                    )
-        elif expected_type == "number" or expected_type == "float":
-            if not isinstance(value, (int, float)):
-                try:
-                    float(value)
-                except (ValueError, TypeError):
-                    return False, (
-                        f"expected number, got {type(value).__name__}"
-                    )
+                    return False, (f"expected integer, got {type(value).__name__}")
+        elif expected_type in ("number", "float") and not isinstance(value, (int, float)):
+            try:
+                float(value)
+            except (ValueError, TypeError):
+                return False, (f"expected number, got {type(value).__name__}")
 
         # Format validation
         if param_def.format:
-            ok, reason = ToolParameterAccuracyEvaluator._check_format(
-                value, param_def.format
-            )
+            ok, reason = ToolParameterAccuracyEvaluator._check_format(value, param_def.format)
             if not ok:
                 return False, reason
 
@@ -207,27 +190,20 @@ class ToolParameterAccuracyEvaluator(DetailsEvaluator):
         if param_def.min_value is not None:
             try:
                 if float(value) < param_def.min_value:
-                    return False, (
-                        f"value {value} below min {param_def.min_value}"
-                    )
+                    return False, (f"value {value} below min {param_def.min_value}")
             except (ValueError, TypeError):
                 pass
 
         if param_def.max_value is not None:
             try:
                 if float(value) > param_def.max_value:
-                    return False, (
-                        f"value {value} above max {param_def.max_value}"
-                    )
+                    return False, (f"value {value} above max {param_def.max_value}")
             except (ValueError, TypeError):
                 pass
 
         # Enum validation from param_def
-        if param_def.valid_values:
-            if value not in param_def.valid_values:
-                return False, (
-                    f"value {value!r} not in {param_def.valid_values}"
-                )
+        if param_def.valid_values and value not in param_def.valid_values:
+            return False, (f"value {value!r} not in {param_def.valid_values}")
 
         return True, ""
 
@@ -247,9 +223,8 @@ class ToolParameterAccuracyEvaluator(DetailsEvaluator):
             hour, minute = int(parts[0]), int(parts[1])
             if hour > 23 or minute > 59:
                 return False, f"invalid time '{s}' (hour 0-23, minute 0-59)"
-        elif fmt == "HH:MM:SS":
-            if not re.match(r"^\d{2}:\d{2}:\d{2}$", s):
-                return False, f"expected HH:MM:SS format, got '{s}'"
+        elif fmt == "HH:MM:SS" and not re.match(r"^\d{2}:\d{2}:\d{2}$", s):
+            return False, f"expected HH:MM:SS format, got '{s}'"
 
         return True, ""
 

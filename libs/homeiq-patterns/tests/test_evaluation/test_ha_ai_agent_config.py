@@ -93,16 +93,12 @@ class TestHAAIAgentConfig:
         assert "context_injection_complete" in rule_names
 
     def test_preview_rule_is_path_validation(self, config):
-        rule = next(
-            r for r in config.system_prompt_rules if r.name == "preview_before_execute"
-        )
+        rule = next(r for r in config.system_prompt_rules if r.name == "preview_before_execute")
         assert rule.check_type == "path_validation"
         assert rule.severity == "critical"
 
     def test_no_markdown_rule_is_response_check(self, config):
-        rule = next(
-            r for r in config.system_prompt_rules if r.name == "no_markdown_headings"
-        )
+        rule = next(r for r in config.system_prompt_rules if r.name == "no_markdown_headings")
         assert rule.check_type == "response_check"
         assert rule.pattern  # Should have a regex pattern
 
@@ -139,17 +135,13 @@ class TestHAAIAgentConfig:
     # --- E3.S2: New system prompt rules ---
 
     def test_error_handling_compliance_rule(self, config):
-        rule = next(
-            r for r in config.system_prompt_rules if r.name == "error_handling_compliance"
-        )
+        rule = next(r for r in config.system_prompt_rules if r.name == "error_handling_compliance")
         assert rule.check_type == "llm_judge"
         assert rule.severity == "critical"
         assert rule.labels == ["Pass", "Fail"]
 
     def test_context_injection_complete_rule(self, config):
-        rule = next(
-            r for r in config.system_prompt_rules if r.name == "context_injection_complete"
-        )
+        rule = next(r for r in config.system_prompt_rules if r.name == "context_injection_complete")
         assert rule.check_type == "path_validation"
         assert rule.severity == "warning"
         assert "preview_automation_from_prompt" in rule.tool_sequence
@@ -161,10 +153,7 @@ class TestHAAIAgentConfig:
         assert config.thresholds["context_injection_complete"] == 0.85
 
     def test_has_alias_param_rules(self, config):
-        alias_rules = [
-            r for r in config.parameter_rules
-            if r.param == "alias"
-        ]
+        alias_rules = [r for r in config.parameter_rules if r.param == "alias"]
         assert len(alias_rules) >= 1
 
 
@@ -221,12 +210,8 @@ class TestHAAIAgentRegistration:
 
         session = SessionTrace(
             agent_name="ha-ai-agent",
-            user_messages=[
-                UserMessage(content="Make office lights blink red every 15 minutes")
-            ],
-            agent_responses=[
-                AgentResponse(content="Here's a preview of your automation...")
-            ],
+            user_messages=[UserMessage(content="Make office lights blink red every 15 minutes")],
+            agent_responses=[AgentResponse(content="Here's a preview of your automation...")],
             tool_calls=[
                 ToolCall(
                     tool_name="preview_automation_from_prompt",

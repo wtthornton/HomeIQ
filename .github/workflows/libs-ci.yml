@@ -37,6 +37,21 @@ jobs:
           python-version: "3.12"
           cache: "pip"
 
+      - name: Install ruff
+        # Pinned for the same reason as reusable-group-ci.yml: an unpinned ruff
+        # makes the lint gate a moving target, and 0.16.0 expanded the default
+        # rule set from 59 rules to 413. Bump deliberately, in its own PR.
+        run: pip install ruff==0.15.15
+
+      - name: Lint with ruff
+        # TAP-6155: libs/ had no lint gate at all while every service under
+        # domains/ had one, so 2292 errors accumulated in the code every service
+        # imports. Cleared to zero without a single suppression; this keeps it there.
+        run: ruff check libs/
+
+      - name: Check formatting with ruff
+        run: ruff format --check libs/
+
       - name: Install shared libraries
         run: |
           # One invocation, no suppression. These libs depend on each other

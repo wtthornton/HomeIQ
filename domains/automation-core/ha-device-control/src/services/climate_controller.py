@@ -129,10 +129,7 @@ class ClimateController:
                 target = attrs.get("temperature", temperature)
                 current = attrs.get("current_temperature", "unknown")
                 mode = updated.get("state", "unknown")
-                msg = (
-                    f"{entity.friendly_name}: target {target}°, "
-                    f"current {current}°, mode {mode}"
-                )
+                msg = f"{entity.friendly_name}: target {target}°, current {current}°, mode {mode}"
             except Exception:
                 msg = f"{entity.friendly_name}: temperature set to {temperature}°"
 

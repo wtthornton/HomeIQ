@@ -102,6 +102,29 @@ class AgentForgeResponse:
             return answer
         return self.text
 
+    @property
+    def instance_text(self) -> str:
+        """Return the schema instance a structured caller asked for.
+
+        A structured gene answers with a JSON object carrying the caller's
+        instance under ``instance`` alongside its own convention fields —
+        ``hiq-extract`` adds ``manifest`` and ``unsourced_fields``. An AI Task
+        validates the body against the schema it supplied, so the envelope has
+        to come off first or every structured task fails on the extra keys. A
+        gene that replies with the bare instance, or with anything that is not
+        an object, is passed through untouched.
+        """
+        stripped = self.text.strip()
+        if not stripped.startswith("{"):
+            return self.text
+        try:
+            parsed = json.loads(stripped)
+        except json.JSONDecodeError:
+            return self.text
+        if isinstance(parsed, dict) and "instance" in parsed:
+            return json.dumps(parsed["instance"])
+        return self.text
+
     def as_user_message(self) -> str:
         """Render this response as text a person can act on."""
         if self.refused_for_budget:
@@ -234,9 +257,7 @@ class AgentForgeClient:
         """
         url = self._result_endpoint.format(invocation_id=invocation_id)
         try:
-            response = await self._session.get(
-                url, headers=self._headers, timeout=self._timeout
-            )
+            response = await self._session.get(url, headers=self._headers, timeout=self._timeout)
             async with response:
                 raw = await response.text()
                 if response.status == 404:

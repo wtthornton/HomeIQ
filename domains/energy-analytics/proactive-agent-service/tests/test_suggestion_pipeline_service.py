@@ -215,9 +215,7 @@ def test_filter_by_timing_filters_candidate_in_earlier_quiet_window(
         ]
     }
 
-    with patch(
-        "src.services.suggestion_pipeline_service.datetime"
-    ) as mock_datetime:
+    with patch("src.services.suggestion_pipeline_service.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime(2025, 1, 7, 23, 0, tzinfo=UTC)
         filtered = pipeline._filter_by_timing(candidates, timing_context)
 
@@ -240,9 +238,7 @@ def test_filter_by_timing_is_order_independent(
         ]
     }
 
-    with patch(
-        "src.services.suggestion_pipeline_service.datetime"
-    ) as mock_datetime:
+    with patch("src.services.suggestion_pipeline_service.datetime") as mock_datetime:
         mock_datetime.now.return_value = datetime(2025, 1, 7, 23, 0, tzinfo=UTC)
         filtered = pipeline._filter_by_timing(candidates, timing_context)
 

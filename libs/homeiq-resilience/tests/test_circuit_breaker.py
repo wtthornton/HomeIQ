@@ -55,18 +55,14 @@ class TestInitialState:
 
 class TestClosedToOpen:
     @pytest.mark.asyncio
-    async def test_opens_after_threshold_failures(
-        self, breaker: CircuitBreaker
-    ) -> None:
+    async def test_opens_after_threshold_failures(self, breaker: CircuitBreaker) -> None:
         for _ in range(3):
             await breaker.record_failure()
 
         assert breaker.state == CircuitState.OPEN
 
     @pytest.mark.asyncio
-    async def test_stays_closed_below_threshold(
-        self, breaker: CircuitBreaker
-    ) -> None:
+    async def test_stays_closed_below_threshold(self, breaker: CircuitBreaker) -> None:
         for _ in range(2):
             await breaker.record_failure()
 
@@ -74,9 +70,7 @@ class TestClosedToOpen:
         assert await breaker.allow_request() is True
 
     @pytest.mark.asyncio
-    async def test_success_resets_failure_count(
-        self, breaker: CircuitBreaker
-    ) -> None:
+    async def test_success_resets_failure_count(self, breaker: CircuitBreaker) -> None:
         await breaker.record_failure()
         await breaker.record_failure()
         await breaker.record_success()
@@ -86,9 +80,7 @@ class TestClosedToOpen:
         assert breaker.state == CircuitState.CLOSED
 
     @pytest.mark.asyncio
-    async def test_blocks_requests_when_open(
-        self, breaker: CircuitBreaker
-    ) -> None:
+    async def test_blocks_requests_when_open(self, breaker: CircuitBreaker) -> None:
         for _ in range(3):
             await breaker.record_failure()
 
@@ -102,9 +94,7 @@ class TestClosedToOpen:
 
 class TestOpenToHalfOpen:
     @pytest.mark.asyncio
-    async def test_transitions_after_recovery_timeout(
-        self, breaker: CircuitBreaker
-    ) -> None:
+    async def test_transitions_after_recovery_timeout(self, breaker: CircuitBreaker) -> None:
         for _ in range(3):
             await breaker.record_failure()
         assert breaker.state == CircuitState.OPEN
@@ -115,9 +105,7 @@ class TestOpenToHalfOpen:
         assert breaker.state == CircuitState.HALF_OPEN
 
     @pytest.mark.asyncio
-    async def test_stays_open_before_timeout(
-        self, breaker: CircuitBreaker
-    ) -> None:
+    async def test_stays_open_before_timeout(self, breaker: CircuitBreaker) -> None:
         for _ in range(3):
             await breaker.record_failure()
 
@@ -125,9 +113,7 @@ class TestOpenToHalfOpen:
         assert breaker.state == CircuitState.OPEN
 
     @pytest.mark.asyncio
-    async def test_allows_limited_requests_in_half_open(
-        self, breaker: CircuitBreaker
-    ) -> None:
+    async def test_allows_limited_requests_in_half_open(self, breaker: CircuitBreaker) -> None:
         for _ in range(3):
             await breaker.record_failure()
 
@@ -213,26 +199,20 @@ class TestAsyncContextManager:
     """
 
     @pytest.mark.asyncio
-    async def test_allows_request_and_records_success(
-        self, breaker: CircuitBreaker
-    ) -> None:
+    async def test_allows_request_and_records_success(self, breaker: CircuitBreaker) -> None:
         async with breaker:
             pass
         assert breaker.state == CircuitState.CLOSED
 
     @pytest.mark.asyncio
-    async def test_records_failure_and_reraises_on_exception(
-        self, breaker: CircuitBreaker
-    ) -> None:
+    async def test_records_failure_and_reraises_on_exception(self, breaker: CircuitBreaker) -> None:
         with pytest.raises(ValueError, match="boom"):
             async with breaker:
                 raise ValueError("boom")
         assert breaker._failure_count == 1
 
     @pytest.mark.asyncio
-    async def test_raises_circuit_open_error_when_open(
-        self, breaker: CircuitBreaker
-    ) -> None:
+    async def test_raises_circuit_open_error_when_open(self, breaker: CircuitBreaker) -> None:
         for _ in range(3):
             await breaker.record_failure()
         assert breaker.state == CircuitState.OPEN
@@ -244,9 +224,7 @@ class TestAsyncContextManager:
 
 class TestReset:
     @pytest.mark.asyncio
-    async def test_reset_returns_to_closed(
-        self, breaker: CircuitBreaker
-    ) -> None:
+    async def test_reset_returns_to_closed(self, breaker: CircuitBreaker) -> None:
         for _ in range(3):
             await breaker.record_failure()
         assert breaker.state == CircuitState.OPEN

@@ -4,7 +4,6 @@ Core lint engine that orchestrates parsing, rule checking, and fixing.
 
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
 
 # Add current directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
@@ -18,7 +17,7 @@ from rules.mvp_rules import get_all_rules
 class LintEngine:
     """Main lint engine for HA automations."""
 
-    def __init__(self, rule_config: Optional[Dict[str, bool]] = None):
+    def __init__(self, rule_config: dict[str, bool] | None = None):
         """
         Initialize engine with optional rule configuration.
 
@@ -57,7 +56,9 @@ class LintEngine:
         # Then check each automation against all rules
         for automation in automations:
             for rule in self.rules:
-                if rule.enabled and rule.rule_id != "SCHEMA004":  # Skip duplicate ID rule (handled above)
+                if (
+                    rule.enabled and rule.rule_id != "SCHEMA004"
+                ):  # Skip duplicate ID rule (handled above)
                     findings = rule.check(automation)
                     all_findings.extend(findings)
 
@@ -71,10 +72,10 @@ class LintEngine:
             engine_version=ENGINE_VERSION,
             ruleset_version=RULESET_VERSION,
             automations_detected=len(automations),
-            findings=all_findings
+            findings=all_findings,
         )
 
-    def _check_duplicate_ids(self, automations: List[AutomationIR]) -> List[Finding]:
+    def _check_duplicate_ids(self, automations: list[AutomationIR]) -> list[Finding]:
         """
         Check for duplicate automation IDs across all automations.
 
@@ -85,25 +86,27 @@ class LintEngine:
             List of findings for duplicate IDs
         """
         findings = []
-        seen_ids: Dict[str, int] = {}
+        seen_ids: dict[str, int] = {}
 
         for automation in automations:
             if automation.id:
                 if automation.id in seen_ids:
-                    findings.append(Finding(
-                        rule_id="SCHEMA004",
-                        severity=Severity.ERROR,
-                        message=f"Duplicate automation ID: '{automation.id}'",
-                        why_it_matters="Automation IDs must be unique. Duplicate IDs can cause conflicts in Home Assistant",
-                        path=automation.path,
-                        suggested_fix=None
-                    ))
+                    findings.append(
+                        Finding(
+                            rule_id="SCHEMA004",
+                            severity=Severity.ERROR,
+                            message=f"Duplicate automation ID: '{automation.id}'",
+                            why_it_matters="Automation IDs must be unique. Duplicate IDs can cause conflicts in Home Assistant",
+                            path=automation.path,
+                            suggested_fix=None,
+                        )
+                    )
                 else:
                     seen_ids[automation.id] = automation.source_index
 
         return findings
 
-    def get_rules(self) -> List[Dict]:
+    def get_rules(self) -> list[dict]:
         """
         Return list of all rules with metadata.
 
@@ -116,7 +119,7 @@ class LintEngine:
                 "name": rule.name,
                 "severity": rule.severity,
                 "category": rule.category,
-                "enabled": rule.enabled
+                "enabled": rule.enabled,
             }
             for rule in self.rules
         ]

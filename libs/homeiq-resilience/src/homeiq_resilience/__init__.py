@@ -7,13 +7,13 @@ for services that make HTTP calls across group boundaries.
 
 from .app_factory import create_app
 from .auth import ServiceAuthValidator, require_service_auth
-from .prometheus_metrics import add_prometheus_middleware, create_metrics_registry
 from .circuit_breaker import CircuitBreaker, CircuitOpenError
 from .cross_group_client import CrossGroupClient
 from .health import DependencyStatus, GroupHealthCheck
 from .health_check import StandardHealthCheck
 from .http_client import ManagedHTTPClient
 from .lifespan import ServiceLifespan
+from .prometheus_metrics import add_prometheus_middleware, create_metrics_registry
 from .scheduler import ServiceScheduler
 from .startup import wait_for_dependency
 from .task_manager import TaskManager

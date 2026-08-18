@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class VerificationWarning:
     """A single verification warning with actionable guidance."""
+
     message: str
     entity_id: str | None = None
     severity: str = "warning"  # "warning" | "error" | "info"
@@ -49,6 +50,7 @@ class VerificationResult:
         verified_attributes: Attributes that were verified (actual values)
         expected_state: Expected state dict (for audit trail)
     """
+
     success: bool
     state: str | None = None
     warnings: list[VerificationWarning] = field(default_factory=list)
@@ -157,7 +159,14 @@ class PostActionVerifier(ABC):
         ...
 
     # Attributes to check for state-match verification
-    STATE_ATTRIBUTES = ("brightness", "color_temp", "temperature", "hvac_mode", "fan_mode", "position")
+    STATE_ATTRIBUTES = (
+        "brightness",
+        "color_temp",
+        "temperature",
+        "hvac_mode",
+        "fan_mode",
+        "position",
+    )
 
     def verify_state_match(
         self,
@@ -187,8 +196,7 @@ class PostActionVerifier(ABC):
             warnings.append(
                 VerificationWarning(
                     message=(
-                        f"Entity '{eid}' is '{actual_state}' "
-                        f"but expected '{expected_state}'."
+                        f"Entity '{eid}' is '{actual_state}' but expected '{expected_state}'."
                     ),
                     entity_id=eid,
                     severity="warning",

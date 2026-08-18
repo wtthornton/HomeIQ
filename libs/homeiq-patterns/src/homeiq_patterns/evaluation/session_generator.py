@@ -13,9 +13,12 @@ from __future__ import annotations
 import random
 import uuid
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
-from .config import AgentEvalConfig, ParamDef, PathRule, ToolDef
 from .models import AgentResponse, SessionTrace, ToolCall, UserMessage
+
+if TYPE_CHECKING:
+    from .config import AgentEvalConfig, ParamDef, PathRule, ToolDef
 
 # ---------------------------------------------------------------------------
 # Scenario templates
@@ -127,9 +130,7 @@ class SyntheticSessionGenerator:
 
         return sessions
 
-    def _build_session(
-        self, scenario: str, rng: random.Random, _index: int
-    ) -> SessionTrace:
+    def _build_session(self, scenario: str, rng: random.Random, _index: int) -> SessionTrace:
         """Build a single session for the given scenario."""
         agent = self.config.agent_name
         user_prompt = _AGENT_PROMPTS.get(agent, _USER_PROMPTS).get(
@@ -152,16 +153,12 @@ class SyntheticSessionGenerator:
             model=self.config.model,
             temperature=0.7,
             user_messages=[UserMessage(content=user_prompt, turn_index=0)],
-            agent_responses=[
-                AgentResponse(content=agent_response, turn_index=1)
-            ],
+            agent_responses=[AgentResponse(content=agent_response, turn_index=1)],
             tool_calls=tool_calls,
             metadata=metadata,
         )
 
-    def _build_tool_calls(
-        self, scenario: str, rng: random.Random
-    ) -> list[ToolCall]:
+    def _build_tool_calls(self, scenario: str, rng: random.Random) -> list[ToolCall]:
         """Build tool calls appropriate for the scenario."""
         if scenario in ("happy_path", "happy_path_alt"):
             return self._happy_path_calls(rng, alt=(scenario == "happy_path_alt"))
@@ -175,9 +172,7 @@ class SyntheticSessionGenerator:
             return self._error_session_calls(rng)
         return []
 
-    def _happy_path_calls(
-        self, rng: random.Random, alt: bool = False
-    ) -> list[ToolCall]:
+    def _happy_path_calls(self, rng: random.Random, alt: bool = False) -> list[ToolCall]:
         """Generate tool calls following the correct path sequence."""
         if not self.config.paths:
             return self._all_tools_sequential(rng)
@@ -199,8 +194,7 @@ class SyntheticSessionGenerator:
             if rng.random() < 0.3 and call.parameters:
                 # Remove one optional param
                 optional_keys = [
-                    k for k in call.parameters
-                    if k not in self._required_params_for(call.tool_name)
+                    k for k in call.parameters if k not in self._required_params_for(call.tool_name)
                 ]
                 if optional_keys:
                     del call.parameters[rng.choice(optional_keys)]
@@ -211,18 +205,12 @@ class SyntheticSessionGenerator:
         if not self.config.paths:
             tools = [t.name for t in self.config.tools]
             rng.shuffle(tools)
-            return [
-                self._make_tool_call(name, idx, rng)
-                for idx, name in enumerate(tools[:3])
-            ]
+            return [self._make_tool_call(name, idx, rng) for idx, name in enumerate(tools[:3])]
 
         path = self.config.paths[0]
         # Reverse the sequence
         reversed_seq = list(reversed(path.sequence))
-        return [
-            self._make_tool_call(name, idx, rng)
-            for idx, name in enumerate(reversed_seq)
-        ]
+        return [self._make_tool_call(name, idx, rng) for idx, name in enumerate(reversed_seq)]
 
     def _missing_params_calls(self, rng: random.Random) -> list[ToolCall]:
         """Tool calls with missing required parameters."""
@@ -265,21 +253,15 @@ class SyntheticSessionGenerator:
         """Generate tool calls following a PathRule sequence."""
         calls = []
         for idx, tool_name in enumerate(path.sequence):
-            call = self._make_tool_call(
-                tool_name, idx, rng, all_params_valid=all_params_valid
-            )
+            call = self._make_tool_call(tool_name, idx, rng, all_params_valid=all_params_valid)
             calls.append(call)
         return calls
 
-    def _all_tools_sequential(
-        self, rng: random.Random, partial: bool = False
-    ) -> list[ToolCall]:
+    def _all_tools_sequential(self, rng: random.Random, partial: bool = False) -> list[ToolCall]:
         """Use all tools in order (fallback when no paths defined)."""
         calls = []
         for idx, tool in enumerate(self.config.tools):
-            call = self._make_tool_call(
-                tool.name, idx, rng, all_params_valid=not partial
-            )
+            call = self._make_tool_call(tool.name, idx, rng, all_params_valid=not partial)
             calls.append(call)
         return calls
 
@@ -303,9 +285,7 @@ class SyntheticSessionGenerator:
                 latency_ms=rng.uniform(50, 500),
             )
 
-        params = self._generate_params(
-            tool, rng, skip_required=skip_required
-        )
+        params = self._generate_params(tool, rng, skip_required=skip_required)
         result = self._generate_result(tool, rng, all_params_valid)
 
         return ToolCall(
@@ -326,18 +306,16 @@ class SyntheticSessionGenerator:
         """Generate parameter values from the tool's parameter definitions."""
         params = {}
         for param_def in tool.parameters:
-            if skip_required and param_def.name in tool.required_params:
-                if rng.random() < 0.5:
-                    continue  # Skip ~50% of required params
+            # Skip ~50% of required params
+            if skip_required and param_def.name in tool.required_params and rng.random() < 0.5:
+                continue
             if not param_def.required and rng.random() < 0.3:
                 continue  # Skip optional params 30% of the time
 
             params[param_def.name] = self._generate_param_value(param_def, rng)
         return params
 
-    def _generate_param_value(
-        self, param_def: ParamDef, rng: random.Random
-    ) -> object:
+    def _generate_param_value(self, param_def: ParamDef, rng: random.Random) -> object:
         """Generate a realistic value for a parameter."""
         # Use valid_values if available
         if param_def.valid_values:
@@ -402,9 +380,7 @@ class SyntheticSessionGenerator:
         candidates = name_map.get(param_name, [f"sample_{param_name}_value"])
         return rng.choice(candidates)
 
-    def _generate_result(
-        self, tool: ToolDef, rng: random.Random, success: bool = True
-    ) -> dict:
+    def _generate_result(self, tool: ToolDef, rng: random.Random, success: bool = True) -> dict:
         """Generate a realistic tool result."""
         if not success and rng.random() < 0.3:
             return {"error": True, "message": "Validation failed"}

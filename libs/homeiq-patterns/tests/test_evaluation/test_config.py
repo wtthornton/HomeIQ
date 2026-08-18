@@ -64,9 +64,7 @@ class TestAgentEvalConfig:
         assert config.thresholds["correctness"] == 0.85
 
     def test_get_tool_found(self):
-        config = AgentEvalConfig(
-            tools=[ToolDef(name="search"), ToolDef(name="book")]
-        )
+        config = AgentEvalConfig(tools=[ToolDef(name="search"), ToolDef(name="book")])
         assert config.get_tool("search") is not None
         assert config.get_tool("search").name == "search"
 

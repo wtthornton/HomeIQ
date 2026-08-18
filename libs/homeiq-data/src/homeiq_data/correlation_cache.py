@@ -13,7 +13,6 @@ Single-home NUC optimized:
 
 from collections import OrderedDict
 from datetime import datetime, timedelta
-from typing import Optional
 
 from .logging_config import get_logger
 
@@ -35,7 +34,7 @@ class CorrelationCache:
     - Thread-safe for use across async services
     """
 
-    def __init__(self, cache_db_url: Optional[str] = None, max_memory_size: int = 1000):
+    def __init__(self, cache_db_url: str | None = None, max_memory_size: int = 1000):
         """
         Initialize correlation cache.
 
@@ -60,8 +59,11 @@ class CorrelationCache:
         if cache_db_url:
             self._init_database()
 
-        logger.info("CorrelationCache initialized (db=%s, memory_size=%d)",
-                   cache_db_url or "in-memory only", max_memory_size)
+        logger.info(
+            "CorrelationCache initialized (db=%s, memory_size=%d)",
+            cache_db_url or "in-memory only",
+            max_memory_size,
+        )
 
     def _init_database(self) -> None:
         """Initialize cache database."""
@@ -70,6 +72,7 @@ class CorrelationCache:
 
         try:
             import psycopg2
+
             self.db_conn = psycopg2.connect(self.cache_db_url)
             self.db_conn.autocommit = False
             with self.db_conn.cursor() as cur:
@@ -93,12 +96,7 @@ class CorrelationCache:
             logger.warning("Failed to initialize cache database: %s", e)
             self.db_conn = None
 
-    def get(
-        self,
-        entity1_id: str,
-        entity2_id: str,
-        ttl_seconds: int = 3600
-    ) -> Optional[float]:
+    def get(self, entity1_id: str, entity2_id: str, ttl_seconds: int = 3600) -> float | None:
         """
         Get cached correlation.
 
@@ -120,7 +118,7 @@ class CorrelationCache:
                 # Move to end (LRU)
                 self.memory_cache.move_to_end(pair_key)
                 self._cache_hits += 1
-                return cached['correlation']
+                return cached["correlation"]
             else:
                 # Expired, remove from memory
                 del self.memory_cache[pair_key]
@@ -129,11 +127,14 @@ class CorrelationCache:
         if self.db_conn:
             try:
                 with self.db_conn.cursor() as cur:
-                    cur.execute("""
+                    cur.execute(
+                        """
                         SELECT correlation, timestamp, expires_at
                         FROM correlation_cache
                         WHERE entity1_id = %s AND entity2_id = %s
-                    """, pair_key)
+                    """,
+                        pair_key,
+                    )
 
                     row = cur.fetchone()
                     if row:
@@ -150,10 +151,13 @@ class CorrelationCache:
                             return correlation_val
                         else:
                             # Expired, remove from database
-                            cur.execute("""
+                            cur.execute(
+                                """
                                 DELETE FROM correlation_cache
                                 WHERE entity1_id = %s AND entity2_id = %s
-                            """, pair_key)
+                            """,
+                                pair_key,
+                            )
                             self.db_conn.commit()
             except Exception as e:
                 logger.debug("Error reading from cache database: %s", e)
@@ -162,11 +166,7 @@ class CorrelationCache:
         return None
 
     def set(
-        self,
-        entity1_id: str,
-        entity2_id: str,
-        correlation: float,
-        ttl_seconds: int = 3600
+        self, entity1_id: str, entity2_id: str, correlation: float, ttl_seconds: int = 3600
     ) -> None:
         """
         Cache correlation value.
@@ -189,7 +189,8 @@ class CorrelationCache:
                 expires_at = now + timedelta(seconds=ttl_seconds)
 
                 with self.db_conn.cursor() as cur:
-                    cur.execute("""
+                    cur.execute(
+                        """
                         INSERT INTO correlation_cache
                         (entity1_id, entity2_id, correlation, timestamp, expires_at)
                         VALUES (%s, %s, %s, %s, %s)
@@ -197,13 +198,15 @@ class CorrelationCache:
                             correlation = EXCLUDED.correlation,
                             timestamp = EXCLUDED.timestamp,
                             expires_at = EXCLUDED.expires_at
-                    """, (
-                        pair_key[0],
-                        pair_key[1],
-                        correlation,
-                        now.isoformat(),
-                        expires_at.isoformat()
-                    ))
+                    """,
+                        (
+                            pair_key[0],
+                            pair_key[1],
+                            correlation,
+                            now.isoformat(),
+                            expires_at.isoformat(),
+                        ),
+                    )
                 self.db_conn.commit()
             except Exception as e:
                 logger.debug("Error writing to cache database: %s", e)
@@ -214,9 +217,9 @@ class CorrelationCache:
         expires_at = now + timedelta(seconds=ttl_seconds)
 
         self.memory_cache[pair_key] = {
-            'correlation': correlation,
-            'timestamp': now,
-            'expires_at': expires_at
+            "correlation": correlation,
+            "timestamp": now,
+            "expires_at": expires_at,
         }
 
         # Move to end (most recently used)
@@ -228,7 +231,7 @@ class CorrelationCache:
 
     def _is_valid(self, cached: dict, _ttl_seconds: int) -> bool:
         """Check if cached value is still valid"""
-        expires_at = cached.get('expires_at')
+        expires_at = cached.get("expires_at")
         if expires_at is None:
             return False
 
@@ -249,10 +252,13 @@ class CorrelationCache:
         if self.db_conn:
             try:
                 with self.db_conn.cursor() as cur:
-                    cur.execute("""
+                    cur.execute(
+                        """
                         DELETE FROM correlation_cache
                         WHERE entity1_id = %s AND entity2_id = %s
-                    """, pair_key)
+                    """,
+                        pair_key,
+                    )
                 self.db_conn.commit()
             except Exception as e:
                 logger.debug("Error invalidating cache entry: %s", e)
@@ -269,8 +275,7 @@ class CorrelationCache:
 
         # Clear expired from memory cache
         expired_keys = [
-            key for key, cached in self.memory_cache.items()
-            if not self._is_valid(cached, 0)
+            key for key, cached in self.memory_cache.items() if not self._is_valid(cached, 0)
         ]
         for key in expired_keys:
             del self.memory_cache[key]
@@ -280,10 +285,13 @@ class CorrelationCache:
         if self.db_conn:
             try:
                 with self.db_conn.cursor() as cur:
-                    cur.execute("""
+                    cur.execute(
+                        """
                         DELETE FROM correlation_cache
                         WHERE expires_at < %s
-                    """, (now.isoformat(),))
+                    """,
+                        (now.isoformat(),),
+                    )
                     count += cur.rowcount
                 self.db_conn.commit()
             except Exception as e:
@@ -313,20 +321,20 @@ class CorrelationCache:
             except Exception:
                 pass
 
-        total_requests = getattr(self, '_total_requests', 0)
-        hits = getattr(self, '_cache_hits', 0)
-        misses = getattr(self, '_cache_misses', 0)
+        total_requests = getattr(self, "_total_requests", 0)
+        hits = getattr(self, "_cache_hits", 0)
+        misses = getattr(self, "_cache_misses", 0)
         hit_rate = hits / total_requests if total_requests > 0 else 0.0
 
         return {
-            'memory_cache_size': memory_size,
-            'db_cache_size': db_size,
-            'max_memory_size': self.max_memory_size,
-            'total_requests': total_requests,
-            'cache_hits': hits,
-            'cache_misses': misses,
-            'hit_rate': round(hit_rate, 4),
-            'hit_rate_percent': round(hit_rate * 100, 2)
+            "memory_cache_size": memory_size,
+            "db_cache_size": db_size,
+            "max_memory_size": self.max_memory_size,
+            "total_requests": total_requests,
+            "cache_hits": hits,
+            "cache_misses": misses,
+            "hit_rate": round(hit_rate, 4),
+            "hit_rate_percent": round(hit_rate * 100, 2),
         }
 
     def close(self) -> None:
@@ -338,10 +346,12 @@ class CorrelationCache:
 
 
 # Global cache instance (singleton pattern)
-_global_cache: Optional[CorrelationCache] = None
+_global_cache: CorrelationCache | None = None
 
 
-def get_correlation_cache(cache_db_url: Optional[str] = None, max_memory_size: int = 1000) -> CorrelationCache:
+def get_correlation_cache(
+    cache_db_url: str | None = None, max_memory_size: int = 1000
+) -> CorrelationCache:
     """
     Get or create global correlation cache instance.
 

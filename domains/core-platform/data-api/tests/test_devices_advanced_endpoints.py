@@ -1801,9 +1801,7 @@ class TestNonShadowedStaticRoutes:
         mock_recommender = MagicMock()
         mock_recommender.recommend_devices = AsyncMock(return_value=[])
 
-        with patch(
-            "src.devices_endpoints.get_recommender_service", return_value=mock_recommender
-        ):
+        with patch("src.devices_endpoints.get_recommender_service", return_value=mock_recommender):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 # Note: device_type is a required query parameter
                 resp = await c.get("/api/devices/recommendations?device_type=light")
@@ -1842,9 +1840,7 @@ class TestNonShadowedStaticRoutes:
             return_value={"devices": [device1, device2], "comparison": {}}
         )
 
-        with patch(
-            "src.devices_endpoints.get_recommender_service", return_value=mock_recommender
-        ):
+        with patch("src.devices_endpoints.get_recommender_service", return_value=mock_recommender):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 resp = await c.get("/api/devices/compare?device_ids=d1,d2")
 

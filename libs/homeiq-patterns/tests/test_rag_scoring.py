@@ -10,19 +10,12 @@ Tests cover:
 - get_context_for_domains() direct lookup
 """
 
-import sys
-from pathlib import Path
-
 import pytest
-
-_project_root = str(Path(__file__).resolve().parents[3])
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
-
 from homeiq_patterns import RAGContextRegistry, RAGContextService
 from homeiq_patterns.rag_context_registry import DEFAULT_TOKEN_BUDGET
 
 # --- Test fixtures ---
+
 
 class SportsRAG(RAGContextService):
     name = "sports"
@@ -57,6 +50,7 @@ class SecurityRAG(RAGContextService):
 
 class LargeCorpusRAG(RAGContextService):
     """RAG service with a very large corpus for budget testing."""
+
     name = "large"
     keywords = ("large_trigger",)
     corpus_path = None
@@ -69,6 +63,7 @@ class LargeCorpusRAG(RAGContextService):
 
 class SmallCorpusRAG(RAGContextService):
     """RAG service with a small corpus."""
+
     name = "small"
     keywords = ("small_trigger",)
     corpus_path = None
@@ -79,6 +74,7 @@ class SmallCorpusRAG(RAGContextService):
 
 
 # --- score_relevance() Tests ---
+
 
 class TestScoreRelevance:
     def test_whole_word_match(self):
@@ -156,6 +152,7 @@ class TestScoreRelevance:
 
 # --- detect_intent() with min_score Tests ---
 
+
 class TestMinScore:
     def test_default_min_score(self):
         """Default min_score is 0.1."""
@@ -190,6 +187,7 @@ class TestMinScore:
 
 
 # --- Token Budget Tests ---
+
 
 class TestTokenBudget:
     def test_default_budget(self):
@@ -239,6 +237,7 @@ class TestTokenBudget:
 
 
 # --- get_scored_context() Tests ---
+
 
 class TestScoredContext:
     @pytest.mark.asyncio
@@ -296,6 +295,7 @@ class TestScoredContext:
 
 
 # --- get_context_for_domains() Tests ---
+
 
 class TestContextForDomains:
     @pytest.mark.asyncio

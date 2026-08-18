@@ -184,9 +184,7 @@ class TestPlaceholders:
     @pytest.mark.asyncio
     async def test_unresolved_placeholders(self):
         evaluator = YAMLCompletenessEvaluator()
-        session = _make_session(
-            _COMPLETE_YAML, placeholders=["{{entity_id}}"]
-        )
+        session = _make_session(_COMPLETE_YAML, placeholders=["{{entity_id}}"])
         result = await evaluator.evaluate(session)
         # Missing no-placeholders (0.2) = 0.8
         assert abs(result.score - 0.8) < 0.01

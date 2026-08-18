@@ -80,15 +80,17 @@ class TestMqttParser:
         )
 
     def test_parse_connect_line(self, parser):
-        line = json.dumps({
-            "ts": 1710600000.0,
-            "id.orig_h": "192.168.1.50",
-            "id.resp_h": "192.168.1.1",
-            "id.resp_p": 1883,
-            "client_id": "zigbee2mqtt_bridge",
-            "connect_status": "0",
-            "proto_version": 4,
-        })
+        line = json.dumps(
+            {
+                "ts": 1710600000.0,
+                "id.orig_h": "192.168.1.50",
+                "id.resp_h": "192.168.1.1",
+                "id.resp_p": 1883,
+                "client_id": "zigbee2mqtt_bridge",
+                "connect_status": "0",
+                "proto_version": 4,
+            }
+        )
         point = parser._parse_connect_line(line)
         assert point is not None
 
@@ -97,15 +99,17 @@ class TestMqttParser:
         assert parser._parse_connect_line(line) is None
 
     def test_parse_publish_line(self, parser):
-        line = json.dumps({
-            "ts": 1710600000.0,
-            "id.orig_h": "192.168.1.50",
-            "client_id": "zigbee2mqtt_bridge",
-            "topic": "homeassistant/sensor/temperature",
-            "qos": 1,
-            "payload_len": 128,
-            "retain": True,
-        })
+        line = json.dumps(
+            {
+                "ts": 1710600000.0,
+                "id.orig_h": "192.168.1.50",
+                "client_id": "zigbee2mqtt_bridge",
+                "topic": "homeassistant/sensor/temperature",
+                "qos": 1,
+                "payload_len": 128,
+                "retain": True,
+            }
+        )
         point = parser._parse_publish_line(line)
         assert point is not None
 
@@ -114,13 +118,15 @@ class TestMqttParser:
         assert parser._parse_publish_line(line) is None
 
     def test_parse_subscribe_line(self, parser):
-        line = json.dumps({
-            "ts": 1710600000.0,
-            "id.orig_h": "192.168.1.42",
-            "client_id": "esphome_living_room",
-            "topic": "homeassistant/switch/#",
-            "qos": 0,
-        })
+        line = json.dumps(
+            {
+                "ts": 1710600000.0,
+                "id.orig_h": "192.168.1.42",
+                "client_id": "esphome_living_room",
+                "topic": "homeassistant/switch/#",
+                "qos": 0,
+            }
+        )
         point = parser._parse_subscribe_line(line)
         assert point is not None
 
@@ -134,27 +140,31 @@ class TestMqttParser:
         assert parser._parse_subscribe_line("not json") is None
 
     def test_client_tracking(self, parser):
-        line = json.dumps({
-            "ts": 1710600000.0,
-            "id.orig_h": "192.168.1.50",
-            "client_id": "zigbee2mqtt_bridge",
-            "connect_status": "0",
-            "proto_version": 4,
-        })
+        line = json.dumps(
+            {
+                "ts": 1710600000.0,
+                "id.orig_h": "192.168.1.50",
+                "client_id": "zigbee2mqtt_bridge",
+                "connect_status": "0",
+                "proto_version": 4,
+            }
+        )
         parser._parse_connect_line(line)
         clients = parser.get_clients()
         assert len(clients) == 1
         assert clients[0]["client_id"] == "zigbee2mqtt_bridge"
 
     def test_topic_tracking(self, parser):
-        line = json.dumps({
-            "ts": 1710600000.0,
-            "id.orig_h": "192.168.1.50",
-            "client_id": "test",
-            "topic": "homeassistant/sensor/temp",
-            "qos": 0,
-            "payload_len": 64,
-        })
+        line = json.dumps(
+            {
+                "ts": 1710600000.0,
+                "id.orig_h": "192.168.1.50",
+                "client_id": "test",
+                "topic": "homeassistant/sensor/temp",
+                "qos": 0,
+                "payload_len": 64,
+            }
+        )
         parser._parse_publish_line(line)
         parser._parse_publish_line(line)
         topics = parser.get_topics()
@@ -168,13 +178,18 @@ class TestMqttParser:
     async def test_parse_cycle_with_data(self, tmp_path: Path):
         """Test MQTT parser full cycle reads logs and writes to InfluxDB."""
         log_dir = tmp_path
-        (log_dir / "mqtt_connect.log").write_text(json.dumps({
-            "ts": 1710600000.0,
-            "id.orig_h": "192.168.1.50",
-            "client_id": "test_client",
-            "connect_status": "0",
-            "proto_version": 4,
-        }) + "\n")
+        (log_dir / "mqtt_connect.log").write_text(
+            json.dumps(
+                {
+                    "ts": 1710600000.0,
+                    "id.orig_h": "192.168.1.50",
+                    "client_id": "test_client",
+                    "connect_status": "0",
+                    "proto_version": 4,
+                }
+            )
+            + "\n"
+        )
 
         tracker = LogTracker(log_dir=str(log_dir), state_dir=str(log_dir))
         influx = AsyncMock()
@@ -192,10 +207,17 @@ class TestMqttParser:
     @pytest.mark.asyncio
     async def test_no_duplicate_on_second_cycle(self, tmp_path: Path):
         """Second cycle should not re-process same lines."""
-        (tmp_path / "mqtt_connect.log").write_text(json.dumps({
-            "ts": 1.0, "id.orig_h": "1.2.3.4", "client_id": "c1",
-            "connect_status": "0",
-        }) + "\n")
+        (tmp_path / "mqtt_connect.log").write_text(
+            json.dumps(
+                {
+                    "ts": 1.0,
+                    "id.orig_h": "1.2.3.4",
+                    "client_id": "c1",
+                    "connect_status": "0",
+                }
+            )
+            + "\n"
+        )
 
         tracker = LogTracker(log_dir=str(tmp_path), state_dir=str(tmp_path))
         influx = AsyncMock()
@@ -225,17 +247,19 @@ class TestX509Parser:
 
     @pytest.mark.asyncio
     async def test_parse_x509_line(self, parser):
-        line = json.dumps({
-            "ts": 1710600000.0,
-            "fingerprint": "sha256:abc123def456",
-            "certificate.subject": "CN=example.com",
-            "certificate.issuer": "CN=Let's Encrypt Authority X3",
-            "certificate.not_valid_before": 1700000000.0,
-            "certificate.not_valid_after": 1730000000.0,
-            "certificate.key_type": "rsa",
-            "certificate.key_length": 2048,
-            "certificate.serial": "0123456789ABCDEF",
-        })
+        line = json.dumps(
+            {
+                "ts": 1710600000.0,
+                "fingerprint": "sha256:abc123def456",
+                "certificate.subject": "CN=example.com",
+                "certificate.issuer": "CN=Let's Encrypt Authority X3",
+                "certificate.not_valid_before": 1700000000.0,
+                "certificate.not_valid_after": 1730000000.0,
+                "certificate.key_type": "rsa",
+                "certificate.key_length": 2048,
+                "certificate.serial": "0123456789ABCDEF",
+            }
+        )
         await parser._parse_x509_line(line)
 
         parser._cert_tracker.upsert_certificate.assert_called_once()
@@ -247,12 +271,14 @@ class TestX509Parser:
 
     @pytest.mark.asyncio
     async def test_parse_x509_self_signed(self, parser):
-        line = json.dumps({
-            "ts": 1710600000.0,
-            "fingerprint": "sha256:self_signed_fp",
-            "certificate.subject": "CN=my.local",
-            "certificate.issuer": "CN=my.local",
-        })
+        line = json.dumps(
+            {
+                "ts": 1710600000.0,
+                "fingerprint": "sha256:self_signed_fp",
+                "certificate.subject": "CN=my.local",
+                "certificate.issuer": "CN=my.local",
+            }
+        )
         await parser._parse_x509_line(line)
 
         call_kwargs = parser._cert_tracker.upsert_certificate.call_args.kwargs
@@ -271,15 +297,17 @@ class TestX509Parser:
 
     @pytest.mark.asyncio
     async def test_parse_ssl_line(self, parser):
-        line = json.dumps({
-            "ts": 1710600000.0,
-            "id.orig_h": "192.168.1.42",
-            "id.resp_h": "93.184.216.34",
-            "version": "TLSv12",
-            "cipher": "TLS_AES_256_GCM_SHA384",
-            "server_name": "example.com",
-            "cert_chain_fps": ["sha256:abc123def456"],
-        })
+        line = json.dumps(
+            {
+                "ts": 1710600000.0,
+                "id.orig_h": "192.168.1.42",
+                "id.resp_h": "93.184.216.34",
+                "version": "TLSv12",
+                "cipher": "TLS_AES_256_GCM_SHA384",
+                "server_name": "example.com",
+                "cert_chain_fps": ["sha256:abc123def456"],
+            }
+        )
         await parser._parse_ssl_line(line)
 
         parser._cert_tracker.update_tls_metadata.assert_called_once()
@@ -300,12 +328,17 @@ class TestX509Parser:
 
     @pytest.mark.asyncio
     async def test_full_parse_cycle(self, tmp_path: Path):
-        (tmp_path / "x509.log").write_text(json.dumps({
-            "ts": 1.0,
-            "fingerprint": "fp1",
-            "certificate.subject": "CN=test",
-            "certificate.issuer": "CN=CA",
-        }) + "\n")
+        (tmp_path / "x509.log").write_text(
+            json.dumps(
+                {
+                    "ts": 1.0,
+                    "fingerprint": "fp1",
+                    "certificate.subject": "CN=test",
+                    "certificate.issuer": "CN=CA",
+                }
+            )
+            + "\n"
+        )
 
         tracker = LogTracker(log_dir=str(tmp_path), state_dir=str(tmp_path))
         cert_tracker = AsyncMock()
@@ -370,25 +403,34 @@ class TestSecurityAlerts:
         )
 
         # Add a known client
-        parser._parse_connect_line(json.dumps({
-            "ts": 1.0,
-            "id.orig_h": "192.168.1.50",
-            "client_id": "homeassistant_core",
-            "connect_status": "0",
-        }))
+        parser._parse_connect_line(
+            json.dumps(
+                {
+                    "ts": 1.0,
+                    "id.orig_h": "192.168.1.50",
+                    "client_id": "homeassistant_core",
+                    "connect_status": "0",
+                }
+            )
+        )
 
         # Add an unknown client
-        parser._parse_connect_line(json.dumps({
-            "ts": 1.0,
-            "id.orig_h": "192.168.1.99",
-            "client_id": "rogue_device_42",
-            "connect_status": "0",
-        }))
+        parser._parse_connect_line(
+            json.dumps(
+                {
+                    "ts": 1.0,
+                    "id.orig_h": "192.168.1.99",
+                    "client_id": "rogue_device_42",
+                    "connect_status": "0",
+                }
+            )
+        )
 
         clients = parser.get_clients()
         known_prefixes = {"homeassistant", "mosquitto", "zigbee2mqtt", "zwavejs", "esphome"}
         rogue = [
-            c for c in clients
+            c
+            for c in clients
             if not any(c["client_id"].lower().startswith(p) for p in known_prefixes)
         ]
         assert len(rogue) == 1
@@ -403,14 +445,21 @@ class TestSecurityAlerts:
         )
 
         for cid in ["homeassistant_core", "zigbee2mqtt_bridge", "esphome_living"]:
-            parser._parse_connect_line(json.dumps({
-                "ts": 1.0, "id.orig_h": "192.168.1.1",
-                "client_id": cid, "connect_status": "0",
-            }))
+            parser._parse_connect_line(
+                json.dumps(
+                    {
+                        "ts": 1.0,
+                        "id.orig_h": "192.168.1.1",
+                        "client_id": cid,
+                        "connect_status": "0",
+                    }
+                )
+            )
 
         known_prefixes = {"homeassistant", "mosquitto", "zigbee2mqtt", "zwavejs", "esphome"}
         rogue = [
-            c for c in parser.get_clients()
+            c
+            for c in parser.get_clients()
             if not any(c["client_id"].lower().startswith(p) for p in known_prefixes)
         ]
         assert len(rogue) == 0

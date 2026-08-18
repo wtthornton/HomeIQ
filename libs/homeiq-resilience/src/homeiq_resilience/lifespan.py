@@ -24,9 +24,10 @@ import logging
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from fastapi import FastAPI
+if TYPE_CHECKING:
+    from fastapi import FastAPI
 
 logger = logging.getLogger(__name__)
 

@@ -9,14 +9,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-
 from homeiq_ha.agent.triage import LaterStore, apply_decision
 from homeiq_ha.agent.wizard import flow_key
 
-from .simulators import SimHA
-
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from .simulators import SimHA
+
 
 def _store(tmp_path: Path) -> LaterStore:
     return LaterStore(tmp_path / "init-triage.json")
@@ -115,9 +115,7 @@ async def test_add_does_not_claim_completion_without_a_readable_entry(
 
 
 @pytest.mark.asyncio
-async def test_ignore_dismisses_via_has_ignore_mechanism(
-    sim: SimHA, tmp_path: Path
-) -> None:
+async def test_ignore_dismisses_via_has_ignore_mechanism(sim: SimHA, tmp_path: Path) -> None:
     """The flow is gone from progress and an ignore-source entry persists it."""
     sim.state["flow_progress"] = [
         {
@@ -150,9 +148,7 @@ async def test_ignore_without_unique_id_is_surfaced_not_swallowed(
 
 
 @pytest.mark.asyncio
-async def test_ignore_unknown_flow_is_an_honest_not_found(
-    sim: SimHA, tmp_path: Path
-) -> None:
+async def test_ignore_unknown_flow_is_an_honest_not_found(sim: SimHA, tmp_path: Path) -> None:
     sim.state["flow_progress"] = []
     result = await apply_decision(sim, "ghost", "ignore", _store(tmp_path))
     assert result["ignored"] is False
@@ -163,9 +159,7 @@ async def test_ignore_unknown_flow_is_an_honest_not_found(
 
 
 @pytest.mark.asyncio
-async def test_later_persists_across_store_instances(
-    sim: SimHA, tmp_path: Path
-) -> None:
+async def test_later_persists_across_store_instances(sim: SimHA, tmp_path: Path) -> None:
     """The deferral keys on flow identity, not the ephemeral flow_id."""
     sim.state["flow_progress"] = [
         {"flow_id": "f1", "handler": "denonavr", "context": {"unique_id": "u-avr"}}
@@ -175,15 +169,13 @@ async def test_later_persists_across_store_instances(
     assert result["deferred"] is True
     assert result["key"] == "denonavr:u-avr"
     # A fresh store over the same file (a service restart) still knows it.
-    assert "denonavr:u-avr" in _store(tmp_path).keys()
+    assert "denonavr:u-avr" in _store(tmp_path)
     # Nothing was sent to HA.
     assert sim.writes == []
 
 
 @pytest.mark.asyncio
-async def test_later_on_unknown_flow_defers_nothing(
-    sim: SimHA, tmp_path: Path
-) -> None:
+async def test_later_on_unknown_flow_defers_nothing(sim: SimHA, tmp_path: Path) -> None:
     sim.state["flow_progress"] = []
     result = await apply_decision(sim, "ghost", "later", _store(tmp_path))
     assert result["deferred"] is False

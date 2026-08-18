@@ -19,12 +19,13 @@ import json
 import logging
 import os
 from datetime import UTC, datetime, timedelta
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from .models import BatchReport
+if TYPE_CHECKING:
+    from .models import BatchReport
 
 logger = logging.getLogger(__name__)
 
@@ -228,22 +229,24 @@ class EvaluationStore:
         """
 
         async with self._session_maker() as session:
-            result = await session.execute(text(query), {"agent_name": agent_name, "cutoff": cutoff})
+            result = await session.execute(
+                text(query), {"agent_name": agent_name, "cutoff": cutoff}
+            )
             rows = result.fetchall()
 
         trends: dict[str, list[dict[str, Any]]] = {}
         for row in rows:
             evaluator = row[0]
-            trends.setdefault(evaluator, []).append({
-                "timestamp": row[1],
-                "score": round(row[2], 4),
-            })
+            trends.setdefault(evaluator, []).append(
+                {
+                    "timestamp": row[1],
+                    "score": round(row[2], 4),
+                }
+            )
 
         return trends
 
-    async def get_latest_report(
-        self, agent_name: str
-    ) -> dict[str, Any] | None:
+    async def get_latest_report(self, agent_name: str) -> dict[str, Any] | None:
         """Get the most recent evaluation run summary."""
         if self._session_maker is None:
             return None
@@ -295,9 +298,7 @@ class EvaluationStore:
         if self._session_maker is None:
             return 0
 
-        cutoff = (
-            datetime.now(UTC) - timedelta(days=self._db_retention)
-        ).isoformat()
+        cutoff = (datetime.now(UTC) - timedelta(days=self._db_retention)).isoformat()
 
         async with self._session_maker() as session:
             # Delete results first (FK constraint)
@@ -330,20 +331,22 @@ class EvaluationStore:
 
         for session_report in report.reports:
             for result in session_report.results:
-                points.append({
-                    "measurement": "agent_evaluation",
-                    "tags": {
-                        "agent_name": report.agent_name,
-                        "evaluator_name": result.evaluator_name,
-                        "level": result.level.value,
-                    },
-                    "fields": {
-                        "score": float(result.score),
-                        "label": result.label,
-                        "passed": 1 if result.passed else 0,
-                    },
-                    "time": ts,
-                })
+                points.append(
+                    {
+                        "measurement": "agent_evaluation",
+                        "tags": {
+                            "agent_name": report.agent_name,
+                            "evaluator_name": result.evaluator_name,
+                            "level": result.level.value,
+                        },
+                        "fields": {
+                            "score": float(result.score),
+                            "label": result.label,
+                            "passed": 1 if result.passed else 0,
+                        },
+                        "time": ts,
+                    }
+                )
 
         if points:
             try:
@@ -381,9 +384,7 @@ class EvaluationStore:
             await session.commit()
         return run_id
 
-    async def _write_result_records(
-        self, run_id: int, report: BatchReport
-    ) -> None:
+    async def _write_result_records(self, run_id: int, report: BatchReport) -> None:
         """Insert evaluation_results records for all session results."""
         assert self._session_maker is not None
         async with self._session_maker() as session:

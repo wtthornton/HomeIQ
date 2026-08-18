@@ -199,8 +199,7 @@ class HAFineTuner:
             # so the loss is not computed on padding tokens
             pad_id = self.tokenizer.pad_token_id
             tokenized["labels"] = [
-                -100 if token_id == pad_id else token_id
-                for token_id in tokenized["input_ids"]
+                -100 if token_id == pad_id else token_id for token_id in tokenized["input_ids"]
             ]
 
             return tokenized
@@ -379,7 +378,7 @@ class HAFineTuner:
         if "### Response:" in generated:
             response = generated.split("### Response:")[-1].strip()
         else:
-            response = generated[len(formatted):].strip()
+            response = generated[len(formatted) :].strip()
 
         return response
 

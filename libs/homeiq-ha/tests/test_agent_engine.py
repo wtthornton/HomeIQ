@@ -46,9 +46,7 @@ class FakeWs:
         **payload: Any,
     ) -> Any:
         self.commands.append(command_type)
-        self.calls.append(
-            {"type": command_type, "timeout": timeout, "fields": fields, **payload}
-        )
+        self.calls.append({"type": command_type, "timeout": timeout, "fields": fields, **payload})
         if command_type == "config/area_registry/list":
             return list(self.state["areas"])
         if command_type == "config/area_registry/create":

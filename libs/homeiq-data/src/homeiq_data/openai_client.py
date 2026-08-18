@@ -43,11 +43,10 @@ def _get_openai() -> Any:
     if _openai_module is None:
         try:
             import openai
+
             _openai_module = openai
         except ImportError as e:
-            raise ImportError(
-                "openai package is required. Install with: pip install openai"
-            ) from e
+            raise ImportError("openai package is required. Install with: pip install openai") from e
     return _openai_module
 
 
@@ -149,7 +148,13 @@ class StandardOpenAIClient:
                 if msg.get("role") == "system":
                     instructions = msg.get("content", "")
                 else:
-                    input_items.append({"type": "message", "role": msg.get("role", "user"), "content": msg.get("content", "")})
+                    input_items.append(
+                        {
+                            "type": "message",
+                            "role": msg.get("role", "user"),
+                            "content": msg.get("content", ""),
+                        }
+                    )
 
             kwargs: dict[str, Any] = {
                 "model": use_model,
@@ -178,9 +183,18 @@ class StandardOpenAIClient:
                 "content": response.output_text or "",
                 "model": response.model,
                 "usage": {
-                    "prompt_tokens": getattr(response.usage, "input_tokens", 0) if response.usage else 0,
-                    "completion_tokens": getattr(response.usage, "output_tokens", 0) if response.usage else 0,
-                    "total_tokens": (getattr(response.usage, "input_tokens", 0) + getattr(response.usage, "output_tokens", 0)) if response.usage else 0,
+                    "prompt_tokens": getattr(response.usage, "input_tokens", 0)
+                    if response.usage
+                    else 0,
+                    "completion_tokens": getattr(response.usage, "output_tokens", 0)
+                    if response.usage
+                    else 0,
+                    "total_tokens": (
+                        getattr(response.usage, "input_tokens", 0)
+                        + getattr(response.usage, "output_tokens", 0)
+                    )
+                    if response.usage
+                    else 0,
                 },
                 "finish_reason": getattr(response, "stop_reason", None),
             }

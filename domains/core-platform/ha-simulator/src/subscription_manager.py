@@ -12,6 +12,7 @@ from aiohttp.web_ws import WebSocketResponse
 
 logger = logging.getLogger(__name__)
 
+
 class SubscriptionManager:
     """Manages WebSocket event subscriptions for HA Simulator"""
 
@@ -35,14 +36,11 @@ class SubscriptionManager:
         await self.send_subscription_result(ws, subscription_id, True)
         logger.info(f"Client subscribed to events with ID: {subscription_id}")
 
-    async def send_subscription_result(self, ws: WebSocketResponse, subscription_id: int, success: bool):
+    async def send_subscription_result(
+        self, ws: WebSocketResponse, subscription_id: int, success: bool
+    ):
         """Send subscription result"""
-        result = {
-            "id": subscription_id,
-            "type": "result",
-            "success": success,
-            "result": None
-        }
+        result = {"id": subscription_id, "type": "result", "success": success, "result": None}
         try:
             await ws.send_str(json.dumps(result))
             logger.debug(f"Sent subscription result: {subscription_id}, success: {success}")
@@ -54,10 +52,7 @@ class SubscriptionManager:
         error = {
             "type": "result",
             "success": False,
-            "error": {
-                "code": "invalid_format",
-                "message": message
-            }
+            "error": {"code": "invalid_format", "message": message},
         }
         try:
             await ws.send_str(json.dumps(error))
@@ -78,4 +73,3 @@ class SubscriptionManager:
         if ws in self.subscriptions:
             del self.subscriptions[ws]
             logger.info("Removed client subscriptions")
-

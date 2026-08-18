@@ -31,14 +31,11 @@ def _manifest(**overrides: Any) -> OrganizationManifest:
     return OrganizationManifest(**fields)
 
 
-
 def _scene_manifest() -> OrganizationManifest:
     from homeiq_ha.agent.manifest import ScenePolicyRule
 
     return _manifest(
-        scene_policy=(
-            ScenePolicyRule("hue", "bridge_owned", "Hue Bridge owns its scenes"),
-        )
+        scene_policy=(ScenePolicyRule("hue", "bridge_owned", "Hue Bridge owns its scenes"),)
     )
 
 
@@ -144,7 +141,6 @@ async def test_binary_sensor_group_helper_backward_compatible_without_menu(sim):
     assert sim.rest.writes == ["config_flow group"]
 
 
-
 class _MeshWs:
     def __init__(self, devices):
         self._devices = devices
@@ -168,12 +164,20 @@ class _MeshHA:
 async def test_mesh_health_emits_one_row_per_device_sorted_by_lqi():
     from homeiq_ha.agent.recipes import ZigbeeMeshHealthRecipe
 
-    ha = _MeshHA([
-        {"ieee": "00:1", "name": "Coordinator", "lqi": None, "available": True, "device_type": "Coordinator"},
-        {"ieee": "00:2", "name": "Strong", "lqi": 200, "available": True},
-        {"ieee": "00:3", "name": "Weak", "lqi": 12, "available": True},
-        {"ieee": "00:4", "name": "Dead", "lqi": 40, "available": False},
-    ])
+    ha = _MeshHA(
+        [
+            {
+                "ieee": "00:1",
+                "name": "Coordinator",
+                "lqi": None,
+                "available": True,
+                "device_type": "Coordinator",
+            },
+            {"ieee": "00:2", "name": "Strong", "lqi": 200, "available": True},
+            {"ieee": "00:3", "name": "Weak", "lqi": 12, "available": True},
+            {"ieee": "00:4", "name": "Dead", "lqi": 40, "available": False},
+        ]
+    )
     result = await ZigbeeMeshHealthRecipe().check(ha)
     assert result.status is CheckStatus.SATISFIED
     d = result.details
@@ -217,7 +221,7 @@ async def test_mesh_health_apply_is_noop():
 
 async def _free_tcp_listener() -> tuple[asyncio.AbstractServer, str]:
     """A real listening socket on an ephemeral port, as a socket:// path."""
-    server = await asyncio.start_server(lambda r, w: w.close(), "127.0.0.1", 0)
+    server = await asyncio.start_server(lambda _r, w: w.close(), "127.0.0.1", 0)
     port = server.sockets[0].getsockname()[1]
     return server, f"socket://127.0.0.1:{port}"
 
@@ -254,9 +258,7 @@ async def test_watchdog_not_applicable_without_zha_entry(sim):
 async def test_watchdog_satisfied_when_loaded_and_reachable(sim):
     server, path = await _free_tcp_listener()
     try:
-        sim.state["config_entries"].append(
-            {"entry_id": "zha1", "domain": "zha", "state": "loaded"}
-        )
+        sim.state["config_entries"].append({"entry_id": "zha1", "domain": "zha", "state": "loaded"})
         check = await _watchdog(path).check(sim)
     finally:
         server.close()
@@ -324,7 +326,7 @@ async def test_watchdog_tolerates_setup_in_progress(sim):
 
 
 @pytest.mark.asyncio
-async def test_default_recipes_serial_path_env_override(sim, monkeypatch):
+async def test_default_recipes_serial_path_env_override(monkeypatch):
     """HOMEIQ_ZHA_SERIAL_PATH redirects the probe target without a code edit
     (a coordinator IP change, or staging a watchdog alert)."""
     from homeiq_ha.agent.recipes import (
@@ -341,9 +343,7 @@ async def test_default_recipes_serial_path_env_override(sim, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_watchdog_alerts_when_coordinator_unreachable(sim):
-    sim.state["config_entries"].append(
-        {"entry_id": "zha1", "domain": "zha", "state": "loaded"}
-    )
+    sim.state["config_entries"].append({"entry_id": "zha1", "domain": "zha", "state": "loaded"})
     check = await _watchdog(_closed_tcp_path()).check(sim)
     assert check.status is CheckStatus.BLOCKED_ON_HUMAN
     assert "unreachable" in check.summary
@@ -354,9 +354,7 @@ async def test_watchdog_alerts_when_coordinator_unreachable(sim):
 
 @pytest.mark.asyncio
 async def test_watchdog_skips_probe_for_serial_coordinator(sim):
-    sim.state["config_entries"].append(
-        {"entry_id": "zha1", "domain": "zha", "state": "loaded"}
-    )
+    sim.state["config_entries"].append({"entry_id": "zha1", "domain": "zha", "state": "loaded"})
     check = await _watchdog("/dev/ttyUSB0").check(sim)
     assert check.status is CheckStatus.SATISFIED
     assert check.details["coordinator"]["reachable"] is None

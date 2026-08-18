@@ -30,8 +30,7 @@ Usage::
 from __future__ import annotations
 
 import logging
-from types import TracebackType
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from tenacity import (
@@ -40,6 +39,9 @@ from tenacity import (
     stop_after_attempt,
     wait_exponential,
 )
+
+if TYPE_CHECKING:
+    from types import TracebackType
 
 logger = logging.getLogger(__name__)
 

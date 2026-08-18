@@ -289,11 +289,7 @@ class EntityResolver:
         """Return entities filtered by domain if specified."""
         if not domain_filter:
             return self._entities
-        return {
-            eid: ent
-            for eid, ent in self._entities.items()
-            if ent.domain == domain_filter
-        }
+        return {eid: ent for eid, ent in self._entities.items() if ent.domain == domain_filter}
 
     @staticmethod
     def _to_resolved(ent: CachedEntity, confidence: float) -> ResolvedEntity:

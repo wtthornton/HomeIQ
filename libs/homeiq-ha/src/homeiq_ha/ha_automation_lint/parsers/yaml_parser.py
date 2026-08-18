@@ -18,6 +18,7 @@ from models import ActionIR, AutomationIR, ConditionIR, Finding, TriggerIR
 
 class YAMLParseError(Exception):
     """Raised when YAML cannot be parsed."""
+
     pass
 
 
@@ -40,24 +41,28 @@ class AutomationParser:
         try:
             data = yaml.safe_load(yaml_content)
         except yaml.YAMLError as e:
-            findings.append(Finding(
-                rule_id="PARSE001",
-                severity=Severity.ERROR,
-                message=f"Invalid YAML syntax: {str(e)}",
-                why_it_matters="The automation YAML cannot be parsed and will not load in Home Assistant",
-                path="root"
-            ))
+            findings.append(
+                Finding(
+                    rule_id="PARSE001",
+                    severity=Severity.ERROR,
+                    message=f"Invalid YAML syntax: {str(e)}",
+                    why_it_matters="The automation YAML cannot be parsed and will not load in Home Assistant",
+                    path="root",
+                )
+            )
             return [], findings
 
         # Handle None/empty case
         if data is None:
-            findings.append(Finding(
-                rule_id="PARSE002",
-                severity=Severity.ERROR,
-                message="Empty YAML content",
-                why_it_matters="No automation data found to lint",
-                path="root"
-            ))
+            findings.append(
+                Finding(
+                    rule_id="PARSE002",
+                    severity=Severity.ERROR,
+                    message="Empty YAML content",
+                    why_it_matters="No automation data found to lint",
+                    path="root",
+                )
+            )
             return [], findings
 
         # Step 2: Detect format and normalize to list
@@ -91,32 +96,31 @@ class AutomationParser:
                 return [data]
             else:
                 # Package format or unknown
-                findings.append(Finding(
-                    rule_id="PARSE003",
-                    severity=Severity.WARN,
-                    message="Expected automation format, got dict without trigger/action",
-                    why_it_matters="This may be a package format or invalid structure",
-                    path="root"
-                ))
+                findings.append(
+                    Finding(
+                        rule_id="PARSE003",
+                        severity=Severity.WARN,
+                        message="Expected automation format, got dict without trigger/action",
+                        why_it_matters="This may be a package format or invalid structure",
+                        path="root",
+                    )
+                )
                 return []
         elif isinstance(data, list):
             return data
         else:
-            findings.append(Finding(
-                rule_id="PARSE004",
-                severity=Severity.ERROR,
-                message=f"Expected dict or list, got {type(data).__name__}",
-                why_it_matters="Automation YAML must be a dictionary or list",
-                path="root"
-            ))
+            findings.append(
+                Finding(
+                    rule_id="PARSE004",
+                    severity=Severity.ERROR,
+                    message=f"Expected dict or list, got {type(data).__name__}",
+                    why_it_matters="Automation YAML must be a dictionary or list",
+                    path="root",
+                )
+            )
             return []
 
-    def _dict_to_ir(
-        self,
-        data: Any,
-        index: int,
-        findings: list[Finding]
-    ) -> AutomationIR | None:
+    def _dict_to_ir(self, data: Any, index: int, findings: list[Finding]) -> AutomationIR | None:
         """
         Convert a single automation dict to IR.
 
@@ -129,13 +133,15 @@ class AutomationParser:
             AutomationIR object or None if conversion failed
         """
         if not isinstance(data, dict):
-            findings.append(Finding(
-                rule_id="PARSE005",
-                severity=Severity.ERROR,
-                message=f"Automation {index} is not a dictionary",
-                why_it_matters="Each automation must be a YAML dictionary",
-                path=f"automations[{index}]"
-            ))
+            findings.append(
+                Finding(
+                    rule_id="PARSE005",
+                    severity=Severity.ERROR,
+                    message=f"Automation {index} is not a dictionary",
+                    why_it_matters="Each automation must be a YAML dictionary",
+                    path=f"automations[{index}]",
+                )
+            )
             return None
 
         ir = AutomationIR(
@@ -146,7 +152,7 @@ class AutomationParser:
             variables=data.get("variables", {}),
             source_index=index,
             raw_source=data,
-            path=f"automations[{index}]"
+            path=f"automations[{index}]",
         )
 
         # Parse triggers — modern (2024.10+) plural "triggers" with per-item
@@ -157,9 +163,10 @@ class AutomationParser:
         ir.trigger = [
             TriggerIR(
                 platform=(t.get("platform") or t.get("trigger") or "unknown")
-                if isinstance(t, dict) else "unknown",
+                if isinstance(t, dict)
+                else "unknown",
                 raw=t if isinstance(t, dict) else {},
-                path=f"{ir.path}.trigger[{i}]"
+                path=f"{ir.path}.trigger[{i}]",
             )
             for i, t in enumerate(triggers)
         ]
@@ -172,7 +179,7 @@ class AutomationParser:
             ConditionIR(
                 condition=c.get("condition", "unknown") if isinstance(c, dict) else "unknown",
                 raw=c if isinstance(c, dict) else {},
-                path=f"{ir.path}.condition[{i}]"
+                path=f"{ir.path}.condition[{i}]",
             )
             for i, c in enumerate(conditions)
         ]
@@ -186,7 +193,7 @@ class AutomationParser:
             ActionIR(
                 service=(a.get("service") or a.get("action")) if isinstance(a, dict) else None,
                 raw=a if isinstance(a, dict) else {},
-                path=f"{ir.path}.action[{i}]"
+                path=f"{ir.path}.action[{i}]",
             )
             for i, a in enumerate(actions)
         ]

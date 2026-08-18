@@ -111,9 +111,7 @@ class DeviceAggregator:
         service: str,
     ) -> None:
         """Record a connection for aggregation (called by conn_parser)."""
-        self._active[src_ip].add_connection(
-            dst_ip, orig_bytes, resp_bytes, duration, service
-        )
+        self._active[src_ip].add_connection(dst_ip, orig_bytes, resp_bytes, duration, service)
 
     def record_dns_query(self, device_ip: str, domain: str) -> None:
         """Record a DNS query for aggregation (called by dns_parser)."""
@@ -205,9 +203,7 @@ class DeviceAggregator:
         """Return current network stats: connections/min, bytes/min, top talkers."""
         merged = self._merged_devices()
         total_conns = sum(d.connection_count for d in merged.values())
-        total_bytes = sum(
-            d.bytes_sent + d.bytes_recv for d in merged.values()
-        )
+        total_bytes = sum(d.bytes_sent + d.bytes_recv for d in merged.values())
 
         # Top 5 talkers by total bytes
         top_talkers = sorted(

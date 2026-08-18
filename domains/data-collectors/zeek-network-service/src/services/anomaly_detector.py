@@ -52,10 +52,7 @@ def _shannon_entropy(s: str) -> float:
     for c in s:
         freq[c] += 1
     length = len(s)
-    return -sum(
-        (count / length) * math.log2(count / length)
-        for count in freq.values()
-    )
+    return -sum((count / length) * math.log2(count / length) for count in freq.values())
 
 
 def is_dga_domain(domain: str) -> bool:
@@ -154,7 +151,9 @@ class AnomalyDetector:
             .tag("severity", "warning")
             .tag("source_log", "detector")
             .field("name", "new_device")
-            .field("message", f"New device detected: {ip_address} (MAC: {mac_address or 'unknown'})")
+            .field(
+                "message", f"New device detected: {ip_address} (MAC: {mac_address or 'unknown'})"
+            )
             .field("mac_address", mac_address or "")
             .field("hostname", hostname or "")
             .time(datetime.now(UTC))
@@ -223,7 +222,7 @@ class AnomalyDetector:
                 continue
 
             variance = sum((i - mean_interval) ** 2 for i in intervals) / len(intervals)
-            std_dev = variance ** 0.5
+            std_dev = variance**0.5
 
             if std_dev <= self._beacon_jitter:
                 beacon = {

@@ -19,15 +19,8 @@ class TestHASimulatorWebSocketServer:
     @pytest.fixture
     def config(self):
         return {
-            "simulator": {
-                "name": "Test Simulator",
-                "version": "2025.10.1",
-                "port": 8123
-            },
-            "authentication": {
-                "enabled": True,
-                "token": "test_token"
-            }
+            "simulator": {"name": "Test Simulator", "version": "2025.10.1", "port": 8123},
+            "authentication": {"enabled": True, "token": "test_token"},
         }
 
     @pytest.fixture
@@ -76,10 +69,7 @@ class TestHASimulatorWebSocketServer:
         ws.send_str = AsyncMock()
 
         # Test auth message
-        auth_message = {
-            "type": "auth",
-            "access_token": "test_token"
-        }
+        auth_message = {"type": "auth", "access_token": "test_token"}
 
         await server.handle_message(ws, json.dumps(auth_message))
 
@@ -93,16 +83,10 @@ class TestHASimulatorWebSocketServer:
         ws.send_str = AsyncMock()
 
         # First authenticate
-        await server.auth_manager.handle_auth(ws, {
-            "type": "auth",
-            "access_token": "test_token"
-        })
+        await server.auth_manager.handle_auth(ws, {"type": "auth", "access_token": "test_token"})
 
         # Then subscribe
-        subscribe_message = {
-            "id": 1,
-            "type": "subscribe_events"
-        }
+        subscribe_message = {"id": 1, "type": "subscribe_events"}
 
         await server.handle_message(ws, json.dumps(subscribe_message))
 
@@ -122,31 +106,20 @@ class TestHASimulatorWebSocketServer:
         server.clients.add(ws2)
 
         # Authenticate and subscribe clients
-        await server.auth_manager.handle_auth(ws1, {
-            "type": "auth",
-            "access_token": "test_token"
-        })
-        await server.auth_manager.handle_auth(ws2, {
-            "type": "auth",
-            "access_token": "test_token"
-        })
+        await server.auth_manager.handle_auth(ws1, {"type": "auth", "access_token": "test_token"})
+        await server.auth_manager.handle_auth(ws2, {"type": "auth", "access_token": "test_token"})
 
-        await server.subscription_manager.handle_subscribe_events(ws1, {
-            "id": 1,
-            "type": "subscribe_events"
-        })
-        await server.subscription_manager.handle_subscribe_events(ws2, {
-            "id": 1,
-            "type": "subscribe_events"
-        })
+        await server.subscription_manager.handle_subscribe_events(
+            ws1, {"id": 1, "type": "subscribe_events"}
+        )
+        await server.subscription_manager.handle_subscribe_events(
+            ws2, {"id": 1, "type": "subscribe_events"}
+        )
 
         # Broadcast event
         test_event = {
             "type": "event",
-            "event": {
-                "event_type": "state_changed",
-                "data": {"entity_id": "test.entity"}
-            }
+            "event": {"event_type": "state_changed", "data": {"entity_id": "test.entity"}},
         }
 
         await server.broadcast_event(test_event)
@@ -165,16 +138,12 @@ class TestHASimulatorWebSocketServer:
         server.clients.add(ws2)
 
         # Authenticate one client
-        await server.auth_manager.handle_auth(ws1, {
-            "type": "auth",
-            "access_token": "test_token"
-        })
+        await server.auth_manager.handle_auth(ws1, {"type": "auth", "access_token": "test_token"})
 
         # Subscribe one client
-        await server.subscription_manager.handle_subscribe_events(ws1, {
-            "id": 1,
-            "type": "subscribe_events"
-        })
+        await server.subscription_manager.handle_subscribe_events(
+            ws1, {"id": 1, "type": "subscribe_events"}
+        )
 
         # Mock request
         request = Mock()
@@ -185,4 +154,3 @@ class TestHASimulatorWebSocketServer:
         # Verify response
         assert response.status == 200
         # Note: In a real test, we'd need to check the JSON content
-

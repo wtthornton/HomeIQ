@@ -305,10 +305,16 @@ class ZeekNetworkService:
         if self.dhcp_parser:
             fingerprint_stats["dhcp_devices_discovered"] = self.dhcp_parser.devices_discovered
         if self.tls_parser:
-            fingerprint_stats["tls_fingerprints_captured"] = self.tls_parser.tls_fingerprints_captured
+            fingerprint_stats["tls_fingerprints_captured"] = (
+                self.tls_parser.tls_fingerprints_captured
+            )
         if self.ssh_parser:
-            fingerprint_stats["ssh_fingerprints_captured"] = self.ssh_parser.ssh_fingerprints_captured
-            fingerprint_stats["software_entries_captured"] = self.ssh_parser.software_entries_captured
+            fingerprint_stats["ssh_fingerprints_captured"] = (
+                self.ssh_parser.ssh_fingerprints_captured
+            )
+            fingerprint_stats["software_entries_captured"] = (
+                self.ssh_parser.software_entries_captured
+            )
 
         # Phase 3 stats
         protocol_stats = {}
@@ -334,9 +340,7 @@ class ZeekNetworkService:
             "influxdb_writes_failed": self.influx_writer.write_failure_count,
             "influxdb_buffer_size": self.influx_writer.buffer_size,
             "uptime_seconds": (
-                (datetime.now(UTC) - self.start_time).total_seconds()
-                if self.start_time
-                else 0
+                (datetime.now(UTC) - self.start_time).total_seconds() if self.start_time else 0
             ),
             **fingerprint_stats,
             **protocol_stats,
@@ -577,26 +581,30 @@ async def security_alerts():
     # Expired TLS certificates
     expired = await zeek_service.cert_tracker.get_expired_certificates()
     for cert in expired:
-        alerts.append({
-            "type": "expired_certificate",
-            "severity": "warning",
-            "detail": f"Certificate {cert.get('fingerprint', '')[:16]}... expired",
-            "subject": cert.get("subject"),
-            "server_name": cert.get("server_name"),
-            "expired_at": str(cert.get("not_valid_after", "")),
-        })
+        alerts.append(
+            {
+                "type": "expired_certificate",
+                "severity": "warning",
+                "detail": f"Certificate {cert.get('fingerprint', '')[:16]}... expired",
+                "subject": cert.get("subject"),
+                "server_name": cert.get("server_name"),
+                "expired_at": str(cert.get("not_valid_after", "")),
+            }
+        )
 
     # Weak TLS (< 1.2)
     weak = await zeek_service.cert_tracker.get_weak_tls()
     for cert in weak:
-        alerts.append({
-            "type": "weak_tls",
-            "severity": "warning",
-            "detail": f"TLS {cert.get('tls_version', '')} negotiated (< 1.2)",
-            "server_name": cert.get("server_name"),
-            "tls_version": cert.get("tls_version"),
-            "cipher_suite": cert.get("cipher_suite"),
-        })
+        alerts.append(
+            {
+                "type": "weak_tls",
+                "severity": "warning",
+                "detail": f"TLS {cert.get('tls_version', '')} negotiated (< 1.2)",
+                "server_name": cert.get("server_name"),
+                "tls_version": cert.get("tls_version"),
+                "cipher_suite": cert.get("cipher_suite"),
+            }
+        )
 
     # Rogue MQTT clients (unknown client_id — heuristic: no known mapping)
     if zeek_service.mqtt_parser:
@@ -605,23 +613,29 @@ async def security_alerts():
             cid = client.get("client_id", "")
             is_known = any(cid.lower().startswith(prefix) for prefix in known_prefixes)
             if not is_known and cid and cid != "unknown":
-                alerts.append({
-                    "type": "rogue_mqtt_client",
-                    "severity": "info",
-                    "detail": f"Unknown MQTT client: {cid}",
-                    "client_id": cid,
-                    "client_ip": client.get("client_ip"),
-                })
+                alerts.append(
+                    {
+                        "type": "rogue_mqtt_client",
+                        "severity": "info",
+                        "detail": f"Unknown MQTT client: {cid}",
+                        "client_id": cid,
+                        "client_ip": client.get("client_ip"),
+                    }
+                )
 
     # Phase 4 anomaly alerts (new devices, beaconing, DGA, DNS tunneling)
     if zeek_service.anomaly_detector:
         for anomaly in zeek_service.anomaly_detector.get_alerts():
-            alerts.append({
-                "type": anomaly.get("type", "unknown"),
-                "severity": anomaly.get("severity", "info"),
-                "detail": anomaly.get("message", str(anomaly)),
-                **{k: v for k, v in anomaly.items() if k not in ("type", "severity", "message")},
-            })
+            alerts.append(
+                {
+                    "type": anomaly.get("type", "unknown"),
+                    "severity": anomaly.get("severity", "info"),
+                    "detail": anomaly.get("message", str(anomaly)),
+                    **{
+                        k: v for k, v in anomaly.items() if k not in ("type", "severity", "message")
+                    },
+                }
+            )
 
     return {"alerts": alerts, "total": len(alerts)}
 

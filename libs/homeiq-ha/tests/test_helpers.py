@@ -110,7 +110,7 @@ async def test_manifest_helper_repairs_a_drifted_created_entity_id(sim):
         )
     )
 
-    async def scripted_flow(domain: str, steps: list[dict[str, Any]], **_c: Any) -> Any:
+    async def scripted_flow(_domain: str, _steps: list[dict[str, Any]], **_c: Any) -> Any:
         sim.state["entities"].append(
             {"entity_id": "sensor.somewhere_else_daily_energy", "config_entry_id": "um1"}
         )

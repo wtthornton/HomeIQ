@@ -1,17 +1,12 @@
 """Tests for RAGContextService and RAGContextRegistry."""
 
-import sys
 from pathlib import Path
 
 import pytest
-
-_project_root = str(Path(__file__).resolve().parents[3])
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
-
 from homeiq_patterns import RAGContextRegistry, RAGContextService
 
 # --- Test fixtures: concrete RAGContextService implementations ---
+
 
 class MockSportsRAG(RAGContextService):
     name = "sports"
@@ -44,6 +39,7 @@ class EmptyCorpusRAG(RAGContextService):
 
 
 # --- RAGContextService Tests ---
+
 
 class TestRAGContextService:
     def test_detect_intent_match(self):
@@ -118,6 +114,7 @@ class TestRAGContextService:
 
 
 # --- RAGContextRegistry Tests ---
+
 
 class TestRAGContextRegistry:
     def test_register_service(self):
@@ -201,6 +198,7 @@ class TestRAGContextRegistry:
     @pytest.mark.asyncio
     async def test_service_failure_graceful(self):
         """A failing service should not break the registry."""
+
         class FailingRAG(RAGContextService):
             name = "failing"
             keywords = ("fail_trigger",)

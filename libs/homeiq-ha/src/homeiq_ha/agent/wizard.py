@@ -41,9 +41,7 @@ READINESS_HANDLERS = {
 }
 
 
-def _decision_for_audit_row(
-    outcome: RecipeOutcome, area_names: list[str]
-) -> dict[str, Any]:
+def _decision_for_audit_row(outcome: RecipeOutcome, area_names: list[str]) -> dict[str, Any]:
     """Machine-readable decision schema for one blocked audit row.
 
     Derived from the recipe kind — never parsed out of the human_action

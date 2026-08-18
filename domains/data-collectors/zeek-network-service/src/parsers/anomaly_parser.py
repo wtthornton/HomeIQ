@@ -111,9 +111,7 @@ class AnomalyParser:
 
         ts_value = entry.get("ts")
         timestamp = (
-            datetime.fromtimestamp(float(ts_value), tz=UTC)
-            if ts_value
-            else datetime.now(UTC)
+            datetime.fromtimestamp(float(ts_value), tz=UTC) if ts_value else datetime.now(UTC)
         )
 
         source_ip = entry.get("id.orig_h", "")
@@ -150,9 +148,7 @@ class AnomalyParser:
 
         ts_value = entry.get("ts")
         timestamp = (
-            datetime.fromtimestamp(float(ts_value), tz=UTC)
-            if ts_value
-            else datetime.now(UTC)
+            datetime.fromtimestamp(float(ts_value), tz=UTC) if ts_value else datetime.now(UTC)
         )
 
         source_ip = entry.get("id.orig_h", entry.get("src", ""))

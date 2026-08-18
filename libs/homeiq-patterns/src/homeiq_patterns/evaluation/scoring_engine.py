@@ -10,8 +10,8 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
-from .base_evaluator import BaseEvaluator
 from .models import (
     Alert,
     BatchReport,
@@ -23,6 +23,9 @@ from .models import (
     SessionTrace,
     SummaryMatrix,
 )
+
+if TYPE_CHECKING:
+    from .base_evaluator import BaseEvaluator
 
 logger = logging.getLogger(__name__)
 
@@ -43,11 +46,13 @@ class ScoringEngine:
 
     # Deploy-dependent evaluators that correctly score 0% in preview mode.
     # Skipping them avoids dragging the L4 average down with irrelevant 0%s.
-    _DEPLOY_ONLY_EVALUATORS = frozenset({
-        "validation_before_deploy",
-        "post_deploy_verification",
-        "audit_trail_complete",
-    })
+    _DEPLOY_ONLY_EVALUATORS = frozenset(
+        {
+            "validation_before_deploy",
+            "post_deploy_verification",
+            "audit_trail_complete",
+        }
+    )
 
     async def score(
         self,
@@ -59,10 +64,7 @@ class ScoringEngine:
 
         # Filter out deploy-only evaluators in preview mode
         if session.metadata.get("execution_mode") == "preview":
-            evaluators = [
-                e for e in evaluators
-                if e.name not in self._DEPLOY_ONLY_EVALUATORS
-            ]
+            evaluators = [e for e in evaluators if e.name not in self._DEPLOY_ONLY_EVALUATORS]
 
         for evaluator in evaluators:
             try:
@@ -158,10 +160,7 @@ class ScoringEngine:
             for result in report.results:
                 metric_scores[result.evaluator_name].append(result.score)
 
-        return {
-            name: round(sum(scores) / len(scores), 4)
-            for name, scores in metric_scores.items()
-        }
+        return {name: round(sum(scores) / len(scores), 4) for name, scores in metric_scores.items()}
 
     def _check_thresholds(
         self,

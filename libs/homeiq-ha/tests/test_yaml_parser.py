@@ -67,9 +67,13 @@ def test_single_dict_modern_form_detected_as_automation():
 
 def test_modern_and_legacy_produce_equivalent_ir():
     modern_ir, _ = AutomationParser().parse(MODERN)
-    legacy_equiv = MODERN.replace("triggers:", "trigger:").replace(
-        "conditions:", "condition:").replace("actions:", "action:").replace(
-        "trigger: state", "platform: state").replace("action: light.turn_on", "service: light.turn_on")
+    legacy_equiv = (
+        MODERN.replace("triggers:", "trigger:")
+        .replace("conditions:", "condition:")
+        .replace("actions:", "action:")
+        .replace("trigger: state", "platform: state")
+        .replace("action: light.turn_on", "service: light.turn_on")
+    )
     legacy_ir, _ = AutomationParser().parse(legacy_equiv)
     assert [t.platform for t in modern_ir[0].trigger] == [t.platform for t in legacy_ir[0].trigger]
     assert [a.service for a in modern_ir[0].action] == [a.service for a in legacy_ir[0].action]

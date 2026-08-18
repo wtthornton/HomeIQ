@@ -347,10 +347,7 @@ class BackupScheduleRecipe(Recipe):
         elif key_set:
             summary = "appliable backup settings match intent"
         else:
-            summary = (
-                "appliable backup settings match intent "
-                "(encryption key still needs a person)"
-            )
+            summary = "appliable backup settings match intent (encryption key still needs a person)"
         return VerifyResult(
             not remaining,
             summary,

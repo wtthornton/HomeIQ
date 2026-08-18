@@ -110,15 +110,11 @@ class MemoryHealthCheck:
             # Check superseded chain integrity
             orphaned = await self.check_superseded_chain_integrity()
             if orphaned:
-                issues.append(
-                    f"Found {len(orphaned)} orphaned superseded_by references"
-                )
+                issues.append(f"Found {len(orphaned)} orphaned superseded_by references")
                 if auto_repair:
                     repaired = await self.repair_orphaned_superseded()
                     if repaired > 0:
-                        repairs.append(
-                            f"Repaired {repaired} orphaned superseded_by references"
-                        )
+                        repairs.append(f"Repaired {repaired} orphaned superseded_by references")
                     else:
                         repairs.append("Orphaned superseded_by repair failed")
 
@@ -173,11 +169,7 @@ class MemoryHealthCheck:
         try:
             async with self.memory._get_session() as session:
                 result = await session.execute(
-                    text(
-                        "SELECT EXISTS("
-                        "SELECT 1 FROM pg_extension WHERE extname = 'vector'"
-                        ")"
-                    )
+                    text("SELECT EXISTS(SELECT 1 FROM pg_extension WHERE extname = 'vector')")
                 )
                 row = result.scalar()
                 return bool(row)
@@ -299,10 +291,7 @@ class MemoryHealthCheck:
 
             async with self.memory._get_session() as session:
                 await session.execute(
-                    text(
-                        "UPDATE memory.memories SET superseded_by = NULL "
-                        "WHERE id = ANY(:ids)"
-                    ),
+                    text("UPDATE memory.memories SET superseded_by = NULL WHERE id = ANY(:ids)"),
                     {"ids": orphaned},
                 )
 
@@ -349,14 +338,10 @@ class MemoryHealthCheck:
                 contents = [row[1] for row in batch]
 
                 try:
-                    embeddings = await self.memory.embedding_generator.generate_batch(
-                        contents
-                    )
+                    embeddings = await self.memory.embedding_generator.generate_batch(contents)
 
                     async with self.memory._get_session() as session:
-                        for (memory_id, _), embedding in zip(
-                            batch, embeddings, strict=True
-                        ):
+                        for (memory_id, _), embedding in zip(batch, embeddings, strict=True):
                             await session.execute(
                                 text(
                                     "UPDATE memory.memories "
@@ -403,16 +388,11 @@ class MemoryHealthCheck:
 
         try:
             async with self.memory._get_session() as session:
-                result = await session.execute(
-                    text("SELECT COUNT(*) FROM memory.memories")
-                )
+                result = await session.execute(text("SELECT COUNT(*) FROM memory.memories"))
                 stats["total_memories"] = result.scalar() or 0
 
                 result = await session.execute(
-                    text(
-                        "SELECT COUNT(*) FROM memory.memories "
-                        "WHERE embedding IS NOT NULL"
-                    )
+                    text("SELECT COUNT(*) FROM memory.memories WHERE embedding IS NOT NULL")
                 )
                 stats["memories_with_embeddings"] = result.scalar() or 0
 
@@ -420,16 +400,11 @@ class MemoryHealthCheck:
                     stats["total_memories"] - stats["memories_with_embeddings"]
                 )
 
-                result = await session.execute(
-                    text("SELECT COUNT(*) FROM memory.memory_archive")
-                )
+                result = await session.execute(text("SELECT COUNT(*) FROM memory.memory_archive"))
                 stats["archived_memories"] = result.scalar() or 0
 
                 result = await session.execute(
-                    text(
-                        "SELECT COUNT(*) FROM memory.memories "
-                        "WHERE superseded_by IS NOT NULL"
-                    )
+                    text("SELECT COUNT(*) FROM memory.memories WHERE superseded_by IS NOT NULL")
                 )
                 stats["superseded_memories"] = result.scalar() or 0
 

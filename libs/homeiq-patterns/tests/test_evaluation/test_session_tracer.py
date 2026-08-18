@@ -157,7 +157,7 @@ class TestTraceSessionDecorator:
 
         @trace_session(agent_name="input-test", sink=sink)
         async def handler(request=None):
-            return {"response": "ok"}
+            return {"response": f"ok: {request['message']}"}
 
         await handler(request={"message": "hello world"})
         assert len(sink.traces[0].user_messages) == 1

@@ -85,24 +85,28 @@ def flowmeter_parser() -> FlowmeterParser:
 def sample_weird_log_lines() -> list[str]:
     """Sample weird.log JSON entries."""
     return [
-        json.dumps({
-            "ts": 1710600000.0,
-            "uid": "CYnvWc3enJjQC9w5y2",
-            "id.orig_h": "192.168.1.42",
-            "id.resp_h": "93.184.216.34",
-            "name": "bad_TCP_checksum",
-            "addl": "Checksum mismatch",
-            "peer": "zeek",
-        }),
-        json.dumps({
-            "ts": 1710600001.0,
-            "uid": "CaBk2m1PFbOSBF9fZ",
-            "id.orig_h": "192.168.1.100",
-            "id.resp_h": "10.0.0.1",
-            "name": "dns_unmatched_reply",
-            "addl": "",
-            "peer": "zeek",
-        }),
+        json.dumps(
+            {
+                "ts": 1710600000.0,
+                "uid": "CYnvWc3enJjQC9w5y2",
+                "id.orig_h": "192.168.1.42",
+                "id.resp_h": "93.184.216.34",
+                "name": "bad_TCP_checksum",
+                "addl": "Checksum mismatch",
+                "peer": "zeek",
+            }
+        ),
+        json.dumps(
+            {
+                "ts": 1710600001.0,
+                "uid": "CaBk2m1PFbOSBF9fZ",
+                "id.orig_h": "192.168.1.100",
+                "id.resp_h": "10.0.0.1",
+                "name": "dns_unmatched_reply",
+                "addl": "",
+                "peer": "zeek",
+            }
+        ),
     ]
 
 
@@ -110,29 +114,33 @@ def sample_weird_log_lines() -> list[str]:
 def sample_notice_log_lines() -> list[str]:
     """Sample notice.log JSON entries."""
     return [
-        json.dumps({
-            "ts": 1710600000.0,
-            "uid": "CYnvWc3enJjQC9w5y2",
-            "id.orig_h": "192.168.1.42",
-            "id.resp_h": "93.184.216.34",
-            "note": "SSL::Invalid_Server_Cert",
-            "msg": "SSL certificate validation failed",
-            "sub": "self-signed certificate",
-            "src": "192.168.1.42",
-            "dst": "93.184.216.34",
-            "actions": ["Notice::ACTION_LOG"],
-            "peer_descr": "zeek",
-            "suppress_for": 3600.0,
-        }),
-        json.dumps({
-            "ts": 1710600002.0,
-            "note": "Scan::Port_Scan",
-            "msg": "192.168.1.50 scanned at least 15 unique ports",
-            "src": "192.168.1.50",
-            "actions": ["Notice::ACTION_ALARM"],
-            "peer_descr": "zeek",
-            "suppress_for": 0,
-        }),
+        json.dumps(
+            {
+                "ts": 1710600000.0,
+                "uid": "CYnvWc3enJjQC9w5y2",
+                "id.orig_h": "192.168.1.42",
+                "id.resp_h": "93.184.216.34",
+                "note": "SSL::Invalid_Server_Cert",
+                "msg": "SSL certificate validation failed",
+                "sub": "self-signed certificate",
+                "src": "192.168.1.42",
+                "dst": "93.184.216.34",
+                "actions": ["Notice::ACTION_LOG"],
+                "peer_descr": "zeek",
+                "suppress_for": 3600.0,
+            }
+        ),
+        json.dumps(
+            {
+                "ts": 1710600002.0,
+                "note": "Scan::Port_Scan",
+                "msg": "192.168.1.50 scanned at least 15 unique ports",
+                "src": "192.168.1.50",
+                "actions": ["Notice::ACTION_ALARM"],
+                "peer_descr": "zeek",
+                "suppress_for": 0,
+            }
+        ),
     ]
 
 
@@ -140,27 +148,29 @@ def sample_notice_log_lines() -> list[str]:
 def sample_flowmeter_log_lines() -> list[str]:
     """Sample flowmeter.log JSON entries."""
     return [
-        json.dumps({
-            "ts": 1710600000.0,
-            "uid": "CYnvWc3enJjQC9w5y2",
-            "id.orig_h": "192.168.1.42",
-            "id.orig_p": 55432,
-            "id.resp_h": "93.184.216.34",
-            "id.resp_p": 443,
-            "proto": "tcp",
-            "duration": 5.234,
-            "fwd_pkts_tot": 10,
-            "bwd_pkts_tot": 8,
-            "fwd_pkts_per_sec": 1.91,
-            "bwd_pkts_per_sec": 1.53,
-            "flow_pkts_per_sec": 3.44,
-            "down_up_ratio": 0.8,
-            "fwd_pkts_payload.avg": 512.5,
-            "bwd_pkts_payload.avg": 1024.0,
-            "flow_iat.avg": 0.29,
-            "flow_iat.std": 0.12,
-            "payload_bytes_per_second": 2048.0,
-        }),
+        json.dumps(
+            {
+                "ts": 1710600000.0,
+                "uid": "CYnvWc3enJjQC9w5y2",
+                "id.orig_h": "192.168.1.42",
+                "id.orig_p": 55432,
+                "id.resp_h": "93.184.216.34",
+                "id.resp_p": 443,
+                "proto": "tcp",
+                "duration": 5.234,
+                "fwd_pkts_tot": 10,
+                "bwd_pkts_tot": 8,
+                "fwd_pkts_per_sec": 1.91,
+                "bwd_pkts_per_sec": 1.53,
+                "flow_pkts_per_sec": 3.44,
+                "down_up_ratio": 0.8,
+                "fwd_pkts_payload.avg": 512.5,
+                "bwd_pkts_payload.avg": 1024.0,
+                "flow_iat.avg": 0.29,
+                "flow_iat.std": 0.12,
+                "payload_bytes_per_second": 2048.0,
+            }
+        ),
     ]
 
 

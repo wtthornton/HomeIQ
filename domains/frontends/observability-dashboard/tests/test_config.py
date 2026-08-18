@@ -3,7 +3,28 @@
 import os
 from unittest.mock import patch
 
+import pytest
+
 from config import Settings
+
+
+@pytest.fixture(autouse=True)
+def settings_env(monkeypatch, tmp_path):
+    """Construct Settings from a known-empty environment (TAP-6154).
+
+    Settings resolve ``env_file`` against the process working directory, so
+    running this file from the repository root loaded the repository ``.env``
+    and ``test_default_agentforge_api_key`` saw the real AGENTFORGE_API_KEY
+    instead of the default it asserts. Every default assertion below has the
+    same exposure; the failure just happened to surface on one of them.
+
+    Chdir somewhere with no ``.env`` and clear every name the model reads. The
+    name list comes from the model, so a new field cannot reintroduce the leak.
+    """
+    monkeypatch.chdir(tmp_path)
+    for name, field in Settings.model_fields.items():
+        for key in {name, field.alias or name}:
+            monkeypatch.delenv(key.upper(), raising=False)
 
 
 class TestSettings:

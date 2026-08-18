@@ -2,7 +2,6 @@
 Tests for E1.S4: LLM-as-Judge Engine (shared/patterns/evaluation/llm_judge.py)
 """
 
-
 import pytest
 from homeiq_patterns.evaluation.llm_judge import (
     JudgeRubric,
@@ -209,9 +208,7 @@ class TestResponseParsing:
 
     @pytest.mark.asyncio
     async def test_case_insensitive_label_matching(self, sample_session, sample_rubric):
-        provider = MockProvider(
-            response='{"label": "perfectly correct", "explanation": "ok"}'
-        )
+        provider = MockProvider(response='{"label": "perfectly correct", "explanation": "ok"}')
         judge = LLMJudge(provider=provider)
         result = await judge.judge(sample_session, sample_rubric)
         assert result.score == 1.0
@@ -219,9 +216,7 @@ class TestResponseParsing:
 
     @pytest.mark.asyncio
     async def test_unknown_label_scores_zero(self, sample_session, sample_rubric):
-        provider = MockProvider(
-            response='{"label": "Unknown Label", "explanation": "hmm"}'
-        )
+        provider = MockProvider(response='{"label": "Unknown Label", "explanation": "hmm"}')
         judge = LLMJudge(provider=provider)
         result = await judge.judge(sample_session, sample_rubric)
         assert result.score == 0.0

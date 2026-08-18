@@ -131,11 +131,13 @@ class StatusService:
             area = ent.area or "Unknown"
             if area not in area_map:
                 area_map[area] = []
-            area_map[area].append({
-                "entity_id": ent.entity_id,
-                "name": ent.friendly_name,
-                "state": ent.state,
-            })
+            area_map[area].append(
+                {
+                    "entity_id": ent.entity_id,
+                    "name": ent.friendly_name,
+                    "state": ent.state,
+                }
+            )
 
         results: list[AreaLightSummary] = []
         for area, lights in sorted(area_map.items()):

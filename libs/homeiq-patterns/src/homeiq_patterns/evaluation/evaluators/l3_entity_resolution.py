@@ -7,8 +7,12 @@ Story 3.3: Score how well the pipeline resolved abstract references
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from ..base_evaluator import DetailsEvaluator
-from ..models import EvaluationResult, SessionTrace
+
+if TYPE_CHECKING:
+    from ..models import EvaluationResult, SessionTrace
 
 
 class EntityResolutionEvaluator(DetailsEvaluator):
@@ -30,7 +34,8 @@ class EntityResolutionEvaluator(DetailsEvaluator):
         total = len(resolved) + len(placeholders)
         if total == 0:
             return self._result(
-                0.8, "N/A",
+                0.8,
+                "N/A",
                 "No entities to resolve (simple template)",
             )
 

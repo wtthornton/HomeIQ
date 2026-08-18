@@ -33,7 +33,9 @@ class BaseServiceSettings(BaseSettings):
     """
 
     # Service identity
-    service_name: str = Field(default="homeiq-service", description="Service name for logging and health checks")
+    service_name: str = Field(
+        default="homeiq-service", description="Service name for logging and health checks"
+    )
     service_port: int = Field(default=8000, description="Port the service listens on")
 
     # Logging

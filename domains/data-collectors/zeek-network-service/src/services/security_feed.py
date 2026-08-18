@@ -84,9 +84,7 @@ class SecurityFeed:
                 self.events_sent += 1
                 self._consecutive_failures = 0
             else:
-                self._record_failure(
-                    f"proactive-agent returned {resp.status_code}"
-                )
+                self._record_failure(f"proactive-agent returned {resp.status_code}")
         except httpx.HTTPError as e:
             self._record_failure(f"proactive-agent unreachable: {e}")
 
@@ -114,9 +112,7 @@ class SecurityFeed:
                 self.events_sent += 1
                 self._consecutive_failures = 0
             else:
-                self._record_failure(
-                    f"ai-pattern returned {resp.status_code}"
-                )
+                self._record_failure(f"ai-pattern returned {resp.status_code}")
         except httpx.HTTPError as e:
             self._record_failure(f"ai-pattern unreachable: {e}")
 
@@ -132,10 +128,7 @@ class SecurityFeed:
         """Check if circuit breaker is open (skip requests)."""
         if not self._circuit_open:
             return False
-        if (
-            self._circuit_open_until
-            and datetime.now(UTC) > self._circuit_open_until
-        ):
+        if self._circuit_open_until and datetime.now(UTC) > self._circuit_open_until:
             self._circuit_open = False
             self._consecutive_failures = 0
             logger.info("SecurityFeed circuit breaker closed (recovery)")

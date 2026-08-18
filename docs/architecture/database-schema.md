@@ -44,7 +44,6 @@ This system uses a **hybrid database architecture** optimizing for different dat
 
 **Integration & Classification Tags:**
 - `integration` - HA integration source (zwave, mqtt, zigbee, etc.) ✅ **NEW: Oct 2025**
-- `entity_category` - Entity classification (null, diagnostic, config) [Epic 23.4] ✅
 
 **Temporal Tags:**
 - `time_of_day` - Time period (morning: 5am-12pm, afternoon: 12pm-5pm, evening: 5pm-9pm, night: 9pm-5am) ✅ **NEW: Oct 2025**
@@ -53,6 +52,7 @@ This system uses a **hybrid database architecture** optimizing for different dat
 - `weather_condition` - **DEPRECATED** (Oct 2025) - Historical events only. Use weather-api service (Port 8009) for new weather data.
 
 **Planned Tags** (designed but not currently implemented):
+- `entity_category` - Entity classification (diagnostic, config) [Epic 23.4] - ❌ NOT IMPLEMENTED. Declared in `influxdb_schema.py` but never written by any collector; the matching `/api/v1/events` filter was removed in TAP-6156 rather than left returning silently-empty results.
 - `area` - Room/area name (human-readable) - ⚠️ Have `area_id`, need name resolution
 - `device_name` - Friendly device name - ⚠️ NOT IMPLEMENTED
 - `location` - Geographic location - ⚠️ PARTIAL (only from weather entities)

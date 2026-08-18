@@ -130,9 +130,18 @@ class LogTracker:
         newest_mtime: float | None = None
 
         for log_name in [
-            "conn.log", "dns.log", "dhcp.log", "dhcpfp.log",
-            "ssl.log", "ja3.log", "ja4.log", "hassh.log", "software.log",
-            "mqtt_connect.log", "mqtt_publish.log", "mqtt_subscribe.log",
+            "conn.log",
+            "dns.log",
+            "dhcp.log",
+            "dhcpfp.log",
+            "ssl.log",
+            "ja3.log",
+            "ja4.log",
+            "hassh.log",
+            "software.log",
+            "mqtt_connect.log",
+            "mqtt_publish.log",
+            "mqtt_subscribe.log",
             "x509.log",
         ]:
             path = self.log_dir / log_name

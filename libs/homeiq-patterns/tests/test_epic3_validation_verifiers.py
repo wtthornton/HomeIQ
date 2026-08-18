@@ -6,16 +6,9 @@ SceneVerifier, ScriptVerifier, TaskExecutionVerifier,
 and SportsBluprintGenerator.
 """
 
-import sys
-from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
-
-_project_root = str(Path(__file__).resolve().parents[3])
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
-
 from homeiq_patterns import (
     PostActionVerifier,
     UnifiedValidationRouter,
@@ -29,6 +22,7 @@ from homeiq_patterns import (
 # Scene Validation Router Tests
 # ================================================================== #
 
+
 class _SceneValidationRouter(UnifiedValidationRouter):
     domain = "scene"
     error_categories = {
@@ -38,6 +32,7 @@ class _SceneValidationRouter(UnifiedValidationRouter):
 
     async def run_validation(self, request, **_kwargs):
         import yaml as yaml_lib
+
         errors, warnings = [], []
 
         try:
@@ -53,12 +48,12 @@ class _SceneValidationRouter(UnifiedValidationRouter):
 
         for i, sc in enumerate(scenes):
             if not isinstance(sc, dict):
-                errors.append(f"Scene #{i+1}: must be a mapping")
+                errors.append(f"Scene #{i + 1}: must be a mapping")
                 continue
             if not sc.get("name"):
-                errors.append(f"Scene #{i+1}: missing 'name'")
+                errors.append(f"Scene #{i + 1}: missing 'name'")
             if not sc.get("entities"):
-                warnings.append(f"Scene #{i+1}: no entities defined")
+                warnings.append(f"Scene #{i + 1}: no entities defined")
 
         score = max(0.0, 100.0 - len(errors) * 15 - len(warnings) * 5)
         return self.build_response(
@@ -105,6 +100,7 @@ class TestSceneValidationRouter:
 # Script Validation Router Tests
 # ================================================================== #
 
+
 class _ScriptValidationRouter(UnifiedValidationRouter):
     domain = "script"
     error_categories = {
@@ -114,6 +110,7 @@ class _ScriptValidationRouter(UnifiedValidationRouter):
 
     async def run_validation(self, request, **_kwargs):
         import yaml as yaml_lib
+
         errors, warnings = [], []
 
         try:
@@ -142,12 +139,14 @@ class _ScriptValidationRouter(UnifiedValidationRouter):
                 continue
             for i, action in enumerate(seq):
                 if not isinstance(action, dict):
-                    errors.append(f"Script '{name}', step {i+1}: must be a mapping")
+                    errors.append(f"Script '{name}', step {i + 1}: must be a mapping")
                     continue
                 if "service" in action and request.validate_services:
                     parts = action["service"].split(".")
                     if len(parts) != 2:
-                        errors.append(f"Script '{name}', step {i+1}: invalid service '{action['service']}'")
+                        errors.append(
+                            f"Script '{name}', step {i + 1}: invalid service '{action['service']}'"
+                        )
 
         score = max(0.0, 100.0 - len(errors) * 15 - len(warnings) * 5)
         return self.build_response(
@@ -197,6 +196,7 @@ class TestScriptValidationRouter:
 # Scene Verifier Tests
 # ================================================================== #
 
+
 class _SceneVerifier(PostActionVerifier):
     def __init__(self, get_state_fn):
         self._get_state = get_state_fn
@@ -207,15 +207,20 @@ class _SceneVerifier(PostActionVerifier):
         state_data = await self._get_state(eid)
         if state_data is None:
             return VerificationResult(
-                success=False, state="not_found",
-                warnings=[VerificationWarning(
-                    message=f"Scene '{eid}' not found after creation.",
-                    entity_id=eid, severity="warning",
-                )],
+                success=False,
+                state="not_found",
+                warnings=[
+                    VerificationWarning(
+                        message=f"Scene '{eid}' not found after creation.",
+                        entity_id=eid,
+                        severity="warning",
+                    )
+                ],
             )
         state = state_data.get("state")
         return VerificationResult(
-            success=state != "unavailable", state=state,
+            success=state != "unavailable",
+            state=state,
             warnings=self.map_warnings(state_data),
         )
 
@@ -249,6 +254,7 @@ class TestSceneVerifier:
 # Script Verifier Tests
 # ================================================================== #
 
+
 class _ScriptVerifier(PostActionVerifier):
     def __init__(self, get_state_fn):
         self._get_state = get_state_fn
@@ -259,14 +265,20 @@ class _ScriptVerifier(PostActionVerifier):
         state_data = await self._get_state(eid)
         if state_data is None:
             return VerificationResult(
-                success=False, state="not_found",
-                warnings=[VerificationWarning(
-                    message=f"Script '{eid}' not found.", entity_id=eid, severity="warning",
-                )],
+                success=False,
+                state="not_found",
+                warnings=[
+                    VerificationWarning(
+                        message=f"Script '{eid}' not found.",
+                        entity_id=eid,
+                        severity="warning",
+                    )
+                ],
             )
         state = state_data.get("state")
         return VerificationResult(
-            success=state != "unavailable", state=state,
+            success=state != "unavailable",
+            state=state,
             warnings=self.map_warnings(state_data),
         )
 
@@ -299,6 +311,7 @@ class TestScriptVerifier:
 # Task Execution Verifier Tests
 # ================================================================== #
 
+
 class _TaskExecutionVerifier(PostActionVerifier):
     def __init__(self, get_state_fn):
         self._get_state = get_state_fn
@@ -315,29 +328,42 @@ class _TaskExecutionVerifier(PostActionVerifier):
 
         if status == "failed":
             is_transient = any(t in str(error).lower() for t in self.TRANSIENT)
-            warnings.append(VerificationWarning(
-                message=f"Task '{task_id}' failed: {error}",
-                entity_id=entity_id or task_id, severity="error",
-            ))
+            warnings.append(
+                VerificationWarning(
+                    message=f"Task '{task_id}' failed: {error}",
+                    entity_id=entity_id or task_id,
+                    severity="error",
+                )
+            )
             return VerificationResult(
-                success=False, state="failed", warnings=warnings,
+                success=False,
+                state="failed",
+                warnings=warnings,
                 metadata={"retryable": is_transient},
             )
 
         if entity_id and expected_state:
             sd = await self._get_state(entity_id)
             if sd is None:
-                warnings.append(VerificationWarning(
-                    message=f"Entity '{entity_id}' not found.", entity_id=entity_id, severity="warning",
-                ))
+                warnings.append(
+                    VerificationWarning(
+                        message=f"Entity '{entity_id}' not found.",
+                        entity_id=entity_id,
+                        severity="warning",
+                    )
+                )
             elif sd.get("state") != expected_state:
-                warnings.append(VerificationWarning(
-                    message=f"Entity '{entity_id}' is '{sd['state']}' not '{expected_state}'.",
-                    entity_id=entity_id, severity="warning",
-                ))
+                warnings.append(
+                    VerificationWarning(
+                        message=f"Entity '{entity_id}' is '{sd['state']}' not '{expected_state}'.",
+                        entity_id=entity_id,
+                        severity="warning",
+                    )
+                )
 
         return VerificationResult(
-            success=not warnings, state=status if not warnings else "partial",
+            success=not warnings,
+            state=status if not warnings else "partial",
             warnings=warnings,
         )
 
@@ -347,7 +373,14 @@ class TestTaskExecutionVerifier:
     async def test_success(self):
         get_state = AsyncMock(return_value={"state": "on"})
         v = _TaskExecutionVerifier(get_state)
-        r = await v.verify({"task_id": "t1", "status": "success", "entity_id": "light.test", "expected_state": "on"})
+        r = await v.verify(
+            {
+                "task_id": "t1",
+                "status": "success",
+                "entity_id": "light.test",
+                "expected_state": "on",
+            }
+        )
         assert r.success
 
     @pytest.mark.asyncio
@@ -370,7 +403,14 @@ class TestTaskExecutionVerifier:
     async def test_state_mismatch(self):
         get_state = AsyncMock(return_value={"state": "off"})
         v = _TaskExecutionVerifier(get_state)
-        r = await v.verify({"task_id": "t4", "status": "success", "entity_id": "light.test", "expected_state": "on"})
+        r = await v.verify(
+            {
+                "task_id": "t4",
+                "status": "success",
+                "entity_id": "light.test",
+                "expected_state": "on",
+            }
+        )
         assert not r.success
         assert r.state == "partial"
 
@@ -378,7 +418,14 @@ class TestTaskExecutionVerifier:
     async def test_entity_not_found(self):
         get_state = AsyncMock(return_value=None)
         v = _TaskExecutionVerifier(get_state)
-        r = await v.verify({"task_id": "t5", "status": "success", "entity_id": "light.missing", "expected_state": "on"})
+        r = await v.verify(
+            {
+                "task_id": "t5",
+                "status": "success",
+                "entity_id": "light.missing",
+                "expected_state": "on",
+            }
+        )
         assert not r.success
 
     @pytest.mark.asyncio
@@ -393,6 +440,7 @@ class TestTaskExecutionVerifier:
 # Sports Blueprint Generator Tests
 # ================================================================== #
 
+
 def _generate_sports_automations(
     team_sensor, wled_entities, hue_entities, team_a_color, team_b_color, helper_prefix="sports"
 ):
@@ -400,23 +448,75 @@ def _generate_sports_automations(
     all_lights = wled_entities + hue_entities
     p = helper_prefix
     return [
-        {"alias": f"{p}_game_kickoff", "trigger": [{"platform": "state", "entity_id": team_sensor, "to": "IN"}],
-         "action": [{"service": "input_boolean.turn_on", "target": {"entity_id": f"input_boolean.{p}_game_active"}},
-                    {"service": "light.turn_on", "target": {"entity_id": all_lights}, "data": {"rgb_color": team_a_color, "brightness": 255}}],
-         "mode": "single"},
-        {"alias": f"{p}_team_a_score", "trigger": [{"platform": "state", "entity_id": team_sensor, "attribute": "team_score"}],
-         "action": [{"service": "light.turn_on", "target": {"entity_id": wled_entities}, "data": {"effect": "Color Wipe", "rgb_color": team_a_color}}],
-         "mode": "single"},
-        {"alias": f"{p}_team_b_score", "trigger": [{"platform": "state", "entity_id": team_sensor, "attribute": "opponent_score"}],
-         "action": [{"service": "light.turn_on", "target": {"entity_id": all_lights}, "data": {"rgb_color": team_b_color, "brightness": 50}}],
-         "mode": "single"},
-        {"alias": f"{p}_game_over", "trigger": [{"platform": "state", "entity_id": team_sensor, "to": "POST"}],
-         "action": [{"service": "light.turn_on", "target": {"entity_id": all_lights}, "data": {"brightness": 200}},
-                    {"service": "input_boolean.turn_off", "target": {"entity_id": f"input_boolean.{p}_game_active"}}],
-         "mode": "single"},
-        {"alias": f"{p}_reset_helpers", "trigger": [{"platform": "time", "at": "00:00:00"}],
-         "action": [{"service": "input_boolean.turn_off", "target": {"entity_id": f"input_boolean.{p}_game_active"}}],
-         "mode": "single"},
+        {
+            "alias": f"{p}_game_kickoff",
+            "trigger": [{"platform": "state", "entity_id": team_sensor, "to": "IN"}],
+            "action": [
+                {
+                    "service": "input_boolean.turn_on",
+                    "target": {"entity_id": f"input_boolean.{p}_game_active"},
+                },
+                {
+                    "service": "light.turn_on",
+                    "target": {"entity_id": all_lights},
+                    "data": {"rgb_color": team_a_color, "brightness": 255},
+                },
+            ],
+            "mode": "single",
+        },
+        {
+            "alias": f"{p}_team_a_score",
+            "trigger": [{"platform": "state", "entity_id": team_sensor, "attribute": "team_score"}],
+            "action": [
+                {
+                    "service": "light.turn_on",
+                    "target": {"entity_id": wled_entities},
+                    "data": {"effect": "Color Wipe", "rgb_color": team_a_color},
+                }
+            ],
+            "mode": "single",
+        },
+        {
+            "alias": f"{p}_team_b_score",
+            "trigger": [
+                {"platform": "state", "entity_id": team_sensor, "attribute": "opponent_score"}
+            ],
+            "action": [
+                {
+                    "service": "light.turn_on",
+                    "target": {"entity_id": all_lights},
+                    "data": {"rgb_color": team_b_color, "brightness": 50},
+                }
+            ],
+            "mode": "single",
+        },
+        {
+            "alias": f"{p}_game_over",
+            "trigger": [{"platform": "state", "entity_id": team_sensor, "to": "POST"}],
+            "action": [
+                {
+                    "service": "light.turn_on",
+                    "target": {"entity_id": all_lights},
+                    "data": {"brightness": 200},
+                },
+                {
+                    "service": "input_boolean.turn_off",
+                    "target": {"entity_id": f"input_boolean.{p}_game_active"},
+                },
+            ],
+            "mode": "single",
+        },
+        {
+            "alias": f"{p}_reset_helpers",
+            "trigger": [{"platform": "time", "at": "00:00:00"}],
+            "action": [
+                {
+                    "service": "input_boolean.turn_off",
+                    "target": {"entity_id": f"input_boolean.{p}_game_active"},
+                }
+            ],
+            "mode": "single",
+        },
     ]
 
 
@@ -461,6 +561,7 @@ class TestSportsBlueprintGenerator:
 
     def test_render_yaml(self):
         import yaml
+
         automations = _generate_sports_automations(
             team_sensor="sensor.nfl_team_tracker",
             wled_entities=["light.wled_tv"],

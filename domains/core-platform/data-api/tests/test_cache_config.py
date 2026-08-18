@@ -22,9 +22,6 @@ Settings:
 
 from __future__ import annotations
 
-import os
-from unittest.mock import patch
-
 import pytest
 import pytest_asyncio
 from pydantic import ValidationError
@@ -158,61 +155,41 @@ class TestSimpleCacheStats:
 
 
 class TestSettings:
-    """config.py Settings model."""
+    """config.py Settings model.
 
-    def test_default_values(self):
-        with patch.dict(os.environ, {"DATA_API_API_KEY": "test-key-12345"}, clear=False):
-            # Force re-import with test env
-            import importlib
+    ``settings_env`` supplies an empty environment and an empty working
+    directory; without it these tests read whatever ``.env`` sat next to the
+    process and whatever ``API_KEY`` the shell exported (TAP-6154). It also
+    removes the need to reload ``src.config``, since nothing here depends on
+    the module-level ``settings`` singleton.
+    """
 
-            import src.config
+    def test_default_values(self, settings_env):
+        settings_env.setenv("DATA_API_API_KEY", "test-key-12345")
+        from src.config import Settings
 
-            importlib.reload(src.config)
-            s = src.config.Settings()
-            assert s.service_port == 8006
-            assert s.service_name == "data-api"
-            assert s.api_title == "Data API - Feature Data Hub"
+        s = Settings()
+        assert s.service_port == 8006
+        assert s.service_name == "data-api"
+        assert s.api_title == "Data API - Feature Data Hub"
 
-    def test_api_key_from_env(self):
-        with patch.dict(os.environ, {"DATA_API_API_KEY": "my-secret-key"}, clear=False):
-            import importlib
+    def test_api_key_from_env(self, settings_env):
+        settings_env.setenv("DATA_API_API_KEY", "my-secret-key")
+        from src.config import Settings
 
-            import src.config
+        assert Settings().api_key == "my-secret-key"
 
-            importlib.reload(src.config)
-            s = src.config.Settings()
-            assert s.api_key == "my-secret-key"
+    def test_allow_anonymous_generates_key(self, settings_env):
+        settings_env.setenv("DATA_API_ALLOW_ANONYMOUS", "true")
+        from src.config import Settings
 
-    def test_allow_anonymous_generates_key(self):
-        env = {"DATA_API_ALLOW_ANONYMOUS": "true"}
-        with patch.dict(os.environ, env, clear=False):
-            # Remove any existing key
-            os.environ.pop("DATA_API_API_KEY", None)
-            os.environ.pop("DATA_API_KEY", None)
-            os.environ.pop("API_KEY", None)
-            import importlib
+        s = Settings()
+        assert s.api_key is not None
+        assert len(s.api_key) > 10  # URL-safe token
 
-            import src.config
-
-            importlib.reload(src.config)
-            s = src.config.Settings()
-            assert s.api_key is not None
-            assert len(s.api_key) > 10  # URL-safe token
-
-    def test_missing_key_raises(self):
+    def test_missing_key_raises(self, settings_env):
         """Settings constructor raises when no API key and anonymous disabled."""
         from src.config import Settings
 
-        # Must clear env vars since pydantic-settings reads them
-        env_clear = {
-            "DATA_API_API_KEY": "",
-            "DATA_API_KEY": "",
-            "API_KEY": "",
-            "DATA_API_ALLOW_ANONYMOUS": "false",
-        }
-        with patch.dict(os.environ, env_clear):
-            os.environ.pop("DATA_API_API_KEY", None)
-            os.environ.pop("DATA_API_KEY", None)
-            os.environ.pop("API_KEY", None)
-            with pytest.raises(ValidationError):
-                Settings()
+        with pytest.raises(ValidationError):
+            Settings()

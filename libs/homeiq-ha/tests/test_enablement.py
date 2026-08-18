@@ -25,14 +25,9 @@ CAL_DONE = {
 }
 
 
-
-
 @pytest.fixture
 def sim() -> SimHA:
     return SimHA()
-
-
-
 
 
 # ---------------------------------------------------------------------------
@@ -63,9 +58,7 @@ async def test_calendar_apply_asserts_the_created_entity(sim):
 
 @pytest.mark.asyncio
 async def test_calendar_second_apply_reports_zero_changes(sim):
-    sim.state["entities"].append(
-        {"entity_id": "calendar.homeiq", "platform": "local_calendar"}
-    )
+    sim.state["entities"].append({"entity_id": "calendar.homeiq", "platform": "local_calendar"})
     writes_before = list(sim.writes)
 
     result = await LocalCalendarRecipe().apply(sim)
@@ -99,9 +92,7 @@ async def test_calendar_apply_refuses_success_without_an_entity(sim):
 
 @pytest.mark.asyncio
 async def test_calendar_verify_reports_the_live_entities(sim):
-    sim.state["entities"].append(
-        {"entity_id": "calendar.homeiq", "platform": "local_calendar"}
-    )
+    sim.state["entities"].append({"entity_id": "calendar.homeiq", "platform": "local_calendar"})
 
     result = await LocalCalendarRecipe().verify(sim)
 

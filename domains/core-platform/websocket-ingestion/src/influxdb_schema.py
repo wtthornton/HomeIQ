@@ -71,8 +71,10 @@ class InfluxDBSchema:
         # Epic 23.2: Device-level aggregation
         self.TAG_DEVICE_ID = "device_id"
         self.TAG_AREA_ID = "area_id"
-        # Epic 23.4: Entity classification
-        self.TAG_ENTITY_CATEGORY = "entity_category"
+        # No TAG_ENTITY_CATEGORY: Epic 23.4 declared the tag but no collector
+        # ever wrote it, and data-api offered a filter on it that could only
+        # return empty. Both are gone (TAP-6156). event_category below is the
+        # classification tag that is actually written.
         # Home Type Integration: Event category tagging
         self.TAG_EVENT_CATEGORY = "event_category"
 

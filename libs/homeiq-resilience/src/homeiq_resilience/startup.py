@@ -73,7 +73,7 @@ async def wait_for_dependency(
         except (httpx.ConnectError, httpx.TimeoutException, OSError):
             pass
 
-        wait_seconds = min(2 ** attempt, 30)
+        wait_seconds = min(2**attempt, 30)
         logger.warning(
             "Waiting for dependency '%s' (attempt %d/%d, next retry in %ds)",
             name,
@@ -84,8 +84,7 @@ async def wait_for_dependency(
         await asyncio.sleep(wait_seconds)
 
     logger.error(
-        "Dependency '%s' not available after %d attempts — "
-        "starting in degraded mode",
+        "Dependency '%s' not available after %d attempts — starting in degraded mode",
         name,
         max_retries,
     )

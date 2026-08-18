@@ -1,15 +1,8 @@
 """Tests for UnifiedValidationRouter and related models."""
 
-import sys
-from pathlib import Path
 from typing import Any
 
 import pytest
-
-_project_root = str(Path(__file__).resolve().parents[3])
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
-
 from homeiq_patterns import (
     UnifiedValidationRouter,
     ValidationBackend,
@@ -20,6 +13,7 @@ from homeiq_patterns import (
 )
 
 # --- Test fixtures ---
+
 
 class MockValidationBackend(ValidationBackend):
     name = "mock_backend"
@@ -47,23 +41,30 @@ class MockValidationRouter(UnifiedValidationRouter):
 
 # --- categorize_errors Tests ---
 
+
 class TestCategorizeErrors:
     def test_entity_errors_categorized(self):
         errors = ["Unknown entity light.missing", "Invalid entity_id sensor.bad"]
-        result = categorize_errors(errors, {
-            "entity": ("entity", "Entity", "entity_id"),
-            "service": ("service", "Service"),
-        })
+        result = categorize_errors(
+            errors,
+            {
+                "entity": ("entity", "Entity", "entity_id"),
+                "service": ("service", "Service"),
+            },
+        )
         assert len(result["entity"]) == 2
         assert len(result["service"]) == 0
         assert len(result["other"]) == 0
 
     def test_service_errors_categorized(self):
         errors = ["Invalid service call light.invalid_action"]
-        result = categorize_errors(errors, {
-            "entity": ("entity",),
-            "service": ("service", "Service"),
-        })
+        result = categorize_errors(
+            errors,
+            {
+                "entity": ("entity",),
+                "service": ("service", "Service"),
+            },
+        )
         assert len(result["service"]) == 1
         assert len(result["entity"]) == 0
 
@@ -73,10 +74,13 @@ class TestCategorizeErrors:
             "Invalid service call",
             "YAML syntax error at line 5",
         ]
-        result = categorize_errors(errors, {
-            "entity": ("entity",),
-            "service": ("service",),
-        })
+        result = categorize_errors(
+            errors,
+            {
+                "entity": ("entity",),
+                "service": ("service",),
+            },
+        )
         assert len(result["entity"]) == 1
         assert len(result["service"]) == 1
         assert len(result["other"]) == 1
@@ -88,6 +92,7 @@ class TestCategorizeErrors:
 
 
 # --- ValidationRequest Tests ---
+
 
 class TestValidationRequest:
     def test_defaults(self):
@@ -107,6 +112,7 @@ class TestValidationRequest:
 
 
 # --- ValidationResponse Tests ---
+
 
 class TestValidationResponse:
     def test_valid_response(self):
@@ -130,17 +136,20 @@ class TestValidationResponse:
 
 # --- UnifiedValidationRouter Tests ---
 
+
 class TestUnifiedValidationRouter:
     @pytest.mark.asyncio
     async def test_valid_result(self):
-        router = MockValidationRouter({
-            "valid": True,
-            "errors": [],
-            "warnings": [],
-            "score": 95.0,
-            "fixed_yaml": None,
-            "fixes_applied": [],
-        })
+        router = MockValidationRouter(
+            {
+                "valid": True,
+                "errors": [],
+                "warnings": [],
+                "score": 95.0,
+                "fixed_yaml": None,
+                "fixes_applied": [],
+            }
+        )
         request = ValidationRequest(content="good yaml")
         response = await router.run_validation(request)
         assert response.valid is True
@@ -150,12 +159,14 @@ class TestUnifiedValidationRouter:
 
     @pytest.mark.asyncio
     async def test_invalid_with_entity_errors(self):
-        router = MockValidationRouter({
-            "valid": False,
-            "errors": ["Unknown entity light.missing", "YAML syntax error"],
-            "warnings": ["Consider adding description"],
-            "score": 30.0,
-        })
+        router = MockValidationRouter(
+            {
+                "valid": False,
+                "errors": ["Unknown entity light.missing", "YAML syntax error"],
+                "warnings": ["Consider adding description"],
+                "score": 30.0,
+            }
+        )
         request = ValidationRequest(content="bad yaml")
         response = await router.run_validation(request)
         assert response.valid is False
@@ -166,12 +177,14 @@ class TestUnifiedValidationRouter:
 
     @pytest.mark.asyncio
     async def test_performed_flags_from_request(self):
-        router = MockValidationRouter({
-            "valid": True,
-            "errors": [],
-            "warnings": [],
-            "score": 100.0,
-        })
+        router = MockValidationRouter(
+            {
+                "valid": True,
+                "errors": [],
+                "warnings": [],
+                "score": 100.0,
+            }
+        )
         request = ValidationRequest(
             content="yaml",
             validate_entities=False,
@@ -183,14 +196,16 @@ class TestUnifiedValidationRouter:
 
     @pytest.mark.asyncio
     async def test_fixed_content_passthrough(self):
-        router = MockValidationRouter({
-            "valid": True,
-            "errors": [],
-            "warnings": [],
-            "score": 90.0,
-            "fixed_yaml": "normalized: yaml",
-            "fixes_applied": ["fixed triggers plural"],
-        })
+        router = MockValidationRouter(
+            {
+                "valid": True,
+                "errors": [],
+                "warnings": [],
+                "score": 90.0,
+                "fixed_yaml": "normalized: yaml",
+                "fixes_applied": ["fixed triggers plural"],
+            }
+        )
         request = ValidationRequest(content="yaml")
         response = await router.run_validation(request)
         assert response.fixed_content == "normalized: yaml"
@@ -198,6 +213,7 @@ class TestUnifiedValidationRouter:
 
 
 # --- ValidationBackend Tests ---
+
 
 class TestValidationBackend:
     @pytest.mark.asyncio

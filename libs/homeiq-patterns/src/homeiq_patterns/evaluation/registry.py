@@ -10,12 +10,15 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from .base_evaluator import BaseEvaluator
 from .config import AgentEvalConfig, ConfigLoader
 from .llm_judge import LLMJudge
 from .models import BatchReport, EvaluationReport, SessionTrace
 from .scoring_engine import ScoringEngine
+
+if TYPE_CHECKING:
+    from .base_evaluator import BaseEvaluator
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +39,13 @@ class EvaluationRegistry:
 
     # Deploy-dependent evaluators that correctly score 0% in preview mode.
     # Skipping them in preview avoids dragging the L4 average down.
-    _DEPLOY_ONLY_EVALUATORS = frozenset({
-        "validation_before_deploy",
-        "post_deploy_verification",
-        "audit_trail_complete",
-    })
+    _DEPLOY_ONLY_EVALUATORS = frozenset(
+        {
+            "validation_before_deploy",
+            "post_deploy_verification",
+            "audit_trail_complete",
+        }
+    )
 
     def __init__(
         self,
@@ -88,8 +93,7 @@ class EvaluationRegistry:
         entry = self._agents.get(agent_name)
         if entry is None:
             raise KeyError(
-                f"Agent '{agent_name}' not registered. "
-                f"Registered: {self.registered_agents}"
+                f"Agent '{agent_name}' not registered. Registered: {self.registered_agents}"
             )
 
         evaluators = entry.evaluators
@@ -97,10 +101,7 @@ class EvaluationRegistry:
         # Enhancement A: skip deploy-dependent evaluators in preview mode
         # so they don't drag L4 average down with correct-but-irrelevant 0%s.
         if session.metadata.get("execution_mode") == "preview":
-            evaluators = [
-                e for e in evaluators
-                if e.name not in self._DEPLOY_ONLY_EVALUATORS
-            ]
+            evaluators = [e for e in evaluators if e.name not in self._DEPLOY_ONLY_EVALUATORS]
 
         return await entry.engine.score(session, evaluators)
 
@@ -143,9 +144,7 @@ class EvaluationRegistry:
 
         return evaluators
 
-    def _build_l1_evaluators(
-        self, config: AgentEvalConfig
-    ) -> list[BaseEvaluator]:
+    def _build_l1_evaluators(self, config: AgentEvalConfig) -> list[BaseEvaluator]:
         """Build L1 Outcome evaluators.
 
         Enables ``metadata_success_signals`` when the agent config has
@@ -165,9 +164,7 @@ class EvaluationRegistry:
             )
         ]
 
-    def _build_l2_evaluators(
-        self, config: AgentEvalConfig
-    ) -> list[BaseEvaluator]:
+    def _build_l2_evaluators(self, config: AgentEvalConfig) -> list[BaseEvaluator]:
         """Build L2 Path evaluators from config paths and tools."""
         if not config.paths and not config.tools:
             return []
@@ -180,44 +177,28 @@ class EvaluationRegistry:
         evals: list[BaseEvaluator] = []
 
         if config.tools:
-            evals.append(
-                ToolSelectionAccuracyEvaluator(
-                    config=config, llm_judge=self._judge
-                )
-            )
+            evals.append(ToolSelectionAccuracyEvaluator(config=config, llm_judge=self._judge))
 
         if config.paths:
-            evals.append(
-                ToolSequenceValidatorEvaluator(
-                    config=config, llm_judge=self._judge
-                )
-            )
+            evals.append(ToolSequenceValidatorEvaluator(config=config, llm_judge=self._judge))
 
         # Story 3.4: Template appropriateness evaluator (always included)
         from .evaluators.l2_template_match import (
             TemplateAppropriatenessEvaluator,
         )
 
-        evals.append(
-            TemplateAppropriatenessEvaluator(llm_judge=self._judge)
-        )
+        evals.append(TemplateAppropriatenessEvaluator(llm_judge=self._judge))
 
         return evals
 
-    def _build_l3_evaluators(
-        self, config: AgentEvalConfig
-    ) -> list[BaseEvaluator]:
+    def _build_l3_evaluators(self, config: AgentEvalConfig) -> list[BaseEvaluator]:
         """Build L3 Details evaluators from config parameter_rules."""
         evals: list[BaseEvaluator] = []
 
         if config.parameter_rules or config.tools:
             from .evaluators.l3_details import ToolParameterAccuracyEvaluator
 
-            evals.append(
-                ToolParameterAccuracyEvaluator(
-                    config=config, llm_judge=self._judge
-                )
-            )
+            evals.append(ToolParameterAccuracyEvaluator(config=config, llm_judge=self._judge))
 
         # Story 3.4: HA-specific deterministic evaluators (always included)
         from .evaluators.l3_entity_resolution import EntityResolutionEvaluator
@@ -228,9 +209,7 @@ class EvaluationRegistry:
 
         return evals
 
-    def _build_l4_evaluators(
-        self, config: AgentEvalConfig
-    ) -> list[BaseEvaluator]:
+    def _build_l4_evaluators(self, config: AgentEvalConfig) -> list[BaseEvaluator]:
         """Build L4 Quality evaluators from quality_rubrics + system_prompt_rules."""
         from .evaluators.l4_quality import (
             CoherenceEvaluator,
@@ -267,21 +246,15 @@ class EvaluationRegistry:
             if cls is not None:
                 evals.append(cls(llm_judge=self._judge))  # type: ignore[call-arg]
             else:
-                logger.warning(
-                    "Unknown quality rubric '%s' — skipping", rubric_name
-                )
+                logger.warning("Unknown quality rubric '%s' — skipping", rubric_name)
 
         # System prompt rule evaluators (one per rule)
         for rule in config.system_prompt_rules:
-            evals.append(
-                SystemPromptRuleEvaluator(rule=rule, llm_judge=self._judge)
-            )
+            evals.append(SystemPromptRuleEvaluator(rule=rule, llm_judge=self._judge))
 
         return evals
 
-    def _build_l5_evaluators(
-        self, config: AgentEvalConfig
-    ) -> list[BaseEvaluator]:
+    def _build_l5_evaluators(self, config: AgentEvalConfig) -> list[BaseEvaluator]:
         """Build L5 Safety evaluators from safety_rubrics config."""
         from .evaluators.l5_safety import (
             HarmfulnessEvaluator,
@@ -301,9 +274,7 @@ class EvaluationRegistry:
             if cls is not None:
                 evals.append(cls(llm_judge=self._judge))  # type: ignore[call-arg]
             else:
-                logger.warning(
-                    "Unknown safety rubric '%s' — skipping", rubric_name
-                )
+                logger.warning("Unknown safety rubric '%s' — skipping", rubric_name)
 
         return evals
 

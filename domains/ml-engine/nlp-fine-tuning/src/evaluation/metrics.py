@@ -59,10 +59,7 @@ class NLPEvaluator:
             if pred == true:
                 class_correct[true] += 1
 
-        per_class_accuracy = {
-            cls: class_correct[cls] / class_total[cls]
-            for cls in class_total
-        }
+        per_class_accuracy = {cls: class_correct[cls] / class_total[cls] for cls in class_total}
 
         results = {
             "accuracy": correct / total if total > 0 else 0.0,
@@ -271,8 +268,7 @@ class NLPEvaluator:
                 domain_correct[domain] += 1
 
         per_domain_accuracy = {
-            domain: domain_correct[domain] / domain_total[domain]
-            for domain in domain_total
+            domain: domain_correct[domain] / domain_total[domain] for domain in domain_total
         }
 
         results = {
@@ -294,13 +290,17 @@ class NLPEvaluator:
 
         # Extract key metrics
         if "intent_classification" in self.results:
-            summary["overall_metrics"]["intent_accuracy"] = self.results["intent_classification"]["accuracy"]
+            summary["overall_metrics"]["intent_accuracy"] = self.results["intent_classification"][
+                "accuracy"
+            ]
 
         if "entity_extraction" in self.results:
             summary["overall_metrics"]["entity_f1"] = self.results["entity_extraction"]["f1"]
 
         if "exact_match" in self.results:
-            summary["overall_metrics"]["exact_match"] = self.results["exact_match"]["exact_match_accuracy"]
+            summary["overall_metrics"]["exact_match"] = self.results["exact_match"][
+                "exact_match_accuracy"
+            ]
 
         if "bleu" in self.results:
             summary["overall_metrics"]["bleu"] = self.results["bleu"]["bleu"]

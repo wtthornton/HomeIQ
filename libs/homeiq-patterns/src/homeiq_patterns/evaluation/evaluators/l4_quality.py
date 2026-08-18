@@ -16,11 +16,14 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ..base_evaluator import QualityEvaluator
-from ..config import PromptRule
 from ..llm_judge import JudgeRubric, LLMJudge
-from ..models import EvaluationResult, SessionTrace
+
+if TYPE_CHECKING:
+    from ..config import PromptRule
+    from ..models import EvaluationResult, SessionTrace
 
 _RUBRICS_DIR = Path(__file__).resolve().parent.parent / "rubrics"
 
@@ -356,10 +359,7 @@ class SystemPromptRuleEvaluator(QualityEvaluator):
         return self._result(
             score=0.0,
             label="Fail",
-            explanation=(
-                f"Rule '{self._rule.name}': expected sequence {expected}, "
-                f"got {actual}"
-            ),
+            explanation=(f"Rule '{self._rule.name}': expected sequence {expected}, got {actual}"),
             passed=False,
         )
 
@@ -411,8 +411,7 @@ class SystemPromptRuleEvaluator(QualityEvaluator):
             score=score,
             label="Fail",
             explanation=(
-                f"Rule '{self._rule.name}': pattern matched in "
-                f"{violations}/{total} texts checked"
+                f"Rule '{self._rule.name}': pattern matched in {violations}/{total} texts checked"
             ),
             passed=False,
         )

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 from homeiq_ha.agent.recipes import DevicesHaveAreasRecipe, default_recipes
 from homeiq_ha.agent.wizard import build_queue
 
-from tests.simulators import SimHA
+if TYPE_CHECKING:
+    from tests.simulators import SimHA
 
 
 @pytest.mark.asyncio
@@ -84,9 +87,7 @@ async def test_unknown_blocked_kind_degrades_to_acknowledge(sim: SimHA):
         phase = 3
 
         async def check(self, _ha):
-            return CheckResult(
-                CheckStatus.BLOCKED_ON_HUMAN, "novel", human_action="do the thing"
-            )
+            return CheckResult(CheckStatus.BLOCKED_ON_HUMAN, "novel", human_action="do the thing")
 
         async def plan(self, _ha):
             return Plan(())

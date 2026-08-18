@@ -9,11 +9,14 @@ Evaluators:
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ..base_evaluator import PathEvaluator
 from ..config import AgentEvalConfig, PathRule
 from ..llm_judge import JudgeRubric, LLMJudge
-from ..models import EvaluationResult, SessionTrace
+
+if TYPE_CHECKING:
+    from ..models import EvaluationResult, SessionTrace
 
 _RUBRICS_DIR = Path(__file__).resolve().parent.parent / "rubrics"
 
@@ -70,15 +73,13 @@ class ToolSelectionAccuracyEvaluator(PathEvaluator):
                 correct += 1
             else:
                 details.append(
-                    f"Unknown tool '{tc.tool_name}' "
-                    f"(expected one of: {sorted(known_tools)})"
+                    f"Unknown tool '{tc.tool_name}' (expected one of: {sorted(known_tools)})"
                 )
 
         score = correct / total if total > 0 else 1.0
         label = "Yes" if score == 1.0 else "No"
-        explanation = (
-            f"{correct}/{total} tool calls used known tools."
-            + (f" Issues: {'; '.join(details)}" if details else "")
+        explanation = f"{correct}/{total} tool calls used known tools." + (
+            f" Issues: {'; '.join(details)}" if details else ""
         )
 
         return self._result(score=score, label=label, explanation=explanation)
@@ -145,8 +146,7 @@ class ToolSequenceValidatorEvaluator(PathEvaluator):
                     score=0.0,
                     label="Wrong Sequence",
                     explanation=(
-                        "No tool calls made but path rules require: "
-                        f"{sorted(required_tools)}"
+                        f"No tool calls made but path rules require: {sorted(required_tools)}"
                     ),
                 )
             return self._result(
@@ -161,9 +161,7 @@ class ToolSequenceValidatorEvaluator(PathEvaluator):
         details: list[str] = []
 
         for rule in path_rules:
-            rule_passed = await self._check_path_rule(
-                rule, actual_sequence, session
-            )
+            rule_passed = await self._check_path_rule(rule, actual_sequence, session)
             if rule_passed:
                 passed_rules += 1
             else:
@@ -171,9 +169,8 @@ class ToolSequenceValidatorEvaluator(PathEvaluator):
 
         score = passed_rules / total_rules if total_rules > 0 else 1.0
         label = "Correct Sequence" if score == 1.0 else "Wrong Sequence"
-        explanation = (
-            f"{passed_rules}/{total_rules} path rules satisfied."
-            + (f" Issues: {'; '.join(details)}" if details else "")
+        explanation = f"{passed_rules}/{total_rules} path rules satisfied." + (
+            f" Issues: {'; '.join(details)}" if details else ""
         )
 
         return self._result(score=score, label=label, explanation=explanation)
@@ -206,9 +203,7 @@ class ToolSequenceValidatorEvaluator(PathEvaluator):
 
         # Sequence violated — check if any exception applies
         if rule.exceptions:
-            exception_applies = await self._check_exceptions(
-                rule.exceptions, session
-            )
+            exception_applies = await self._check_exceptions(rule.exceptions, session)
             return exception_applies
 
         return False
@@ -233,20 +228,17 @@ class ToolSequenceValidatorEvaluator(PathEvaluator):
         # Deterministic exception checks based on metadata
         for exc_text in exceptions:
             exc_lower = exc_text.lower()
-            if (
-                ("dry-run" in exc_lower or "preview" in exc_lower)
-                and mode in ("preview", "dry_run")
+            if ("dry-run" in exc_lower or "preview" in exc_lower) and mode in (
+                "preview",
+                "dry_run",
             ):
                 return True
             if "external source" in exc_lower and mode == "external":
                 return True
-            if "manual" in exc_lower and session.metadata.get(
-                "user_requested"
-            ):
+            if "manual" in exc_lower and session.metadata.get("user_requested"):
                 return True
 
         # Fall back to LLM judge for unrecognized exceptions
-        user_input = " ".join(m.content for m in session.user_messages)
         exception_list = "\n".join(f"- {exc}" for exc in exceptions)
 
         rubric = JudgeRubric(

@@ -7,9 +7,8 @@ in Prometheus text exposition format.
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from fastapi import FastAPI, Request, Response
 from fastapi.responses import PlainTextResponse
 from prometheus_client import (
     CONTENT_TYPE_LATEST,
@@ -19,6 +18,9 @@ from prometheus_client import (
     Histogram,
     generate_latest,
 )
+
+if TYPE_CHECKING:
+    from fastapi import FastAPI, Request, Response
 
 
 def create_metrics_registry(service_name: str) -> dict[str, Any]:

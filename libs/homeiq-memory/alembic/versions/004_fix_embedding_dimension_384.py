@@ -26,24 +26,12 @@ def upgrade() -> None:
 
     # Alter column type — existing rows with embeddings will be truncated,
     # so clear them first (they need re-generation with the correct model)
-    op.execute(
-        "UPDATE memory.memories SET embedding = NULL "
-        "WHERE embedding IS NOT NULL"
-    )
-    op.execute(
-        "ALTER TABLE memory.memories "
-        "ALTER COLUMN embedding TYPE vector(384)"
-    )
+    op.execute("UPDATE memory.memories SET embedding = NULL WHERE embedding IS NOT NULL")
+    op.execute("ALTER TABLE memory.memories ALTER COLUMN embedding TYPE vector(384)")
 
     # Same for archive table
-    op.execute(
-        "UPDATE memory.memory_archive SET embedding = NULL "
-        "WHERE embedding IS NOT NULL"
-    )
-    op.execute(
-        "ALTER TABLE memory.memory_archive "
-        "ALTER COLUMN embedding TYPE vector(384)"
-    )
+    op.execute("UPDATE memory.memory_archive SET embedding = NULL WHERE embedding IS NOT NULL")
+    op.execute("ALTER TABLE memory.memory_archive ALTER COLUMN embedding TYPE vector(384)")
 
     # Recreate the HNSW index with correct dimensions
     op.execute(
@@ -57,23 +45,11 @@ def downgrade() -> None:
     """Revert embedding column from vector(384) to vector(768)."""
     op.execute("DROP INDEX IF EXISTS memory.idx_memories_embedding")
 
-    op.execute(
-        "UPDATE memory.memories SET embedding = NULL "
-        "WHERE embedding IS NOT NULL"
-    )
-    op.execute(
-        "ALTER TABLE memory.memories "
-        "ALTER COLUMN embedding TYPE vector(768)"
-    )
+    op.execute("UPDATE memory.memories SET embedding = NULL WHERE embedding IS NOT NULL")
+    op.execute("ALTER TABLE memory.memories ALTER COLUMN embedding TYPE vector(768)")
 
-    op.execute(
-        "UPDATE memory.memory_archive SET embedding = NULL "
-        "WHERE embedding IS NOT NULL"
-    )
-    op.execute(
-        "ALTER TABLE memory.memory_archive "
-        "ALTER COLUMN embedding TYPE vector(768)"
-    )
+    op.execute("UPDATE memory.memory_archive SET embedding = NULL WHERE embedding IS NOT NULL")
+    op.execute("ALTER TABLE memory.memory_archive ALTER COLUMN embedding TYPE vector(768)")
 
     op.execute(
         "CREATE INDEX idx_memories_embedding "
