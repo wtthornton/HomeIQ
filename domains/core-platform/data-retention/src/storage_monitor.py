@@ -5,6 +5,7 @@ import contextlib
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 import psutil
@@ -195,6 +196,19 @@ class StorageMonitor:
             logger.warning(f"Failed to get database size: {e}")
             return None
 
+    @staticmethod
+    def _directory_size(path: str) -> int | None:
+        """Total size in bytes of every file under ``path``, or None if absent."""
+        root = Path(path)
+        if not root.exists():
+            return None
+        total = 0
+        for entry in root.rglob("*"):
+            with contextlib.suppress(OSError):
+                if entry.is_file():
+                    total += entry.stat().st_size
+        return total
+
     async def _get_log_size(self) -> int | None:
         """
         Get log file size.
@@ -203,18 +217,7 @@ class StorageMonitor:
             Log size in bytes or None if unavailable
         """
         try:
-            import os
-
-            log_path = "/var/log"
-            if os.path.exists(log_path):
-                total_size = 0
-                for dirpath, _dirnames, filenames in os.walk(log_path):
-                    for filename in filenames:
-                        filepath = os.path.join(dirpath, filename)
-                        with contextlib.suppress(OSError):
-                            total_size += os.path.getsize(filepath)
-                return total_size
-            return None
+            return self._directory_size("/var/log")
 
         except Exception as e:
             logger.warning(f"Failed to get log size: {e}")
@@ -228,18 +231,7 @@ class StorageMonitor:
             Backup size in bytes or None if unavailable
         """
         try:
-            import os
-
-            backup_path = "/backups"
-            if os.path.exists(backup_path):
-                total_size = 0
-                for dirpath, _dirnames, filenames in os.walk(backup_path):
-                    for filename in filenames:
-                        filepath = os.path.join(dirpath, filename)
-                        with contextlib.suppress(OSError):
-                            total_size += os.path.getsize(filepath)
-                return total_size
-            return None
+            return self._directory_size("/backups")
 
         except Exception as e:
             logger.warning(f"Failed to get backup size: {e}")

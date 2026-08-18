@@ -48,8 +48,8 @@ class ActivityContextService:
             cached = await self.context_builder._get_cached_value(cache_key)
             if cached is not None:
                 return cached
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Activity context cache read failed: %s - recomputing", e)
 
         activity_str = await self._fetch_and_format()
         if activity_str:

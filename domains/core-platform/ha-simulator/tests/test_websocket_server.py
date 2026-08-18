@@ -3,6 +3,7 @@ Tests for HA Simulator WebSocket Server
 """
 
 import asyncio
+import contextlib
 import json
 from unittest.mock import AsyncMock, Mock
 
@@ -60,10 +61,10 @@ class TestHASimulatorWebSocketServer:
         # Cancel the task
         handler_task.cancel()
 
-        try:
+        # Awaiting a task you just cancelled always raises CancelledError:
+        # that is the cancellation being confirmed, not an error.
+        with contextlib.suppress(asyncio.CancelledError):
             await handler_task
-        except asyncio.CancelledError:
-            pass
 
         # Verify connection was handled
         assert len(server.clients) == 0  # Should be removed after cancellation

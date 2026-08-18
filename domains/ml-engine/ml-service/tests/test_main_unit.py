@@ -5,6 +5,7 @@ Tests for main.py application initialization, validation functions, and API endp
 Covers: NaN/Inf validation, DBSCAN, batch processing, timeout paths, edge cases.
 """
 
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -204,7 +205,7 @@ class TestRateLimiting:
 
     def test_rate_limit_blocks_excess(self):
         """Excess requests should be blocked."""
-        with patch("src.main.RATE_LIMIT_MAX_REQUESTS", 3):
+        with patch("src.middleware.RATE_LIMIT_MAX_REQUESTS", 3):
             assert _check_rate_limit("10.0.0.1") is True
             assert _check_rate_limit("10.0.0.1") is True
             assert _check_rate_limit("10.0.0.1") is True
@@ -212,7 +213,7 @@ class TestRateLimiting:
 
     def test_rate_limit_per_ip(self):
         """Rate limits should be per-IP."""
-        with patch("src.main.RATE_LIMIT_MAX_REQUESTS", 1):
+        with patch("src.middleware.RATE_LIMIT_MAX_REQUESTS", 1):
             assert _check_rate_limit("10.0.0.1") is True
             assert _check_rate_limit("10.0.0.2") is True
             assert _check_rate_limit("10.0.0.1") is False
@@ -395,16 +396,22 @@ class TestAPIEndpoints:
         try:
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
+                # NaN is not valid JSON, so httpx's json= encoder refuses to
+                # serialise it. Send the non-standard body a real client would
+                # emit and let the service be the one to reject it.
                 response = await client.post(
                     "/cluster",
-                    json={
-                        "data": [[1.0, float("nan")], [3.0, 4.0]],
-                        "algorithm": "kmeans",
-                    },
+                    content=json.dumps(
+                        {
+                            "data": [[1.0, float("nan")], [3.0, 4.0]],
+                            "algorithm": "kmeans",
+                        },
+                        allow_nan=True,
+                    ),
+                    headers={"Content-Type": "application/json"},
                 )
-                # JSON spec doesn't have NaN, so httpx may send null or the
-                # server may reject it at the Pydantic layer. Either 400 or 422
-                # is acceptable.
+                # Rejected either by the service's own NaN check (400) or by
+                # request validation (422).
                 assert response.status_code in [400, 422]
         finally:
             main_module.clustering_manager = old_cm

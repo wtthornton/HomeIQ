@@ -5,7 +5,6 @@ This module contains tests for model training, validation, versioning, and metad
 """
 
 import json
-import os
 import shutil
 import sys
 import tempfile
@@ -33,7 +32,7 @@ class TestModelTraining:
         """Create analytics engine with temporary models directory."""
         engine = PredictiveAnalyticsEngine()
         engine.models_dir = temp_models_dir
-        os.makedirs(temp_models_dir, exist_ok=True)
+        Path(temp_models_dir).mkdir(parents=True, exist_ok=True)
         return engine
 
     @pytest.fixture
@@ -107,10 +106,10 @@ class TestModelTraining:
         """Test that model metadata is saved correctly."""
         await analytics_engine.train_models(historical_data=sample_training_data)
 
-        metadata_path = os.path.join(temp_models_dir, "model_metadata.json")
-        assert os.path.exists(metadata_path)
+        metadata_path = Path(temp_models_dir) / "model_metadata.json"
+        assert metadata_path.exists()
 
-        with Path(metadata_path).open() as f:
+        with metadata_path.open() as f:
             metadata = json.load(f)
 
         assert metadata["version"] is not None
@@ -226,7 +225,7 @@ class TestModelValidation:
         }
 
         # Validate
-        result = await analytics_engine._validate_models(X_test_scaled, y_test)
+        result = await analytics_engine._validate_models(X_test_scaled)
         assert result["valid"]
 
     @pytest.mark.asyncio
@@ -259,6 +258,6 @@ class TestModelValidation:
         }
 
         # Validate
-        result = await analytics_engine._validate_models(X_test_scaled, y_test)
+        result = await analytics_engine._validate_models(X_test_scaled)
         assert not result["valid"]
         assert "below threshold" in result["reason"].lower()

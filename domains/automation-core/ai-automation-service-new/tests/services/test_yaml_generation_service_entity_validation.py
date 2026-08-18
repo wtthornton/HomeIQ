@@ -150,7 +150,7 @@ class TestFetchEntityContext:
 class TestFormatEntityContextForPrompt:
     """Test R2: Entity Context Formatting for LLM Prompts."""
 
-    def test_format_entity_context_with_entities(self, yaml_service, _sample_entities):
+    def test_format_entity_context_with_entities(self, yaml_service, sample_entities):
         """Test formatting with entities."""
         entity_context = {
             "entities": {

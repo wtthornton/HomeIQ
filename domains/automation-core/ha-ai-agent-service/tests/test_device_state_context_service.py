@@ -94,7 +94,7 @@ async def test_get_state_context_cached(device_state_context_service, mock_conte
 
 
 @pytest.mark.asyncio
-async def test_get_state_context_api_error(device_state_context_service, _mock_context_builder):
+async def test_get_state_context_api_error(device_state_context_service, mock_context_builder):
     """Test handling API errors gracefully"""
     with patch.object(
         device_state_context_service.ha_client, "get_states", new_callable=AsyncMock, side_effect=Exception("API error")
@@ -107,7 +107,7 @@ async def test_get_state_context_api_error(device_state_context_service, _mock_c
 
 
 @pytest.mark.asyncio
-async def test_get_state_context_missing_entities(device_state_context_service, _mock_context_builder):
+async def test_get_state_context_missing_entities(device_state_context_service, mock_context_builder):
     """Test handling missing entities gracefully"""
     # Mock states with different entities than requested
     mock_states = [{"entity_id": "light.office_go", "state": "on", "attributes": {}}]

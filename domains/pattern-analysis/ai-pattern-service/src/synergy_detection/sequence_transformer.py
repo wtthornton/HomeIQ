@@ -13,7 +13,7 @@ Epic 7, Story 4: Transformer-based prediction implementation
 """
 
 import logging
-import os
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -469,13 +469,13 @@ class DeviceSequenceTransformer:
             return
 
         try:
-            os.makedirs(self.model_dir, exist_ok=True)
+            Path(self.model_dir).mkdir(parents=True, exist_ok=True)
             checkpoint = {
                 "classification_head_state": self.classification_head.state_dict(),
                 "device_vocab": self.device_vocab,
                 "idx_to_device": self.idx_to_device,
             }
-            path = os.path.join(self.model_dir, "checkpoint.pt")
+            path = Path(self.model_dir) / "checkpoint.pt"
             torch.save(checkpoint, path)
             logger.info("Checkpoint saved to %s", path)
         except Exception as e:
@@ -487,8 +487,8 @@ class DeviceSequenceTransformer:
         if torch is None or self.model is None:
             return
 
-        path = os.path.join(self.model_dir, "checkpoint.pt")
-        if not os.path.exists(path):
+        path = Path(self.model_dir) / "checkpoint.pt"
+        if not path.exists():
             return
 
         try:

@@ -88,11 +88,8 @@ class WebhookValidator:
                 # Future timestamp
                 return False
 
-            if age > max_age_seconds:
-                # Too old
-                return False
-
-            return True
+            # False when the timestamp is older than the allowed window.
+            return age <= max_age_seconds
         except ValueError:
             return False
 

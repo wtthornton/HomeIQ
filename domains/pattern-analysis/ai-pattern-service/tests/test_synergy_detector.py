@@ -215,7 +215,7 @@ class TestDeviceSynergyDetector:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_find_device_pairs_by_area_same_area(self, detector, _sample_entities):
+    async def test_find_device_pairs_by_area_same_area(self, detector, sample_entities):
         """Test finding device pairs in the same area."""
         # Two entities in same area
         entities = [

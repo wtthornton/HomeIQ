@@ -105,7 +105,7 @@ class LogTracker:
 
         lines: list[str] = []
         try:
-            with open(path, encoding="utf-8") as f:
+            with path.open(encoding="utf-8") as f:
                 f.seek(saved_offset)
                 for line in f:
                     stripped = line.strip()

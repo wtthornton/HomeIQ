@@ -25,12 +25,8 @@ from .config import Settings
 from .database import init_database
 from .services.context_builder import ContextBuilder
 from .services.conversation_service import ConversationService
-from .services.memory_extractor import MemoryExtractor
-
-# Story 33.2: Memory injection imports (conditionally loaded)
-memory_injector = None  # MemoryInjector -- initialized in lifespan if enabled
-memory_search = None  # MemorySearch -- initialized in lifespan if enabled
 from .services.llm_router import LLMRouter
+from .services.memory_extractor import MemoryExtractor
 from .services.openai_client import OpenAIClient
 from .services.prompt_assembly_service import PromptAssemblyService
 from .services.tool_service import ToolService

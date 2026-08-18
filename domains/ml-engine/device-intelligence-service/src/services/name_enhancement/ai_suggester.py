@@ -180,11 +180,8 @@ class AINameSuggester:
             import re
 
             name_match = re.search(r'"([^"]+)"', content)
-            if name_match:
-                name = name_match.group(1)
-            else:
-                # Use first line as name
-                name = content.split("\n")[0].strip()[:50]
+            # Fall back to the first line when the model did not quote the name.
+            name = name_match.group(1) if name_match else content.split("\n")[0].strip()[:50]
 
             return [
                 NameSuggestion(

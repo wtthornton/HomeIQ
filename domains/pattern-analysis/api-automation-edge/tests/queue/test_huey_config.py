@@ -2,8 +2,8 @@
 Tests for Huey configuration
 """
 
-import os
 import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -15,8 +15,7 @@ def temp_db():
         db_path = f.name
     yield db_path
     # Cleanup
-    if os.path.exists(db_path):
-        os.unlink(db_path)
+    Path(db_path).unlink(missing_ok=True)
 
 
 def test_huey_initialization(temp_db):
@@ -50,7 +49,7 @@ def test_huey_database_path_creation():
 
         # Create temp directory
         temp_dir = tempfile.mkdtemp()
-        db_path = os.path.join(temp_dir, "subdir", "queue.db")
+        db_path = str(Path(temp_dir) / "subdir" / "queue.db")
 
         # Mock config
         import src.config as config_module
@@ -60,7 +59,7 @@ def test_huey_database_path_creation():
 
         try:
             huey = get_huey_instance()
-            assert os.path.exists(os.path.dirname(db_path))
+            assert Path(db_path).parent.exists()
             assert huey is not None
         finally:
             config_module.settings.huey_database_path = original_path

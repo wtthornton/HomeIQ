@@ -34,7 +34,6 @@ class TestConfidenceScorer:
         score = self.scorer.score_action(
             action_type="turn_off",
             entity_domain="light",
-            context_type="time_of_day",
             llm_confidence=0.95,
             acceptance_rate=0.90,
             context_match_strength=0.85,
@@ -49,7 +48,6 @@ class TestConfidenceScorer:
         score = self.scorer.score_action(
             action_type="set_temperature",
             entity_domain="climate",
-            context_type="weather",
             llm_confidence=0.90,
             acceptance_rate=0.85,
         )
@@ -63,7 +61,6 @@ class TestConfidenceScorer:
             score = self.scorer.score_action(
                 action_type="turn_on",
                 entity_domain=domain,
-                context_type="security",
                 llm_confidence=1.0,
                 acceptance_rate=1.0,
             )
@@ -76,7 +73,6 @@ class TestConfidenceScorer:
         score = self.scorer.score_action(
             action_type="turn_off",
             entity_domain="light",
-            context_type="unknown",
             llm_confidence=0.1,
             acceptance_rate=0.1,
             context_match_strength=0.1,
@@ -88,7 +84,6 @@ class TestConfidenceScorer:
         score = self.scorer.score_action(
             action_type="turn_off",
             entity_domain="light",
-            context_type="time_of_day",
             llm_confidence=0.8,
             acceptance_rate=None,  # No history
         )
@@ -100,13 +95,11 @@ class TestConfidenceScorer:
         score_reversible = self.scorer.score_action(
             action_type="turn_off",
             entity_domain="light",
-            context_type="time_of_day",
             llm_confidence=0.8,
         )
         score_irreversible = self.scorer.score_action(
             action_type="run_script",
             entity_domain="script",
-            context_type="time_of_day",
             llm_confidence=0.8,
         )
         assert score_reversible.confidence >= score_irreversible.confidence

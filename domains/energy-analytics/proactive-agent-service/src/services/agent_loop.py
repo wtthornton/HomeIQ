@@ -306,11 +306,9 @@ class ProactiveAgentLoop:
             score = self.scorer.score_action(
                 action_type=action_type,
                 entity_domain=entity_domain,
-                context_type=action.get("context_type", "unknown"),
                 llm_confidence=action.get("confidence", 0.5),
                 acceptance_rate=acceptance_rate,
                 context_match_strength=0.6,
-                time_slot=time_slot,
             )
 
             # Route

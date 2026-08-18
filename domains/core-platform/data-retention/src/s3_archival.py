@@ -11,6 +11,7 @@ import os
 import re
 import tempfile
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 import boto3
@@ -139,7 +140,7 @@ class S3ArchivalManager:
                 parquet_file = f.name
                 pq.write_table(table, f, compression="gzip")
 
-            file_size_mb = os.path.getsize(parquet_file) / (1024 * 1024)
+            file_size_mb = Path(parquet_file).stat().st_size / (1024 * 1024)
 
             # Upload to S3
             s3_key = f"archives/{cutoff_date.year}/data_{cutoff_date.strftime('%Y%m%d')}.parquet"
@@ -180,8 +181,8 @@ class S3ArchivalManager:
             logger.error(f"Error archiving to S3: {e}")
             return {"status": "error", "error": str(e)}
         finally:
-            if parquet_file and os.path.exists(parquet_file):
-                os.remove(parquet_file)
+            if parquet_file:
+                Path(parquet_file).unlink(missing_ok=True)
 
     async def restore_from_s3(self, s3_key: str) -> pd.DataFrame:
         """Restore data from S3 archive"""
@@ -203,7 +204,7 @@ class S3ArchivalManager:
                 table = pq.read_table(local_file)
                 df = table.to_pandas()
             finally:
-                os.remove(local_file)
+                Path(local_file).unlink()
 
             logger.info(f"Restored {len(df)} records from S3")
 

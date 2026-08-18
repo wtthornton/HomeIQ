@@ -77,7 +77,7 @@ async def prompt_assembly_service(settings, mock_context_builder, conversation_s
 @pytest.fixture
 async def test_client(
     settings,
-    _mock_context_builder,
+    mock_context_builder,
     conversation_service,
     prompt_assembly_service,
     mock_openai_client,

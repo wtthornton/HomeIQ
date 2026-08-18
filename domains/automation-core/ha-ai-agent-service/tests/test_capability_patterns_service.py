@@ -117,7 +117,7 @@ async def test_get_patterns_api_error(capability_patterns_service, mock_context_
 
 
 @pytest.mark.asyncio
-async def test_get_patterns_device_capability_error(capability_patterns_service, _mock_context_builder):
+async def test_get_patterns_device_capability_error(capability_patterns_service, mock_context_builder):
     """Test handling errors when fetching individual device capabilities"""
     mock_devices = [
         {"device_id": "device1", "manufacturer": "Philips", "model": "Hue"},

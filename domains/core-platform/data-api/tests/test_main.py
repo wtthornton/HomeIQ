@@ -176,7 +176,7 @@ class TestErrorHandling:
         req.url = MagicMock()
         req.url.path = "/test/error"
         req.headers = MagicMock()
-        req.headers.get = lambda k, d=None: None
+        req.headers.get.return_value = None
         req.state = MagicMock()
         req.state.correlation_id = None
 

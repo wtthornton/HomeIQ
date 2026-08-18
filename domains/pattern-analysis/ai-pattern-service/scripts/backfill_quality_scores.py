@@ -19,12 +19,9 @@ from pathlib import Path
 from typing import Any
 
 # Add project root and service src to path
-project_root = Path(__file__).parent.parent.parent.parent
-service_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
-sys.path.insert(0, str(service_root / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-# Import SynergyQualityScorer
 from services.synergy_quality_scorer import SynergyQualityScorer
 
 

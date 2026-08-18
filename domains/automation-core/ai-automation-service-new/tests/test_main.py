@@ -191,7 +191,7 @@ class TestConfiguration:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_app_metadata(self, _client: AsyncClient):
+    async def test_app_metadata(self, client: AsyncClient):
         """Test application metadata is correctly configured."""
         from src.main import app
 

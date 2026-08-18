@@ -11,6 +11,7 @@ from collections.abc import AsyncGenerator
 from homeiq_data import DatabaseManager
 from sqlalchemy import MetaData, text
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import DeclarativeBase
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +31,6 @@ db = DatabaseManager(
     max_overflow=5,
     auto_commit_sessions=True,
 )
-
-
-from sqlalchemy.orm import DeclarativeBase
 
 
 class Base(DeclarativeBase):

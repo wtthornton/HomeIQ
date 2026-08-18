@@ -13,6 +13,7 @@ Trigger heuristics (from Hermes skill_manager_tool.py):
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 from typing import Any
@@ -56,10 +57,7 @@ def should_extract_skill(
             return True
 
     # Complex task with many iterations
-    if iterations >= MIN_ITERATIONS_FOR_SKILL and len(tool_calls) >= 2:
-        return True
-
-    return False
+    return iterations >= MIN_ITERATIONS_FOR_SKILL and len(tool_calls) >= 2
 
 
 def extract_skill_metadata(
@@ -164,10 +162,8 @@ def _build_skill_body(
         name = tc.get("name", "unknown")
         args = tc.get("arguments", "{}")
         if isinstance(args, str):
-            try:
+            with contextlib.suppress(json.JSONDecodeError, TypeError):
                 args = json.loads(args)
-            except (json.JSONDecodeError, TypeError):
-                pass
         lines.append(f"{i}. Call `{name}`")
         if isinstance(args, dict):
             for k, v in args.items():

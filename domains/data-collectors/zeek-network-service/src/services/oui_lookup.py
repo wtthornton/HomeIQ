@@ -29,7 +29,6 @@ _OUI_DATABASE: dict[str, str] = {
     "AC:67:B2": "Espressif",
     "BC:DD:C2": "Espressif",
     "CC:50:E3": "Espressif",
-    "EC:FA:BC": "Espressif",
     "10:52:1C": "Espressif",
     "24:0A:C4": "Espressif",
     "24:62:AB": "Espressif",

@@ -331,15 +331,16 @@ class TestTokenStats:
 
     @pytest.mark.asyncio
     async def test_error_count_tracked(self, client):
-        client.client.messages.create = AsyncMock(side_effect=Exception("API error"))
-
         # Patch the anthropic module's APIError to be a regular Exception
         with patch("src.clients.anthropic_client.anthropic") as mock_mod:
             mock_mod.RateLimitError = type("RateLimitError", (Exception,), {})
             mock_mod.APIError = type("APIError", (Exception,), {})
+            client.client.messages.create = AsyncMock(side_effect=mock_mod.APIError("API error"))
 
-            with pytest.raises(Exception):
+            with pytest.raises(mock_mod.APIError):
                 await client.chat_completion(
                     system_prompt="sys",
                     messages=[{"role": "user", "content": "test"}],
                 )
+
+        assert client.total_errors == 1

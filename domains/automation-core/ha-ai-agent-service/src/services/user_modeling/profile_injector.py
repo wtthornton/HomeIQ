@@ -66,7 +66,7 @@ class ProfileInjector:
             char_budget = PROFILE_TOKEN_BUDGET * 4
 
             for dimension, data in profile.items():
-                if sum(len(l) for l in lines) > char_budget:
+                if sum(len(line) for line in lines) > char_budget:
                     break
 
                 label = DIMENSION_LABELS.get(dimension, dimension)

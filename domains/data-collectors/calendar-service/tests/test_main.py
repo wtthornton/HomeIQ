@@ -50,7 +50,7 @@ class TestCalendarService:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_service_initialization(self, service, _mock_settings):
+    async def test_service_initialization(self, service, mock_settings):
         """Test service initializes correctly."""
         assert service.calendar_entities == ["calendar.personal", "calendar.work"]
         assert service.influxdb_url == "http://localhost:8086"

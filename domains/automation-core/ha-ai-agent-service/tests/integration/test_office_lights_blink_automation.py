@@ -13,7 +13,7 @@ This test validates:
 
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -40,29 +40,24 @@ async def context_builder(mock_settings):
     """Create context builder with mocked services"""
     cb = ContextBuilder(mock_settings)
 
-    # Mock all services - patch at the module level where they're imported
-    with (
-        patch("services.entity_inventory_service.EntityInventoryService") as mock_ei,
-        patch("services.areas_service.AreasService") as mock_areas,
-        patch("services.services_summary_service.ServicesSummaryService") as mock_services,
-        patch("services.capability_patterns_service.CapabilityPatternsService") as mock_caps,
-        patch("services.helpers_scenes_service.HelpersScenesService") as mock_helpers,
-    ):
-        # Mock entity inventory with office lights
-        mock_ei_instance = AsyncMock()
-        mock_ei_instance.get_summary.return_value = """Light: 3 entities (Office: 3)
-  Examples: Office Light 1 (light.office_light_1, device_id: dev1, area_id: office, state: on), 
+    # The mocked service instances are assigned onto the builder directly, so
+    # there is nothing to patch at import time.
+
+    # Mock entity inventory with office lights
+    mock_ei_instance = AsyncMock()
+    mock_ei_instance.get_summary.return_value = """Light: 3 entities (Office: 3)
+  Examples: Office Light 1 (light.office_light_1, device_id: dev1, area_id: office, state: on),
             Office Light 2 (light.office_light_2, device_id: dev2, area_id: office, state: off),
             Office Light 3 (light.office_light_3, device_id: dev3, area_id: office, state: on)"""
 
-        # Mock areas with office
-        mock_areas_instance = AsyncMock()
-        mock_areas_instance.get_areas_list.return_value = """Office (area_id: office, aliases: [workspace, study])
+    # Mock areas with office
+    mock_areas_instance = AsyncMock()
+    mock_areas_instance.get_areas_list.return_value = """Office (area_id: office, aliases: [workspace, study])
 Kitchen (area_id: kitchen)"""
 
-        # Mock services with light services
-        mock_services_instance = AsyncMock()
-        mock_services_instance.get_summary.return_value = """light:
+    # Mock services with light services
+    mock_services_instance = AsyncMock()
+    mock_services_instance.get_summary.return_value = """light:
   turn_on:
     target: entity_id, area_id, device_id
     data:
@@ -80,27 +75,27 @@ scene:
     target:
       entity_id: string - Scene entity ID"""
 
-        # Mock capability patterns
-        mock_caps_instance = AsyncMock()
-        mock_caps_instance.get_patterns.return_value = """light:
+    # Mock capability patterns
+    mock_caps_instance = AsyncMock()
+    mock_caps_instance.get_patterns.return_value = """light:
   rgb_color: [0-255, 0-255, 0-255] - RGB color values
   brightness: 0-255 - Brightness level
   supported_color_modes: [rgb, hs, color_temp]"""
 
-        # Mock helpers/scenes
-        mock_helpers_instance = AsyncMock()
-        mock_helpers_instance.get_summary.return_value = (
-            """Scenes: Office Bright (scene.office_bright), Office Dim (scene.office_dim)"""
-        )
+    # Mock helpers/scenes
+    mock_helpers_instance = AsyncMock()
+    mock_helpers_instance.get_summary.return_value = (
+        """Scenes: Office Bright (scene.office_bright), Office Dim (scene.office_dim)"""
+    )
 
-        cb._entity_inventory_service = mock_ei_instance
-        cb._areas_service = mock_areas_instance
-        cb._services_summary_service = mock_services_instance
-        cb._capability_patterns_service = mock_caps_instance
-        cb._helpers_scenes_service = mock_helpers_instance
-        cb._initialized = True
+    cb._entity_inventory_service = mock_ei_instance
+    cb._areas_service = mock_areas_instance
+    cb._services_summary_service = mock_services_instance
+    cb._capability_patterns_service = mock_caps_instance
+    cb._helpers_scenes_service = mock_helpers_instance
+    cb._initialized = True
 
-        yield cb
+    yield cb
 
 
 @pytest.mark.asyncio
@@ -156,16 +151,22 @@ async def test_complete_prompt_has_all_required_info(context_builder):
     complete_prompt = await context_builder.build_complete_system_prompt()
 
     # Required information for "office lights blink red every 15 minutes and restore state"
+    # Each entry is a set of alternatives; at least one must appear in the prompt.
     required_info = [
-        "office",  # Area or entity reference
-        "light",  # Light domain
-        "turn_on",  # Service to turn on lights
-        "rgb" or "color",  # Color capability
-        "scene" or "snapshot",  # State restoration
-        "time" or "trigger",  # Time-based trigger
+        ("office",),  # Area or entity reference
+        ("light",),  # Light domain
+        ("turn_on",),  # Service to turn on lights
+        ("rgb", "color"),  # Color capability
+        ("scene", "snapshot"),  # State restoration
+        ("time", "trigger"),  # Time-based trigger
     ]
 
-    missing = [info for info in required_info if info.lower() not in complete_prompt.lower()]
+    prompt_lower = complete_prompt.lower()
+    missing = [
+        " or ".join(alternatives)
+        for alternatives in required_info
+        if not any(alternative in prompt_lower for alternative in alternatives)
+    ]
 
     if missing:
         pytest.fail(f"Missing required information in prompt: {missing}")

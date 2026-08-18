@@ -315,14 +315,14 @@ class APIKeyService:
         """
         try:
             # Read current config file
-            config_path = os.path.join(self.config_dir, ".env.production")
+            config_path = Path(self.config_dir) / ".env.production"
 
-            if not os.path.exists(config_path):
+            if not config_path.exists():
                 # Create config file if it doesn't exist
-                os.makedirs(self.config_dir, exist_ok=True)
+                config_path.parent.mkdir(parents=True, exist_ok=True)
                 lines = []
             else:
-                with Path(config_path).open() as f:
+                with config_path.open() as f:
                     lines = f.readlines()
 
             # Update or add the environment variable
@@ -337,7 +337,7 @@ class APIKeyService:
                 lines.append(f"{env_var}={value}\n")
 
             # Write back to file
-            with Path(config_path).open("w") as f:
+            with config_path.open("w") as f:
                 f.writelines(lines)
 
             logger.info(f"Updated {env_var} in config file")

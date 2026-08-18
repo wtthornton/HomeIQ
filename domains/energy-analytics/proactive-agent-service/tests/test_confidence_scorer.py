@@ -14,7 +14,6 @@ def test_configured_auto_execute_threshold_is_honored():
     score = scorer.score_action(
         action_type="turn_on",
         entity_domain="light",
-        context_type="energy",
         llm_confidence=0.9,
         acceptance_rate=0.9,
         context_match_strength=0.9,
@@ -34,7 +33,6 @@ def test_default_thresholds_unchanged_when_not_overridden():
     score = scorer.score_action(
         action_type="turn_on",
         entity_domain="light",
-        context_type="energy",
         llm_confidence=0.9,
         acceptance_rate=0.9,
         context_match_strength=0.9,
@@ -55,7 +53,6 @@ def test_configured_suppress_threshold_is_honored():
     score = scorer.score_action(
         action_type="run_script",
         entity_domain="climate",
-        context_type="energy",
         llm_confidence=0.2,
         acceptance_rate=0.2,
         context_match_strength=0.2,

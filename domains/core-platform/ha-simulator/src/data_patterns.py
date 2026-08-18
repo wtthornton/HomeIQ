@@ -31,7 +31,7 @@ class HADataPatternAnalyzer:
             return self._generate_default_patterns()
 
         try:
-            with open(self.log_file_path) as f:
+            with Path(self.log_file_path).open() as f:
                 for line_num, line in enumerate(f, 1):
                     try:
                         self._parse_log_line(line)
@@ -175,7 +175,6 @@ class HADataPatternAnalyzer:
         if len(parts) < 2:
             return entity_id
 
-        domain = parts[0]
         name_parts = parts[1].split('_')
 
         # Capitalize each word

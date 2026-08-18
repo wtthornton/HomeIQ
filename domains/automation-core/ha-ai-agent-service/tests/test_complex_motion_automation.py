@@ -135,8 +135,6 @@ action:
     # Use validation chain directly
     result = await tool_handler_no_yaml_service.validation_chain.validate(automation_yaml)
 
-    # Should have warning about group entities (from basic validation)
-    warnings = result.warnings or []
     # Basic validation may or may not warn about groups, so just check validation passes
     assert result.valid is True or len(result.errors) > 0
 

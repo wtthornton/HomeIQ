@@ -48,7 +48,7 @@ async def db_setup(tmp_path_factory):
 
 
 @pytest_asyncio.fixture
-async def fresh_issue(_db_setup):
+async def fresh_issue(db_setup):
     now = datetime.now(UTC)
     async for session in get_db_session():
         issue = DeviceHygieneIssue(

@@ -527,9 +527,8 @@ class MultiModalContextEnhancer:
             ):
                 # Reduce light/entertainment synergies
                 boost *= 0.6
-            elif activity_pattern == "active":
-                # Boost convenience synergies
-                if "motion_to_light" in relationship:
-                    boost *= 1.1
+            # Boost convenience synergies
+            elif activity_pattern == "active" and "motion_to_light" in relationship:
+                boost *= 1.1
 
         return boost

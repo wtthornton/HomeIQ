@@ -167,7 +167,7 @@ async def test_list_conversations_with_pagination(conversation_service):
     """Test listing conversations with pagination"""
     # Create 5 conversations
     conversations = []
-    for i in range(5):
+    for _ in range(5):
         conv = await conversation_service.create_conversation()
         conversations.append(conv)
 
@@ -251,6 +251,7 @@ async def test_conversation_context_caching(conversation_service, mock_context_b
     # Second call should use cached context
     messages2 = await conversation_service.get_openai_messages(conversation.conversation_id, include_system=True)
     assert mock_context_builder.build_complete_system_prompt.call_count == 1  # Still 1
+    assert messages1 == messages2
 
 
 @pytest.mark.asyncio

@@ -3,12 +3,10 @@ ML Service Tests
 Tests for the classical machine learning service
 """
 
-import httpx
 import numpy as np
 import pytest
-
-# Test configuration
-ML_SERVICE_URL = "http://localhost:8020"
+from httpx import ASGITransport, AsyncClient
+from src.main import _startup_ml, app
 
 
 class TestMLService:
@@ -16,8 +14,17 @@ class TestMLService:
 
     @pytest.fixture
     async def client(self):
-        """HTTP client for testing"""
-        async with httpx.AsyncClient() as client:
+        """In-process ASGI client.
+
+        These used to point at http://localhost:8020, so the whole class
+        failed whenever no ml-service container happened to be running —
+        which is always, in CI. The managers are plain sklearn objects, so
+        the app runs end to end in-process; _startup_ml() is what the app
+        lifespan calls.
+        """
+        await _startup_ml()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
             yield client
 
     @pytest.fixture
@@ -35,7 +42,7 @@ class TestMLService:
     @pytest.mark.asyncio
     async def test_health_check(self, client):
         """Test health check endpoint"""
-        response = await client.get(f"{ML_SERVICE_URL}/health")
+        response = await client.get("/health")
         assert response.status_code == 200
 
         data = response.json()
@@ -46,7 +53,7 @@ class TestMLService:
     @pytest.mark.asyncio
     async def test_algorithm_status(self, client):
         """Test algorithm status endpoint"""
-        response = await client.get(f"{ML_SERVICE_URL}/algorithms/status")
+        response = await client.get("/algorithms/status")
         assert response.status_code == 200
 
         data = response.json()
@@ -60,7 +67,7 @@ class TestMLService:
     async def test_kmeans_clustering(self, client, sample_data):
         """Test KMeans clustering"""
         response = await client.post(
-            f"{ML_SERVICE_URL}/cluster",
+            "/cluster",
             json={"data": sample_data, "algorithm": "kmeans", "n_clusters": 3},
         )
 
@@ -80,7 +87,7 @@ class TestMLService:
     async def test_dbscan_clustering(self, client, sample_data):
         """Test DBSCAN clustering"""
         response = await client.post(
-            f"{ML_SERVICE_URL}/cluster",
+            "/cluster",
             json={"data": sample_data, "algorithm": "dbscan", "eps": 0.5},
         )
 
@@ -98,9 +105,7 @@ class TestMLService:
     @pytest.mark.asyncio
     async def test_anomaly_detection(self, client, sample_data):
         """Test anomaly detection"""
-        response = await client.post(
-            f"{ML_SERVICE_URL}/anomaly", json={"data": sample_data, "contamination": 0.1}
-        )
+        response = await client.post("/anomaly", json={"data": sample_data, "contamination": 0.1})
 
         assert response.status_code == 200
         data = response.json()
@@ -125,9 +130,7 @@ class TestMLService:
             {"type": "anomaly", "data": {"data": sample_data, "contamination": 0.1}},
         ]
 
-        response = await client.post(
-            f"{ML_SERVICE_URL}/batch/process", json={"operations": operations}
-        )
+        response = await client.post("/batch/process", json={"operations": operations})
 
         assert response.status_code == 200
         data = response.json()
@@ -154,7 +157,7 @@ class TestMLService:
         """Test error handling for invalid requests"""
         # Test with empty data
         response = await client.post(
-            f"{ML_SERVICE_URL}/cluster", json={"data": [], "algorithm": "kmeans", "n_clusters": 3}
+            "/cluster", json={"data": [], "algorithm": "kmeans", "n_clusters": 3}
         )
 
         # Should handle empty input gracefully
@@ -168,7 +171,7 @@ class TestMLService:
         large_data = np.random.normal(0, 1, (100, 2)).tolist()
 
         response = await client.post(
-            f"{ML_SERVICE_URL}/cluster",
+            "/cluster",
             json={"data": large_data, "algorithm": "kmeans", "n_clusters": 5},
         )
 
