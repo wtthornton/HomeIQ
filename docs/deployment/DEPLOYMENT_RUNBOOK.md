@@ -1117,6 +1117,40 @@ docker gateway AgentForge dials to keep it off the LAN). Rotate a token by editi
 CSV, restarting `homeiq-mcp`, then updating the AgentForge vault entry
 `HOMEIQ_MCP_AUTHORIZATION` (scope `project:homeiq`).
 
+### Publishing the MCP to Home Assistant (2026-08-18)
+
+The Home Assistant custom integration runs on a separate box, so it cannot reach the
+docker-gateway publish. `HOMEIQ_MCP_LAN_BIND` adds a **second** publish on the host's
+LAN address, leaving AgentForge's `HOMEIQ_MCP_BIND` path untouched. Two explicit
+publishes rather than one `0.0.0.0` bind, which on this host would also expose the port
+on Tailscale and ~18 other docker bridges.
+
+1. Set `HOMEIQ_MCP_LAN_BIND` to the host LAN address (must differ from `HOMEIQ_MCP_BIND`).
+2. Add that same address to `HOMEIQ_MCP_ALLOWED_HOSTS` — the guard checks the **Host
+   header**, i.e. the address the client dialled, not the client's own IP. Omitting it
+   makes every request from HA fail the Host check.
+3. Recreate the container. Compose resolves `.env` from the **compose file's** directory,
+   not the shell's, so pass it explicitly:
+
+```bash
+cd domains/core-platform
+docker compose --env-file /path/to/HomeIQ/.env up -d --no-deps homeiq-mcp
+docker ps --filter name=homeiq-mcp --format '{{.Ports}}'   # expect both publishes
+```
+
+**What `/health` discloses.** Unlike `/mcp`, `/health` needs no token and is not behind
+the transport's DNS-rebinding guard, so a forged `Host` reaches it. Anonymous callers
+therefore get liveness only (`status`, `service`, `version`); the tool list, catalogue
+version and per-backing latencies require a read or write token. A rejected token is
+treated as no token rather than a 401, so a bad credential cannot break the container
+healthcheck. Verify after any change to the publish:
+
+```bash
+curl -s http://<lan-address>:8050/health                      # 3 keys
+curl -s -H "Authorization: Bearer <read-token>" \
+     http://<gateway-address>:8050/health                     # full body
+```
+
 ## Rollback Procedure
 
 ### Automatic Rollback
