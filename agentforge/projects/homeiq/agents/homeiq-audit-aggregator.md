@@ -19,6 +19,7 @@ approved: true
 allowed_tools: ''
 mcp_servers: []
 risk_level: medium
+max_budget_usd: 0.3
 role: aggregator
 failure_mode: required
 capability:

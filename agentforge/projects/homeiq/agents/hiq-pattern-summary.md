@@ -15,6 +15,7 @@ model: sonnet
 schema_version: '2.1'
 role: producer
 risk_level: low
+max_budget_usd: 0.5
 brain_profile: agent_brain
 brain_rationale: Read-only recall of prior pattern summaries prevents re-digesting the same patterns; writes are owned by hiq-memory-curator.
 capability:

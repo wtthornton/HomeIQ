@@ -15,6 +15,7 @@ model: haiku
 schema_version: '2.1'
 role: router
 risk_level: low
+max_budget_usd: 0.5
 brain_profile: agent_brain
 brain_rationale: Read-only recall of prior anomaly triages prevents duplicate alerts on recurring issues; writes are owned by hiq-memory-curator.
 capability:

@@ -19,6 +19,7 @@ approved: true
 allowed_tools: Read, Grep, Glob
 mcp_servers: []
 risk_level: low
+max_budget_usd: 1.0
 completion_criteria: 'Done when every reported finding cites a concrete file path
   and line range that exists under the requested service directory, each finding carries
   a severity of high/medium/low, and findings are ordered most-severe first. Report

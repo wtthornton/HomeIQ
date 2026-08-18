@@ -23,6 +23,7 @@ mcp_servers:
   - list_devices
   - get_entity_state
 risk_level: low
+max_budget_usd: 0.3
 brain_rationale: Smoke test only; no persistent state to recall or write. This agent probes connectivity, not reasoning across runs.
 completion_criteria: 'Done when the report names the MCP tools actually invoked,
   quotes the device names returned by list_devices (or states plainly that the
