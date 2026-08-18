@@ -151,19 +151,32 @@ jobs:
       - name: Test Alembic migrations
         if: hashFiles(format('{0}/alembic.ini', format('domains/{0}/{1}', inputs.domain_dir, matrix.service))) != ''
         run: |
+          # A database of its own, not homeiq_test. `Run tests` leaves its
+          # schema behind: data-api's conftest drop_all/create_all's the model
+          # metadata over the init-schemas tables and only deletes rows on
+          # teardown, so every index declared on a model is still there when
+          # this step starts. Migrating on top of that tests nothing and
+          # collides -- `idx_entity_labels_gin` already exists on upgrade
+          # (TAP-6191), and on downgrade migration 009 cannot convert its
+          # jsonb column back to json underneath a GIN index. Building the
+          # schema from nothing is what this step is supposed to verify.
+          PGPASSWORD=homeiq_test psql -v ON_ERROR_STOP=1 -h localhost -U homeiq -d homeiq_test \
+            -c 'CREATE DATABASE homeiq_migrations'
+          PGPASSWORD=homeiq_test psql -v ON_ERROR_STOP=1 -h localhost -U homeiq -d homeiq_migrations \
+            -f infrastructure/postgres/init-schemas.sql
           cd domains/${{ inputs.domain_dir }}/${{ matrix.service }}
           python -m alembic upgrade head
           python -m alembic downgrade base
           python -m alembic upgrade head
         env:
-          POSTGRES_URL: postgresql+asyncpg://homeiq:homeiq_test@localhost:5432/homeiq_test
+          POSTGRES_URL: postgresql+asyncpg://homeiq:homeiq_test@localhost:5432/homeiq_migrations
           # DATABASE_URL as well as POSTGRES_URL. Nine of the alembic env.py
           # files read both, but data-api's src/database.py:18 reads only
           # DATABASE_URL — so with POSTGRES_URL alone it got an empty string and
           # died on `ArgumentError: Could not parse SQLAlchemy URL from string ''`
           # before running a migration. The test step above already sets both;
           # this step was the one that didn't.
-          DATABASE_URL: postgresql+asyncpg://homeiq:homeiq_test@localhost:5432/homeiq_test
+          DATABASE_URL: postgresql+asyncpg://homeiq:homeiq_test@localhost:5432/homeiq_migrations
 
       - name: Report no tests
         if: steps.check-tests.outputs.has_tests == 'false'
