@@ -64,9 +64,6 @@ class EventFilter(BaseModel):
     # Epic 23.2: Device and area filtering
     device_id: str | None = None
     area_id: str | None = None
-    # Epic 23.4: Entity classification filtering
-    entity_category: str | None = None
-    exclude_category: str | None = None
     # Home Type Integration: Event category filtering
     event_category: str | None = (
         None  # Filter by event category (security, climate, lighting, etc.)
@@ -307,13 +304,6 @@ class EventsEndpoints:
             # Epic 23.2: Device and area filtering
             device_id: str | None = Query(None, description="Filter by device ID"),
             area_id: str | None = Query(None, description="Filter by area ID (room)"),
-            # Epic 23.4: Entity classification filtering
-            entity_category: str | None = Query(
-                None, description="Filter by entity category (config, diagnostic)"
-            ),
-            exclude_category: str | None = Query(
-                None, description="Exclude entity category (config, diagnostic)"
-            ),
             # Home Type Integration: Event category filtering
             event_category: str | None = Query(
                 None, description="Filter by event category (security, climate, lighting, etc.)"
@@ -327,9 +317,9 @@ class EventsEndpoints:
             - device_id: Filter events from a specific device
             - area_id: Filter events from a specific room/area
 
-            Epic 23.4: Supports filtering by entity_category to show/hide diagnostic and config entities
-            - entity_category: Include only entities with this category
-            - exclude_category: Exclude entities with this category (commonly 'diagnostic')
+            There is deliberately no entity_category filter. The tag was declared
+            but never written by any collector, so the parameter could only ever
+            return an empty result (TAP-6156). Use event_category, which is real.
 
             Home Type Integration: Supports filtering by event_category based on home type
             - event_category: Filter by event category (security, climate, lighting, appliance, monitoring, general)
@@ -344,8 +334,6 @@ class EventsEndpoints:
                     end_time=end_time,
                     device_id=device_id,
                     area_id=area_id,
-                    entity_category=entity_category,
-                    exclude_category=exclude_category,
                     event_category=event_category,
                     home_type=home_type,
                 )
@@ -359,6 +347,11 @@ class EventsEndpoints:
 
                 return events
 
+            except HTTPException:
+                # _get_all_events already chose a status for a failed query
+                # (503). Re-wrapping it here would relabel every backend
+                # failure as a generic 500 (TAP-6151).
+                raise
             except Exception as e:
                 logger.error(f"Error getting recent events: {e}")
                 raise HTTPException(
@@ -1023,6 +1016,21 @@ from(bucket: "{bucket}")
                 - attributes: Event metadata
                 - domain, device_id, area_id, integration (if available)
 
+            An empty list means the window genuinely holds no events. It never
+            means the query failed — see Raises.
+
+        Raises:
+            Exception: Whatever InfluxDB, the Flux query or the EventData
+                mapping raised, unchanged. Callers see the failure; the caller
+                in this module, ``_get_all_events``, maps it to HTTP 503.
+
+                This used to be caught and reported as an empty list, which made
+                three consecutive production defects invisible (TAP-6151): the
+                endpoint answered 200 with ``[]`` while the log carried a
+                validation error, and every consumer read that as "no events
+                occurred". A silently empty result is indistinguishable from
+                ground truth; an error is not.
+
         Query Strategy:
             1. Filter to single _field (context_id) to avoid duplicates
             2. Use tag-based filtering for efficiency (entity_id, event_type, domain)
@@ -1044,199 +1052,181 @@ from(bucket: "{bucket}")
             - Schema transformation (InfluxDB record → EventData)
             - Null handling for optional fields
             - Pagination logic
-            - Error handling for network/query failures
 
         Performance:
             - Tag-based filters are indexed (fast)
             - Field filter reduces duplicate records
             - Limit/offset support for large result sets
         """
-        try:
-            influxdb_bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
+        influxdb_bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
 
-            # Use shared InfluxDB client (HIGH-01 fix)
-            client = _get_shared_influxdb_client()
-            query_api = client.query_api()
+        # Use shared InfluxDB client (HIGH-01 fix)
+        client = _get_shared_influxdb_client()
+        query_api = client.query_api()
 
-            # Epic 45.5: Smart query routing - determine data source based on time range
-            measurement, field_name = self._determine_data_source(event_filter)
-            _use_statistics = measurement != "home_assistant_events"  # noqa: F841
+        # Epic 45.5: Smart query routing - determine data source based on time range
+        measurement, field_name = self._determine_data_source(event_filter)
+        _use_statistics = measurement != "home_assistant_events"  # noqa: F841
 
-            # Build Flux query - SIMPLIFIED APPROACH (Context7 KB Pattern)
-            # Context7 KB: /websites/influxdata-influxdb-v2
-            # KEY INSIGHT: entity_id and event_type are TAGS (not fields)
-            # PROBLEM: Without _field filter, we get one record PER FIELD (state_value, context_id, attributes, etc.)
-            # SOLUTION: Filter to EXACTLY ONE field to get one record per event
-            #           Tags (entity_id, event_type, domain) are automatically included
+        # Build Flux query - SIMPLIFIED APPROACH (Context7 KB Pattern)
+        # Context7 KB: /websites/influxdata-influxdb-v2
+        # KEY INSIGHT: entity_id and event_type are TAGS (not fields)
+        # PROBLEM: Without _field filter, we get one record PER FIELD (state_value, context_id, attributes, etc.)
+        # SOLUTION: Filter to EXACTLY ONE field to get one record per event
+        #           Tags (entity_id, event_type, domain) are automatically included
 
-            # Determine time range. When callers provide explicit start/end times (e.g., nightly
-            # analytics fetching the last 30 days), honor those values instead of defaulting to a
-            # 24 hour window.
-            if event_filter.start_time or event_filter.end_time:
-                start_dt = event_filter.start_time or (datetime.now(UTC) - timedelta(hours=24))
-                start_iso = self._format_flux_time(start_dt)
+        # Determine time range. When callers provide explicit start/end times (e.g., nightly
+        # analytics fetching the last 30 days), honor those values instead of defaulting to a
+        # 24 hour window.
+        if event_filter.start_time or event_filter.end_time:
+            start_dt = event_filter.start_time or (datetime.now(UTC) - timedelta(hours=24))
+            start_iso = self._format_flux_time(start_dt)
 
-                query = f'''
-                from(bucket: "{influxdb_bucket}")
-                  |> range(start: time(v: "{start_iso}"))
-                '''
-
-                if event_filter.end_time:
-                    end_iso = self._format_flux_time(event_filter.end_time)
-                    query = f'''
-                from(bucket: "{influxdb_bucket}")
-                  |> range(start: time(v: "{start_iso}"), stop: time(v: "{end_iso}"))
-                '''
-            else:
-                query = f'''
-                from(bucket: "{influxdb_bucket}")
-                  |> range(start: -24h)
-                '''
-
-            # Epic 45.5: Use appropriate measurement and field based on time range.
-            # Raw events pivot the three fields an event consumer needs (context id and both
-            # states) into one row per event; statistics measurements keep the single field.
-            if measurement == "home_assistant_events":
-                field_predicate = " or ".join(f'r._field == "{f}"' for f in _RAW_EVENT_FIELDS)
-                query += f'''
-              |> filter(fn: (r) => r._measurement == "{measurement}")
-              |> filter(fn: (r) => {field_predicate})
-            '''
-            else:
-                query += f'''
-              |> filter(fn: (r) => r._measurement == "{measurement}")
-              |> filter(fn: (r) => r._field == "{field_name}")
+            query = f'''
+            from(bucket: "{influxdb_bucket}")
+              |> range(start: time(v: "{start_iso}"))
             '''
 
-            # Add tag-based filters (these are indexed and efficient) - SANITIZED
-            if event_filter.entity_id:
-                entity_id_safe = sanitize_flux_value(event_filter.entity_id)
-                query += f'  |> filter(fn: (r) => r.entity_id == "{entity_id_safe}")\n'
-            if event_filter.event_type:
-                event_type_safe = sanitize_flux_value(event_filter.event_type)
-                query += f'  |> filter(fn: (r) => r.event_type == "{event_type_safe}")\n'
+            if event_filter.end_time:
+                end_iso = self._format_flux_time(event_filter.end_time)
+                query = f'''
+            from(bucket: "{influxdb_bucket}")
+              |> range(start: time(v: "{start_iso}"), stop: time(v: "{end_iso}"))
+            '''
+        else:
+            query = f'''
+            from(bucket: "{influxdb_bucket}")
+              |> range(start: -24h)
+            '''
 
-            # Epic 23.2: Add device_id and area_id filtering for spatial analytics - SANITIZED
-            if event_filter.device_id:
-                device_id_safe = sanitize_flux_value(event_filter.device_id)
-                query += f'  |> filter(fn: (r) => r.device_id == "{device_id_safe}")\n'
-            if event_filter.area_id:
-                area_id_safe = sanitize_flux_value(event_filter.area_id)
-                query += f'  |> filter(fn: (r) => r.area_id == "{area_id_safe}")\n'
+        # Epic 45.5: Use appropriate measurement and field based on time range.
+        # Raw events pivot the three fields an event consumer needs (context id and both
+        # states) into one row per event; statistics measurements keep the single field.
+        if measurement == "home_assistant_events":
+            field_predicate = " or ".join(f'r._field == "{f}"' for f in _RAW_EVENT_FIELDS)
+            query += f'''
+          |> filter(fn: (r) => r._measurement == "{measurement}")
+          |> filter(fn: (r) => {field_predicate})
+        '''
+        else:
+            query += f'''
+          |> filter(fn: (r) => r._measurement == "{measurement}")
+          |> filter(fn: (r) => r._field == "{field_name}")
+        '''
 
-            # Epic 23.4: Add entity_category filtering - SANITIZED
-            if event_filter.entity_category:
-                category_safe = sanitize_flux_value(event_filter.entity_category)
-                query += f'  |> filter(fn: (r) => r.entity_category == "{category_safe}")\n'
+        # Add tag-based filters (these are indexed and efficient) - SANITIZED
+        if event_filter.entity_id:
+            entity_id_safe = sanitize_flux_value(event_filter.entity_id)
+            query += f'  |> filter(fn: (r) => r.entity_id == "{entity_id_safe}")\n'
+        if event_filter.event_type:
+            event_type_safe = sanitize_flux_value(event_filter.event_type)
+            query += f'  |> filter(fn: (r) => r.event_type == "{event_type_safe}")\n'
 
-            # Epic 23.4: Add exclude_category filtering (commonly used to hide diagnostic entities) - SANITIZED
-            if event_filter.exclude_category:
-                exclude_safe = sanitize_flux_value(event_filter.exclude_category)
-                query += f'  |> filter(fn: (r) => r.entity_category != "{exclude_safe}")\n'
+        # Epic 23.2: Add device_id and area_id filtering for spatial analytics - SANITIZED
+        if event_filter.device_id:
+            device_id_safe = sanitize_flux_value(event_filter.device_id)
+            query += f'  |> filter(fn: (r) => r.device_id == "{device_id_safe}")\n'
+        if event_filter.area_id:
+            area_id_safe = sanitize_flux_value(event_filter.area_id)
+            query += f'  |> filter(fn: (r) => r.area_id == "{area_id_safe}")\n'
 
-            # Home Type Integration: Add event_category filtering - SANITIZED
-            if event_filter.event_category:
-                category_safe = sanitize_flux_value(event_filter.event_category)
-                query += f'  |> filter(fn: (r) => r.event_category == "{category_safe}")\n'
+        # Home Type Integration: Add event_category filtering - SANITIZED
+        if event_filter.event_category:
+            category_safe = sanitize_flux_value(event_filter.event_category)
+            query += f'  |> filter(fn: (r) => r.event_category == "{category_safe}")\n'
 
-            # Raw events: pivot AFTER the selective tag filters so InfluxDB pushes them
-            # down to storage; one row per event with context_id / state_value /
-            # previous_state as columns.
-            if measurement == "home_assistant_events":
-                query += (
-                    '  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")\n'
+        # Raw events: pivot AFTER the selective tag filters so InfluxDB pushes them
+        # down to storage; one row per event with context_id / state_value /
+        # previous_state as columns.
+        if measurement == "home_assistant_events":
+            query += '  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")\n'
+
+        # Group all tag-based series together, then get distinct records
+        query += "  |> group()\n"
+        query += '  |> sort(columns: ["_time"], desc: true)\n'
+
+        # MED-06: Apply offset BEFORE limit so pagination works correctly
+        if offset > 0:
+            query += f"  |> offset(n: {offset})\n"
+        query += f"  |> limit(n: {limit})\n"
+
+        # Log the query for debugging
+        logger.debug(f"Executing Flux query:\n{query}")
+
+        # Execute query
+        result = query_api.query(query)
+
+        events = []
+        seen_event_ids = set()  # Deduplication safety check
+        table_count = 0
+        record_count = 0
+
+        for table in result:
+            table_count += 1
+            for record in table.records:
+                record_count += 1
+                # Context7 KB Approach: Filter to single field gives one record per event
+                # Tags (entity_id, event_type, domain) are present as record.values keys
+                # Field value is in _value column
+
+                # Get tags from record (these are always present)
+                entity_id_val = record.values.get("entity_id") or "unknown"
+                event_type_val = record.values.get("event_type") or "unknown"
+
+                # Generate unique event ID from timestamp + entity_id
+                timestamp = record.get_time().timestamp()
+                event_id = f"event_{timestamp}_{entity_id_val.replace('.', '_')}"
+
+                # Skip if we've already seen this event (safety check)
+                if event_id in seen_event_ids:
+                    continue
+                seen_event_ids.add(event_id)
+
+                # Pivoted raw events expose context_id / state_value / previous_state as
+                # columns. Downsampled rows have no context_id and carry an aggregate in
+                # _value — a number, not an identifier — so only a non-empty string is
+                # usable here. Falling through to the synthesized event_id also keeps the
+                # dedup below honest: every statistics row for a 5-minute window with one
+                # state change has _value == 1, so keying on it collapsed them all into
+                # one event.
+                candidate = record.values.get("context_id") or record.values.get("_value")
+                context_id = candidate if isinstance(candidate, str) and candidate else event_id
+
+                # attributes stay out of this query on purpose (large JSON per row);
+                # GET /events/{event_id} serves the full record.
+                event = EventData(
+                    id=context_id,
+                    timestamp=record.get_time(),
+                    entity_id=entity_id_val,
+                    event_type=event_type_val,
+                    old_state=_state_dict(record.values.get("previous_state")),
+                    new_state=_state_dict(record.values.get("state_value")),
+                    attributes={},
+                    tags={
+                        "domain": record.values.get("domain") or "unknown",
+                        "device_class": record.values.get("device_class") or "unknown",
+                    },
                 )
+                events.append(event)
 
-            # Group all tag-based series together, then get distinct records
-            query += "  |> group()\n"
-            query += '  |> sort(columns: ["_time"], desc: true)\n'
+        logger.info(
+            f"InfluxDB Query Stats: {table_count} tables, {record_count} records, {len(events)} unique events (before final dedup)"
+        )
 
-            # MED-06: Apply offset BEFORE limit so pagination works correctly
-            if offset > 0:
-                query += f"  |> offset(n: {offset})\n"
-            query += f"  |> limit(n: {limit})\n"
+        # PRAGMATIC FIX: Python-level deduplication as final safety net
+        # Even with field filtering, InfluxDB may return duplicates due to series grouping
+        # This ensures we return exactly what was requested
+        unique_events = []
+        final_seen_ids = set()
+        for event in events:
+            if event.id not in final_seen_ids:
+                final_seen_ids.add(event.id)
+                unique_events.append(event)
+                if len(unique_events) >= limit:
+                    break
 
-            # Log the query for debugging
-            logger.debug(f"Executing Flux query:\n{query}")
-
-            # Execute query
-            result = query_api.query(query)
-
-            events = []
-            seen_event_ids = set()  # Deduplication safety check
-            table_count = 0
-            record_count = 0
-
-            for table in result:
-                table_count += 1
-                for record in table.records:
-                    record_count += 1
-                    # Context7 KB Approach: Filter to single field gives one record per event
-                    # Tags (entity_id, event_type, domain) are present as record.values keys
-                    # Field value is in _value column
-
-                    # Get tags from record (these are always present)
-                    entity_id_val = record.values.get("entity_id") or "unknown"
-                    event_type_val = record.values.get("event_type") or "unknown"
-
-                    # Generate unique event ID from timestamp + entity_id
-                    timestamp = record.get_time().timestamp()
-                    event_id = f"event_{timestamp}_{entity_id_val.replace('.', '_')}"
-
-                    # Skip if we've already seen this event (safety check)
-                    if event_id in seen_event_ids:
-                        continue
-                    seen_event_ids.add(event_id)
-
-                    # Pivoted raw events expose context_id / state_value / previous_state as
-                    # columns. Downsampled rows have no context_id and carry an aggregate in
-                    # _value — a number, not an identifier — so only a non-empty string is
-                    # usable here. Falling through to the synthesized event_id also keeps the
-                    # dedup below honest: every statistics row for a 5-minute window with one
-                    # state change has _value == 1, so keying on it collapsed them all into
-                    # one event.
-                    candidate = record.values.get("context_id") or record.values.get("_value")
-                    context_id = candidate if isinstance(candidate, str) and candidate else event_id
-
-                    # attributes stay out of this query on purpose (large JSON per row);
-                    # GET /events/{event_id} serves the full record.
-                    event = EventData(
-                        id=context_id,
-                        timestamp=record.get_time(),
-                        entity_id=entity_id_val,
-                        event_type=event_type_val,
-                        old_state=_state_dict(record.values.get("previous_state")),
-                        new_state=_state_dict(record.values.get("state_value")),
-                        attributes={},
-                        tags={
-                            "domain": record.values.get("domain") or "unknown",
-                            "device_class": record.values.get("device_class") or "unknown",
-                        },
-                    )
-                    events.append(event)
-
-            logger.info(
-                f"InfluxDB Query Stats: {table_count} tables, {record_count} records, {len(events)} unique events (before final dedup)"
-            )
-
-            # PRAGMATIC FIX: Python-level deduplication as final safety net
-            # Even with field filtering, InfluxDB may return duplicates due to series grouping
-            # This ensures we return exactly what was requested
-            unique_events = []
-            final_seen_ids = set()
-            for event in events:
-                if event.id not in final_seen_ids:
-                    final_seen_ids.add(event.id)
-                    unique_events.append(event)
-                    if len(unique_events) >= limit:
-                        break
-
-            logger.info(f"Final: Returning {len(unique_events)} unique events (requested: {limit})")
-            return unique_events
-
-        except Exception as e:
-            logger.error(f"Error querying InfluxDB: {e}")
-            return []
+        logger.info(f"Final: Returning {len(unique_events)} unique events (requested: {limit})")
+        return unique_events
 
     async def _trace_automation_chain(
         self, context_id: str, max_depth: int, include_details: bool

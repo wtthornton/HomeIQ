@@ -122,8 +122,6 @@ class TestEventFilterModel:
             end_time=now,
             device_id="dev-001",
             area_id="living_room",
-            entity_category="config",
-            exclude_category="diagnostic",
             event_category="lighting",
             home_type="house",
         )
