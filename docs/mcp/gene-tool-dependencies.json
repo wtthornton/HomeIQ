@@ -1,0 +1,12 @@
+{
+  "$comment": "TAP-5297: which AgentForge genes (TAP-5315 / TAP-5317, namespace hiq.*) depend on which homeiq MCP tools. Contract tests fail naming the affected gene when a listed tool is renamed, removed or retyped. Keep in sync with agentforge/projects/homeiq/agents/*.md `mcp_servers`/tool grants when those genes land.",
+  "catalogue_version": "1.2.0",
+  "genes": {
+    "hiq.anomaly_triage": ["detect_anomalies", "get_entity_history", "get_device", "get_recent_events"],
+    "hiq.diagnosis": ["trace_automation", "get_recent_events", "get_entity_state", "get_automation_stats"],
+    "hiq.pattern_summary": ["list_patterns", "list_synergies", "list_devices", "list_areas"],
+    "hiq.energy_digest": ["get_energy_summary", "get_entity_history", "list_entities"],
+    "hiq.device_health_triage": ["get_device_health", "get_device", "detect_anomalies"],
+    "hiq.home_health": ["list_devices", "list_entities", "list_areas", "get_automation_stats", "get_device_health"]
+  }
+}
