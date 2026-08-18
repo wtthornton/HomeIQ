@@ -1,7 +1,7 @@
 # Session handoff
 **Updated:** 2026-08-18T21:05:00Z
-**Git:** branch `tap-6205-ha-ai-agent-service-62-tests-assert-against-service-apis`, 3 commits (f39a80e3, 27d60572, bfc7e2f6) **unpushed, no PR**. Base master 6a335c0c.
-**Linear P0:** TAP-6205 done, not yet closed.
+**Git:** branch `tap-6205-ha-ai-agent-service-62-tests-assert-against-service-apis` pushed; **PR #100 open** against master (base 6a335c0c).
+**Linear P0:** TAP-6205 done, PR #100 open, issue not yet closed.
 
 ## Done
 - TAP-6191 (PR #94), TAP-6176 (PR #95), TAP-6179 (PR #96), TAP-6204 (PR #98) — earlier sessions.
@@ -14,7 +14,8 @@
 4. `threat_patterns.py` held 54 patterns where its own section headers and the story AC said 100+. Completed to 125 across 10 categories rather than weakening the test.
 
 ## Next (P0)
-- **Push the branch and open the PR for TAP-6205** (never pushed — user ended the session before authorizing it), then close TAP-6205.
+- **Watch PR #100 CI.** The 528-passing run is local; CI on real infra is TAP-6205's actual acceptance criterion. Merge, then close TAP-6205.
+- Then pick the next TAP-6169 child.
 
 ## Open
 - 10 epic children left under TAP-6169: TAP-6170/6171/6174/6175/6177/6178/6180/6181/6183/6184/6185 minus any closed.
