@@ -11,13 +11,17 @@ import json
 import logging
 import time
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import httpx
 from sqlalchemy import update
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..config import Settings
 from ..models.scheduled_task import ScheduledTask, TaskExecution
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from ..config import Settings
 
 logger = logging.getLogger(__name__)
 

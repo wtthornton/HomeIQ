@@ -67,3 +67,19 @@ markers = [
 # Kept narrow on purpose: this applies under tests/ only. Both rules stay
 # enforced on src/, where an unused argument or a misplaced import is real.
 "domains/*/*/tests/**" = ["ARG001", "ARG002", "E402"]
+
+# TC001/TC002/TC003 assume an annotation is never evaluated at run time. That is
+# false for SQLAlchemy declarative models and Pydantic models: both call
+# eval() on the annotation string (SQLAlchemy in de_stringify_annotation,
+# Pydantic when building the core schema), so moving such an import into a
+# TYPE_CHECKING block turns a working module into an import-time NameError.
+# Declaring the runtime-evaluated bases makes the rules accurate rather than
+# muting them — the rules stay enabled everywhere, and enabling this surfaced
+# two live defects (zeek baseline_hosts.py, device-intelligence devices.py)
+# where the import had already been moved and the module could not be imported.
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = [
+    "pydantic.BaseModel",
+    "sqlalchemy.orm.DeclarativeBase",
+    "src.database.Base",
+]

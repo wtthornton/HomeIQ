@@ -7,14 +7,17 @@ APScheduler integration for daily suggestion generation.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from ..config import Settings
 from ..services.suggestion_pipeline_service import SuggestionPipelineService
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from ..config import Settings
 
 logger = logging.getLogger(__name__)
 

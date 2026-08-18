@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 from src.parsers.conn_parser import (
@@ -16,6 +16,9 @@ from src.parsers.conn_parser import (
 from src.parsers.dns_parser import DnsLogParser
 from src.services.device_aggregator import DeviceAggregator
 from src.services.log_tracker import LogTracker
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Direction classification

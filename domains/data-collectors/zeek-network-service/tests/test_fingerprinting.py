@@ -7,7 +7,7 @@ OUI vendor lookup, and fingerprint service operations.
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -16,6 +16,9 @@ from src.parsers.ssh_parser import SshParser
 from src.parsers.tls_parser import TlsParser
 from src.services.log_tracker import LogTracker
 from src.services.oui_lookup import OUILookup
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # OUI Vendor Lookup

@@ -9,7 +9,6 @@ no-oped on every live event.
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from src.capability.graph_updater import GraphUpdater
 from src.execution.confirmation_watcher import ConfirmationWatcher
 
