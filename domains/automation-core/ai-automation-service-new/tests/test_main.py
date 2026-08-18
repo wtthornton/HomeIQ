@@ -71,7 +71,7 @@ class TestLifespanManagement:
         mock_start_cleanup.return_value = None
 
         # Test lifespan context manager
-        async with lifespan(app):
+        async with lifespan.handler(app):
             # During startup
             mock_init_db.assert_called_once()
             mock_start_cleanup.assert_called_once()
@@ -91,7 +91,7 @@ class TestLifespanManagement:
 
         # Should raise exception during startup
         with pytest.raises(Exception, match="Database connection failed"):
-            async with lifespan(app):
+            async with lifespan.handler(app):
                 pass
 
     @pytest.mark.asyncio
@@ -110,7 +110,7 @@ class TestLifespanManagement:
         mock_stop_cleanup.side_effect = Exception("Cleanup error")
 
         # Should not raise exception during shutdown
-        async with lifespan(app):
+        async with lifespan.handler(app):
             pass
 
         # Cleanup should have been attempted
@@ -182,7 +182,7 @@ class TestObservability:
             mock_setup_tracing.return_value = None
             mock_instrument.return_value = None
 
-            async with lifespan(app):
+            async with lifespan.handler(app):
                 pass
 
 

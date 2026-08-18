@@ -43,7 +43,7 @@ class TestMainApplication:
         mock_settings.enable_incremental = True
         mock_init_db.return_value = AsyncMock()
 
-        async with lifespan(app):
+        async with lifespan.handler(app):
             # Startup should complete without errors
             mock_init_db.assert_called_once()
 
@@ -62,7 +62,7 @@ class TestMainApplication:
         mock_init_db.side_effect = Exception("Database connection failed")
 
         with pytest.raises(Exception, match="Database connection failed"):
-            async with lifespan(app):
+            async with lifespan.handler(app):
                 pass
 
     @pytest.mark.asyncio
@@ -83,7 +83,7 @@ class TestMainApplication:
         mock_init_db.return_value = AsyncMock()
         mock_setup_tracing.return_value = None
 
-        async with lifespan(app):
+        async with lifespan.handler(app):
             mock_setup_tracing.assert_called_once_with("ai-pattern-service")
 
     @pytest.mark.asyncio
@@ -112,7 +112,7 @@ class TestMainApplication:
         mock_mqtt_client.port = 1883
         mock_mqtt_client_class.return_value = mock_mqtt_client
 
-        async with lifespan(app):
+        async with lifespan.handler(app):
             mock_mqtt_client_class.assert_called_once()
             mock_mqtt_client.connect.assert_called_once()
 
@@ -142,7 +142,7 @@ class TestMainApplication:
         mock_mqtt_client.port = 1883
         mock_mqtt_client_class.return_value = mock_mqtt_client
 
-        async with lifespan(app):
+        async with lifespan.handler(app):
             # Should continue even if MQTT fails
             mock_mqtt_client_class.assert_called_once()
             mock_mqtt_client.connect.assert_called_once()
@@ -167,7 +167,7 @@ class TestMainApplication:
         mock_scheduler = MagicMock()
         mock_scheduler_class.return_value = mock_scheduler
 
-        async with lifespan(app):
+        async with lifespan.handler(app):
             mock_scheduler_class.assert_called_once_with(
                 cron_schedule="0 2 * * *", enable_incremental=True
             )
@@ -192,7 +192,7 @@ class TestMainApplication:
 
         mock_scheduler_class.side_effect = Exception("Scheduler initialization failed")
 
-        async with lifespan(app):
+        async with lifespan.handler(app):
             # Should continue even if scheduler fails
             mock_scheduler_class.assert_called_once()
 
@@ -216,7 +216,7 @@ class TestMainApplication:
         mock_scheduler = MagicMock()
         mock_scheduler_class.return_value = mock_scheduler
 
-        async with lifespan(app):
+        async with lifespan.handler(app):
             pass  # Exit context to trigger shutdown
 
         mock_scheduler.stop.assert_called_once()
@@ -245,7 +245,7 @@ class TestMainApplication:
         mock_mqtt_client.connect.return_value = True
         mock_mqtt_client_class.return_value = mock_mqtt_client
 
-        async with lifespan(app):
+        async with lifespan.handler(app):
             pass  # Exit context to trigger shutdown
 
         mock_mqtt_client.disconnect.assert_called_once()
@@ -271,7 +271,7 @@ class TestMainApplication:
         mock_scheduler.stop.side_effect = Exception("Stop error")
         mock_scheduler_class.return_value = mock_scheduler
 
-        async with lifespan(app):
+        async with lifespan.handler(app):
             pass  # Exit context to trigger shutdown
 
         # Should not raise exception
@@ -302,7 +302,7 @@ class TestMainApplication:
         mock_mqtt_client.disconnect.side_effect = Exception("Disconnect error")
         mock_mqtt_client_class.return_value = mock_mqtt_client
 
-        async with lifespan(app):
+        async with lifespan.handler(app):
             pass  # Exit context to trigger shutdown
 
         # Should not raise exception
@@ -336,7 +336,7 @@ class TestMainApplication:
         mock_scheduler = MagicMock()
         mock_scheduler_class.return_value = mock_scheduler
 
-        async with lifespan(app):
+        async with lifespan.handler(app):
             mock_scheduler.set_mqtt_client.assert_called_once_with(mock_mqtt_client)
 
     @pytest.mark.asyncio
