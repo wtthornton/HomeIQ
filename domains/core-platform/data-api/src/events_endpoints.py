@@ -3,6 +3,7 @@ Events Endpoints for Data API
 Migrated from admin-api as part of Epic 13 Story 13.2
 """
 
+import ast
 import asyncio
 import json
 import logging
@@ -91,10 +92,23 @@ _RAW_EVENT_FIELDS = ("context_id", "state_value", "previous_state")
 
 
 def _state_dict(value: Any) -> dict[str, Any] | None:
-    """Project a stored state value into the `{"state": ...}` dict EventData exposes."""
+    """Project a stored state value into the `{"state": ...}` dict EventData exposes.
+
+    Rows written before 2026-08-17 hold the repr of the whole HA state object
+    (websocket-ingestion stored ``str(new_state)``); recover the bare state from
+    those so history stays readable. ``ast.literal_eval`` only evaluates literals.
+    """
     if value is None:
         return None
-    return {"state": str(value)}
+    text = str(value)
+    if text.startswith("{") and "'state':" in text:
+        try:
+            parsed = ast.literal_eval(text)
+        except (ValueError, SyntaxError):
+            parsed = None
+        if isinstance(parsed, dict) and parsed.get("state") is not None:
+            return {"state": str(parsed["state"])}
+    return {"state": text}
 
 
 class EventsEndpoints:

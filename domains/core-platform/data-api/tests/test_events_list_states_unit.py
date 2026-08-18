@@ -82,3 +82,17 @@ async def test_statistics_range_keeps_single_field_query(monkeypatch):
     )
     flux = query_api.query.call_args[0][0]
     assert 'r._field == "mean"' in flux and "pivot(" not in flux
+
+
+@pytest.mark.asyncio
+async def test_legacy_state_object_repr_rows_yield_bare_state(monkeypatch):
+    legacy = "{'entity_id': 'light.garage', 'state': 'off', 'attributes': {'brightness': None}}"
+    client, _ = _stub([_record("light.garage", legacy, "{'state': 'on'}")])
+    monkeypatch.setattr(ee, "_get_shared_influxdb_client", lambda: client)
+    (event,) = await EventsEndpoints()._get_events_from_influxdb(EventFilter(), limit=1, offset=0)
+    assert event.new_state == {"state": "off"} and event.old_state == {"state": "on"}
+
+
+def test_state_dict_keeps_braces_that_are_not_state_objects():
+    assert ee._state_dict("{not really}") == {"state": "{not really}"}
+    assert ee._state_dict("{'state': None}") == {"state": "{'state': None}"}

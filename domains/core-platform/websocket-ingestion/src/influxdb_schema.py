@@ -40,6 +40,15 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+def _bare_state(state: Any) -> str | None:
+    """Return the HA state string from a state object (dict) or a scalar; None when absent."""
+    if isinstance(state, dict):
+        state = state.get("state")
+    if state is None:
+        return None
+    return str(state)
+
+
 class InfluxDBSchema:
     """InfluxDB schema design and data models"""
 
@@ -344,14 +353,15 @@ class InfluxDBSchema:
 
     def _add_event_fields(self, point: Point, event_data: dict[str, Any]) -> Point:
         """Add fields to event point"""
-        # State fields
-        state = event_data.get("new_state")
+        # State fields hold the bare HA state ("on", "21.5"), never the repr of the whole
+        # state object; new_state/old_state arrive as the full HA state dicts.
+        state = _bare_state(event_data.get("new_state"))
         if state is not None:
-            point = point.field(self.FIELD_STATE, str(state))
+            point = point.field(self.FIELD_STATE, state)
 
-        old_state = event_data.get("old_state")
+        old_state = _bare_state(event_data.get("old_state"))
         if old_state is not None:
-            point = point.field(self.FIELD_OLD_STATE, str(old_state))
+            point = point.field(self.FIELD_OLD_STATE, old_state)
 
         # Attributes field (as JSON string)
         # FIX: Extract attributes from nested state structure (new_state.attributes)
