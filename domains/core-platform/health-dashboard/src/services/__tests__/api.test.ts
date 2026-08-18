@@ -8,8 +8,8 @@ const mockServicesHealth: ServicesHealthResponse = {
     status: 'healthy',
     last_check: '2024-12-01T12:00:00Z'
   },
-  'carbon-intensity-service': {
-    name: 'Carbon Intensity',
+  'electricity-pricing-service': {
+    name: 'Electricity Pricing',
     status: 'unhealthy',
     last_check: '2024-12-01T12:01:00Z',
     error_message: 'API key missing'
@@ -48,8 +48,8 @@ describe('AdminApiClient service health utilities', () => {
 
     expect(dataSources.weather?.status).toBe('healthy');
     expect(dataSources.weather?.service).toBe('Weather API');
-    expect(dataSources.carbonIntensity?.status).toBe('error');
-    expect(dataSources.carbonIntensity?.error_message).toBe('API key missing');
+    expect(dataSources.electricityPricing?.status).toBe('error');
+    expect(dataSources.electricityPricing?.error_message).toBe('API key missing');
     expect(dataSources.airQuality).toBeNull();
   });
 });

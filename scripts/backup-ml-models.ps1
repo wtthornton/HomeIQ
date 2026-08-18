@@ -33,7 +33,6 @@ $backupPath = Join-Path $PSScriptRoot "..\$BackupDir\$timestamp"
 
 $modelPaths = @(
     "domains/ml-engine/device-intelligence-service/models",
-    "domains/ml-engine/ai-training-service/models",
     "domains/ml-engine/device-intelligence-service/data/models"
 )
 

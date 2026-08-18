@@ -220,7 +220,7 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
    * 2. RAG status       -> 'error'  if red, 'degraded' if amber
    * 3. Core dependencies (InfluxDB, WebSocket Ingestion) -> 'degraded' if any unhealthy
    * 4. Health endpoint  -> 'degraded' if not 'healthy'
-   * 5. Critical data sources (weather, carbon, electricity, air quality, smart meter)
+   * 5. Critical data sources (weather, electricity, air quality, smart meter)
    *                      -> 'degraded' if any unhealthy/error
    * 6. Otherwise        -> 'operational'
    *
@@ -252,7 +252,7 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
 
     // Check data source health - if any are unhealthy = degraded
     // Exclude non-critical data sources (like Calendar) from affecting overall health
-    const criticalDataSources = ['weather', 'carbonIntensity', 'electricityPricing', 'airQuality', 'smartMeter'];
+    const criticalDataSources = ['weather', 'electricityPricing', 'airQuality', 'smartMeter'];
     const unhealthyDataSources = Object.entries(dataSources || {})
       .filter(([key, ds]) =>
         criticalDataSources.includes(key) &&

@@ -282,7 +282,6 @@ function Wait-ForHealth {
         "websocket-ingestion",
         "data-retention",
         "weather-api",
-        "carbon-intensity",
         "electricity-pricing",
         "air-quality",
         "health-dashboard",

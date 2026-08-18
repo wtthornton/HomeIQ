@@ -21,15 +21,6 @@
         },
         {
             "domain": "automation-core",
-            "service": "ai-query-service",
-            "lint_rc": "1",
-            "format_rc": "1",
-            "test_rc": "-",
-            "static_tests": 38,
-            "collected": "-"
-        },
-        {
-            "domain": "automation-core",
             "service": "automation-linter",
             "lint_rc": "1",
             "format_rc": "1",
@@ -44,15 +35,6 @@
             "format_rc": "1",
             "test_rc": "-",
             "static_tests": 60,
-            "collected": "-"
-        },
-        {
-            "domain": "automation-core",
-            "service": "ai-code-executor",
-            "lint_rc": "1",
-            "format_rc": "1",
-            "test_rc": "-",
-            "static_tests": 99,
             "collected": "-"
         },
         {
@@ -134,15 +116,6 @@
             "format_rc": "1",
             "test_rc": "-",
             "static_tests": 39,
-            "collected": "-"
-        },
-        {
-            "domain": "data-collectors",
-            "service": "carbon-intensity-service",
-            "lint_rc": "1",
-            "format_rc": "1",
-            "test_rc": "-",
-            "static_tests": 12,
             "collected": "-"
         },
         {
@@ -264,47 +237,11 @@
         },
         {
             "domain": "device-management",
-            "service": "activity-recognition",
-            "lint_rc": "0",
-            "format_rc": "1",
-            "test_rc": "-",
-            "static_tests": 10,
-            "collected": "-"
-        },
-        {
-            "domain": "device-management",
-            "service": "activity-writer",
-            "lint_rc": "1",
-            "format_rc": "1",
-            "test_rc": "-",
-            "static_tests": 79,
-            "collected": "-"
-        },
-        {
-            "domain": "device-management",
             "service": "ha-setup-service",
             "lint_rc": "1",
             "format_rc": "1",
             "test_rc": "-",
             "static_tests": 29,
-            "collected": "-"
-        },
-        {
-            "domain": "energy-analytics",
-            "service": "energy-correlator",
-            "lint_rc": "1",
-            "format_rc": "1",
-            "test_rc": "-",
-            "static_tests": 118,
-            "collected": "-"
-        },
-        {
-            "domain": "energy-analytics",
-            "service": "energy-forecasting",
-            "lint_rc": "1",
-            "format_rc": "1",
-            "test_rc": "-",
-            "static_tests": 75,
             "collected": "-"
         },
         {
@@ -350,24 +287,6 @@
             "format_rc": "1",
             "test_rc": "-",
             "static_tests": 70,
-            "collected": "-"
-        },
-        {
-            "domain": "ml-engine",
-            "service": "ai-core-service",
-            "lint_rc": "1",
-            "format_rc": "1",
-            "test_rc": "-",
-            "static_tests": 52,
-            "collected": "-"
-        },
-        {
-            "domain": "ml-engine",
-            "service": "ai-training-service",
-            "lint_rc": "1",
-            "format_rc": "1",
-            "test_rc": "-",
-            "static_tests": 31,
             "collected": "-"
         },
         {

@@ -44,11 +44,11 @@ class DataAPIClient:
 | Domain | Name | Key Services | Breaker Name |
 |--------|------|-------------|-------------|
 | D1 | core-platform | data-api, websocket-ingestion, admin-api | `core-platform` |
-| D2 | data-collectors | weather-api, smart-meter, carbon-intensity | `data-collectors` |
+| D2 | data-collectors | weather-api, smart-meter, electricity-pricing | `data-collectors` |
 | D3 | ml-engine | device-intelligence, ai-core, openvino | `ml-engine` |
 | D4 | automation-core | ha-ai-agent, ai-automation-service-new, ai-query | N/A (same-domain) |
 | D5 | blueprints | blueprint-index, blueprint-suggestion, automation-miner | N/A (same-domain) |
-| D6 | energy-analytics | energy-correlator, energy-forecasting, proactive-agent | N/A (same-domain) |
+| D6 | energy-analytics | proactive-agent | N/A (same-domain) |
 | D7 | device-management | device-health-monitor, device-setup-assistant | N/A (same-domain) |
 | D8 | pattern-analysis | ai-pattern-service, api-automation-edge | N/A (same-domain) |
 | D9 | frontends | health-dashboard, ai-automation-ui | N/A (same-domain) |

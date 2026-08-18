@@ -29,4 +29,4 @@ jobs:
     with:
       group_name: energy-analytics
       domain_dir: energy-analytics
-      services: '["energy-correlator","energy-forecasting","proactive-agent-service"]'
+      services: '["proactive-agent-service"]'

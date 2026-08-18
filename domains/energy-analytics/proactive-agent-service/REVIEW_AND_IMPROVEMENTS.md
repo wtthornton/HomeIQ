@@ -283,10 +283,10 @@ Three rollback shell scripts from dependency upgrades are left in the service ro
 
 ### m10. `carbon_intensity_client.py` Constructor Takes `base_url` But Uses `data_api_url`
 
-**File:** `src/clients/carbon_intensity_client.py:22-26`
+**File:** `src/clients/carbon_intensity_client.py`
 **Severity:** MINOR - Dead parameter
-
-The `base_url` parameter defaults to `http://carbon-intensity:8010` but is never used in any method. Only `data_api_url` is used. The `self.base_url` attribute is set but never referenced.
+**Status:** RESOLVED (TAP-5910) - the dead `base_url` parameter was removed; the
+client now takes only `data_api_url`.
 
 ---
 

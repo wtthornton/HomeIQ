@@ -149,7 +149,6 @@ with descriptions, scoring scales, and usage guidance.
 | HA AI Agent | [configs/ha_ai_agent.yaml](configs/ha_ai_agent.yaml) | 8030 |
 | Proactive Agent | [configs/proactive_agent.yaml](configs/proactive_agent.yaml) | 8031 |
 | AI Automation | [configs/ai_automation_service.yaml](configs/ai_automation_service.yaml) | 8025 |
-| AI Core | [configs/ai_core_service.yaml](configs/ai_core_service.yaml) | 8018 |
 
 ## Example Output: Summary Matrix
 

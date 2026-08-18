@@ -1,6 +1,6 @@
 # device-management
 
-Device lifecycle — health monitoring, onboarding, classification, activity recognition. Independent of automation features.
+Device lifecycle — health monitoring, onboarding, and classification. Independent of automation features.
 
 ## Services
 
@@ -11,8 +11,6 @@ Device lifecycle — health monitoring, onboarding, classification, activity rec
 | device-setup-assistant | 8021 | Guided device onboarding |
 | device-database-client | 8022 | Device data access layer + caching |
 | device-recommender | 8023 | Device upgrade suggestions |
-| activity-recognition | 8043 | LSTM/ONNX user activity detection |
-| activity-writer | 8045 | Periodic activity prediction pipeline |
 | ha-setup-service | 8024 | HA health checks, integration monitoring |
 
 ## Depends On

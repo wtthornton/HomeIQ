@@ -202,97 +202,6 @@ services:
         max-file: "3"
         labels: "service=device-recommender,group=device-management,environment=production"
 
-  activity-recognition:
-    build:
-      context: ../..
-      dockerfile: domains/device-management/activity-recognition/Dockerfile
-    container_name: homeiq-activity-recognition
-    restart: unless-stopped
-    ports:
-      - "8043:8036"
-    env_file:
-      - ../../.env
-    environment:
-      - PORT=8036
-      - HOST=0.0.0.0
-      - MODEL_PATH=${ACTIVITY_MODEL_PATH:-/app/models/activity_lstm.onnx}
-      - DATA_API_URL=http://data-api:8006
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    volumes:
-      - activity_recognition_models:/app/models
-    networks:
-      - homeiq-network
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '1.0'
-        reservations:
-          memory: 384M
-          cpus: '0.5'
-    healthcheck:
-      test: ["CMD", "python", "/app/healthcheck.py"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        labels: "service=activity-recognition,group=device-management,environment=production"
-
-  activity-writer:
-    build:
-      context: ../..
-      dockerfile: domains/device-management/activity-writer/Dockerfile
-    container_name: homeiq-activity-writer
-    restart: unless-stopped
-    ports:
-      - "8045:8035"
-    env_file:
-      - ../../.env
-    environment:
-      - SERVICE_PORT=8035
-      - ACTIVITY_WRITER_INTERVAL_SECONDS=${ACTIVITY_WRITER_INTERVAL_SECONDS:-300}
-      - DATA_API_URL=http://data-api:8006
-      - DATA_API_API_KEY=${API_KEY:-}
-      - ACTIVITY_RECOGNITION_URL=http://activity-recognition:8036
-      - ACTIVITY_RECOGNITION_TIMEOUT=30
-      - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
-      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
-      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
-      - HOME_ID=${HOME_ID:-default}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    depends_on:
-      activity-recognition:
-        condition: service_started
-      # Cross-domain: depends on core-platform/influxdb, core-platform/data-api
-    networks:
-      - homeiq-network
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.5'
-        reservations:
-          memory: 128M
-          cpus: '0.25'
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        labels: "service=activity-writer,group=device-management,environment=production"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8035/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
   ha-setup-service:
     build:
       context: ../..
@@ -364,7 +273,6 @@ services:
 volumes:
   ha_setup_data:
   device_cache_data:
-  activity_recognition_models:
   homeiq_logs:
     external: true
     name: ${HOMEIQ_LOGS_VOLUME:-homeiq-core-platform_homeiq_logs}

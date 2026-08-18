@@ -74,7 +74,6 @@ NC='\033[0m'
 INTEGRATION_SERVICES=(
     "weather-api"
     "sports-api"
-    "carbon-intensity-service"
     "electricity-pricing-service"
     "air-quality-service"
     "calendar-service"
@@ -84,12 +83,8 @@ INTEGRATION_SERVICES=(
 
 # AI/ML Services (13)
 AI_ML_SERVICES=(
-    "ai-core-service"
     "ai-pattern-service"
     "ai-automation-service-new"
-    "ai-query-service"
-    "ai-training-service"
-    "ai-code-executor"
     "ha-ai-agent-service"
     "proactive-agent-service"
     "ml-service"
@@ -122,8 +117,6 @@ AUTOMATION_SERVICES=(
 
 # Analytics Services (2)
 ANALYTICS_SERVICES=(
-    "energy-correlator"
-    "energy-forecasting"
 )
 
 # Frontend Services (2)

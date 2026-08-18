@@ -42,7 +42,6 @@ export interface DataSourceHealth {
 export interface DataSourcesHealthMap {
   weather: DataSourceHealth | null;
   sports: DataSourceHealth | null;
-  carbonIntensity: DataSourceHealth | null;
   electricityPricing: DataSourceHealth | null;
   airQuality: DataSourceHealth | null;
   calendar: DataSourceHealth | null;
@@ -52,11 +51,6 @@ export interface DataSourcesHealthMap {
 }
 
 export interface DataSourceMetrics {
-  carbon_intensity?: {
-    current: number;
-    renewable_pct: number;
-    forecast_1h: number;
-  };
   electricity_pricing?: {
     current_price: number;
     currency: string;

@@ -53,27 +53,6 @@ export const getMockDataSources = (): DataSource[] => {
       }
     },
     {
-      id: 'carbon-intensity',
-      name: 'Carbon Intensity',
-      icon: '🌱',
-      status: 'degraded',
-      api_usage: {
-        calls_today: 23,
-        quota_percentage: 0
-      },
-      performance: {
-        avg_response_time_ms: 2500,
-        last_success: new Date(Date.now() - 15 * 60000).toISOString(),
-        retry_count: 2,
-        error_count_24h: 1
-      },
-      cache: {
-        hit_rate_percentage: 72,
-        size_bytes: 262144,
-        item_count: 18
-      }
-    },
-    {
       id: 'air-quality',
       name: 'Air Quality',
       icon: '💨',

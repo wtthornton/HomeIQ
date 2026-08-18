@@ -41,9 +41,6 @@ class Settings(BaseServiceSettings):
     # Device Intelligence Service
     device_intelligence_url: str = "http://device-intelligence-service:8019"
 
-    # Query Service (for entity extraction)
-    query_service_url: str = "http://ai-query-service:8018"
-
     # Pattern Service (for pattern data)
     pattern_service_url: str = "http://ai-pattern-service:8020"
 

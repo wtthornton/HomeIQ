@@ -92,7 +92,7 @@ $test = Test-Endpoint -Name "Carbon Intensity Current" -Url "http://localhost:80
 $testResults += $test
 Write-Host "  Status: $($test.Status) - $($test.Message)" -ForegroundColor $(if ($test.Status -eq "PASSED") { "Green" } else { "Red" })
 if ($test.Status -eq "PASSED") {
-    Write-Host "  Note: 404 is expected if carbon-intensity-service is not running" -ForegroundColor Gray
+    Write-Host "  Note: 404 is expected — no collector writes the carbon bucket" -ForegroundColor Gray
 }
 
 # Test 4: Carbon Intensity Trends Endpoint (may 404 if no data)
@@ -101,7 +101,7 @@ $test = Test-Endpoint -Name "Carbon Intensity Trends" -Url "http://localhost:800
 $testResults += $test
 Write-Host "  Status: $($test.Status) - $($test.Message)" -ForegroundColor $(if ($test.Status -eq "PASSED") { "Green" } else { "Red" })
 if ($test.Status -eq "PASSED") {
-    Write-Host "  Note: 404 is expected if carbon-intensity-service is not running" -ForegroundColor Gray
+    Write-Host "  Note: 404 is expected — no collector writes the carbon bucket" -ForegroundColor Gray
 }
 
 # Test 5: Context Analysis Debug Endpoint

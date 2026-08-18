@@ -3,7 +3,7 @@
 A service that lost the startup race to Postgres used to stay degraded for the
 life of the process: `initialize` set `_available = False`, and nothing ever
 re-attempted it, so every later `get_db()` raised even once the database was
-healthy again. Observed live on ai-query-service and automation-miner, which
+healthy again. Observed live on automation-miner, which
 started one second before Postgres accepted connections and then reported
 "Database not available" indefinitely while `SELECT 1` succeeded from inside the
 same container.

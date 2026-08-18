@@ -22,7 +22,6 @@ type DataSourceKey = keyof DataSourcesHealthMap;
 const DATA_SOURCE_DEFINITIONS: Array<{ id: DataSourceKey; name: string; icon: string; description?: string; }> = [
   { id: 'weather', name: 'Weather API', icon: '☁️', description: 'OpenWeatherMap integration' },
   { id: 'sports', name: 'Sports API', icon: '⚽', description: 'HA Team Tracker integration' },
-  { id: 'carbonIntensity', name: 'Carbon Intensity', icon: '🌱', description: 'UK National Grid carbon data' },
   { id: 'airQuality', name: 'Air Quality', icon: '💨', description: 'Air quality index monitoring' },
   { id: 'electricityPricing', name: 'Electricity Pricing', icon: '⚡', description: 'Real-time electricity rates' },
   { id: 'calendar', name: 'Calendar Service', icon: '📅', description: 'Calendar & occupancy data' },
@@ -35,7 +34,6 @@ const DATA_SOURCE_DEFINITIONS: Array<{ id: DataSourceKey; name: string; icon: st
 const SERVICE_PORTS: Record<string, number> = {
   weather: 8009,
   sports: 8005,  // Sports API - Team Tracker integration
-  carbonIntensity: 8010,
   electricityPricing: 8011,
   airQuality: 8012,
   calendar: 8013,

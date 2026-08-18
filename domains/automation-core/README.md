@@ -8,15 +8,13 @@ Core automation engine — NL-to-YAML generation, validation, and deployment. Bo
 |---------|------|------|
 | ha-ai-agent-service | 8030 | HA AI agent — context building, entity resolution, GUI automation |
 | ai-automation-service-new | 8036 | Core automation engine — NL to YAML (CLI path) |
-| ai-query-service | 8035 | Natural language query interface |
 | automation-linter | 8016 | YAML validation and linting |
 | yaml-validation-service | 8037 | Unified schema/entity/service validation |
-| ai-code-executor | — | Safe code execution sandbox |
 | automation-trace-service | 8044 | HA automation trace + logbook ingestion |
 
 ## Depends On
 
-core-platform (data-api), ml-engine (AI inference via ai-core-service)
+core-platform (data-api), ml-engine (AI inference via ml-service)
 
 ## Depended On By
 

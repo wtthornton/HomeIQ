@@ -55,7 +55,7 @@ Check domain status:
 
 View logs for a specific service:
 ```bash
-./scripts/domain.sh logs ml-engine ai-core-service
+./scripts/domain.sh logs ml-engine ml-service
 ```
 
 List all valid domain names:

@@ -818,7 +818,7 @@ The README documents three endpoints that are not implemented:
 These should either be implemented or removed from the README to avoid confusion.
 
 ### ARCH-02: Consider Separating Concerns
-While the single-file approach (`main.py`) is documented as intentional (following carbon-intensity/air-quality patterns), at ~470 lines it is approaching the limit of comfortable single-file maintenance. The `WeatherService` class handles:
+While the single-file approach (`main.py`) is documented as intentional (following the air-quality pattern), at ~470 lines it is approaching the limit of comfortable single-file maintenance. The `WeatherService` class handles:
 - HTTP client management
 - External API calls
 - Caching
@@ -826,7 +826,7 @@ While the single-file approach (`main.py`) is documented as intentional (followi
 - Background task management
 - Health tracking
 
-Consider extracting the InfluxDB writer into a shared utility, as other services (carbon-intensity, air-quality) likely have identical write-with-retry-and-fallback logic.
+Consider extracting the InfluxDB writer into a shared utility, as other collectors (air-quality, electricity-pricing) likely have identical write-with-retry-and-fallback logic.
 
 ### ARCH-03: No Graceful Shutdown Signal Handling
 The service relies on FastAPI's shutdown event, but there is no explicit signal handler for SIGTERM/SIGINT. In Kubernetes or Docker, a SIGTERM is sent before the container is killed. While uvicorn handles this, adding explicit handling ensures the background task and InfluxDB client are cleaned up properly.

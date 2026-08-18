@@ -22,7 +22,7 @@ def health_check() -> GroupHealthCheck:
     """Create a health checker for tests."""
     hc = GroupHealthCheck(group_name="automation-intelligence", version="1.2.3")
     hc.register_dependency("data-api", "http://data-api:8006")
-    hc.register_dependency("ai-core-service", "http://ai-core-service:8018")
+    hc.register_dependency("ml-service", "http://ml-service:8004")
     return hc
 
 
@@ -83,8 +83,8 @@ class TestAllHealthy:
         assert result["version"] == "1.2.3"
         assert "data-api" in result["dependencies"]
         assert result["dependencies"]["data-api"]["status"] == "ok"
-        assert "ai-core-service" in result["dependencies"]
-        assert result["dependencies"]["ai-core-service"]["status"] == "ok"
+        assert "ml-service" in result["dependencies"]
+        assert result["dependencies"]["ml-service"]["status"] == "ok"
 
 
 # ------------------------------------------------------------------

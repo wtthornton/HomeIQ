@@ -54,13 +54,6 @@ class APIKeyService:
                 "validation_url": "https://api.openweathermap.org/data/2.5/weather?lat=0&lon=0&appid={key}",
                 "validation_response_check": "cod",
             },
-            "carbon-intensity": {
-                "env_var": "WATTTIME_API_TOKEN",
-                "description": "WattTime API Token",
-                "required": True,
-                "validation_url": "https://api2.watttime.org/v2/index",
-                "validation_response_check": "status",
-            },
             "electricity-pricing": {
                 "env_var": "PRICING_API_KEY",
                 "description": "Electricity Pricing API Key",
@@ -286,9 +279,6 @@ class APIKeyService:
         if service == "weather":
             # OpenWeatherMap keys are typically 32 characters
             return len(api_key) >= 20
-        elif service == "carbon-intensity":
-            # WattTime tokens are typically longer
-            return len(api_key) >= 10
         elif service == "air-quality":
             # AirNow keys are typically shorter
             return len(api_key) >= 5

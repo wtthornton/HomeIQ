@@ -491,7 +491,6 @@ Logs include:
 
 ## Related Documentation
 
-- [AI Core Service](../ai-core-service/README.md) - Orchestrates OpenVINO calls
 - [ML Service](../ml-service/README.md) - Classical ML algorithms
 - [AI Automation Service](../ai-automation-service/README.md) - Consumer of embeddings
 - [API Reference](../../docs/api/API_REFERENCE.md)

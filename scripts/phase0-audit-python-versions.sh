@@ -77,7 +77,6 @@ PYTHON_SERVICES=(
     # External integrations
     "weather-api"
     "sports-api"
-    "carbon-intensity"
     "electricity-pricing"
     "air-quality"
     "calendar"
@@ -85,18 +84,13 @@ PYTHON_SERVICES=(
     "log-aggregator"
 
     # AI/ML services
-    "ai-core-service"
     "ai-pattern-service"
     "ai-automation-service-new"
-    "ai-query-service"
-    "ai-training-service"
-    "ai-code-executor"
     "ha-ai-agent-service"
     "proactive-agent-service"
     "ml-service"
     "openvino-service"
     "rag-service"
-    "openai-service"
     "ner-service"
 
     # Device management
@@ -117,7 +111,6 @@ PYTHON_SERVICES=(
     "api-automation-edge"
 
     # Analytics
-    "energy-correlator"
     "rule-recommendation-ml"
 )
 

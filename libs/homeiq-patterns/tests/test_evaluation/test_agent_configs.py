@@ -2,7 +2,6 @@
 Tests for E3.S5-S7: Agent-Specific Evaluation Configurations
 - Proactive Agent (E3.S5)
 - AI Automation Service (E3.S6)
-- AI Core Service (E3.S7)
 """
 
 import pytest
@@ -388,150 +387,12 @@ class TestAIAutomationServiceRegistration:
 
 
 # ---------------------------------------------------------------------------
-# AI Core Service Config (E3.S7)
-# ---------------------------------------------------------------------------
-
-
-class TestAICoreServiceConfig:
-    """Test that the AI Core Service config loads and validates correctly."""
-
-    @pytest.fixture
-    def config(self):
-        return ConfigLoader.load(_config_path("ai_core_service.yaml"))
-
-    def test_config_loads(self, config):
-        assert config.agent_name == "ai-core-service"
-        assert config.model == "gpt-4o-mini"
-
-    def test_has_tools(self, config):
-        assert len(config.tools) == 5
-        tool_names = {t.name for t in config.tools}
-        assert "generate_embeddings" in tool_names
-        assert "classify_pattern" in tool_names
-        assert "cluster_data" in tool_names
-        assert "detect_anomalies" in tool_names
-        assert "generate_suggestions" in tool_names
-
-    def test_generate_embeddings_tool(self, config):
-        tool = config.get_tool("generate_embeddings")
-        assert tool is not None
-        assert "texts" in tool.required_params
-
-    def test_generate_suggestions_tool(self, config):
-        tool = config.get_tool("generate_suggestions")
-        assert tool is not None
-        assert "context" in tool.required_params
-        assert "suggestion_type" in tool.required_params
-
-    def test_has_path_rules(self, config):
-        assert len(config.paths) >= 2
-        path_names = {p.name for p in config.paths}
-        assert "embed_before_cluster" in path_names
-        assert "embed_before_anomaly" in path_names
-
-    def test_embed_before_cluster_path(self, config):
-        path = next(p for p in config.paths if p.name == "embed_before_cluster")
-        assert path.sequence == ["generate_embeddings", "cluster_data"]
-
-    def test_has_system_prompt_rules(self, config):
-        assert len(config.system_prompt_rules) >= 3
-        rule_names = {r.name for r in config.system_prompt_rules}
-        assert "context_sanitization" in rule_names
-        assert "graceful_degradation" in rule_names
-
-    def test_context_sanitization_rule(self, config):
-        rule = next(
-            r for r in config.system_prompt_rules if r.name == "context_sanitization"
-        )
-        assert rule.check_type == "llm_judge"
-        assert rule.severity == "critical"
-
-    def test_has_quality_rubrics(self, config):
-        assert "correctness" in config.quality_rubrics
-        assert "helpfulness" in config.quality_rubrics
-        assert "response_relevance" in config.quality_rubrics
-
-    def test_has_safety_rubrics(self, config):
-        assert "harmfulness" in config.safety_rubrics
-
-    def test_has_thresholds(self, config):
-        assert config.thresholds["context_sanitization"] == 1.00
-        assert config.thresholds["harmfulness"] == 1.00
-        assert config.thresholds["goal_success_rate"] == 0.85
-
-    def test_has_parameter_rules(self, config):
-        assert len(config.parameter_rules) >= 2
-        tools_with_rules = {r.tool for r in config.parameter_rules}
-        assert "generate_suggestions" in tools_with_rules
-
-    def test_has_priority_matrix(self, config):
-        assert len(config.priority_matrix) >= 4
-        priorities = {p.priority for p in config.priority_matrix}
-        assert "P0" in priorities
-
-
-class TestAICoreServiceRegistration:
-    """Test AI Core Service registers and evaluates correctly."""
-
-    @pytest.fixture
-    def config(self):
-        return ConfigLoader.load(_config_path("ai_core_service.yaml"))
-
-    def test_registers_in_registry(self, config):
-        judge = LLMJudge(provider=MockProvider())
-        registry = EvaluationRegistry(llm_judge=judge)
-        registry.register_agent(config)
-        assert "ai-core-service" in registry.registered_agents
-
-    def test_evaluators_cover_key_levels(self, config):
-        judge = LLMJudge(provider=MockProvider())
-        registry = EvaluationRegistry(llm_judge=judge)
-        registry.register_agent(config)
-        evaluators = registry.get_evaluators("ai-core-service")
-        levels = {e.level for e in evaluators}
-        assert EvalLevel.OUTCOME in levels
-        assert EvalLevel.PATH in levels
-        assert EvalLevel.QUALITY in levels
-        assert EvalLevel.SAFETY in levels
-
-    @pytest.mark.asyncio
-    async def test_evaluate_session(self, config):
-        provider = MockProvider('{"label": "Yes", "explanation": "OK."}')
-        judge = LLMJudge(provider=provider)
-        registry = EvaluationRegistry(llm_judge=judge)
-        registry.register_agent(config)
-
-        session = SessionTrace(
-            agent_name="ai-core-service",
-            user_messages=[UserMessage(content="Analyze patterns")],
-            agent_responses=[AgentResponse(content="Found 3 patterns.")],
-            tool_calls=[
-                ToolCall(
-                    tool_name="generate_embeddings",
-                    parameters={"texts": ["light on", "light off"]},
-                    result={"embeddings": [[0.1, 0.2], [0.3, 0.4]]},
-                    sequence_index=0,
-                ),
-                ToolCall(
-                    tool_name="cluster_data",
-                    parameters={"data": [[0.1, 0.2], [0.3, 0.4]]},
-                    result={"labels": [0, 1], "n_clusters": 2},
-                    sequence_index=1,
-                ),
-            ],
-        )
-        report = await registry.evaluate(session)
-        assert report.agent_name == "ai-core-service"
-        assert len(report.results) > 0
-
-
-# ---------------------------------------------------------------------------
 # Multi-agent registration test
 # ---------------------------------------------------------------------------
 
 
 class TestMultiAgentRegistration:
-    """Test that all 4 agents can be registered in a single registry."""
+    """Test that all 3 agents can be registered in a single registry."""
 
     def test_register_all_agents(self):
         judge = LLMJudge(provider=MockProvider())
@@ -541,16 +402,14 @@ class TestMultiAgentRegistration:
             "ha_ai_agent.yaml",
             "proactive_agent.yaml",
             "ai_automation_service.yaml",
-            "ai_core_service.yaml",
         ]:
             config = ConfigLoader.load(_config_path(filename))
             registry.register_agent(config)
 
-        assert len(registry.registered_agents) == 4
+        assert len(registry.registered_agents) == 3
         assert "ha-ai-agent" in registry.registered_agents
         assert "proactive-agent" in registry.registered_agents
         assert "ai-automation-service" in registry.registered_agents
-        assert "ai-core-service" in registry.registered_agents
 
     def test_each_agent_has_evaluators(self):
         judge = LLMJudge(provider=MockProvider())
@@ -560,7 +419,6 @@ class TestMultiAgentRegistration:
             "ha_ai_agent.yaml",
             "proactive_agent.yaml",
             "ai_automation_service.yaml",
-            "ai_core_service.yaml",
         ]:
             config = ConfigLoader.load(_config_path(filename))
             registry.register_agent(config)

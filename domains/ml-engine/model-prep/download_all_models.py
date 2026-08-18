@@ -11,7 +11,7 @@ This script pre-downloads models to a shared volume, ensuring:
 Models downloaded:
 1. all-MiniLM-L6-v2 (INT8) - Embeddings (ai-automation-service)
 2. bge-reranker-base (INT8) - Re-ranking (ai-automation-service)
-3. flan-t5-small (INT8) - Classification/Training (ai-automation-service, ai-training-service)
+3. flan-t5-small (INT8) - Classification (ai-automation-service)
 
 Usage:
     python download_all_models.py

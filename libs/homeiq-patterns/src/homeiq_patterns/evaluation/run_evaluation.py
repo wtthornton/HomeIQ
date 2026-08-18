@@ -41,7 +41,6 @@ _AGENT_CONFIGS = {
     "ha-ai-agent": "ha_ai_agent.yaml",
     "proactive-agent": "proactive_agent.yaml",
     "ai-automation-service": "ai_automation_service.yaml",
-    "ai-core-service": "ai_core_service.yaml",
 }
 
 

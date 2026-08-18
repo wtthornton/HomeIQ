@@ -11,8 +11,8 @@ This is the foundation for a NEW `ai-automation-service` that will contain only 
 ## Current State
 
 The existing `ai-automation-service` is monolithic and contains:
-- Query processing (being moved to `ai-query-service`)
-- Training (moved to `ai-training-service`)
+- Query processing (moved out of this service; that service has since been retired)
+- Training (moved out of this service; that service has since been retired)
 - Pattern analysis (moved to `ai-pattern-service`)
 - Suggestion generation (to be extracted here)
 - YAML generation (to be extracted here)

@@ -218,15 +218,15 @@ HomeIQ runs **~58 application containers** (Docker Compose `--profile production
 
 | # | Domain | Services (production profile) | Purpose |
 |---|--------|------------------------------|---------|
-| 1 | **core-platform** | 11 | Data backbone — InfluxDB, PostgreSQL, data-api, websocket-ingestion, admin-api, health-dashboard, data-retention, Prometheus, Grafana, Alertmanager, postgres-exporter |
-| 2 | **data-collectors** | 10 | Stateless fetchers + network — weather, smart-meter, sports, air-quality, carbon-intensity, electricity-pricing, calendar, log-aggregator, zeek, zeek-network-service |
-| 3 | **ml-engine** | 8 | ML inference and training — OpenVINO, ML, NER, OpenAI, RAG, ai-core, ai-training, device-intelligence (`model-prep` is `development` one-shot) |
-| 4 | **automation-core** | 8 | Automation engine — ha-ai-agent, ai-automation, query, YAML validation, linter, code-executor, trace service, ha-device-control |
+| 1 | **core-platform** | 12 | Data backbone — InfluxDB, PostgreSQL, data-api, websocket-ingestion, admin-api, health-dashboard, data-retention, homeiq-mcp, Prometheus, Grafana, Alertmanager, postgres-exporter |
+| 2 | **data-collectors** | 9 | Stateless fetchers + network — weather, smart-meter, sports, air-quality, electricity-pricing, calendar, log-aggregator, zeek, zeek-network-service |
+| 3 | **ml-engine** | 5 | ML inference — OpenVINO, ML, NER, RAG, device-intelligence (`model-prep` is `development` one-shot) |
+| 4 | **automation-core** | 6 | Automation engine — ha-ai-agent, ai-automation, YAML validation, linter, trace service, ha-device-control |
 | 5 | **blueprints** | 4 | Blueprint discovery, indexing, ML recommendations |
-| 6 | **energy-analytics** | 3 | Energy correlator, forecasting, proactive agent |
-| 7 | **device-management** | 8 | Device health, setup, classification, activity recognition, ha-setup |
+| 6 | **energy-analytics** | 1 | Proactive agent |
+| 7 | **device-management** | 6 | Device health, setup, classification, recommendations, ha-setup |
 | 8 | **pattern-analysis** | 2 | Behavioral patterns, api-automation-edge |
-| 9 | **frontends** | 4 | Jaeger, observability dashboard, AI automation UI, voice-gateway (health-dashboard lives in core-platform) |
+| 9 | **frontends** | 3 | Jaeger, observability dashboard, AI automation UI (health-dashboard lives in core-platform) |
 
 Each domain group has its own `compose.yml` under `domains/<group>/` and can be deployed independently. See [Service Groups Architecture](docs/architecture/service-groups.md) for dependency graph and deployment commands.
 

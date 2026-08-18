@@ -23,13 +23,9 @@ jobs:
           - health-dashboard
           - ai-automation-service-new
           - ha-ai-agent-service
-          - ai-query-service
           - ai-pattern-service
-          - energy-correlator
-          - energy-forecasting
           - device-intelligence-service
           - ml-service
-          - ai-core-service
           - openvino-service
     steps:
       - name: Checkout code

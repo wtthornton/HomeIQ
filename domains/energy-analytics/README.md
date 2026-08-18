@@ -1,18 +1,16 @@
 # energy-analytics
 
-Energy intelligence — device-power causality analysis, consumption forecasting, and proactive energy recommendations.
+Energy intelligence — proactive energy recommendations built on Data API energy history.
 
 ## Services
 
 | Service | Port | Role |
 |---------|------|------|
-| energy-correlator | 8017 | Device-power causality analysis |
-| energy-forecasting | 8042 | 7-day energy consumption predictions |
 | proactive-agent-service | 8031 | Proactive recommendations and suggestions |
 
 ## Depends On
 
-core-platform (data-api, InfluxDB), ml-engine (for ML-powered forecasting)
+core-platform (data-api, InfluxDB)
 
 ## Depended On By
 

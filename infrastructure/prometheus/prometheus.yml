@@ -104,12 +104,6 @@ scrape_configs:
           group: 'data-collectors'
           tier: '3'
       - targets:
-          - 'homeiq-carbon-intensity:8010'
-        labels:
-          service: 'carbon-intensity'
-          group: 'data-collectors'
-          tier: '3'
-      - targets:
           - 'homeiq-electricity-pricing:8011'
         labels:
           service: 'electricity-pricing'
@@ -175,29 +169,11 @@ scrape_configs:
           group: 'ml-engine'
           tier: '3'
       - targets:
-          - 'homeiq-openai-service:8020'
-        labels:
-          service: 'openai-service'
-          group: 'ml-engine'
-          tier: '3'
-      - targets:
           - 'homeiq-rag-service:8027'
         labels:
           service: 'rag-service'
           group: 'ml-engine'
           tier: '3'
-      - targets:
-          - 'homeiq-ai-core-service:8018'
-        labels:
-          service: 'ai-core-service'
-          group: 'ml-engine'
-          tier: '3'
-      - targets:
-          - 'homeiq-ai-training-service:8022'
-        labels:
-          service: 'ai-training-service'
-          group: 'ml-engine'
-          tier: '4'
       - targets:
           - 'homeiq-device-intelligence:8019'
         labels:
@@ -224,12 +200,6 @@ scrape_configs:
           group: 'automation-core'
           tier: '2'
       - targets:
-          - 'homeiq-ai-query-service:8018'
-        labels:
-          service: 'ai-query-service'
-          group: 'automation-core'
-          tier: '3'
-      - targets:
           - 'homeiq-yaml-validation-service:8037'
         labels:
           service: 'yaml-validation-service'
@@ -239,12 +209,6 @@ scrape_configs:
           - 'homeiq-automation-linter:8020'
         labels:
           service: 'automation-linter'
-          group: 'automation-core'
-          tier: '4'
-      - targets:
-          - 'homeiq-ai-code-executor:8030'
-        labels:
-          service: 'ai-code-executor'
           group: 'automation-core'
           tier: '4'
       - targets:
@@ -286,23 +250,11 @@ scrape_configs:
           tier: '4'
 
   # --- Group 6: Energy Analytics ---
-  # Energy monitoring, correlation, and forecasting.
+  # Energy monitoring and proactive analytics.
   - job_name: 'energy-analytics'
     metrics_path: /metrics
     scrape_interval: 30s
     static_configs:
-      - targets:
-          - 'homeiq-energy-correlator:8017'
-        labels:
-          service: 'energy-correlator'
-          group: 'energy-analytics'
-          tier: '2'
-      - targets:
-          - 'homeiq-energy-forecasting:8037'
-        labels:
-          service: 'energy-forecasting'
-          group: 'energy-analytics'
-          tier: '3'
       - targets:
           - 'homeiq-proactive-agent-service:8031'
         labels:
@@ -311,7 +263,7 @@ scrape_configs:
           tier: '3'
 
   # --- Group 7: Device Management ---
-  # Device lifecycle, health, onboarding, and activity.
+  # Device lifecycle, health, and onboarding.
   - job_name: 'device-management'
     metrics_path: /metrics
     scrape_interval: 30s
@@ -344,18 +296,6 @@ scrape_configs:
           - 'homeiq-device-recommender:8023'
         labels:
           service: 'device-recommender'
-          group: 'device-management'
-          tier: '4'
-      - targets:
-          - 'homeiq-activity-recognition:8036'
-        labels:
-          service: 'activity-recognition'
-          group: 'device-management'
-          tier: '4'
-      - targets:
-          - 'homeiq-activity-writer:8035'
-        labels:
-          service: 'activity-writer'
           group: 'device-management'
           tier: '4'
       - targets:

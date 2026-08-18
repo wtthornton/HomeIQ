@@ -110,7 +110,6 @@ class DockerService:
             "health-dashboard": "homeiq-dashboard",
             "influxdb": "homeiq-influxdb",
             "weather-api": "homeiq-weather-api",
-            "carbon-intensity-service": "homeiq-carbon-intensity",
             "electricity-pricing-service": "homeiq-electricity-pricing",
             "air-quality-service": "homeiq-air-quality",
             "calendar-service": "homeiq-calendar",

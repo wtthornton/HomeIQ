@@ -2,10 +2,10 @@ name: homeiq-ml-engine
 # domains/ml-engine/compose.yml — ML model inference, embedding generation, and training
 # Deploy cadence: Frequent — model updates, library upgrades
 #
-# Services: openvino-service, ml-service, ner-service, openai-service, rag-service,
-#           ai-core-service, ai-training-service, device-intelligence-service, model-prep
+# Services: openvino-service, ml-service, ner-service, rag-service,
+#           device-intelligence-service, model-prep
 # Depends on: core-platform (data-api for entity/device metadata)
-# Depended on by: automation-core (ML inference via ai-core-service)
+# Depended on by: automation-core (ML inference via ml-service)
 
 services:
   openvino-service:
@@ -101,39 +101,6 @@ services:
         max-file: "3"
         labels: "service=ner-model,group=ml-engine,environment=production"
 
-  openai-service:
-    build:
-      context: ../..
-      dockerfile: domains/ml-engine/openai-service/Dockerfile
-    container_name: homeiq-openai-service
-    restart: unless-stopped
-    ports:
-      - "8020:8020"
-    env_file:
-      - ../../infrastructure/env.ai-automation
-    networks:
-      - homeiq-network
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '1.0'
-        reservations:
-          memory: 128M
-          cpus: '0.5'
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8020/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        labels: "service=openai-client,group=ml-engine,environment=production"
-
   rag-service:
     build:
       context: ../..
@@ -181,101 +148,6 @@ services:
         max-size: "10m"
         max-file: "3"
         labels: "service=rag-service,group=ml-engine,environment=production"
-
-  ai-core-service:
-    build:
-      context: ../..
-      dockerfile: domains/ml-engine/ai-core-service/Dockerfile
-    container_name: homeiq-ai-core-service
-    restart: unless-stopped
-    ports:
-      - "8018:8018"
-    env_file:
-      - ../../infrastructure/env.ai-automation
-    environment:
-      # Fallback to API_KEY for local dev when AI_CORE_API_KEY not in .env
-      - AI_CORE_API_KEY=${AI_CORE_API_KEY:-${API_KEY:?required}}
-      - OPENVINO_SERVICE_URL=http://openvino-service:8019
-      - ML_SERVICE_URL=http://ml-service:8020
-      - NER_SERVICE_URL=http://ner-service:8031
-      - OPENAI_SERVICE_URL=http://openai-service:8020
-    depends_on:
-      openvino-service:
-        condition: service_healthy
-      ml-service:
-        condition: service_healthy
-      ner-service:
-        condition: service_healthy
-      openai-service:
-        condition: service_healthy
-    networks:
-      - homeiq-network
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '2.0'
-        reservations:
-          memory: 128M
-          cpus: '1.0'
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8018/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        labels: "service=ai-orchestrator,group=ml-engine,environment=production"
-
-  ai-training-service:
-    build:
-      context: ../..
-      dockerfile: domains/ml-engine/ai-training-service/Dockerfile
-    container_name: homeiq-ai-training-service
-    restart: unless-stopped
-    ports:
-      - "8033:8022"
-    env_file:
-      - ../../.env
-    environment:
-      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq
-      - DATABASE_SCHEMA=automation
-      - TRAINING_SCRIPT_PATH=/app/scripts/train_soft_prompt.py
-      - SOFT_PROMPT_MODEL_DIR=/app/models/soft_prompts
-      - MODEL_STORAGE_DIR=/app/models
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OTLP_ENDPOINT=http://jaeger:4317
-    volumes:
-      - ai_automation_data:/app/data
-      - ai_automation_models:/app/models
-      - ./ai-training-service/scripts:/app/scripts:ro
-    networks:
-      - homeiq-network
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '2.0'
-        reservations:
-          memory: 128M
-          cpus: '1.0'
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8022/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        labels: "service=ai-training,group=ml-engine,environment=production"
 
   device-intelligence-service:
     build:

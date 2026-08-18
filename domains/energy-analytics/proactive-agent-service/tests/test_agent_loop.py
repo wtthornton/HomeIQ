@@ -291,7 +291,7 @@ class TestOpenAIKeySecret:
     ``openai_api_key`` was a plain ``str`` on ``Settings``, so any repr/log
     dump of the settings object leaked the raw key. It is now a ``SecretStr``;
     the loop's ``_init_openai_client`` must unwrap it before handing it to the
-    OpenAI SDK (mirrors ai-query-service's TestBuildProcessorOpenAIKey).
+    OpenAI SDK before handing it to the client.
     """
 
     def _make_loop(self, settings):

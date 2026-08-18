@@ -125,7 +125,7 @@ function Deploy-AllContainers {
     try {
         # Remove any containers with network errors first
         Write-Info "Removing containers with network issues..."
-        $containersWithIssues = @("electricity-pricing", "carbon-intensity", "air-quality")
+        $containersWithIssues = @("electricity-pricing", "air-quality")
         foreach ($container in $containersWithIssues) {
             docker compose rm -f $container 2>&1 | Out-Null
         }

@@ -36,7 +36,6 @@ Environment variables:
 - `HA_AI_AGENT_URL` - HA AI Agent Service URL (default: http://ha-ai-agent-service:8030)
 - `WEATHER_API_URL` - Weather API service URL (default: http://weather-api:8009)
 - Note: Sports data is accessed via DATA_API_URL (Epic 31 architecture - sports-api writes to InfluxDB, data-api queries it)
-- `CARBON_INTENSITY_URL` - Carbon Intensity service URL (default: http://carbon-intensity:8010)
 - `DATA_API_URL` - Data API service URL (default: http://data-api:8006)
 - `DATABASE_URL` - PostgreSQL database URL
 - `SCHEDULER_ENABLED` - Enable scheduler (default: true)

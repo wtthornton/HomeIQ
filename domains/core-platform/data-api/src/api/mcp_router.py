@@ -1,6 +1,6 @@
 """
 MCP tool endpoints for Data API.
-These endpoints are called by code executed in the ai-code-executor sandbox.
+These endpoints back the homeiq-mcp tool surface over Data API data.
 """
 
 import logging

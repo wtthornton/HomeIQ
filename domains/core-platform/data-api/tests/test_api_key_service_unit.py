@@ -82,12 +82,6 @@ class TestValidateKeyFormat:
     def test_weather_key_valid(self):
         assert self.svc._validate_key_format("weather", "a" * 32) is True
 
-    def test_carbon_intensity_key_valid(self):
-        assert self.svc._validate_key_format("carbon-intensity", "a" * 10) is True
-
-    def test_carbon_intensity_key_too_short(self):
-        assert self.svc._validate_key_format("carbon-intensity", "ab") is False
-
     def test_air_quality_key_valid(self):
         assert self.svc._validate_key_format("air-quality", "12345") is True
 
@@ -122,9 +116,8 @@ class TestAPIKeyServiceInit:
     def test_has_config(self):
         svc = APIKeyService()
         assert "weather" in svc.api_key_config
-        assert "carbon-intensity" in svc.api_key_config
         assert "air-quality" in svc.api_key_config
-        assert len(svc.api_key_config) >= 6
+        assert len(svc.api_key_config) >= 5
 
     def test_weather_config(self):
         svc = APIKeyService()

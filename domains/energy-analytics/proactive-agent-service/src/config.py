@@ -31,11 +31,8 @@ class Settings(BaseServiceSettings):
         default="http://weather-api:8009",
         description="Weather API service URL",
     )
-    # Note: Sports data is accessed via data-api (Epic 31 architecture)
-    carbon_intensity_url: str = Field(
-        default="http://carbon-intensity:8010",
-        description="Carbon Intensity service URL",
-    )
+    # Note: Sports and carbon intensity data are accessed via data-api
+    # (Epic 31 architecture)
 
     # Scheduler Configuration
     scheduler_enabled: bool = True

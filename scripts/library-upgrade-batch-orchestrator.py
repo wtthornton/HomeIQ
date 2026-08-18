@@ -107,7 +107,6 @@ class Phase2Orchestrator:
         # Phase A: InfluxDB low-risk
         services["air-quality-service"] = ServiceMigration("air-quality-service", "LOW", [MigrationType.INFLUXDB], "A")
         services["calendar-service"] = ServiceMigration("calendar-service", "LOW", [MigrationType.INFLUXDB], "A")
-        services["carbon-intensity-service"] = ServiceMigration("carbon-intensity-service", "LOW", [MigrationType.INFLUXDB], "A")
         services["electricity-pricing-service"] = ServiceMigration("electricity-pricing-service", "LOW", [MigrationType.INFLUXDB], "A")
 
         # Phase A: Tenacity low-risk
@@ -126,18 +125,13 @@ class Phase2Orchestrator:
         services["weather-api"] = ServiceMigration("weather-api", "LOW", [MigrationType.PYTEST_ASYNCIO, MigrationType.INFLUXDB], "B")
 
         # Phase B: Medium-Risk Services (other)
-        services["ai-query-service"] = ServiceMigration("ai-query-service", "MEDIUM", [MigrationType.PYTEST_ASYNCIO], "B")
-        services["ai-training-service"] = ServiceMigration("ai-training-service", "MEDIUM", [MigrationType.PYTEST_ASYNCIO], "B")
         services["blueprint-suggestion-service"] = ServiceMigration("blueprint-suggestion-service", "LOW", [MigrationType.PYTEST_ASYNCIO], "B")
 
         # Phase B: InfluxDB medium-risk
-        services["energy-correlator"] = ServiceMigration("energy-correlator", "MEDIUM", [MigrationType.INFLUXDB], "B")
-        services["energy-forecasting"] = ServiceMigration("energy-forecasting", "MEDIUM", [MigrationType.INFLUXDB], "B")
         services["smart-meter-service"] = ServiceMigration("smart-meter-service", "MEDIUM", [MigrationType.INFLUXDB], "B")
         services["observability-dashboard"] = ServiceMigration("observability-dashboard", "LOW", [MigrationType.INFLUXDB], "B")
 
         # Phase C: High-Risk Services
-        services["ai-core-service"] = ServiceMigration("ai-core-service", "HIGH", [MigrationType.PYTEST_ASYNCIO, MigrationType.TENACITY], "C")
         services["ml-service"] = ServiceMigration("ml-service", "HIGH", [MigrationType.PYTEST_ASYNCIO, MigrationType.TENACITY], "C")
         services["admin-api"] = ServiceMigration("admin-api", "HIGH", [MigrationType.PYTEST_ASYNCIO, MigrationType.INFLUXDB], "C")
         services["data-retention"] = ServiceMigration("data-retention", "HIGH", [MigrationType.PYTEST_ASYNCIO, MigrationType.MQTT, MigrationType.INFLUXDB], "C")

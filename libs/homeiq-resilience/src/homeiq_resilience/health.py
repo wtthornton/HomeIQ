@@ -14,7 +14,7 @@ Example response::
         "uptime_seconds": 3600,
         "dependencies": {
             "data-api": {"status": "healthy", "latency_ms": 12},
-            "ai-core-service": {
+            "ml-service": {
                 "status": "unreachable",
                 "last_seen": "2026-02-22T10:00:00Z"
             }

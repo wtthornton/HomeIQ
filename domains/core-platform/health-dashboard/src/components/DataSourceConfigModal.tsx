@@ -11,11 +11,6 @@ interface DataSourceConfigModalProps {
 
 // Configuration schemas for each service
 const CONFIG_SCHEMAS: Record<string, Array<{ key: string; label: string; type: 'text' | 'password' | 'number' | 'select'; options?: string[]; placeholder?: string }>> = {
-  carbonIntensity: [
-    { key: 'WATTTIME_USERNAME', label: 'WattTime Username', type: 'text', placeholder: 'your_watttime_username' },
-    { key: 'WATTTIME_PASSWORD', label: 'WattTime Password', type: 'password', placeholder: 'your_watttime_password' },
-    { key: 'GRID_REGION', label: 'Grid Region', type: 'select', options: ['CAISO_NORTH', 'CAISO_SOUTH', 'ERCOT', 'PJM', 'NYISO', 'ISONE', 'MISO'] },
-  ],
   airQuality: [
     { key: 'WEATHER_API_KEY', label: 'OpenWeatherMap API Key', type: 'password', placeholder: 'your_api_key_here' },
     { key: 'LATITUDE', label: 'Latitude', type: 'number', placeholder: '36.1699' },

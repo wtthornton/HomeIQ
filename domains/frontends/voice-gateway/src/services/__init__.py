@@ -1,1 +1,0 @@
-"""Voice gateway service components."""

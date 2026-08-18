@@ -398,7 +398,6 @@ pytest-cov>=6.0.0,<7.0.0      # Coverage reporting
 
 ## Related Documentation
 
-- [AI Core Service](../ai-core-service/README.md) - Orchestrates ML operations
 - [OpenVINO Service](../openvino-service/README.md) - Deep learning models
 - [Automation Miner](../automation-miner/README.md) - Consumer of clustering
 - [API Reference](../../docs/api/API_REFERENCE.md)

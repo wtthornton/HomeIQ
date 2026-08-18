@@ -10,7 +10,7 @@ This script:
 5. Provides recommendations
 
 Supported Schemas (PostgreSQL):
-- automation (ai-automation-service, ai-query-service)
+- automation (ai-automation-service)
 - core (data-api)
 - agent (ha-ai-agent-service)
 - energy (proactive-agent-service)

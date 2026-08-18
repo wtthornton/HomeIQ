@@ -62,7 +62,6 @@ SERVICES[homeiq-ai-automation-service-new]="http://localhost:8025/health|false"
 SERVICES[homeiq-ai-pattern-service]="http://localhost:8034/health|false"
 SERVICES[device-intelligence]="http://localhost:8028/health|false"
 SERVICES[weather-api]="http://localhost:8009/health|false"
-SERVICES[carbon-intensity]="http://localhost:8010/health|false"
 SERVICES[air-quality]="http://localhost:8012/health|false"
 
 # Results

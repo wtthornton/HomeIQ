@@ -171,7 +171,6 @@ deploy_tier_2() {
     "smart-meter-service:8014"
     "sports-api:8005"
     "calendar-service:8013"
-    "carbon-intensity:8010"
     "electricity-pricing:8011"
     "air-quality:8012"
     "log-aggregator:8015"
@@ -204,11 +203,8 @@ deploy_tier_3() {
   local tier3_services=(
     "openvino-service:8026"
     "ml-service:8025"
-    "ai-core-service:8018"
-    "ai-training-service:8033"
     "device-intelligence-service:8028"
     "rag-service:8027"
-    "openai-service:8020"
   )
 
   if ! wait_for_tier_health "Tier 3" "${tier3_services[@]}"; then
@@ -256,7 +252,6 @@ deploy_tiers_4_9() {
     # Tier 4: automation-core
     "ha-ai-agent-service:8030"
     "ai-automation-service-new:8036"
-    "ai-query-service:8035"
     "automation-linter:8016"
     "yaml-validation-service:8037"
     "automation-trace-service:8044"
@@ -267,8 +262,6 @@ deploy_tiers_4_9() {
     "automation-miner:8029"
     "rule-recommendation-ml:8040"
     # Tier 6: energy-analytics
-    "energy-correlator:8017"
-    "energy-forecasting:8042"
     "proactive-agent-service:8031"
     # Tier 7: device-management
     "device-health-monitor:8019"
@@ -277,15 +270,12 @@ deploy_tiers_4_9() {
     "device-recommender:8023"
     "ha-setup-service:8024"
     "device-context-classifier:8032"
-    "activity-recognition:8043"
-    "activity-writer:8045"
     # Tier 8: pattern-analysis
     "ai-pattern-service:8034"
     "api-automation-edge:8041"
     # Tier 9: frontends
     "ai-automation-ui:3001"
     "observability-dashboard:8501"
-    "voice-gateway:8047"
   )
 
   for service in "${tier49_services[@]}"; do

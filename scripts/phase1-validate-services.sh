@@ -254,11 +254,11 @@ All services using \`requirements-base.txt\` will be rebuilt in the following or
 
 1. **Infrastructure** (restart only): influxdb, jaeger
 2. **Core Services**: data-api → websocket-ingestion → admin-api → data-retention
-3. **Integration Services** (parallel batch): weather-api, sports-api, carbon-intensity, electricity-pricing, air-quality, calendar-service, smart-meter-service, log-aggregator
-4. **AI/ML Services** (parallel batch): ai-core-service, ai-pattern-service, ai-automation-service-new, ai-query-service, ai-training-service
+3. **Integration Services** (parallel batch): weather-api, sports-api, electricity-pricing, air-quality, calendar-service, smart-meter-service, log-aggregator
+4. **AI/ML Services** (parallel batch): ai-pattern-service, ai-automation-service-new
 5. **Device Services** (parallel batch): device-intelligence-service, device-health-monitor, device-context-classifier, device-database-client, device-recommender, device-setup-assistant, ha-setup-service
 6. **Automation Services** (parallel batch): automation-linter, automation-miner, blueprint-index, blueprint-suggestion-service, yaml-validation-service, api-automation-edge
-7. **Analytics Services** (parallel batch): energy-correlator, rule-recommendation-ml
+7. **Analytics Services** (parallel batch): rule-recommendation-ml
 8. **Frontend Services**: health-dashboard, ai-automation-ui
 
 ### Build Command Template

@@ -14,7 +14,7 @@
 #            service is unhealthy or exited). Without a domain: check all
 #            running containers belong to the correct Docker project group.
 #
-# Always uses --profile production (air-quality, carbon-intensity, etc.).
+# Always uses --profile production (air-quality, electricity-pricing, etc.).
 #
 # IMPORTANT: Always use this script (or start-stack.sh) to manage domains.
 # Never run 'docker compose up' from the root docker-compose.yml with

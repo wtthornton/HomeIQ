@@ -2054,10 +2054,10 @@ async def get_device_power_analysis(
                 "analysis": {},
             }
 
-        # Get power data from energy endpoints (simplified - would need actual energy correlator integration)
+        # Power data from energy endpoints is not correlated yet.
         # For now, return analysis based on device specs
         spec_power = device.power_consumption_active_w
-        actual_power = None  # Would come from energy-correlator
+        actual_power = None  # No live power-correlation source wired yet
 
         analysis = {
             "device_id": device_id,
@@ -2112,7 +2112,7 @@ async def get_device_efficiency(
             raise HTTPException(status_code=404, detail=f"Device {device_id} not found")
 
         spec_power = device.power_consumption_active_w
-        actual_power = None  # Would come from energy-correlator
+        actual_power = None  # No live power-correlation source wired yet
 
         if not spec_power:
             return {
@@ -2167,7 +2167,7 @@ async def get_power_anomalies(
 
         for device in devices:
             spec_power = device.power_consumption_active_w
-            actual_power = None  # Would come from energy-correlator
+            actual_power = None  # No live power-correlation source wired yet
 
             if spec_power and actual_power and actual_power > spec_power * 1.5:
                 anomalies.append(

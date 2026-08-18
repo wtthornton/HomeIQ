@@ -86,11 +86,10 @@ display_dashboard() {
     echo -e "${CYAN}Services by Category:${NC}"
     echo ""
 
-    display_category "Integration" "weather-api sports-api carbon-intensity-service electricity-pricing-service air-quality-service calendar-service smart-meter-service log-aggregator"
-    display_category "AI/ML" "ai-core-service ai-pattern-service ai-automation-service-new ai-query-service ai-training-service ai-code-executor ha-ai-agent-service proactive-agent-service ml-service openvino-service rag-service nlp-fine-tuning rule-recommendation-ml"
+    display_category "Integration" "weather-api sports-api electricity-pricing-service air-quality-service calendar-service smart-meter-service log-aggregator"
+    display_category "AI/ML" "ai-pattern-service ai-automation-service-new ha-ai-agent-service proactive-agent-service ml-service openvino-service rag-service nlp-fine-tuning rule-recommendation-ml"
     display_category "Device" "device-intelligence-service device-context-classifier device-database-client device-health-monitor device-recommender device-setup-assistant model-prep"
     display_category "Automation" "automation-linter automation-miner blueprint-index blueprint-suggestion-service yaml-validation-service api-automation-edge"
-    display_category "Analytics" "energy-correlator energy-forecasting"
     display_category "Frontend" "health-dashboard ai-automation-ui"
     display_category "Other" "observability-dashboard ha-simulator"
 
@@ -122,7 +121,7 @@ display_dashboard() {
     # Docker container status
     echo ""
     echo -e "${CYAN}Docker Container Status:${NC}"
-    docker ps --format "table {{.Names}}\t{{.Status}}" | grep -E "homeiq-weather-api|homeiq-ai-core|homeiq-device-intelligence|homeiq-automation-linter|homeiq-energy-correlator|homeiq-health-dashboard" | head -6
+    docker ps --format "table {{.Names}}\t{{.Status}}" | grep -E "homeiq-weather-api|homeiq-device-intelligence|homeiq-automation-linter|homeiq-ml-service|homeiq-health-dashboard" | head -6
 
     # Resource usage
     echo ""

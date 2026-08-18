@@ -31,7 +31,6 @@ export type HygieneStatus = 'open' | 'ignored' | 'resolved';
 const createEmptyDataSources = (): DataSourcesHealthMap => ({
   weather: null,
   sports: null,
-  carbonIntensity: null,
   electricityPricing: null,
   airQuality: null,
   blueprintIndex: null,
@@ -296,7 +295,6 @@ class AdminApiClient extends BaseApiClient {
 
       // Map backend service names to frontend expected names
       const serviceMapping: Record<string, keyof DataSourcesHealthMap> = {
-        'carbon-intensity-service': 'carbonIntensity',
         'electricity-pricing-service': 'electricityPricing',
         'air-quality-service': 'airQuality',
         'calendar-service': 'calendar',

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from homeiq_resilience import CircuitBreaker
 
-# data-api, sports-data, carbon-intensity all live in core-platform (Group 1)
+# data-api and sports-data both live in core-platform (Group 1)
 core_platform_breaker = CircuitBreaker(name="core-platform")
 
 # weather-api lives in data-collectors (Group 2)

@@ -15,7 +15,6 @@ const mockApiService = vi.mocked(apiService);
 const mockDataSources = {
   weather: { status: 'healthy', last_update: '2025-01-01T00:00:00Z' },
   sports: { status: 'healthy', last_update: '2025-01-01T00:00:00Z' },
-  carbonIntensity: null,
   electricityPricing: null,
   airQuality: null,
   blueprintIndex: null,

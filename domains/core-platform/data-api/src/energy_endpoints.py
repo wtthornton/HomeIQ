@@ -587,10 +587,11 @@ async def get_current_carbon_intensity():
     Get current carbon intensity from InfluxDB
 
     Queries the carbon_data bucket for the most recent carbon intensity reading.
-    Data is written by carbon-intensity-service.
+    The collector that populated this bucket has been retired, so the endpoint
+    reports "no data" unless historical readings are still within retention.
     """
     client = None
-    # Carbon intensity data is stored in its own bucket (written by carbon-intensity-service).
+    # Carbon intensity data is stored in its own bucket.
     carbon_bucket = os.getenv("INFLUXDB_CARBON_BUCKET", "carbon_data")
     try:
         client = get_influxdb_client()
@@ -633,7 +634,7 @@ async def get_current_carbon_intensity():
     except ApiException as e:
         if e.status == 404:
             # InfluxDB answers 404 when the bucket (or org) is unknown on this instance —
-            # carbon-intensity-service not deployed here. That is "no data", not a fault.
+            # the carbon bucket is not provisioned here. That is "no data", not a fault.
             logger.info(
                 "carbon intensity unavailable: InfluxDB 404 for bucket %r (%s)",
                 carbon_bucket,

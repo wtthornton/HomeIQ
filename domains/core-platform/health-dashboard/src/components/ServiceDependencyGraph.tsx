@@ -16,7 +16,6 @@ const SERVICE_NODES: ServiceNode[] = [
   
   // Layer 3: External Data Sources
   { id: 'weather-api', name: 'Weather API', icon: '☁️', type: 'external', layer: 3, position: 1 },
-  { id: 'carbon-intensity-service', name: 'Carbon Intensity', icon: '🌱', type: 'external', layer: 3, position: 2 },
   { id: 'electricity-pricing-service', name: 'Electricity Pricing', icon: '⚡', type: 'external', layer: 3, position: 3 },
   { id: 'air-quality-service', name: 'Air Quality', icon: '💨', type: 'external', layer: 3, position: 4 },
   { id: 'calendar-service', name: 'Calendar', icon: '📅', type: 'external', layer: 3, position: 5 },
@@ -40,7 +39,6 @@ const SERVICE_DEPENDENCIES: ServiceDependency[] = [
   
   // External data sources (Epic 31: Direct writes to InfluxDB)
   { from: 'weather-api', to: 'influxdb', type: 'storage', description: 'Weather data' },
-  { from: 'carbon-intensity-service', to: 'influxdb', type: 'storage', description: 'Carbon data' },
   { from: 'electricity-pricing-service', to: 'influxdb', type: 'storage', description: 'Pricing data' },
   { from: 'air-quality-service', to: 'influxdb', type: 'storage', description: 'Air quality' },
   { from: 'calendar-service', to: 'influxdb', type: 'storage', description: 'Calendar events' },
