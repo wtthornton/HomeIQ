@@ -38,7 +38,7 @@ async def test_client_initialization():
     )
 
     assert client.base_url == "http://localhost:8123"
-    assert client.token == "test_token"
+    assert client._headers["Authorization"] == "Bearer test_token"
     assert client.session is None
 
 
@@ -114,16 +114,15 @@ async def test_test_connection_failure(ha_client):
 @pytest.mark.asyncio
 async def test_get_calendars(ha_client):
     """Test getting calendar list"""
-    mock_states = [
-        {"entity_id": "calendar.primary", "state": "off"},
-        {"entity_id": "calendar.work", "state": "on"},
-        {"entity_id": "sensor.temperature", "state": "20"},
-        {"entity_id": "calendar.personal", "state": "off"},
+    mock_calendars = [
+        {"entity_id": "calendar.primary", "name": "Primary"},
+        {"entity_id": "calendar.work", "name": "Work"},
+        {"entity_id": "calendar.personal", "name": "Personal"},
     ]
 
     mock_response = AsyncMock()
     mock_response.status = 200
-    mock_response.json = AsyncMock(return_value=mock_states)
+    mock_response.json = AsyncMock(return_value=mock_calendars)
 
     mock_session = AsyncMock()
     mock_session.__aenter__ = AsyncMock(return_value=mock_response)

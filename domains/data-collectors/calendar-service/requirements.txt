@@ -1,5 +1,16 @@
-python-dotenv>=1.0.0,<2.0.0  # Phase 2: standardized
+# Runtime dependencies. Kept in step with requirements-prod.txt, which the
+# Dockerfile installs -- CI installs this file, so any package missing here
+# aborts pytest collection even though the image builds fine (TAP-6176).
+fastapi>=0.115.0,<1.0.0
+uvicorn>=0.32.0,<1.0.0
+python-dotenv>=1.0.1,<2.0.0  # Phase 2: standardized
 influxdb3-python>=0.3.0,<1.0.0  # Phase 2: standardized
 aiohttp>=3.13.3,<4.0.0  # CVE-2025-69223..69230 fix — min 3.13.3
+websockets>=13.0,<16.0  # >=13.0: main.py imports homeiq_ha, which needs websockets.asyncio
 pydantic-settings>=2.6.0,<3.0.0  # Phase 1: aligned
 
+# HomeIQ shared libraries (installed from libs/ in Docker and in CI)
+homeiq-observability>=1.0.0
+homeiq-resilience>=1.0.0
+homeiq-ha>=1.0.0
+homeiq-data>=1.0.0
