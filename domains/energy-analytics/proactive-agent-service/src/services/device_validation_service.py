@@ -130,7 +130,7 @@ class DeviceValidationService:
             return self._device_cache
 
         # Circuit breaker: if ha-ai-agent-service is known to be down, use cache
-        if not _ha_agent_breaker.allow_request():
+        if not await _ha_agent_breaker.allow_request():
             logger.warning(
                 "Circuit breaker open for ha-ai-agent-service — using cached "
                 "device inventory (%d devices)",

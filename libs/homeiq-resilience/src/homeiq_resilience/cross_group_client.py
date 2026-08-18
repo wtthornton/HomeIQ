@@ -115,7 +115,7 @@ class CrossGroupClient:
         last_exc: Exception | None = None
 
         for attempt in range(1, self._max_retries + 1):
-            if not self._breaker.allow_request():
+            if not await self._breaker.allow_request():
                 raise CircuitOpenError(
                     f"Circuit open for group '{self._group_name}' — "
                     f"requests to {self._base_url} are blocked"

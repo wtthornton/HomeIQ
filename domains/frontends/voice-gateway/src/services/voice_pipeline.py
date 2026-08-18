@@ -195,7 +195,7 @@ class VoicePipeline:
             logger.error("HTTP client not initialized")
             return "Voice service is not fully initialized."
 
-        if not self._agent_cb.allow_request():
+        if not await self._agent_cb.allow_request():
             logger.warning("AI FALLBACK: Agent circuit breaker open")
             return "I'm having trouble connecting to the assistant. Please try again later."
 
@@ -206,10 +206,10 @@ class VoicePipeline:
             )
             response.raise_for_status()
             data = response.json()
-            self._agent_cb.record_success()
+            await self._agent_cb.record_success()
             return data.get("response", data.get("message", ""))
         except Exception:
-            self._agent_cb.record_failure()
+            await self._agent_cb.record_failure()
             logger.exception("Agent service call failed")
             return "I couldn't process your request. Please try again."
 
@@ -241,7 +241,7 @@ class VoicePipeline:
         rms = np.sqrt(np.mean(audio_array**2)) / 32768.0
         return float(rms) < settings.silence_threshold
 
-    def health(self) -> dict[str, Any]:
+    async def health(self) -> dict[str, Any]:
         """Report pipeline health."""
         return {
             "state": self._state.value,
@@ -257,7 +257,7 @@ class VoicePipeline:
             },
             "agent_circuit_breaker": {
                 "state": (
-                    "open" if not self._agent_cb.allow_request() else "closed"
+                    "open" if not await self._agent_cb.allow_request() else "closed"
                 ),
             },
         }

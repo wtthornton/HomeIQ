@@ -634,12 +634,21 @@ from(bucket: "{influxdb_bucket}")
         pivoted so real ``context_id`` event ids survive (drill-down via
         ``GET /events/{id}`` keeps working); ``group()`` before ``limit``
         makes the cap global rather than per-series. Failures propagate —
-        the route owns the 502.
+        the route owns the 502. An empty or symbols-only query sanitizes
+        to ``""``; that returns no matches rather than every event, since
+        an empty ``substr`` would otherwise match everything.
         """
         bucket = os.getenv("INFLUXDB_BUCKET", "home_assistant_events")
         query_api = _get_shared_influxdb_client().query_api()
 
         needle = sanitize_flux_value(search.query).lower()
+        if not needle:
+            # An empty or symbols-only query sanitizes to "". Building the
+            # Flux query anyway would emit strings.containsStr(substr: ""),
+            # which matches every record — "search" silently degrading into
+            # "return everything" instead of "no matches" (TAP-5997).
+            return []
+
         searchable = ("entity_id", "event_type")
         targets = [f for f in search.fields if f in searchable] or list(searchable)
         conditions = " or ".join(

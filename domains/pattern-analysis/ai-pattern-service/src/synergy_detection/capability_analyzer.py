@@ -97,7 +97,7 @@ class DeviceCapabilityAnalyzer:
             return self._cache[device_id]
 
         # Circuit breaker fast-fail when ml-engine group is down
-        if not _ml_engine_breaker.allow_request():
+        if not await _ml_engine_breaker.allow_request():
             logger.warning(
                 "AI FALLBACK: ml-engine circuit open -- returning empty capabilities for %s",
                 device_id,
