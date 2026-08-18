@@ -12,7 +12,7 @@ from homeassistant.util.json import json_loads
 from voluptuous_openapi import convert
 
 from .agentforge import AgentForgeError
-from .const import DOMAIN
+from .const import AI_TASK_STRUCTURED_AGENT, CONVERSATION_AGENT, DOMAIN
 from .entity import HomeIQEntity, render_prompt
 
 if TYPE_CHECKING:
@@ -49,11 +49,19 @@ class HomeIQTaskEntity(ai_task.AITaskEntity, HomeIQEntity):
     ) -> ai_task.GenDataTaskResult:
         """Run a generate-data task and return output matching the request."""
         prompt = render_prompt(chat_log)
+        # Name the gene. Left unhinted, AgentForge falls through to its global
+        # orchestrator, which sees none of this project's agents and answers with
+        # an empty result (TAP-6153). Which gene depends on what the task asked
+        # for: a schema instance is hiq-extract's contract and hiq-assistant's
+        # forbidden output, and prose is the reverse.
         if task.structure is not None:
             prompt = f"{prompt}\n\n{_structure_instruction(task.structure)}"
+            agent = AI_TASK_STRUCTURED_AGENT
+        else:
+            agent = CONVERSATION_AGENT
 
         try:
-            response = await self.async_invoke(prompt)
+            response = await self.async_invoke(prompt, config_hint=agent)
         except AgentForgeError as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
@@ -68,13 +76,16 @@ class HomeIQTaskEntity(ai_task.AITaskEntity, HomeIQEntity):
                 translation_placeholders={"reason": response.as_user_message()},
             )
 
+        # Both genes wrap their payload in the house envelope, so the chat log
+        # and an unstructured task get the prose out of `answer` rather than the
+        # raw object.
         chat_log.async_add_assistant_content_without_tools(
-            conversation.AssistantContent(agent_id=self.entity_id, content=response.text)
+            conversation.AssistantContent(agent_id=self.entity_id, content=response.answer_text)
         )
 
-        data: Any = response.text
+        data: Any = response.answer_text
         if task.structure is not None:
-            data = _structured_data(task.structure, response.text)
+            data = _structured_data(task.structure, response.instance_text)
 
         return ai_task.GenDataTaskResult(conversation_id=chat_log.conversation_id, data=data)
 

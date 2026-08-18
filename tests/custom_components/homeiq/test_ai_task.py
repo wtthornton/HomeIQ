@@ -125,6 +125,100 @@ async def test_structured_task_rejects_a_mismatched_shape(
 
 
 @pytest.mark.usefixtures("homeassistant_component")
+async def test_structured_task_names_the_structured_gene(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """A schema request goes to the gene whose contract is a schema instance.
+
+    Unhinted, AgentForge falls through to _system-orchestrator, which sees none
+    of this project's agents; measured live on 2026-08-18 it burned 69 s and
+    $0.37 to return an empty result (TAP-6153).
+    """
+    aioclient_mock.post(
+        AGENTFORGE_ENDPOINT,
+        json=task_response(result=json.dumps({"busiest_room": "kitchen", "events": 42})),
+    )
+    await setup_entry(hass, config_entry)
+
+    await generate(hass, "which room was busiest?", STRUCTURE)
+
+    assert aioclient_mock.mock_calls[0][2]["config_hint"] == "hiq-extract"
+
+
+@pytest.mark.usefixtures("homeassistant_component")
+async def test_plain_task_names_the_prose_gene(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """Without a structure the task wants prose, which is hiq-assistant's job."""
+    aioclient_mock.post(AGENTFORGE_ENDPOINT, json=task_response(result="all quiet"))
+    await setup_entry(hass, config_entry)
+
+    await generate(hass, "summarise the day")
+
+    assert aioclient_mock.mock_calls[0][2]["config_hint"] == "hiq-assistant"
+
+
+@pytest.mark.usefixtures("homeassistant_component")
+async def test_structured_task_unwraps_the_gene_envelope(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """hiq-extract answers with the instance wrapped in its own envelope.
+
+    Validating the envelope against the caller's schema fails on the extra
+    keys, so the instance has to come out first.
+    """
+    aioclient_mock.post(
+        AGENTFORGE_ENDPOINT,
+        json=task_response(
+            result=json.dumps(
+                {
+                    "instance": {"busiest_room": "kitchen", "events": 42},
+                    "manifest": [{"field": "events", "value": 42, "source": None}],
+                    "unsourced_fields": [],
+                }
+            )
+        ),
+    )
+    await setup_entry(hass, config_entry)
+
+    result = await generate(hass, "which room was busiest?", STRUCTURE)
+
+    assert result.data == {"busiest_room": "kitchen", "events": 42}
+
+
+@pytest.mark.usefixtures("homeassistant_component")
+async def test_plain_task_unwraps_the_prose_answer(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """An automation gets the spoken sentence, not hiq-assistant's envelope."""
+    aioclient_mock.post(
+        AGENTFORGE_ENDPOINT,
+        json=task_response(
+            result=json.dumps(
+                {
+                    "answer": "The kitchen was busiest.",
+                    "tools_called": ["mcp__homeiq__get_recent_events"],
+                    "assessment_status": "complete",
+                }
+            )
+        ),
+    )
+    await setup_entry(hass, config_entry)
+
+    result = await generate(hass, "which room was busiest?")
+
+    assert result.data == "The kitchen was busiest."
+
+
+@pytest.mark.usefixtures("homeassistant_component")
 async def test_budget_refusal_fails_the_task_readably(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
