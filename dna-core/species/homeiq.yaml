@@ -10,6 +10,7 @@ env_prefix: HIQ
 
 genes:
   classify:
+    max_budget_usd: '0.25'
     brain_rationale: |-
       Read-only recall of prior labels for recurring anomalies and device states
         sharpens urgency; writes are owned by {{prefix}}-memory-curator.
@@ -25,6 +26,7 @@ genes:
       - triage these device readings against the rubric
       - label these sensor anomalies
   correlate:
+    max_budget_usd: '0.5'
     authority_rules: |-
       Per the `kpi_truth` input — the `kpi-truth` pack handed to you
          directly, since you have no filesystem and cannot open `skills/`: the
@@ -64,6 +66,7 @@ genes:
       - join these home energy metrics into one picture
       - how do smart meter and device estimates compare
   extract:
+    max_budget_usd: '0.5'
     brain_rationale: |-
       Read-only recall of per-device field quirks (naming, units, attribute oddities) raises
         extraction accuracy; writes are owned by {{prefix}}-memory-curator.
@@ -100,6 +103,7 @@ genes:
       - extract device attributes from this Home Assistant event
       - pull structured fields from this entity report
   kb-librarian:
+    max_budget_usd: '0.25'
     description: |-
       Cache-first recall gene that opens every chromosome with a 'what we already
         know' context block for the run's topic — prior findings, known platform quirks,
@@ -119,6 +123,7 @@ genes:
       - what do we already know about this home topic
       - recall device quirks and standing issues for this run
   memory-curator:
+    max_budget_usd: '0.25'
     description: |-
       The species' sole memory writer. Runs at the end of a chromosome, distills
         durable facts from the run — device integration quirks, Zigbee incidents, automation
@@ -174,6 +179,7 @@ genes:
          tied to a specific appliance; a HA automation misfired and why; a root cause was confirmed
          for an anomaly that will recur.
   notify:
+    max_budget_usd: '0.1'
     description: |-
       Deterministic notification effector bound to the platform notify template
         with retry and dead-letter handling. Delivers digest text to the owner's configured
@@ -210,6 +216,7 @@ genes:
       the attempt count. `status: rejected` is a sink refusal that is not
       retried. The observed 2026-07-29 outage produced `dlq`, not `rejected`.
   rank:
+    max_budget_usd: '0.25'
     candidate_examples: |-
       Device maintenance priority, anomaly severity, sensor reliability score, automation review order.
     golden_item_fixture: |-
@@ -252,6 +259,7 @@ genes:
       - rank these devices by maintenance need
       - what home issues should I address first
   summarize:
+    max_budget_usd: '0.25'
     cause_gene: |-
       hiq-explain-anomaly
     domain_activity: |-
