@@ -129,7 +129,9 @@ class TestFluxTime:
 
         from src.flux_utils import flux_time
 
-        assert flux_time(datetime(2026, 8, 12, 20, 0, 0, tzinfo=UTC)) == "2026-08-12T20:00:00.000000Z"
+        assert (
+            flux_time(datetime(2026, 8, 12, 20, 0, 0, tzinfo=UTC)) == "2026-08-12T20:00:00.000000Z"
+        )
 
     def test_non_utc_aware_is_normalized_not_mislabeled(self):
         from datetime import datetime, timedelta, timezone
@@ -137,4 +139,7 @@ class TestFluxTime:
         from src.flux_utils import flux_time
 
         pacific = timezone(timedelta(hours=-7))
-        assert flux_time(datetime(2026, 8, 12, 13, 0, 0, tzinfo=pacific)) == "2026-08-12T20:00:00.000000Z"
+        assert (
+            flux_time(datetime(2026, 8, 12, 13, 0, 0, tzinfo=pacific))
+            == "2026-08-12T20:00:00.000000Z"
+        )

@@ -15,6 +15,7 @@ from aiohttp.web_ws import WebSocketResponse
 
 logger = logging.getLogger(__name__)
 
+
 class EventGenerator:
     """Generates realistic HA events for simulation"""
 
@@ -38,9 +39,7 @@ class EventGenerator:
 
         # Start generation tasks
         for entity_id, entity_config in self.patterns["entities"].items():
-            task = asyncio.create_task(
-                self._generate_entity_events(entity_id, entity_config)
-            )
+            task = asyncio.create_task(self._generate_entity_events(entity_id, entity_config))
             self.generation_tasks[entity_id] = task
 
         logger.info(f"Started event generation for {len(self.generation_tasks)} entities")
@@ -62,7 +61,7 @@ class EventGenerator:
         self.entity_states[entity_id] = {
             "state": self._generate_initial_value(entity_config),
             "last_updated": datetime.now(UTC),
-            "attributes": self._generate_attributes(entity_config)
+            "attributes": self._generate_attributes(entity_config),
         }
 
     def _generate_initial_value(self, entity_config: dict[str, Any]) -> str:
@@ -84,7 +83,7 @@ class EventGenerator:
         attributes = {
             "friendly_name": entity_config.get("friendly_name", entity_config["entity_id"]),
             "device_class": entity_config.get("device_class"),
-            "unit_of_measurement": entity_config.get("unit_of_measurement")
+            "unit_of_measurement": entity_config.get("unit_of_measurement"),
         }
 
         # Remove None values
@@ -162,9 +161,13 @@ class EventGenerator:
             if client in self.clients:
                 self.clients.remove(client)
 
-        logger.debug(f"Sent event #{self.event_counter} for {entity_id}: {old_state} -> {new_state}")
+        logger.debug(
+            f"Sent event #{self.event_counter} for {entity_id}: {old_state} -> {new_state}"
+        )
 
-    def _create_state_changed_event(self, entity_id: str, old_state: str, new_state: str) -> dict[str, Any] | None:
+    def _create_state_changed_event(
+        self, entity_id: str, old_state: str, new_state: str
+    ) -> dict[str, Any] | None:
         """Create state_changed event"""
         now = datetime.now(UTC)
         entity_config = self.patterns["entities"].get(entity_id)
@@ -181,7 +184,7 @@ class EventGenerator:
                 "context": {
                     "id": f"sim_{int(now.timestamp() * 1000)}",
                     "parent_id": None,
-                    "user_id": None
+                    "user_id": None,
                 },
                 "data": {
                     "entity_id": entity_id,
@@ -190,17 +193,17 @@ class EventGenerator:
                         "state": old_state,
                         "attributes": self.entity_states[entity_id]["attributes"],
                         "last_changed": self.entity_states[entity_id]["last_updated"].isoformat(),
-                        "last_updated": self.entity_states[entity_id]["last_updated"].isoformat()
+                        "last_updated": self.entity_states[entity_id]["last_updated"].isoformat(),
                     },
                     "new_state": {
                         "entity_id": entity_id,
                         "state": new_state,
                         "attributes": self.entity_states[entity_id]["attributes"],
                         "last_changed": now.isoformat(),
-                        "last_updated": now.isoformat()
-                    }
-                }
-            }
+                        "last_updated": now.isoformat(),
+                    },
+                },
+            },
         }
 
     def get_stats(self) -> dict[str, Any]:
@@ -210,6 +213,5 @@ class EventGenerator:
             "entities": len(self.entity_states),
             "active_tasks": len(self.generation_tasks),
             "events_generated": self.event_counter,
-            "clients": len(self.clients)
+            "clients": len(self.clients),
         }
-

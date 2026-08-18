@@ -9,7 +9,9 @@ import httpx
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-DEVICE_INTELLIGENCE_URL = os.getenv("DEVICE_INTELLIGENCE_URL", "http://device-intelligence-service:8019")
+DEVICE_INTELLIGENCE_URL = os.getenv(
+    "DEVICE_INTELLIGENCE_URL", "http://device-intelligence-service:8019"
+)
 
 
 class HygieneIssueResponse(BaseModel):
@@ -67,9 +69,7 @@ async def _request_device_intelligence(
     if api_key:
         headers["X-API-Key"] = api_key
     async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.request(
-            method, url, params=params, json=payload, headers=headers
-        )
+        response = await client.request(method, url, params=params, json=payload, headers=headers)
 
     if response.status_code >= 400:
         try:

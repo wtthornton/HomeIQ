@@ -57,9 +57,7 @@ async def test_confirmation_watcher_confirms_from_real_event_shape():
 
     import asyncio
 
-    task = asyncio.create_task(
-        watcher.wait_for_confirmation("light.office", expected_state="on")
-    )
+    task = asyncio.create_task(watcher.wait_for_confirmation("light.office", expected_state="on"))
     while "handler" not in captured:
         await asyncio.sleep(0)
 

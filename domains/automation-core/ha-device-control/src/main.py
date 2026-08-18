@@ -97,7 +97,9 @@ async def _startup() -> None:
         if connected:
             logger.info("HA connection verified: %s", settings.ha_url)
         else:
-            logger.warning("Could not connect to HA at %s -- will retry on first request", settings.ha_url)
+            logger.warning(
+                "Could not connect to HA at %s -- will retry on first request", settings.ha_url
+            )
     else:
         logger.warning("No HA_TOKEN configured -- HA API calls will fail")
 
@@ -131,7 +133,9 @@ async def _startup() -> None:
         except Exception:
             logger.warning("Failed to pre-warm entity cache -- will retry on first request")
 
-    logger.info("%s v%s ready on port %d", settings.service_name, __version__, settings.service_port)
+    logger.info(
+        "%s v%s ready on port %d", settings.service_name, __version__, settings.service_port
+    )
 
 
 async def _shutdown() -> None:

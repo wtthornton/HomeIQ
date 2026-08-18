@@ -100,6 +100,7 @@ def _require_influx() -> None:
             detail="InfluxDB unavailable",
         )
 
+
 # Webhook storage (in-memory for now, will be persistent in Phase 2)
 webhooks: dict[str, WebhookRegistration] = {}
 

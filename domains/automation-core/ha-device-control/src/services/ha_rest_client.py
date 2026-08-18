@@ -131,10 +131,7 @@ class HARestClient:
 
         for i in range(0, len(entity_ids), batch_size):
             batch = entity_ids[i : i + batch_size]
-            parts = [
-                f"{eid}:{{{{ area_name(area_id('{eid}')) or '' }}}}"
-                for eid in batch
-            ]
+            parts = [f"{eid}:{{{{ area_name(area_id('{eid}')) or '' }}}}" for eid in batch]
             template = "||".join(parts)
             try:
                 raw = await self.render_template(template)

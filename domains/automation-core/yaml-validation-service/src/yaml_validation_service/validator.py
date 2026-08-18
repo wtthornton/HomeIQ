@@ -339,9 +339,7 @@ class ValidationPipeline:
                 # Fetch entities from Data API
                 entities = await self.data_api_client.fetch_entities()
                 if entities is None:
-                    warnings.append(
-                        "Entity validation skipped: data-api entity list unavailable"
-                    )
+                    warnings.append("Entity validation skipped: data-api entity list unavailable")
                     return {"valid": True, "errors": errors, "warnings": warnings}
                 valid_entity_ids = {e.get("entity_id") for e in entities if e.get("entity_id")}
 

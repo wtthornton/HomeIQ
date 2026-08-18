@@ -21,7 +21,9 @@ def make_entity() -> Entity:
 
 def test_alias_only_patch_preserves_labels():
     entity = make_entity()
-    _apply_entity_patch(entity, {"entity_id": "light.office", "aliases": ["Office LED strip"]}, set())
+    _apply_entity_patch(
+        entity, {"entity_id": "light.office", "aliases": ["Office LED strip"]}, set()
+    )
     assert entity.aliases == ["Office LED strip"]
     assert entity.labels == ["role:primary-light", "area:office"]
     assert entity.platform == "wled"

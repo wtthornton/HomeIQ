@@ -48,12 +48,14 @@ app = FastAPI(
     title="NER Model Service",
     description="Pre-trained NER model for entity extraction",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
+
 
 class EntityExtractionRequest(BaseModel):
     query: str
     confidence_threshold: float = 0.8
+
 
 class EntityExtractionResponse(BaseModel):
     entities: list[dict[str, Any]]
@@ -61,14 +63,16 @@ class EntityExtractionResponse(BaseModel):
     model_used: str
     confidence_scores: list[float]
 
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
     return {
         "status": "healthy",
         "model_loaded": ner_pipeline is not None,
-        "model_name": "dslim/bert-base-NER"
+        "model_name": "dslim/bert-base-NER",
     }
+
 
 @app.post("/extract", response_model=EntityExtractionResponse)
 async def extract_entities(request: EntityExtractionRequest):
@@ -82,26 +86,29 @@ async def extract_entities(request: EntityExtractionRequest):
         raw_entities = ner_pipeline(request.query)
 
         filtered_entities = [
-            entity for entity in raw_entities
-            if entity.get('score', 0) >= request.confidence_threshold
+            entity
+            for entity in raw_entities
+            if entity.get("score", 0) >= request.confidence_threshold
         ]
 
         entities = []
         confidence_scores = []
 
         for entity in filtered_entities:
-            entity_type = "device" if entity['entity'] in ['B-DEVICE', 'I-DEVICE'] else "area"
+            entity_type = "device" if entity["entity"] in ["B-DEVICE", "I-DEVICE"] else "area"
 
-            entities.append({
-                'name': entity['word'],
-                'type': entity_type,
-                'domain': 'unknown',
-                'confidence': entity['score'],
-                'extraction_method': 'ner',
-                'start': entity['start'],
-                'end': entity['end']
-            })
-            confidence_scores.append(entity['score'])
+            entities.append(
+                {
+                    "name": entity["word"],
+                    "type": entity_type,
+                    "domain": "unknown",
+                    "confidence": entity["score"],
+                    "extraction_method": "ner",
+                    "start": entity["start"],
+                    "end": entity["end"],
+                }
+            )
+            confidence_scores.append(entity["score"])
 
         processing_time = time.time() - start_time
 
@@ -111,12 +118,13 @@ async def extract_entities(request: EntityExtractionRequest):
             entities=entities,
             processing_time=processing_time,
             model_used="dslim/bert-base-NER",
-            confidence_scores=confidence_scores
+            confidence_scores=confidence_scores,
         )
 
     except Exception as e:
         logger.error(f"Entity extraction failed: {e}")
         raise HTTPException(status_code=500, detail=f"Extraction failed: {str(e)}") from e
+
 
 @app.get("/model-info")
 async def get_model_info():
@@ -127,8 +135,9 @@ async def get_model_info():
         "language": "English",
         "entities_detected": ["PERSON", "ORG", "LOC", "MISC"],
         "model_size": "~400MB",
-        "loaded": ner_pipeline is not None
+        "loaded": ner_pipeline is not None,
     }
+
 
 @app.get("/stats")
 async def get_stats():
@@ -137,9 +146,11 @@ async def get_stats():
         "service": "NER Model Service",
         "model": "dslim/bert-base-NER",
         "status": "running",
-        "uptime": "calculated_on_request"
+        "uptime": "calculated_on_request",
     }
+
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8031)  # noqa: S104

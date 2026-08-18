@@ -36,9 +36,7 @@ def _patch_ha(monkeypatch: Any) -> None:
 
 
 def test_decision_unknown_value_returns_422() -> None:
-    resp = _client().post(
-        "/api/v1/init/flows/f1/decision", json={"decision": "maybe"}
-    )
+    resp = _client().post("/api/v1/init/flows/f1/decision", json={"decision": "maybe"})
     assert resp.status_code == 422
 
 
@@ -243,17 +241,13 @@ def test_configured_expected_host_is_honored(monkeypatch: Any) -> None:
 
 def test_read_only_queue_is_not_origin_guarded(monkeypatch: Any) -> None:
     _patch_queue(monkeypatch, deferred=set())
-    resp = _client().get(
-        "/api/v1/init/queue", headers={"Origin": "https://evil.example"}
-    )
+    resp = _client().get("/api/v1/init/queue", headers={"Origin": "https://evil.example"})
     assert resp.status_code == 200
 
 
 def test_422_never_echoes_submitted_values() -> None:
     """A typo'd secret field name must not return the typed value."""
-    resp = _client().post(
-        "/api/v1/init/answers", json={"backup_pass": "supersecret-echo-probe"}
-    )
+    resp = _client().post("/api/v1/init/answers", json={"backup_pass": "supersecret-echo-probe"})
     assert resp.status_code == 422
     assert "supersecret-echo-probe" not in resp.text
     assert resp.json()["detail"][0]["type"] == "extra_forbidden"

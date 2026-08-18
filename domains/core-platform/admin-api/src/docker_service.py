@@ -35,7 +35,6 @@ class DockerUnavailableError(Exception):
     working fleet (TAP-5999)."""
 
 
-
 class ContainerStatus(Enum):
     """Container status enumeration"""
 
@@ -129,7 +128,6 @@ class DockerService:
             raise DockerUnavailableError("docker socket unavailable")
 
         try:
-
             # Get all containers (including stopped ones)
             containers = await asyncio.to_thread(self.client.containers.list, all=True)
 
@@ -208,7 +206,6 @@ class DockerService:
             raise DockerUnavailableError("docker socket unavailable")
 
         try:
-
             container_name = self._get_container_name(service_name)
             if not container_name:
                 return False, f"Unknown service: {service_name}"
@@ -254,7 +251,6 @@ class DockerService:
             raise DockerUnavailableError("docker socket unavailable")
 
         try:
-
             container_name = self._get_container_name(service_name)
             if not container_name:
                 return False, f"Unknown service: {service_name}"
@@ -300,7 +296,6 @@ class DockerService:
             raise DockerUnavailableError("docker socket unavailable")
 
         try:
-
             container_name = self._get_container_name(service_name)
             if not container_name:
                 return False, f"Unknown service: {service_name}"
@@ -344,7 +339,6 @@ class DockerService:
             raise DockerUnavailableError("docker socket unavailable")
 
         try:
-
             container_name = self._get_container_name(service_name)
             if not container_name:
                 return f"Unknown service: {service_name}"
@@ -411,7 +405,6 @@ class DockerService:
             raise DockerUnavailableError("docker socket unavailable")
 
         try:
-
             container_name = self._get_container_name(service_name)
             if not container_name:
                 return None
@@ -455,4 +448,3 @@ class DockerService:
         except Exception as e:
             logger.error(f"Error getting stats for {service_name}: {e}")
             return None
-

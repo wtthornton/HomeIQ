@@ -175,9 +175,7 @@ async def _sync_to_ha(entity_id: str, ha_patch: dict[str, Any]) -> dict[str, Any
             if "labels" in patch:
                 patch["labels"] = await _resolve_label_ids(call, patch["labels"])
 
-            await call(
-                {"type": "config/entity_registry/update", "entity_id": entity_id, **patch}
-            )
+            await call({"type": "config/entity_registry/update", "entity_id": entity_id, **patch})
             logger.info("Synced entity %s to HA registry", entity_id)
             return {"synced": True, "detail": "ok"}
     except (aiohttp.ClientError, RuntimeError, TimeoutError) as exc:

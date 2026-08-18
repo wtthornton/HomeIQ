@@ -120,9 +120,7 @@ async def test_door_open_close(
     light_state_change.clear()
 
     # After 30 seconds the door closes. We expect the light to also turn off.
-    async_fire_time_changed(
-        hass, datetime.datetime.now() + datetime.timedelta(seconds=30)
-    )
+    async_fire_time_changed(hass, datetime.datetime.now() + datetime.timedelta(seconds=30))
     hass.states.async_set(DOOR_ENTITY, "off")
 
     # Wait for the light to turn off

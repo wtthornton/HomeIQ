@@ -15,6 +15,7 @@ from subscription_manager import SubscriptionManager
 
 logger = logging.getLogger(__name__)
 
+
 class HASimulatorWebSocketServer:
     """WebSocket server that simulates Home Assistant API"""
 
@@ -85,10 +86,7 @@ class HASimulatorWebSocketServer:
         error_msg = {
             "type": "result",
             "success": False,
-            "error": {
-                "code": "unknown_error",
-                "message": message
-            }
+            "error": {"code": "unknown_error", "message": message},
         }
         try:
             await ws.send_str(json.dumps(error_msg))
@@ -104,8 +102,9 @@ class HASimulatorWebSocketServer:
 
         for client in self.clients:
             try:
-                if (self.auth_manager.is_authenticated(client) and
-                    self.subscription_manager.has_subscriptions(client)):
+                if self.auth_manager.is_authenticated(
+                    client
+                ) and self.subscription_manager.has_subscriptions(client):
                     await client.send_str(json.dumps(event))
             except Exception as e:
                 logger.error(f"Error sending event to client: {e}")
@@ -118,32 +117,32 @@ class HASimulatorWebSocketServer:
 
     async def health_check(self, _request):
         """Health check endpoint"""
-        return web.json_response({
-            "status": "healthy",
-            "service": "ha-simulator",
-            "version": self.config["simulator"]["version"],
-            "clients": len(self.clients),
-            "authenticated_clients": len([
-                c for c in self.clients
-                if self.auth_manager.is_authenticated(c)
-            ]),
-            "subscribed_clients": len([
-                c for c in self.clients
-                if self.subscription_manager.has_subscriptions(c)
-            ])
-        })
+        return web.json_response(
+            {
+                "status": "healthy",
+                "service": "ha-simulator",
+                "version": self.config["simulator"]["version"],
+                "clients": len(self.clients),
+                "authenticated_clients": len(
+                    [c for c in self.clients if self.auth_manager.is_authenticated(c)]
+                ),
+                "subscribed_clients": len(
+                    [c for c in self.clients if self.subscription_manager.has_subscriptions(c)]
+                ),
+            }
+        )
 
     async def start_server(self):
         """Start the WebSocket server"""
         self.app = web.Application()
-        self.app.router.add_get('/api/websocket', self.websocket_handler)
-        self.app.router.add_get('/health', self.health_check)
+        self.app.router.add_get("/api/websocket", self.websocket_handler)
+        self.app.router.add_get("/health", self.health_check)
 
         self.runner = web.AppRunner(self.app)
         await self.runner.setup()
 
         port = self.config["simulator"]["port"]
-        self.site = web.TCPSite(self.runner, '0.0.0.0', port)  # noqa: S104
+        self.site = web.TCPSite(self.runner, "0.0.0.0", port)  # noqa: S104
         await self.site.start()
 
         logger.info(f"HA Simulator WebSocket server started on port {port}")
@@ -155,4 +154,3 @@ class HASimulatorWebSocketServer:
         if self.runner:
             await self.runner.cleanup()
         logger.info("HA Simulator WebSocket server stopped")
-

@@ -262,9 +262,7 @@ async def answers(body: AnswersRequest) -> dict[str, Any]:
         device_areas=tuple((d.device_id, d.area) for d in body.device_areas),
         addon_options=tuple((a.slug, a.options) for a in body.addon_options),
         teams=tuple(body.teams),
-        backup_password=(
-            body.backup_password.get_secret_value() if body.backup_password else None
-        ),
+        backup_password=(body.backup_password.get_secret_value() if body.backup_password else None),
     )
     try:
         async with HAClient.from_env() as ha:

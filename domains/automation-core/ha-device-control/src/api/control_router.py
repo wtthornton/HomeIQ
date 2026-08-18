@@ -222,12 +222,14 @@ async def list_devices() -> list[dict[str, str]]:
     for domain in controllable_domains:
         entities = await entity_resolver.list_entities(domain_filter=domain)
         for ent in entities:
-            results.append({
-                "entity_id": ent.entity_id,
-                "friendly_name": ent.friendly_name,
-                "domain": ent.domain,
-                "area": ent.area,
-                "state": ent.state,
-            })
+            results.append(
+                {
+                    "entity_id": ent.entity_id,
+                    "friendly_name": ent.friendly_name,
+                    "domain": ent.domain,
+                    "area": ent.area,
+                    "state": ent.state,
+                }
+            )
 
     return results

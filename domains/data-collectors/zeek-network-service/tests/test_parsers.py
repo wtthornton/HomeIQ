@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 # Direction classification
 # ---------------------------------------------------------------------------
 
+
 class TestDirectionClassification:
     def test_outbound(self):
         assert _classify_direction("192.168.1.42", "93.184.216.34") == "outbound"
@@ -70,6 +71,7 @@ class TestSafeConversions:
 # ---------------------------------------------------------------------------
 # Log tracker
 # ---------------------------------------------------------------------------
+
 
 class TestLogTracker:
     def test_load_save_offsets(self, tmp_log_dir: Path):
@@ -123,6 +125,7 @@ class TestLogTracker:
 # ---------------------------------------------------------------------------
 # conn.log parser
 # ---------------------------------------------------------------------------
+
 
 class TestConnLogParser:
     def test_parse_line_valid(self, sample_conn_log_lines: list[str]):
@@ -183,6 +186,7 @@ class TestConnLogParser:
 # dns.log parser
 # ---------------------------------------------------------------------------
 
+
 class TestDnsLogParser:
     def test_parse_line_valid(self, sample_dns_log_lines: list[str]):
         aggregator = MagicMock(spec=DeviceAggregator)
@@ -214,6 +218,7 @@ class TestDnsLogParser:
 # Device aggregator
 # ---------------------------------------------------------------------------
 
+
 class TestDeviceAggregator:
     def test_record_and_get_devices(self):
         aggregator = DeviceAggregator(influx_writer=MagicMock(), service=MagicMock())
@@ -238,12 +243,8 @@ class TestDeviceAggregator:
 
     def test_get_device_detail(self):
         aggregator = DeviceAggregator(influx_writer=MagicMock(), service=MagicMock())
-        aggregator.record_connection(
-            "192.168.1.42", "93.184.216.34", 1024, 4096, 1.0, "ssl"
-        )
-        aggregator.record_connection(
-            "192.168.1.42", "8.8.8.8", 64, 256, 0.01, "dns"
-        )
+        aggregator.record_connection("192.168.1.42", "93.184.216.34", 1024, 4096, 1.0, "ssl")
+        aggregator.record_connection("192.168.1.42", "8.8.8.8", 64, 256, 0.01, "dns")
         aggregator.record_dns_query("192.168.1.42", "example.com")
         aggregator.record_dns_query("192.168.1.42", "api.tuya.com")
 
@@ -256,9 +257,7 @@ class TestDeviceAggregator:
 
     def test_current_stats(self):
         aggregator = DeviceAggregator(influx_writer=MagicMock(), service=MagicMock())
-        aggregator.record_connection(
-            "192.168.1.42", "93.184.216.34", 1024, 4096, 1.0, "ssl"
-        )
+        aggregator.record_connection("192.168.1.42", "93.184.216.34", 1024, 4096, 1.0, "ssl")
         stats = aggregator.get_current_stats()
         assert stats["active_devices"] == 1
         assert stats["total_connections"] == 1
@@ -269,6 +268,7 @@ class TestDeviceAggregator:
 # ---------------------------------------------------------------------------
 # Restart recovery (no duplicate writes)
 # ---------------------------------------------------------------------------
+
 
 class TestRestartRecovery:
     def test_offsets_persist_across_restarts(

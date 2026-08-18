@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 # OUI Vendor Lookup
 # ---------------------------------------------------------------------------
 
+
 class TestOUILookup:
     def test_known_espressif(self):
         oui = OUILookup()
@@ -65,6 +66,7 @@ class TestOUILookup:
 # ---------------------------------------------------------------------------
 # DHCP Parser
 # ---------------------------------------------------------------------------
+
 
 class TestDhcpParser:
     @pytest.mark.asyncio
@@ -151,6 +153,7 @@ class TestDhcpParser:
 # TLS Parser
 # ---------------------------------------------------------------------------
 
+
 class TestTlsParser:
     @pytest.mark.asyncio
     async def test_parse_ja3_line(self, sample_ja3_log_lines: list[str]):
@@ -217,11 +220,13 @@ class TestTlsParser:
             service=MagicMock(),
         )
 
-        line = json.dumps({
-            "id.orig_h": "192.168.1.42",
-            "ja3": "abc123",
-            "ja4": "def456",
-        })
+        line = json.dumps(
+            {
+                "id.orig_h": "192.168.1.42",
+                "ja3": "abc123",
+                "ja4": "def456",
+            }
+        )
         await parser._parse_ssl_line(line)
 
         fp_service.update_tls_fingerprints.assert_called_once()
@@ -246,6 +251,7 @@ class TestTlsParser:
 # ---------------------------------------------------------------------------
 # SSH / Software Parser
 # ---------------------------------------------------------------------------
+
 
 class TestSshParser:
     @pytest.mark.asyncio
@@ -344,6 +350,7 @@ class TestSshParser:
 # Log Tracker — new log files
 # ---------------------------------------------------------------------------
 
+
 class TestLogTrackerNewLogs:
     def test_dhcp_log_tracked(self, tmp_log_dir: Path):
         (tmp_log_dir / "dhcp.log").write_text('{"ts": 1.0}\n')
@@ -368,6 +375,7 @@ class TestLogTrackerNewLogs:
 # ---------------------------------------------------------------------------
 # DHCP parse cycle (integration-style with LogTracker)
 # ---------------------------------------------------------------------------
+
 
 class TestDhcpParseCycle:
     @pytest.mark.asyncio
@@ -419,6 +427,7 @@ class TestDhcpParseCycle:
 # ---------------------------------------------------------------------------
 # TLS parse cycle (integration-style)
 # ---------------------------------------------------------------------------
+
 
 class TestTlsParseCycle:
     @pytest.mark.asyncio
