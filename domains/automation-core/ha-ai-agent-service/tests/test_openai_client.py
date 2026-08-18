@@ -48,8 +48,12 @@ async def test_client_initialization(settings):
 
 
 def test_client_initialization_missing_api_key():
-    """Test that client raises error if API key is missing"""
-    settings = Settings(openai_api_key=None)
+    """Test that client raises error if API key is missing
+
+    Settings.openai_api_key is a non-optional SecretStr defaulting to "",
+    so "missing" means an empty secret rather than None.
+    """
+    settings = Settings(openai_api_key="")
 
     with pytest.raises(ValueError, match="OpenAI API key is required"):
         OpenAIClient(settings)
@@ -98,10 +102,11 @@ async def test_chat_completion_with_tools(openai_client):
     """Test chat completion with function calling tools"""
     mock_tool_call = MagicMock(
         type="function_call",
-        name="get_entity_state",
         arguments='{"entity_id": "light.kitchen"}',
         call_id="call_123",
     )
+    # `name` is reserved by the MagicMock constructor, so it must be set afterwards
+    mock_tool_call.name = "get_entity_state"
     mock_response = MagicMock()
     mock_response.output_text = None
     mock_response.output = [mock_tool_call]

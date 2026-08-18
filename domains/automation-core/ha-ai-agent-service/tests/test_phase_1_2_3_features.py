@@ -27,12 +27,13 @@ class TestPhase1Features:
     async def test_health_scores_in_device_summary(self):
         """Test that health scores are included in device summary"""
         # Mock settings and context builder
-        settings = MagicMock(spec=Settings)
-        settings.data_api_url = "http://test-data-api:8006"
-        settings.ha_url = "http://test-ha:8123"
-        settings.ha_token = "test-token"
-        settings.device_intelligence_url = "http://test-device-intel:8007"
-        settings.device_intelligence_enabled = True
+        settings = Settings(
+            data_api_url="http://test-data-api:8006",
+            ha_url="http://test-ha:8123",
+            ha_token="test-token",
+            device_intelligence_url="http://test-device-intel:8007",
+            device_intelligence_enabled=True,
+        )
 
         context_builder = MagicMock()
         context_builder._get_cached_value = AsyncMock(return_value=None)
@@ -54,13 +55,13 @@ class TestPhase1Features:
         ]
 
         with (
-            patch.object(service.data_api_client, "fetch_devices", new_callable=AsyncMock) as mock_fetch_devices,
+            patch.object(service.data_api_client, "get_devices", new_callable=AsyncMock) as mock_get_devices,
             patch.object(service.data_api_client, "fetch_entities", new_callable=AsyncMock) as mock_fetch_entities,
-            patch.object(service.data_api_client, "fetch_areas", new_callable=AsyncMock) as mock_fetch_areas,
+            patch.object(service.data_api_client, "get_areas", new_callable=AsyncMock) as mock_get_areas,
         ):
-            mock_fetch_devices.return_value = mock_devices
+            mock_get_devices.return_value = mock_devices
             mock_fetch_entities.return_value = []
-            mock_fetch_areas.return_value = []
+            mock_get_areas.return_value = []
 
             summary = await service.get_summary()
 
@@ -71,12 +72,13 @@ class TestPhase1Features:
     @pytest.mark.asyncio
     async def test_device_relationships_in_summary(self):
         """Test that device relationships are included in device summary"""
-        settings = MagicMock(spec=Settings)
-        settings.data_api_url = "http://test-data-api:8006"
-        settings.ha_url = "http://test-ha:8123"
-        settings.ha_token = "test-token"
-        settings.device_intelligence_url = "http://test-device-intel:8007"
-        settings.device_intelligence_enabled = True
+        settings = Settings(
+            data_api_url="http://test-data-api:8006",
+            ha_url="http://test-ha:8123",
+            ha_token="test-token",
+            device_intelligence_url="http://test-device-intel:8007",
+            device_intelligence_enabled=True,
+        )
 
         context_builder = MagicMock()
         context_builder._get_cached_value = AsyncMock(return_value=None)
@@ -98,13 +100,13 @@ class TestPhase1Features:
         ]
 
         with (
-            patch.object(service.data_api_client, "fetch_devices", new_callable=AsyncMock) as mock_fetch_devices,
+            patch.object(service.data_api_client, "get_devices", new_callable=AsyncMock) as mock_get_devices,
             patch.object(service.data_api_client, "fetch_entities", new_callable=AsyncMock) as mock_fetch_entities,
-            patch.object(service.data_api_client, "fetch_areas", new_callable=AsyncMock) as mock_fetch_areas,
+            patch.object(service.data_api_client, "get_areas", new_callable=AsyncMock) as mock_get_areas,
         ):
-            mock_fetch_devices.return_value = mock_devices
+            mock_get_devices.return_value = mock_devices
             mock_fetch_entities.return_value = []
-            mock_fetch_areas.return_value = []
+            mock_get_areas.return_value = []
 
             summary = await service.get_summary()
 
@@ -114,10 +116,11 @@ class TestPhase1Features:
 
     def test_entity_availability_highlighting(self):
         """Test that unavailable entities are highlighted in state context"""
-        settings = MagicMock(spec=Settings)
-        settings.data_api_url = "http://test-data-api:8006"
-        settings.ha_url = "http://test-ha:8123"
-        settings.ha_token = "test-token"
+        settings = Settings(
+            data_api_url="http://test-data-api:8006",
+            ha_url="http://test-ha:8123",
+            ha_token="test-token",
+        )
 
         context_builder = MagicMock()
 
@@ -140,12 +143,13 @@ class TestPhase2Features:
     @pytest.mark.asyncio
     async def test_device_capabilities_in_summary(self):
         """Test that device capabilities are included in device summary"""
-        settings = MagicMock(spec=Settings)
-        settings.data_api_url = "http://test-data-api:8006"
-        settings.ha_url = "http://test-ha:8123"
-        settings.ha_token = "test-token"
-        settings.device_intelligence_url = "http://test-device-intel:8007"
-        settings.device_intelligence_enabled = False
+        settings = Settings(
+            data_api_url="http://test-data-api:8006",
+            ha_url="http://test-ha:8123",
+            ha_token="test-token",
+            device_intelligence_url="http://test-device-intel:8007",
+            device_intelligence_enabled=False,
+        )
 
         context_builder = MagicMock()
         context_builder._get_cached_value = AsyncMock(return_value=None)
@@ -179,13 +183,13 @@ class TestPhase2Features:
         ]
 
         with (
-            patch.object(service.data_api_client, "fetch_devices", new_callable=AsyncMock) as mock_fetch_devices,
+            patch.object(service.data_api_client, "get_devices", new_callable=AsyncMock) as mock_get_devices,
             patch.object(service.data_api_client, "fetch_entities", new_callable=AsyncMock) as mock_fetch_entities,
-            patch.object(service.data_api_client, "fetch_areas", new_callable=AsyncMock) as mock_fetch_areas,
+            patch.object(service.data_api_client, "get_areas", new_callable=AsyncMock) as mock_get_areas,
         ):
-            mock_fetch_devices.return_value = mock_devices
+            mock_get_devices.return_value = mock_devices
             mock_fetch_entities.return_value = mock_entities
-            mock_fetch_areas.return_value = []
+            mock_get_areas.return_value = []
 
             summary = await service.get_summary()
 
@@ -196,12 +200,13 @@ class TestPhase2Features:
     @pytest.mark.asyncio
     async def test_device_constraints_in_summary(self):
         """Test that device constraints are included in device summary"""
-        settings = MagicMock(spec=Settings)
-        settings.data_api_url = "http://test-data-api:8006"
-        settings.ha_url = "http://test-ha:8123"
-        settings.ha_token = "test-token"
-        settings.device_intelligence_url = "http://test-device-intel:8007"
-        settings.device_intelligence_enabled = False
+        settings = Settings(
+            data_api_url="http://test-data-api:8006",
+            ha_url="http://test-ha:8123",
+            ha_token="test-token",
+            device_intelligence_url="http://test-device-intel:8007",
+            device_intelligence_enabled=False,
+        )
 
         context_builder = MagicMock()
         context_builder._get_cached_value = AsyncMock(return_value=None)
@@ -231,13 +236,13 @@ class TestPhase2Features:
         ]
 
         with (
-            patch.object(service.data_api_client, "fetch_devices", new_callable=AsyncMock) as mock_fetch_devices,
+            patch.object(service.data_api_client, "get_devices", new_callable=AsyncMock) as mock_get_devices,
             patch.object(service.data_api_client, "fetch_entities", new_callable=AsyncMock) as mock_fetch_entities,
-            patch.object(service.data_api_client, "fetch_areas", new_callable=AsyncMock) as mock_fetch_areas,
+            patch.object(service.data_api_client, "get_areas", new_callable=AsyncMock) as mock_get_areas,
         ):
-            mock_fetch_devices.return_value = mock_devices
+            mock_get_devices.return_value = mock_devices
             mock_fetch_entities.return_value = mock_entities
-            mock_fetch_areas.return_value = []
+            mock_get_areas.return_value = []
 
             summary = await service.get_summary()
 
@@ -249,10 +254,11 @@ class TestPhase2Features:
     @pytest.mark.asyncio
     async def test_automation_patterns_service(self):
         """Test that automation patterns service works"""
-        settings = MagicMock(spec=Settings)
-        settings.data_api_url = "http://test-data-api:8006"
-        settings.ha_url = "http://test-ha:8123"
-        settings.ha_token = "test-token"
+        settings = Settings(
+            data_api_url="http://test-data-api:8006",
+            ha_url="http://test-ha:8123",
+            ha_token="test-token",
+        )
 
         context_builder = MagicMock()
         context_builder._get_cached_value = AsyncMock(return_value=None)
@@ -290,12 +296,13 @@ class TestPhase2Features:
     @pytest.mark.asyncio
     async def test_energy_consumption_in_summary(self):
         """Test that energy consumption data is included in device summary"""
-        settings = MagicMock(spec=Settings)
-        settings.data_api_url = "http://test-data-api:8006"
-        settings.ha_url = "http://test-ha:8123"
-        settings.ha_token = "test-token"
-        settings.device_intelligence_url = "http://test-device-intel:8007"
-        settings.device_intelligence_enabled = False
+        settings = Settings(
+            data_api_url="http://test-data-api:8006",
+            ha_url="http://test-ha:8123",
+            ha_token="test-token",
+            device_intelligence_url="http://test-device-intel:8007",
+            device_intelligence_enabled=False,
+        )
 
         context_builder = MagicMock()
         context_builder._get_cached_value = AsyncMock(return_value=None)
@@ -317,13 +324,13 @@ class TestPhase2Features:
         ]
 
         with (
-            patch.object(service.data_api_client, "fetch_devices", new_callable=AsyncMock) as mock_fetch_devices,
+            patch.object(service.data_api_client, "get_devices", new_callable=AsyncMock) as mock_get_devices,
             patch.object(service.data_api_client, "fetch_entities", new_callable=AsyncMock) as mock_fetch_entities,
-            patch.object(service.data_api_client, "fetch_areas", new_callable=AsyncMock) as mock_fetch_areas,
+            patch.object(service.data_api_client, "get_areas", new_callable=AsyncMock) as mock_get_areas,
         ):
-            mock_fetch_devices.return_value = mock_devices
+            mock_get_devices.return_value = mock_devices
             mock_fetch_entities.return_value = []
-            mock_fetch_areas.return_value = []
+            mock_get_areas.return_value = []
 
             summary = await service.get_summary()
 
@@ -409,12 +416,13 @@ class TestIntegration:
     @pytest.mark.asyncio
     async def test_context_builder_integration(self):
         """Test that context builder integrates all Phase 1-3 services"""
-        settings = MagicMock(spec=Settings)
-        settings.data_api_url = "http://test-data-api:8006"
-        settings.ha_url = "http://test-ha:8123"
-        settings.ha_token = "test-token"
-        settings.device_intelligence_url = "http://test-device-intel:8007"
-        settings.device_intelligence_enabled = True
+        settings = Settings(
+            data_api_url="http://test-data-api:8006",
+            ha_url="http://test-ha:8123",
+            ha_token="test-token",
+            device_intelligence_url="http://test-device-intel:8007",
+            device_intelligence_enabled=True,
+        )
 
         context_builder = ContextBuilder(settings)
 

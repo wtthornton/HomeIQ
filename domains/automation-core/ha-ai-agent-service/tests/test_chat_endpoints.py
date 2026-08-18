@@ -15,6 +15,7 @@ import pytest
 from src.config import Settings
 from src.services.conversation_service import Conversation, ConversationService
 from src.services.prompt_assembly_service import PromptAssemblyService
+from tests.conftest import attach_context_cache
 
 api_models_path = Path(__file__).parent.parent / "src" / "api" / "models.py"
 if api_models_path.exists():
@@ -65,7 +66,7 @@ def mock_context_builder():
     builder.build_complete_system_prompt = AsyncMock(return_value="System prompt with context")
     builder.initialize = AsyncMock()
     builder.close = AsyncMock()
-    return builder
+    return attach_context_cache(builder)
 
 
 @pytest.fixture

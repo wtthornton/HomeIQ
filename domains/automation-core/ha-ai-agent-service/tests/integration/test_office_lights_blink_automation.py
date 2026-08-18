@@ -13,7 +13,7 @@ This test validates:
 
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -88,10 +88,25 @@ scene:
         """Scenes: Office Bright (scene.office_bright), Office Dim (scene.office_dim)"""
     )
 
-    cb._entity_inventory_service = mock_ei_instance
+    # build_context reads the office lights from the enhanced context builder and
+    # the DEVICES slot from _devices_summary_service; _entity_inventory_service and
+    # _capability_patterns_service are no longer on that path.
+    mock_devices_instance = AsyncMock()
+    mock_devices_instance.get_summary.return_value = """Office (3 devices):
+  - Office Light 1 (Signify Hue Go) [1 entities] [id: dev1]
+  - Office Light 2 (Signify Hue Go) [1 entities] [id: dev2]
+  - Office Light 3 (Signify Hue Go) [1 entities] [id: dev3]"""
+
+    mock_enhanced_instance = AsyncMock()
+    mock_enhanced_instance.build_area_entity_context.return_value = mock_ei_instance.get_summary.return_value
+    mock_enhanced_instance.build_binary_sensor_context.return_value = ""
+    mock_enhanced_instance.build_existing_automations_context.return_value = ""
+    mock_enhanced_instance.build_trigger_platforms_reference = MagicMock(return_value="")
+
+    cb._devices_summary_service = mock_devices_instance
+    cb._enhanced_context_builder = mock_enhanced_instance
     cb._areas_service = mock_areas_instance
     cb._services_summary_service = mock_services_instance
-    cb._capability_patterns_service = mock_caps_instance
     cb._helpers_scenes_service = mock_helpers_instance
     cb._initialized = True
 
@@ -138,7 +153,7 @@ async def test_context_contains_color_capabilities(context_builder):
 @pytest.mark.asyncio
 async def test_system_prompt_contains_state_restoration_pattern():
     """Test that system prompt explains state restoration"""
-    from prompts.system_prompt import SYSTEM_PROMPT
+    from src.prompts.system_prompt import SYSTEM_PROMPT
 
     # Check for state restoration keywords
     assert "restore" in SYSTEM_PROMPT.lower() or "state" in SYSTEM_PROMPT.lower()

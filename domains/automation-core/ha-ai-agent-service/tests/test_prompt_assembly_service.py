@@ -31,7 +31,18 @@ async def settings():
 def mock_context_builder():
     """Create mock context builder"""
     builder = MagicMock()
-    builder.build_complete_system_prompt = AsyncMock(return_value="System prompt with Tier 1 context")
+    builder.build_complete_system_prompt = AsyncMock(
+        return_value=(
+            "System prompt with Tier 1 context. "
+            "HOME ASSISTANT CONTEXT: areas, devices and entities are listed below "
+            "for the assistant to reason over when answering the user."
+        )
+    )
+
+    # Back the context cache with a real dict so cache hits/misses are exercised.
+    cache: dict[str, str] = {}
+    builder._get_cached_value = AsyncMock(side_effect=lambda key: cache.get(key))
+    builder._set_cached_value = AsyncMock(side_effect=lambda key, value, ttl: cache.__setitem__(key, value))
     return builder
 
 
@@ -110,12 +121,12 @@ async def test_assemble_messages_uses_cached_context(
     await prompt_assembly_service.assemble_messages(conversation.conversation_id, "Hello!", refresh_context=False)
     assert mock_context_builder.build_complete_system_prompt.call_count == 1
 
-    # Second call without refresh - should use cache
-    # Note: We reload conversation after adding message, which may trigger context rebuild
-    # This is expected behavior - the important thing is we use cache when available
+    # Second call without refresh - should use cache.
+    # The conversation is reloaded from the database between calls, so this only
+    # holds because the cache lives in the shared context cache rather than on the
+    # Conversation object.
     await prompt_assembly_service.assemble_messages(conversation.conversation_id, "Hello again!", refresh_context=False)
-    # Context may be rebuilt once due to conversation reload, but should use cache after that
-    assert mock_context_builder.build_complete_system_prompt.call_count <= 2
+    assert mock_context_builder.build_complete_system_prompt.call_count == 1
 
 
 @pytest.mark.asyncio

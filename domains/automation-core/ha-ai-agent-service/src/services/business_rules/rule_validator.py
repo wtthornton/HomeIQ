@@ -148,7 +148,7 @@ class BusinessRuleValidator:
         If missing, state what's missing and suggest alternatives.
 
         Args:
-            user_prompt: User's natural language request
+            _user_prompt: User's natural language request (unused, kept for call-site symmetry)
             required_entities: List of entity IDs mentioned in prompt
             context_entities: List of entities from context
             required_areas: Optional list of area IDs mentioned

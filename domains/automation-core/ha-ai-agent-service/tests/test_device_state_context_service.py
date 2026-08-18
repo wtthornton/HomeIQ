@@ -86,11 +86,12 @@ async def test_get_state_context_cached(device_state_context_service, mock_conte
     cached_context = "DEVICE STATES:\n- light.office_go: on (brightness: 255)"
     mock_context_builder._get_cached_value = AsyncMock(return_value=cached_context)
 
-    context = await device_state_context_service.get_state_context(entity_ids=["light.office_go"])
+    with patch.object(device_state_context_service.ha_client, "get_states", new_callable=AsyncMock) as mock_get_states:
+        context = await device_state_context_service.get_state_context(entity_ids=["light.office_go"])
 
     assert context == cached_context
     # Should not call get_states when cached
-    assert not device_state_context_service.ha_client.get_states.called
+    mock_get_states.assert_not_awaited()
 
 
 @pytest.mark.asyncio

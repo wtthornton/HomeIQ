@@ -61,9 +61,10 @@ async def test_get_summary_with_helpers_and_scenes(helpers_scenes_service, mock_
     ):
         summary = await helpers_scenes_service.get_summary()
 
-        assert "input_boolean" in summary
-        assert "input_number" in summary
-        assert "morning_routine" in summary
+        # Helpers render friendly names grouped by type, not raw entity ids
+        # (the formatter is deliberately "names only" for token efficiency).
+        assert "input_boolean: Morning Routine, Night Mode (2)" in summary
+        assert "input_number: Brightness Level (1)" in summary
         assert "Scenes:" in summary
         assert "Morning Scene" in summary
         mock_context_builder._set_cached_value.assert_called_once()

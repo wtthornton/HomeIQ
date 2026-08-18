@@ -175,8 +175,14 @@ class TestGroupHealthCheck:
         health = GroupHealthCheck(group_name="test-group", version="0.1.0")
         # Register a dependency at an unreachable URL
         health.register_dependency("fake-service", "http://localhost:1")
+
+        # to_dict deliberately flattens to a two-state friendly status
         result = await health.to_dict()
-        assert result["dependencies"]["fake-service"]["status"] == "unreachable"
+        assert result["dependencies"]["fake-service"]["status"] == "down"
+
+        # the underlying check keeps the finer-grained reason
+        statuses = await health.check_all()
+        assert [d.status for d in statuses if d.name == "fake-service"] == ["unreachable"]
 
 
 # ---------------------------------------------------------------------------

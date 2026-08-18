@@ -42,3 +42,19 @@ async def _database():
                 await conn.execute(table.delete())
     yield
     await close_database()
+
+
+def attach_context_cache(builder):
+    """Give a mocked ContextBuilder a working context cache.
+
+    ``ConversationService`` keeps a conversation's assembled system prompt in the
+    shared context cache rather than on the ``Conversation`` object, which callers
+    reload from the database on every request. A bare ``MagicMock`` builder raises
+    ``TypeError`` on ``await`` there, so mocks must supply real cache behaviour.
+    """
+    from unittest.mock import AsyncMock
+
+    cache: dict[str, str] = {}
+    builder._get_cached_value = AsyncMock(side_effect=lambda key: cache.get(key))
+    builder._set_cached_value = AsyncMock(side_effect=lambda key, value, ttl: cache.__setitem__(key, value))
+    return builder

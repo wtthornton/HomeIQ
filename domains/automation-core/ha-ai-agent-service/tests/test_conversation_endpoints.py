@@ -14,6 +14,7 @@ import pytest_asyncio
 from src.config import Settings
 from src.database import init_database
 from src.services.conversation_service import ConversationService, ConversationState
+from tests.conftest import attach_context_cache
 
 
 @pytest_asyncio.fixture
@@ -30,7 +31,7 @@ def mock_context_builder():
     """Create mock context builder"""
     builder = MagicMock()
     builder.build_complete_system_prompt = AsyncMock(return_value="System prompt with context")
-    return builder
+    return attach_context_cache(builder)
 
 
 @pytest_asyncio.fixture

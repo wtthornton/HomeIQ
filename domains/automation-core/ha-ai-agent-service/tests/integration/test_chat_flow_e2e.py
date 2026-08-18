@@ -20,6 +20,7 @@ from src.services.conversation_service import ConversationService
 from src.services.openai_client import OpenAIClient
 from src.services.prompt_assembly_service import PromptAssemblyService
 from src.services.tool_service import ToolService
+from tests.conftest import attach_context_cache
 
 
 @pytest.fixture
@@ -40,7 +41,7 @@ def mock_context_builder():
     builder.initialize = AsyncMock()
     builder.close = AsyncMock()
     builder._initialized = True
-    return builder
+    return attach_context_cache(builder)
 
 
 @pytest.fixture
@@ -336,9 +337,9 @@ async def test_chat_flow_error_handling(test_client, mock_openai_client):
         },
     )
 
-    assert response.status_code == 500
-    data = response.json()
-    assert "error" in data or "detail" in data
+    # An upstream OpenAI failure is a dependency outage, not an internal error.
+    assert response.status_code == 503
+    assert "try again later" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
