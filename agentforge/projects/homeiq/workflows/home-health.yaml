@@ -1,0 +1,283 @@
+# Daily home health digest: device status, anomalies, and correlations.
+#
+# Triggers daily at 07:00 UTC. Ingests device health scores and anomaly
+# reports via MCP-granted hiq-device-health-triage and hiq-anomaly-triage
+# genes. Scans all text payloads through injection-payload quarantine first
+# (downstream nodes consume safe_payload only). Correlates findings with
+# authoritative source tracking. Summarizes into an owner digest with goal
+# verification on summary text.
+#
+# Schedule cost model:
+#   hiq-device-health-triage .25 + hiq-anomaly-triage .20
+#   + hiq-scan-injectionpayload .12 + hiq-correlate .50 + hiq-summarize .15
+#   + hiq-notify .10 + hiq-memory-curator .10 = $1.42 per run
+#   daily = $1.42 × 30.4375 = $43.22/mo
+
+name: home-health
+spec_version: 2
+
+on_error: partial
+
+goal:
+  description: >-
+    Yesterday's device health and anomalies are reported via triaged data
+    joined across sources with authority rules. The digest names which devices
+    need attention, why (health score, anomaly kind, confidence), and any
+    expected vs. unexpected discrepancies between sources. A source that failed
+    must be reported as unavailable — never silently omitted or carried forward
+    from yesterday.
+  verify:
+    kind: judge
+    expression: digest.summary
+
+nodes:
+  device_health:
+    kind: task
+    agent: hiq-device-health-triage
+    inputs:
+      health_status_filter: all
+      min_score: 70
+    output_repair_retries: 1
+    output_schema:
+      type: object
+      required: [devices_by_status, fleet_summary, errors]
+      properties:
+        devices_by_status:
+          type: object
+          additionalProperties: false
+          properties:
+            critical:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [device_id, name, health_score, health_status]
+                properties:
+                  device_id: {type: string}
+                  name: {type: string}
+                  health_score: {type: number}
+                  health_status: {type: string}
+                  issue_summary: {type: string}
+                  anomalies: {type: array, items: {type: string}}
+              maxItems: 20
+            degraded:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [device_id, name, health_score, health_status]
+                properties:
+                  device_id: {type: string}
+                  name: {type: string}
+                  health_score: {type: number}
+                  health_status: {type: string}
+                  issue_summary: {type: string}
+                  anomalies: {type: array, items: {type: string}}
+              maxItems: 20
+            healthy:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [device_id, name, health_score, health_status]
+                properties:
+                  device_id: {type: string}
+                  name: {type: string}
+                  health_score: {type: number}
+                  health_status: {type: string}
+              maxItems: 20
+          required: [critical, degraded, healthy]
+        fleet_summary:
+          type: object
+          additionalProperties: false
+          required: [total, critical_count, degraded_count, healthy_count]
+          properties:
+            total: {type: integer}
+            critical_count: {type: integer}
+            degraded_count: {type: integer}
+            healthy_count: {type: integer}
+            avg_score: {type: number}
+        errors: {type: array, items: {type: string}}
+
+  anomalies:
+    kind: task
+    agent: hiq-anomaly-triage
+    inputs:
+      health_status_filter: all
+    output_repair_retries: 1
+    output_schema:
+      type: object
+      required: [triage_results, summary, errors]
+      properties:
+        triage_results:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [anomaly_id, kind, severity, triage, reasoning]
+            properties:
+              anomaly_id: {type: string}
+              kind: {type: string}
+              entity_id: {type: [string, "null"]}
+              device_id: {type: [string, "null"]}
+              severity: {type: string}
+              triage: {type: string, enum: [acted_on, watch, dismiss]}
+              reasoning: {type: string}
+              evidence: {type: array, items: {type: string}}
+          maxItems: 100
+        summary:
+          type: object
+          additionalProperties: false
+          required: [total_anomalies]
+          properties:
+            total_anomalies: {type: integer}
+            acted_on_count: {type: integer}
+            watch_count: {type: integer}
+            dismiss_count: {type: integer}
+        errors: {type: array, items: {type: string}}
+
+  scan:
+    kind: task
+    agent: hiq-scan-injectionpayload
+    depends_on: [device_health, anomalies]
+    inputs:
+      items:
+        health: $device_health
+        anomalies: $anomalies
+    output_repair_retries: 1
+    output_schema:
+      type: object
+      required: [verdicts, safe_items, safe_payload, sources_unavailable, blocked, assessment_status, confidence, build_summary, reason, spend_usd]
+      properties:
+        verdicts:
+          type: array
+          items:
+            type: object
+            required: [source_id, verdict, patterns, rationale]
+            properties:
+              source_id: {type: string}
+              verdict: {type: string, enum: [clean, suspicious, blocked]}
+              patterns: {type: array, items: {type: string}}
+              rationale: {type: string}
+        safe_items: {type: array, items: {type: string}}
+        safe_payload:
+          type: array
+          items:
+            type: object
+            required: [source_id, kind, ts, subject, body_text, trust]
+            properties:
+              source_id: {type: string}
+              kind: {type: string}
+              ts: {type: string}
+              subject: {type: string}
+              body_text: {type: string}
+              trust: {type: string, enum: [vendor, user, automation, external]}
+        blocked: {type: integer}
+        sources_unavailable: {type: array, items: {type: string}}
+        assessment_status: {type: string, enum: [blocked, complete, needs_revision, skipped]}
+        confidence: {type: number, minimum: 0, maximum: 1}
+        build_summary: {type: string}
+        reason: {type: object}
+        spend_usd: {type: number}
+
+  correlate:
+    kind: task
+    agent: hiq-correlate
+    depends_on: [scan]
+    inputs:
+      sources: $scan.safe_payload
+      availability: $scan.sources_unavailable
+    output_repair_retries: 1
+    output_schema:
+      type: object
+      required: [picture, agreements, conflicts, assessment_status, confidence, build_summary, reason, spend_usd, metrics, gaps]
+      properties:
+        picture: {type: string}
+        agreements: {type: array, items: {type: string}}
+        conflicts:
+          type: array
+          items:
+            type: object
+            properties:
+              field: {type: string}
+              sources: {type: array, items: {type: string}}
+              authoritative: {type: string}
+              delta: {type: string}
+              expected: {type: boolean}
+        gaps: {type: array, items: {type: string}}
+        metrics:
+          type: object
+          required: [total_watts, daily_kwh, device_count_active, grid_frequency]
+          properties:
+            total_watts: {type: number}
+            daily_kwh: {type: number}
+            device_count_active: {type: number}
+            grid_frequency: {type: number}
+        assessment_status: {type: string, enum: [blocked, complete, needs_revision, skipped]}
+        confidence: {type: number, minimum: 0, maximum: 1}
+        build_summary: {type: string}
+        reason: {type: object}
+        spend_usd: {type: number}
+
+  digest:
+    kind: task
+    agent: hiq-summarize
+    depends_on: [correlate]
+    inputs:
+      input: $correlate
+    output_repair_retries: 1
+    output_schema:
+      type: object
+      required: [summary, key_points]
+      properties:
+        summary: {type: string}
+        key_points: {type: array, items: {type: string}}
+        open_questions: {type: array, items: {type: string}}
+
+  notify:
+    kind: task
+    agent: hiq-notify
+    depends_on: [digest]
+    inputs:
+      message: $digest
+    output_repair_retries: 1
+    output_schema:
+      type: object
+      required: [status, attempts]
+      properties:
+        status: {type: string, enum: [sent, dlq, rejected]}
+        attempts: {type: integer}
+        dlq_key: {type: string}
+        error: {type: string}
+
+  curate:
+    kind: task
+    agent: hiq-memory-curator
+    depends_on: [scan, correlate, digest]
+    inputs:
+      quarantine: $scan.verdicts
+      picture: $correlate
+      digest: $digest
+    output_repair_retries: 1
+    output_schema:
+      type: object
+      required: [written, skipped]
+      properties:
+        written:
+          type: array
+          items:
+            type: object
+            required: [fact, tier, retention_days, rationale]
+            properties:
+              fact: {type: string}
+              tier: {type: string, enum: [architectural, pattern, procedural, context]}
+              retention_days: {type: integer}
+              rationale: {type: string}
+        skipped: {type: integer}
+        rejected: {type: array, items: {type: string}}
+
+output: digest
+
+triggers:
+  - type: schedule
+    cron: "0 7 * * *"

@@ -1,0 +1,143 @@
+# Daily energy consumption and sustainability digest.
+#
+# Triggers daily at 07:15 UTC. Reads smart meter and device power data via
+# MCP-granted genes; correlates with authority rules from energy-truth skill;
+# sends owner digest with current power, daily kWh, top consumers, and carbon
+# footprint.
+#
+# Schedule cost model (similar to store-health pattern):
+#   hiq-energy-digest .20 + hiq-notify .10 = $0.30 per run
+#   daily = $0.30 × 30.4375 = $9.13/mo
+
+name: energy-digest
+spec_version: 2
+
+inputs:
+  - name: energy_truth
+    type: string
+    required: false
+    description: "energy-truth skill pack, inlined — genes cannot read skills/ at runtime."
+    default: |
+      ### Skill pack: energy-truth v1.0.0
+      verified_at: 2026-02-03
+      expires: no expiry declared
+
+      # Energy Truth — Metric Definitions and Authority Rules
+
+      When the `hiq-correlate` gene joins energy data from multiple sources (smart meter, Home Assistant entity states, Powercalc estimates, weather API), it consults this skill to decide which source is authoritative for each field and whether a discrepancy is expected or anomalous.
+
+      ## Authoritative Sources by Field
+
+      | Field | Authoritative Source | Never Authoritative | Why |
+      |-------|----------------------|---------------------|-----|
+      | **Whole-home power (watts)** | Smart meter (current_power_w) | Powercalc sum, HA sensor.total_power (unless manually calibrated) | Meter is a direct measurement; Powercalc is estimation for unmetered loads only |
+      | **Daily energy (kWh)** | Smart meter (daily_kwh) | Powercalc, HA helper sum | Meter is the utility's ground truth for billing; Powercalc estimates |
+      | **Peak power in 24h** | Smart meter (peak_power_w) | Powercalc, HA logs | Meter records the actual peak; Powercalc may smooth peaks |
+      | **Device on/off state** | Home Assistant entity state | Powercalc (which infers from on/off) | HA is the source for device logic; Powercalc depends on it |
+      | **Device power draw when on** | Powercalc (average_power_on_w) for unmetered devices; smart meter for whole-home | Estimated sum of Powercalc values | Powercalc is purpose-built for estimation; meter for metered loads only |
+      | **Estimated daily energy per device** | Powercalc (estimated_daily_kwh) | — | Powercalc projects from observed duty cycle; not a measurement |
+      | **Carbon intensity (gCO2/kWh)** | Carbon Intensity API (grid_operator + intensity) | Any local estimate, HA sensor guess | API is real-time grid data; local estimates are stale |
+      | **Presence / occupancy** | Home Assistant presence group and individual sensors | Inferred from power spike timing or anomalies | HA is the authoritative source for logical state |
+
+      ## Expected Discrepancies — Do Not Raise as Anomalies
+
+      - **Smart-Meter Total vs. Powercalc Device Sum** (5–30% variance): Powercalc estimates only controllable loads; misses standby, losses, and unmetered loads. Mark as `expected: true`.
+      - **Peak Power Timestamp Mismatch** (±5 minutes): Meter and Powercalc statistics windows may not align.
+      - **No Carbon Intensity Available**: Carbon service offline or region unsupported. Omit the `carbon` field entirely; absent ≠ zero.
+
+      ## Non-Expected Discrepancies — Investigate
+
+      - Smart meter reports 0 W but devices are on: meter offline or misconfigured
+      - Powercalc sum >> smart meter (>150%): calibration error or overestimate
+      - Daily energy goes backward: meter reset, billing boundary, or clock skew
+
+on_error: partial
+spec_version: 2
+
+goal:
+  description: >-
+    Yesterday's energy consumption is reported with current power, daily kWh,
+    top 5 consumers, and grid carbon intensity. The digest is timestamped,
+    includes data completeness indicators (which sources were unavailable),
+    and carries notes on any anomalies. All figures are authoritative or marked
+    as unavailable — never imputed or carried forward.
+  verify:
+    kind: judge
+    expression: digest.digest
+
+nodes:
+  digest:
+    kind: task
+    agent: hiq-energy-digest
+    inputs:
+      energy_truth: $energy_truth
+    output_repair_retries: 1
+    output_schema:
+      type: object
+      required: [digest, data_completeness, notes]
+      properties:
+        current_power_w:
+          type: [number, "null"]
+        daily_kwh:
+          type: [number, "null"]
+        peak_power_w:
+          type: [number, "null"]
+        peak_time:
+          type: [string, "null"]
+          format: date-time
+        top_consumers:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              entity_id: {type: string}
+              friendly_name: {type: [string, "null"]}
+              average_power_on_w: {type: [number, "null"]}
+              estimated_daily_kwh: {type: [number, "null"]}
+        carbon:
+          type: [object, "null"]
+          additionalProperties: false
+          properties:
+            grams_per_kwh: {type: number}
+            source: {type: string}
+        digest:
+          type: string
+          maxLength: 300
+        data_completeness:
+          type: object
+          additionalProperties: false
+          required: [current_power_available, daily_kwh_available, top_consumers_available, carbon_available]
+          properties:
+            current_power_available: {type: boolean}
+            daily_kwh_available: {type: boolean}
+            top_consumers_available: {type: boolean}
+            carbon_available: {type: boolean}
+        notes:
+          type: array
+          items: {type: string}
+          maxItems: 5
+
+  notify:
+    kind: task
+    agent: hiq-notify
+    depends_on: [digest]
+    inputs:
+      message: $digest
+    output_repair_retries: 1
+    output_schema:
+      type: object
+      required: [status, attempts]
+      properties:
+        status:
+          type: string
+          enum: [sent, dlq, rejected]
+        attempts: {type: integer}
+        dlq_key: {type: string}
+        error: {type: string}
+
+output: digest
+
+triggers:
+  - type: schedule
+    cron: "15 7 * * *"

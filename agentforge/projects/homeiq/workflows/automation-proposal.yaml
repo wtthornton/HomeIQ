@@ -1,0 +1,182 @@
+# Home Assistant automation proposal: draft → judge → GATE.
+#
+# On-demand workflow (no schedule trigger). User supplies a behavior
+# requirement + optional HA inventory context. Scans the requirement text for
+# injection payloads FIRST (TAP-5313: quarantine runs before the judge). Drafts
+# an automation from the requirement, judges it against safety and schema rules,
+# then gates the result. If the judge finds zero critical findings, the package
+# is held at the gate for human approval (gate is a pause point, never
+# auto-deploy). Medium/ambiguous risk findings route to the gate's hold state
+# with clear output.
+#
+# NOTE: Actual HA deployment is handled by HomeIQ's deterministic pipeline
+# (entity cross-check, lint, validate) AFTER this workflow — the gate output
+# is YAML + verdict + gate decision, never a deployed automation. See TAP-5320.
+
+name: automation-proposal
+spec_version: 2
+
+inputs:
+  - name: behavior_requirement
+    type: string
+    required: true
+    description: "Plain-text behavioral requirement for the automation, e.g., 'Turn on kitchen light when motion detected in morning'"
+  - name: ha_inventory
+    type: string
+    required: false
+    description: "Optional JSON inventory of live HA entities, areas, devices, and labels for context"
+    default: ""
+
+on_error: fail
+
+nodes:
+  scan_requirement:
+    kind: task
+    agent: hiq-scan-injectionpayload
+    inputs:
+      items:
+        requirement: $behavior_requirement
+    output_repair_retries: 1
+    output_schema:
+      type: object
+      required: [verdicts, safe_items, safe_payload, sources_unavailable, blocked, assessment_status, confidence, build_summary, reason, spend_usd]
+      properties:
+        verdicts:
+          type: array
+          items:
+            type: object
+            required: [source_id, verdict, patterns, rationale]
+            properties:
+              source_id: {type: string}
+              verdict: {type: string, enum: [clean, suspicious, blocked]}
+              patterns: {type: array, items: {type: string}}
+              rationale: {type: string}
+        safe_items: {type: array, items: {type: string}}
+        safe_payload:
+          type: array
+          items:
+            type: object
+            required: [source_id, kind, ts, subject, body_text, trust]
+            properties:
+              source_id: {type: string}
+              kind: {type: string}
+              ts: {type: string}
+              subject: {type: string}
+              body_text: {type: string}
+              trust: {type: string, enum: [vendor, user, automation, external]}
+        blocked: {type: integer}
+        sources_unavailable: {type: array, items: {type: string}}
+        assessment_status: {type: string, enum: [blocked, complete, needs_revision, skipped]}
+        confidence: {type: number, minimum: 0, maximum: 1}
+        build_summary: {type: string}
+        reason: {type: object}
+        spend_usd: {type: number}
+
+  extract_safe_requirement:
+    kind: transform
+    depends_on: [scan_requirement]
+    inputs:
+      safe_payload: $scan_requirement.safe_payload
+    expression: '{"requirement": safe_payload[0]["body_text"] if len(safe_payload or []) > 0 else ""}'
+
+  draft_automation:
+    kind: task
+    agent: hiq-draft-automation
+    depends_on: [extract_safe_requirement]
+    inputs:
+      behavior_requirement: $extract_safe_requirement.requirement
+      ha_inventory: $ha_inventory
+    output_repair_retries: 2
+    output_schema:
+      type: object
+      required: [automation_yaml, alias, assumptions, entities_referenced, refused]
+      additionalProperties: false
+      properties:
+        automation_yaml:
+          type: [string, "null"]
+          description: "Complete Home Assistant 2026.x automation YAML (null if refused)"
+        alias:
+          type: string
+          description: "Automation alias/name"
+        assumptions:
+          type: array
+          items: {type: string}
+          description: "List of assumptions made about entities, areas, and behavior"
+        entities_referenced:
+          type: array
+          items: {type: string}
+          description: "All entity_ids the automation references"
+        refused:
+          type: [object, "null"]
+          properties:
+            rule_id: {type: string}
+            reason: {type: string}
+
+  judge_automation:
+    kind: task
+    agent: hiq-judge-automation
+    depends_on: [draft_automation]
+    inputs:
+      behavior_requirement: $extract_safe_requirement.requirement
+      ha_inventory: $ha_inventory
+      authored: $draft_automation
+    output_repair_retries: 2
+    output_schema:
+      type: object
+      required: [pass, score, confidence, findings]
+      additionalProperties: false
+      properties:
+        pass: {type: boolean}
+        score: {type: number, minimum: 0, maximum: 100}
+        confidence: {type: number, minimum: 0, maximum: 1}
+        findings:
+          type: array
+          items:
+            type: object
+            required: [severity, dimension, finding, recommendation]
+            additionalProperties: false
+            properties:
+              severity: {type: string, enum: [critical, high, medium, low]}
+              dimension: {type: string, enum: [safety, schema, correctness]}
+              rule_id: {type: string}
+              finding: {type: string}
+              recommendation: {type: string}
+
+  # Short-circuit logic: if judge found any critical findings, the gate
+  # will hold. Otherwise, gate passes through (human still approves at gate
+  # before any deployment). This transform extracts the verdict for gate
+  # routing without changing the payload.
+  # AF's transform sandbox has no comprehensions/any(); the judge's `pass` is the
+  # authoritative signal (it is false whenever a hard-deny or critical finding
+  # exists — the judge gene's own contract), so the gate reads its negation.
+  verdict_summary:
+    kind: transform
+    depends_on: [judge_automation]
+    inputs:
+      judge_pass: $judge_automation.pass
+    expression: '{"has_critical": not (judge_pass or False)}'
+
+  # GATE: Human-approval decision point.
+  # If judge passed with zero critical findings, gate passes (but still
+  # requires human approval before any deployment). If critical findings exist,
+  # gate holds with clear output: the automation YAML, judge findings, and gate
+  # decision. Routes to human review (no auto-deploy). The caller's
+  # deterministic pipeline (TAP-5320) handles the deploy step later.
+  review_gate:
+    kind: gate
+    depends_on: [draft_automation, judge_automation, verdict_summary]
+    payload_from:
+      automation_yaml: "$draft_automation.automation_yaml"
+      alias: "$draft_automation.alias"
+      assumptions: "$draft_automation.assumptions"
+      entities_referenced: "$draft_automation.entities_referenced"
+      judge_pass: "$judge_automation.pass"
+      judge_score: "$judge_automation.score"
+      judge_findings: "$judge_automation.findings"
+      # payload_from entries must be $node references; the decision guidance for the
+      # human reviewer lives in this comment and the gate's surrounding docs instead:
+      # has_critical true -> held for review; false -> awaiting explicit approval to
+      # deploy (the deterministic pipeline performs deployment — TAP-5320).
+      has_critical: "$verdict_summary.has_critical"
+
+output: judge_automation
