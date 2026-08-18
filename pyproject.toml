@@ -67,3 +67,9 @@ markers = [
 # Kept narrow on purpose: this applies under tests/ only. Both rules stay
 # enforced on src/, where an unused argument or a misplaced import is real.
 "domains/*/*/tests/**" = ["ARG001", "ARG002", "E402"]
+
+# ARG001 for the Home Assistant custom-integration suite, for the same
+# fixture-by-name reason as above: `enable_custom_integrations` and
+# `homeassistant_component` are requested purely for their setup side effect,
+# and renaming either to `_name` would break pytest's injection outright.
+"tests/custom_components/**" = ["ARG001"]
