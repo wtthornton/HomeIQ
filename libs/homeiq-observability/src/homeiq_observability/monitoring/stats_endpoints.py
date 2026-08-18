@@ -64,10 +64,8 @@ class StatsEndpoints:
             "sports-api": os.getenv("SPORTS_API_URL", "http://homeiq-sports-api:8005"),
             "air-quality-service": os.getenv("AIR_QUALITY_URL", "http://homeiq-air-quality:8012"),
             "calendar-service": os.getenv("CALENDAR_URL", "http://homeiq-calendar:8013"),
-            "carbon-intensity-service": os.getenv("CARBON_INTENSITY_URL", "http://homeiq-carbon-intensity:8010"),
             "data-retention": os.getenv("DATA_RETENTION_URL", "http://homeiq-data-retention:8080"),
             "electricity-pricing-service": os.getenv("ELECTRICITY_PRICING_URL", "http://homeiq-electricity-pricing:8011"),
-            "energy-correlator": os.getenv("ENERGY_CORRELATOR_URL", "http://homeiq-energy-correlator:8017"),
             "smart-meter-service": os.getenv("SMART_METER_URL", "http://homeiq-smart-meter:8014"),
             "log-aggregator": os.getenv("LOG_AGGREGATOR_URL", "http://homeiq-log-aggregator:8015"),
             "weather-api": os.getenv("WEATHER_SERVICE_URL", "http://homeiq-weather-api:8009")
@@ -638,10 +636,8 @@ class StatsEndpoints:
             {"name": "sports-api", "priority": "medium", "timeout": 5},
             {"name": "air-quality-service", "priority": "medium", "timeout": 5},
             {"name": "calendar-service", "priority": "medium", "timeout": 5},
-            {"name": "carbon-intensity-service", "priority": "medium", "timeout": 5},
             {"name": "data-retention", "priority": "medium", "timeout": 5},
             {"name": "electricity-pricing-service", "priority": "medium", "timeout": 5},
-            {"name": "energy-correlator", "priority": "medium", "timeout": 5},
             {"name": "smart-meter-service", "priority": "medium", "timeout": 5},
             {"name": "log-aggregator", "priority": "low", "timeout": 5},
             {"name": "weather-api", "priority": "low", "timeout": 5}
@@ -871,8 +867,8 @@ class StatsEndpoints:
                                 logger.warning(f"Could not get weather API stats from websocket-ingestion: {e}")
                                 events_per_hour = 0.0
                         
-                        elif service_name in ["sports-api", "air-quality-service", "calendar-service", "carbon-intensity-service", 
-                                            "electricity-pricing-service", "energy-correlator", "smart-meter-service"]:
+                        elif service_name in ["sports-api", "air-quality-service", "calendar-service",
+                                            "electricity-pricing-service", "smart-meter-service"]:
                             # These services typically don't process events but provide data
                             # Set to 0 as they are data providers, not event processors
                             events_per_hour = 0.0

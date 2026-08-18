@@ -74,7 +74,7 @@ async def test_production_model():
 
             # Create feature vector
             features = pd.DataFrame([test_sample])
-            feature_array = features[self.feature_columns].values
+            feature_array = features[engine.feature_columns].values
 
             # Scale features
             scaled_features = engine.scalers["failure_prediction"].transform(feature_array)

@@ -27,7 +27,6 @@ class ServiceController:
             "health-dashboard": 80,  # Internal port
             "influxdb": 8086,
             # Optional services that may not be running
-            "carbon-intensity": 8010,
             "electricity-pricing": 8011,
             "air-quality": 8012,
             "calendar": 8013,

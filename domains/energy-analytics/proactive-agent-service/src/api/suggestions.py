@@ -10,19 +10,21 @@ Epic: Proactive Suggestions Device Validation
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import func as sql_func
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..clients.ha_agent_client import HAAgentClient
 from ..database import get_db
 from ..models import InvalidSuggestionReport, Suggestion, SuggestionEngagement
 from ..services.engagement_tracker_service import EngagementTracker
 from ..services.suggestion_storage_service import SuggestionStorageService
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 # Agent Evaluation Framework: SessionTracer wiring (E3.S5)
 try:

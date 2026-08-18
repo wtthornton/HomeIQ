@@ -128,7 +128,6 @@ def _mock_mode_service() -> DockerService:
             "health-dashboard": "homeiq-dashboard",
             "influxdb": "homeiq-influxdb",
             "weather-api": "homeiq-weather",
-            "carbon-intensity-service": "homeiq-carbon-intensity",
             "electricity-pricing-service": "homeiq-electricity-pricing",
             "air-quality-service": "homeiq-air-quality",
             "calendar-service": "homeiq-calendar",
@@ -288,7 +287,6 @@ class TestListContainers:
         assert by_service["influxdb"].status == ContainerStatus.RUNNING
         assert by_service["websocket-ingestion"].status == ContainerStatus.RUNNING
         assert by_service["weather-api"].status == ContainerStatus.STOPPED
-        assert by_service["carbon-intensity-service"].status == ContainerStatus.STOPPED
 
     @pytest.mark.unit
     @pytest.mark.asyncio

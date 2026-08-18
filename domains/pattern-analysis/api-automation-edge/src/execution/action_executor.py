@@ -4,6 +4,7 @@ Action Executor
 Execute single action via REST API
 """
 
+import functools
 import hashlib
 import logging
 import time
@@ -162,10 +163,11 @@ class ActionExecutor:
             service_data["entity_id"] = entity_id
 
             try:
-                # Execute with retry
-                async def call_service():
-                    return await self.rest_client.call_service(domain, service, service_data)
-
+                # Execute with retry. functools.partial binds this iteration's
+                # arguments now; a closure would read them at call time.
+                call_service = functools.partial(
+                    self.rest_client.call_service, domain, service, service_data
+                )
                 response = await self.retry_manager.execute_with_retry(call_service)
 
                 # Record idempotency

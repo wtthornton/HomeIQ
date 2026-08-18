@@ -35,7 +35,7 @@ mcp_servers:
 capabilities:
 - hiq.memory.curate
 failure_mode: best_effort
-max_budget_usd: 0.1
+max_budget_usd: 0.25
 guardrails:
 - type: anti-pii
   pii_types:

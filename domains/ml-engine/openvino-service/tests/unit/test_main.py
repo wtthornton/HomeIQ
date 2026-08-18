@@ -46,17 +46,26 @@ class TestHealthEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "healthy"
-        assert data["ready"] is True
+        assert data["dependencies"]["models"] == "ok"
 
-    def test_health_not_ready_returns_503(self) -> None:
+    def test_ready_healthy(self, client: TestClient) -> None:
+        response = client.get("/ready")
+        assert response.status_code == 200
+        assert response.json()["ready"] is True
+
+    def test_not_ready_returns_503(self) -> None:
+        """/ready is the strict probe. /health is liveness and stays 200 —
+        see StandardHealthCheck in homeiq-resilience."""
         import src.main as main_module
 
         original = main_module.openvino_manager
         main_module.openvino_manager = None
         try:
             tc = TestClient(main_module.app)
-            response = tc.get("/health")
-            assert response.status_code == 503
+            assert tc.get("/ready").status_code == 503
+            health = tc.get("/health")
+            assert health.status_code == 200
+            assert health.json()["status"] == "unhealthy"
         finally:
             main_module.openvino_manager = original
 

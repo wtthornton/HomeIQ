@@ -106,13 +106,6 @@ target "air-quality-service" {
   labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
 }
 
-target "carbon-intensity-service" {
-  context    = "."
-  dockerfile = "domains/data-collectors/carbon-intensity-service/Dockerfile"
-  tags       = ["homeiq/carbon-intensity-service:latest"]
-  labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
-}
-
 target "electricity-pricing-service" {
   context    = "."
   dockerfile = "domains/data-collectors/electricity-pricing-service/Dockerfile"
@@ -140,7 +133,6 @@ group "data-collectors" {
     "smart-meter-service",
     "sports-api",
     "air-quality-service",
-    "carbon-intensity-service",
     "electricity-pricing-service",
     "calendar-service",
     "log-aggregator",
@@ -149,7 +141,7 @@ group "data-collectors" {
 
 # ──────────────────────────────────────────────
 # Group 3: ml-engine
-# ner-service and openai-service now have proper Dockerfiles
+# ner-service now has a proper Dockerfile
 # ──────────────────────────────────────────────
 
 target "openvino-service" {
@@ -173,31 +165,10 @@ target "ner-service" {
   labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
 }
 
-target "openai-service" {
-  context    = "."
-  dockerfile = "domains/ml-engine/openai-service/Dockerfile"
-  tags       = ["homeiq/openai-service:latest"]
-  labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
-}
-
 target "rag-service" {
   context    = "."
   dockerfile = "domains/ml-engine/rag-service/Dockerfile"
   tags       = ["homeiq/rag-service:latest"]
-  labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
-}
-
-target "ai-core-service" {
-  context    = "."
-  dockerfile = "domains/ml-engine/ai-core-service/Dockerfile"
-  tags       = ["homeiq/ai-core-service:latest"]
-  labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
-}
-
-target "ai-training-service" {
-  context    = "."
-  dockerfile = "domains/ml-engine/ai-training-service/Dockerfile"
-  tags       = ["homeiq/ai-training-service:latest"]
   labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
 }
 
@@ -220,10 +191,7 @@ group "ml-engine" {
     "openvino-service",
     "ml-service",
     "ner-service",
-    "openai-service",
     "rag-service",
-    "ai-core-service",
-    "ai-training-service",
     "device-intelligence-service",
     "model-prep",
   ]
@@ -247,13 +215,6 @@ target "ai-automation-service-new" {
   labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
 }
 
-target "ai-query-service" {
-  context    = "."
-  dockerfile = "domains/automation-core/ai-query-service/Dockerfile"
-  tags       = ["homeiq/ai-query-service:latest"]
-  labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
-}
-
 target "automation-linter" {
   context    = "."
   dockerfile = "domains/automation-core/automation-linter/Dockerfile"
@@ -268,13 +229,6 @@ target "yaml-validation-service" {
   labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
 }
 
-target "ai-code-executor" {
-  context    = "."
-  dockerfile = "domains/automation-core/ai-code-executor/Dockerfile"
-  tags       = ["homeiq/ai-code-executor:latest"]
-  labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
-}
-
 target "automation-trace-service" {
   context    = "."
   dockerfile = "domains/automation-core/automation-trace-service/Dockerfile"
@@ -286,10 +240,8 @@ group "automation-core" {
   targets = [
     "ha-ai-agent-service",
     "ai-automation-service-new",
-    "ai-query-service",
     "automation-linter",
     "yaml-validation-service",
-    "ai-code-executor",
     "automation-trace-service",
   ]
 }
@@ -338,22 +290,7 @@ group "blueprints" {
 
 # ──────────────────────────────────────────────
 # Group 6: energy-analytics
-# energy-forecasting has local context
 # ──────────────────────────────────────────────
-
-target "energy-correlator" {
-  context    = "."
-  dockerfile = "domains/energy-analytics/energy-correlator/Dockerfile"
-  tags       = ["homeiq/energy-correlator:latest"]
-  labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
-}
-
-target "energy-forecasting" {
-  context    = "."
-  dockerfile = "domains/energy-analytics/energy-forecasting/Dockerfile"
-  tags       = ["homeiq/energy-forecasting:latest"]
-  labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
-}
 
 target "proactive-agent-service" {
   context    = "."
@@ -364,15 +301,13 @@ target "proactive-agent-service" {
 
 group "energy-analytics" {
   targets = [
-    "energy-correlator",
-    "energy-forecasting",
     "proactive-agent-service",
   ]
 }
 
 # ──────────────────────────────────────────────
 # Group 7: device-management
-# activity-recognition and ha-setup-service have local context
+# ha-setup-service has local context
 # ──────────────────────────────────────────────
 
 target "device-health-monitor" {
@@ -410,20 +345,6 @@ target "device-recommender" {
   labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
 }
 
-target "activity-recognition" {
-  context    = "."
-  dockerfile = "domains/device-management/activity-recognition/Dockerfile"
-  tags       = ["homeiq/activity-recognition:latest"]
-  labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
-}
-
-target "activity-writer" {
-  context    = "."
-  dockerfile = "domains/device-management/activity-writer/Dockerfile"
-  tags       = ["homeiq/activity-writer:latest"]
-  labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
-}
-
 target "ha-setup-service" {
   context    = "."
   dockerfile = "domains/device-management/ha-setup-service/Dockerfile"
@@ -438,8 +359,6 @@ group "device-management" {
     "device-setup-assistant",
     "device-database-client",
     "device-recommender",
-    "activity-recognition",
-    "activity-writer",
     "ha-setup-service",
   ]
 }

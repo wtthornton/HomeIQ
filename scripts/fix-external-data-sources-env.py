@@ -3,19 +3,14 @@
 Fix External Data Sources Environment Variables
 
 This script checks the .env file and adds missing environment variables
-required for external data sources (Carbon Intensity, Air Quality, 
-Electricity Pricing, Calendar Service).
+required for external data sources (Air Quality, Electricity Pricing,
+Calendar Service).
 """
 
 from pathlib import Path
 
 # Required environment variables for each service
 REQUIRED_VARS = {
-    'carbon-intensity': {
-        'WATTTIME_USERNAME': 'your_watttime_username',
-        'WATTTIME_PASSWORD': 'your_watttime_password',
-        'GRID_REGION': 'CAISO_NORTH',  # Default value
-    },
     'air-quality': {
         'WEATHER_API_KEY': 'your_openweathermap_api_key_here',
         'LATITUDE': '36.1699',  # Default: Las Vegas
@@ -92,9 +87,7 @@ def write_env_file(env_path: Path, env_vars: dict[str, str], comments: dict[str,
         stripped = line.strip()
         
         # Detect section headers
-        if stripped.startswith('#') and 'Carbon Intensity' in stripped:
-            in_section = 'carbon-intensity'
-        elif stripped.startswith('#') and 'Air Quality' in stripped:
+        if stripped.startswith('#') and 'Air Quality' in stripped:
             in_section = 'air-quality'
         elif stripped.startswith('#') and 'Electricity Pricing' in stripped:
             in_section = 'electricity-pricing'
@@ -120,26 +113,6 @@ def write_env_file(env_path: Path, env_vars: dict[str, str], comments: dict[str,
     
     # Add missing variables in appropriate sections
     sections = {
-        'carbon-intensity': [
-            '# =============================================================================',
-            '# Carbon Intensity Configuration (WattTime API)',
-            '# =============================================================================',
-            '',
-            '# Authentication Method (Choose ONE):',
-            '',
-            '# Method 1: Username/Password (RECOMMENDED - automatic token refresh)',
-            '# Tokens are automatically refreshed every 25 minutes',
-            '',
-            '# Grid Region Configuration',
-            '# US Regions: CAISO_NORTH, CAISO_SOUTH, ERCOT, PJM, NYISO, ISONE, MISO',
-            '# International: Contact WattTime for available regions (paid plans)',
-            '# Use WattTime region lookup API to find your specific region',
-            '',
-            '# Notes:',
-            '# - Free tier: Limited to 1-2 US regions',
-            '# - Paid tier: Global coverage (12+ countries)',
-            '# - Register at: https://watttime.org',
-        ],
         'air-quality': [
             '',
             '# Air Quality Configuration (uses WEATHER_API_KEY from above)',
@@ -217,7 +190,6 @@ def main():
         print("✅ All required environment variables are present!")
         print()
         print("Note: Make sure to replace placeholder values with your actual API keys:")
-        print("  - WATTTIME_USERNAME / WATTTIME_PASSWORD (for Carbon Intensity)")
         print("  - WEATHER_API_KEY (for Air Quality)")
         print("  - HOME_ASSISTANT_TOKEN / HA_TOKEN (for Calendar Service)")
         return
@@ -259,12 +231,11 @@ def main():
     print()
     print("📋 Next steps:")
     print("  1. Open .env file and replace placeholder values with your actual API keys:")
-    print("     - WATTTIME_USERNAME / WATTTIME_PASSWORD: Get from https://watttime.org")
     print("     - WEATHER_API_KEY: Get from https://openweathermap.org/api")
     print("     - HOME_ASSISTANT_TOKEN / HA_TOKEN: Create in HA Profile → Security")
     print()
     print("  2. Restart the services:")
-    print("     docker-compose restart carbon-intensity air-quality electricity-pricing")
+    print("     docker-compose restart air-quality electricity-pricing")
     print()
     print("  3. Check service health:")
     print("     docker-compose ps")

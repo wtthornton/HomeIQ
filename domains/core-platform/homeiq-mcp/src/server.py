@@ -133,7 +133,13 @@ class HomeIQMCP:
             routes=[
                 Route(
                     "/health",
-                    make_health_endpoint(self.registry, self.backings, version=SERVER_VERSION),
+                    make_health_endpoint(
+                        self.registry,
+                        self.backings,
+                        version=SERVER_VERSION,
+                        read_tokens=settings.read_token_list,
+                        write_tokens=settings.write_token_list,
+                    ),
                     methods=["GET"],
                 ),
                 Route(MCP_PATH, endpoint=mcp_app, methods=["GET", "POST", "DELETE"]),

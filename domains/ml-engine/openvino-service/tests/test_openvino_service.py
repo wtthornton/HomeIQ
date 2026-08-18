@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from fastapi import HTTPException
+from httpx import ASGITransport, AsyncClient
 
 test_dir = Path(__file__).resolve().parent
 service_dir = test_dir.parent
@@ -24,13 +25,20 @@ from src.main import (
     ClassifyRequest,
     EmbeddingRequest,
     RerankRequest,
+    app,
     classify_pattern,
     generate_embeddings,
     get_model_status,
-    health_check,
     rerank_candidates,
     warmup_models,
 )
+
+
+async def _get(path: str):
+    """Call an app route through ASGI, the way a client would."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        return await client.get(path)
 
 
 @pytest.fixture
@@ -44,15 +52,19 @@ def wired_manager(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_health_endpoint_reports_ready(_wired_manager):
-    result = await health_check()
+@pytest.mark.usefixtures("wired_manager")
+async def test_health_endpoint_reports_ready():
+    response = await _get("/health")
+    assert response.status_code == 200
+    result = response.json()
     assert result["service"] == "openvino-service"
-    assert "models_loaded" in result
-    assert "models_ready" in result  # MED-3: new field
+    assert result["status"] == "healthy"
+    assert result["dependencies"]["models"] == "ok"
 
 
 @pytest.mark.asyncio
-async def test_model_status_endpoint(_wired_manager):
+@pytest.mark.usefixtures("wired_manager")
+async def test_model_status_endpoint():
     status = await get_model_status()
     # MED-1: Fixed model name assertion to match actual EMBEDDING_MODEL_NAME
     assert status["embedding_model"] == "BAAI/bge-large-en-v1.5"
@@ -61,7 +73,8 @@ async def test_model_status_endpoint(_wired_manager):
 
 
 @pytest.mark.asyncio
-async def test_embeddings_endpoint(_wired_manager):
+@pytest.mark.usefixtures("wired_manager")
+async def test_embeddings_endpoint():
     request = EmbeddingRequest(texts=["Turn on the hallway lights"], normalize=True)
     response = await generate_embeddings(request)
     assert len(response.embeddings) == 1
@@ -71,7 +84,8 @@ async def test_embeddings_endpoint(_wired_manager):
 
 
 @pytest.mark.asyncio
-async def test_rerank_endpoint(_wired_manager):
+@pytest.mark.usefixtures("wired_manager")
+async def test_rerank_endpoint():
     request = RerankRequest(
         query="Turn on hallway lights",
         candidates=[
@@ -93,7 +107,8 @@ async def test_rerank_endpoint(_wired_manager):
 
 
 @pytest.mark.asyncio
-async def test_classification_endpoint(_wired_manager):
+@pytest.mark.usefixtures("wired_manager")
+async def test_classification_endpoint():
     request = ClassifyRequest(pattern_description="Lock the front door when motion is detected")
     response = await classify_pattern(request)
     assert response.category in {"energy", "comfort", "security", "convenience"}
@@ -127,16 +142,22 @@ async def test_health_endpoint_partial_initialization(tmp_path, monkeypatch):
     await manager._load_embedding_model()
     monkeypatch.setattr(service_main, "openvino_manager", manager)
 
-    result = await health_check()
+    response = await _get("/health")
+    assert response.status_code == 200
+    result = response.json()
+    # One loaded model is enough for the readiness check to pass.
     assert result["status"] == "healthy"
-    assert result["models_ready"] is True  # at least one model loaded
-    assert result["models_loaded"]["embedding_loaded"] is True
-    assert result["models_loaded"]["reranker_loaded"] is False
-    assert result["models_loaded"]["classifier_loaded"] is False
+    assert result["dependencies"]["models"] == "ok"
+
+    status = await get_model_status()
+    assert status["embedding_loaded"] is True
+    assert status["reranker_loaded"] is False
+    assert status["classifier_loaded"] is False
 
 
 @pytest.mark.asyncio
-async def test_warmup_endpoint(_wired_manager):
+@pytest.mark.usefixtures("wired_manager")
+async def test_warmup_endpoint():
     """ENH-2: Test the model warmup endpoint."""
     result = await warmup_models()
     assert result["status"] == "all_models_loaded"
@@ -144,7 +165,8 @@ async def test_warmup_endpoint(_wired_manager):
 
 
 @pytest.mark.asyncio
-async def test_embedding_empty_texts_rejected(_wired_manager):
+@pytest.mark.usefixtures("wired_manager")
+async def test_embedding_empty_texts_rejected():
     """Boundary test: empty text list should be rejected."""
     request = EmbeddingRequest(texts=[], normalize=True)
     with pytest.raises(HTTPException) as exc_info:
@@ -153,7 +175,8 @@ async def test_embedding_empty_texts_rejected(_wired_manager):
 
 
 @pytest.mark.asyncio
-async def test_embedding_whitespace_only_rejected(_wired_manager):
+@pytest.mark.usefixtures("wired_manager")
+async def test_embedding_whitespace_only_rejected():
     """Boundary test: whitespace-only text should be rejected."""
     request = EmbeddingRequest(texts=["   "], normalize=True)
     with pytest.raises(HTTPException) as exc_info:
@@ -162,7 +185,8 @@ async def test_embedding_whitespace_only_rejected(_wired_manager):
 
 
 @pytest.mark.asyncio
-async def test_classify_empty_description_rejected(_wired_manager):
+@pytest.mark.usefixtures("wired_manager")
+async def test_classify_empty_description_rejected():
     """Boundary test: empty pattern description should be rejected."""
     request = ClassifyRequest(pattern_description="")
     with pytest.raises(HTTPException) as exc_info:
@@ -171,7 +195,8 @@ async def test_classify_empty_description_rejected(_wired_manager):
 
 
 @pytest.mark.asyncio
-async def test_rerank_empty_query_rejected(_wired_manager):
+@pytest.mark.usefixtures("wired_manager")
+async def test_rerank_empty_query_rejected():
     """Boundary test: empty query should be rejected."""
     request = RerankRequest(
         query="",
@@ -184,7 +209,8 @@ async def test_rerank_empty_query_rejected(_wired_manager):
 
 
 @pytest.mark.asyncio
-async def test_rerank_empty_candidates_rejected(_wired_manager):
+@pytest.mark.usefixtures("wired_manager")
+async def test_rerank_empty_candidates_rejected():
     """Boundary test: empty candidates list should be rejected."""
     request = RerankRequest(
         query="test query",
@@ -197,7 +223,8 @@ async def test_rerank_empty_candidates_rejected(_wired_manager):
 
 
 @pytest.mark.asyncio
-async def test_embedding_unicode_input(_wired_manager):
+@pytest.mark.usefixtures("wired_manager")
+async def test_embedding_unicode_input():
     """Boundary test: unicode text should work correctly."""
     request = EmbeddingRequest(
         texts=["Schalte das Licht ein", "Allume la lumiere"],
@@ -209,11 +236,17 @@ async def test_embedding_unicode_input(_wired_manager):
 
 
 @pytest.mark.asyncio
-async def test_health_endpoint_no_manager_returns_503(monkeypatch):
-    """Test that health endpoint returns 503 when manager is None."""
+async def test_readiness_endpoint_no_manager_returns_503(monkeypatch):
+    """/ready must go red when the manager is None. /health stays 200 —
+    it is the liveness probe Docker restarts on."""
     from src import main as service_main
 
     monkeypatch.setattr(service_main, "openvino_manager", None)
-    with pytest.raises(HTTPException) as exc_info:
-        await health_check()
-    assert exc_info.value.status_code == 503
+
+    ready = await _get("/ready")
+    assert ready.status_code == 503
+    assert ready.json()["ready"] is False
+
+    health = await _get("/health")
+    assert health.status_code == 200
+    assert health.json()["status"] == "unhealthy"

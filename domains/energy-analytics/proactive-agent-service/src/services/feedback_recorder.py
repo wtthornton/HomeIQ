@@ -9,7 +9,7 @@ per action type, time slot, and context.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
 
@@ -23,7 +23,9 @@ except ImportError:
     _MEMORY_AVAILABLE = False
 
 from ..models.autonomous_action import ActionOutcome, ActionPreferenceHistory
-from .confidence_scorer import ActionScore
+
+if TYPE_CHECKING:
+    from .confidence_scorer import ActionScore
 
 logger = logging.getLogger(__name__)
 

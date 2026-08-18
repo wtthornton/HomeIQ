@@ -985,6 +985,112 @@ docker compose logs | grep -i error
 
 ---
 
+### Agent write path to Home Assistant `/config` (2026-08-18)
+
+The recipes that edit `configuration.yaml` (TAP-5430) and the custom ZHA quirk drop
+(TAP-6018) need file access to the HA host. It is provisioned through the **Terminal &
+SSH (`core_ssh`) add-on**, driven from the Supervisor API — reachable with the existing
+HA long-lived token over the **WebSocket** command `supervisor/api`. (HA's
+`/api/hassio/...` REST proxy answers 401 for add-on endpoints; the WS command does not —
+that difference is why this was previously believed impossible.)
+
+Authenticate on `ws://<ha-host>:8123/api/websocket`, then send:
+
+1. `{"id": 2, "type": "supervisor/api", "endpoint": "/addons/core_ssh/info", "method": "get"}`
+2. `{"id": 3, "type": "supervisor/api", "endpoint": "/addons/core_ssh/options", "method": "post", "data": {"options": {"...": "...", "authorized_keys": ["<agent public key>"]}, "network": {"22/tcp": 22222}}}`
+3. `{"id": 4, "type": "supervisor/api", "endpoint": "/addons/core_ssh/restart", "method": "post"}`
+
+Then `ssh -i <key> -p 22222 root@<ha-host>` reaches `/config`. Rotate by replacing the
+entry in `authorized_keys` and restarting the add-on; revoke by removing it. The private
+key stays on the operator/agent host — `HOMEIQ_HA_SSH_KEY` records only its path.
+
+### Custom ZHA quirks: install path and rebuild survival (TAP-6018, 2026-08-18)
+
+Some Zigbee devices report their primary measurement on a manufacturer-specific
+cluster no shipped quirk claims. Home Assistant joins them, sets
+`quirk_applied = False`, and exposes every standard cluster it found — while the
+one thing the device exists to measure stays invisible. The Aqara FP1E
+(`lumi.sensor_occupy.agl8`) is the case in hand: it reports presence on Aqara's
+`0xFCC0` cluster, and `zha-quirks` 2.2.0 registers that hardware only under the
+model string `lumi.sensor_occupy.agl1`, so both units joined with illuminance,
+temperature, humidity and battery but **no occupancy entity**.
+
+**The repo is the source of truth. The host is a deployment target.** Quirks live at
+`libs/homeiq-ha/src/homeiq_ha/agent/quirks/*.py` and are shipped as package data
+(`[tool.setuptools.package-data]` in `libs/homeiq-ha/pyproject.toml`). Never edit
+the copy under `/config` — the recipe compares the two byte for byte and will
+overwrite host-side edits on the next apply.
+
+Deployment is the `zha.aqara_fp1e_quirk` recipe
+(`libs/homeiq-ha/src/homeiq_ha/agent/zha_quirks.py`), which is in
+`default_recipes()` and does all three things a quirk needs, so none can be
+half-done:
+
+1. sets `zha.custom_quirks_path: /config/custom_zha_quirks` in
+   `configuration.yaml` (merged key by key, so other `zha:` settings survive);
+2. writes the quirk to that directory over the `core_ssh` transport above —
+   checksum-verified, atomic, parent directories created;
+3. restarts core, because the `zha:` block is YAML-only config read once at
+   startup, then polls `zha/devices` until `quirk_applied` flips.
+
+Run it with the recipe engine, or directly:
+
+```python
+from homeiq_ha.agent.host_files import host_files_from_env
+from homeiq_ha.agent.zha_quirks import AqaraFP1EQuirkRecipe
+from homeiq_ha.client import HAClient
+
+recipe = AqaraFP1EQuirkRecipe(host_files_from_env())
+async with HAClient.from_env() as ha:
+    print((await recipe.check(ha)).summary)   # read-only
+    print((await recipe.plan(ha)).describe())
+    print((await recipe.apply(ha)).summary)   # restarts core
+    print((await recipe.verify(ha)).summary)  # independent re-read
+```
+
+Requires `HOMEIQ_HA_SSH_HOST` (plus `_PORT`/`_USER`/`_KEY`) in `.env`. Without it
+there is no write path and the recipe reports `NOT_APPLICABLE` rather than
+pretending the device is fixed.
+
+**Surviving a rebuild.** `/config/custom_zha_quirks/` is *not* in this repo's
+deployment artifacts and is *not* recreated by anything else — it lives on the HA
+host, which HomeIQ does not own. Two consequences:
+
+- A Home Assistant OS restore, a `/config` wipe, or a fresh HA install loses both
+  the directory and the `zha:` key. Re-run the recipe; it is idempotent, and a
+  converged instance produces an empty plan and a zero-change apply.
+- A HomeIQ stack rebuild does not touch `/config` at all, so the quirk survives it
+  untouched.
+
+Add the recipe to the post-deployment verification pass for any HA restore.
+`check` is read-only and safe to run at any time; `SATISFIED` means the key, the
+file and every interviewed unit's `quirk_applied` all agree.
+
+**When a device stays unquirked.** A quirk registry matches on manufacturer *and*
+model, so a device whose interview never got as far as reading the Basic cluster
+reports `unk_manufacturer` and can match nothing — no quirk, custom or shipped,
+can reach it. The recipe reports these separately in `details["uninterviewed"]`
+and, when they are all that is left, returns `BLOCKED_ON_HUMAN`: someone has to
+press the device's reset button to wake it and re-interview it in
+**Settings → Devices → ZHA**. Known case as of 2026-08-18:
+`54:ef:44:10:01:46:c0:f4` has not been seen since 2026-08-12 and does not answer
+a reconfigure — that is a dead battery or an unplugged unit, not a config problem.
+
+Note that the quirk's `friendly_name` rewrites the device's reported `model`
+(here to "Presence Sensor FP1E"), so anything matching FP1E units by model string
+must also consult `quirk_class`, which keeps naming the Zigbee model.
+
+**Verifying by hand:**
+
+```bash
+# quirk_applied and the occupancy entity, per unit
+curl -s -H "Authorization: Bearer $HA_TOKEN" \
+  "$HA_URL/api/states/binary_sensor.office_aqara_presence_sensor_fp1e" | jq '.state, .attributes.device_class'
+```
+
+If the quirk file is present but `quirk_applied` stays false, the import failed:
+search the HA log for `Unexpected exception importing custom quirk`.
+
 ### Schema resolution after homeiq-data ≥ 2.0.0 (2026-08-18)
 
 `homeiq_data.create_pg_engine` now sets `search_path` outside a transaction, so
@@ -1010,6 +1116,40 @@ start without it); publish address via `HOMEIQ_MCP_BIND` (default `0.0.0.0`; pin
 docker gateway AgentForge dials to keep it off the LAN). Rotate a token by editing the
 CSV, restarting `homeiq-mcp`, then updating the AgentForge vault entry
 `HOMEIQ_MCP_AUTHORIZATION` (scope `project:homeiq`).
+
+### Publishing the MCP to Home Assistant (2026-08-18)
+
+The Home Assistant custom integration runs on a separate box, so it cannot reach the
+docker-gateway publish. `HOMEIQ_MCP_LAN_BIND` adds a **second** publish on the host's
+LAN address, leaving AgentForge's `HOMEIQ_MCP_BIND` path untouched. Two explicit
+publishes rather than one `0.0.0.0` bind, which on this host would also expose the port
+on Tailscale and ~18 other docker bridges.
+
+1. Set `HOMEIQ_MCP_LAN_BIND` to the host LAN address (must differ from `HOMEIQ_MCP_BIND`).
+2. Add that same address to `HOMEIQ_MCP_ALLOWED_HOSTS` — the guard checks the **Host
+   header**, i.e. the address the client dialled, not the client's own IP. Omitting it
+   makes every request from HA fail the Host check.
+3. Recreate the container. Compose resolves `.env` from the **compose file's** directory,
+   not the shell's, so pass it explicitly:
+
+```bash
+cd domains/core-platform
+docker compose --env-file /path/to/HomeIQ/.env up -d --no-deps homeiq-mcp
+docker ps --filter name=homeiq-mcp --format '{{.Ports}}'   # expect both publishes
+```
+
+**What `/health` discloses.** Unlike `/mcp`, `/health` needs no token and is not behind
+the transport's DNS-rebinding guard, so a forged `Host` reaches it. Anonymous callers
+therefore get liveness only (`status`, `service`, `version`); the tool list, catalogue
+version and per-backing latencies require a read or write token. A rejected token is
+treated as no token rather than a 401, so a bad credential cannot break the container
+healthcheck. Verify after any change to the publish:
+
+```bash
+curl -s http://<lan-address>:8050/health                      # 3 keys
+curl -s -H "Authorization: Bearer <read-token>" \
+     http://<gateway-address>:8050/health                     # full body
+```
 
 ## Rollback Procedure
 

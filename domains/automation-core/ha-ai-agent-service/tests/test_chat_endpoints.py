@@ -140,7 +140,7 @@ def mock_chat_completion():
 
 
 @pytest.mark.asyncio
-async def test_chat_request_model(_settings):
+async def test_chat_request_model(settings):
     """Test ChatRequest model validation"""
     request = ChatRequest(
         message="Turn on the kitchen lights",
@@ -235,16 +235,16 @@ async def test_chat_endpoint_logic_new_conversation(
         await conversation_service.add_message(conversation_id, "assistant", assistant_content)
 
         # Verify
+        mock_add_message.assert_awaited_with(conversation_id, "assistant", assistant_content)
         assert assistant_content == "I've turned on the kitchen lights."
         assert conversation_id is not None
         mock_openai_client.chat_completion.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_chat_endpoint_logic_invalid_conversation(setup_services, conversation_service):
+@pytest.mark.usefixtures("setup_services")
+async def test_chat_endpoint_logic_invalid_conversation(conversation_service):
     """Test chat endpoint logic with invalid conversation ID"""
-    services = setup_services
-
     # Mock database session and db_get_conversation to return None (conversation not found)
     mock_session = AsyncMock()
 

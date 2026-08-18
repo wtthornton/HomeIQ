@@ -151,7 +151,7 @@ async def test_get_cached_value(context_builder):
         mock_get_session.return_value.__aiter__.return_value = [mock_session]
 
         # Mock ContextCache query
-        with patch("src.services.context_builder.ContextCache") as mock_cache:
+        with patch("src.services.context_builder.ContextCache"):
             result = await context_builder._get_cached_value(cache_key)
 
             # Should return None if cache expired or not found

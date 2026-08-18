@@ -79,7 +79,7 @@ class SkillRecall:
 
         for skill_dict in safe_skills:
             entry = f"### {skill_dict['name']}\n{skill_dict['body'][:300]}\n"
-            if sum(len(l) for l in lines) + len(entry) > char_budget:
+            if sum(len(line) for line in lines) + len(entry) > char_budget:
                 break
             lines.append(entry)
 

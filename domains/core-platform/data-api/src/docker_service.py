@@ -89,7 +89,6 @@ class DockerService:
             "health-dashboard": "homeiq-dashboard",
             "influxdb": "homeiq-influxdb",
             "weather-api": "homeiq-weather",
-            "carbon-intensity-service": "homeiq-carbon-intensity",
             "electricity-pricing-service": "homeiq-electricity-pricing",
             "air-quality-service": "homeiq-air-quality",
             "calendar-service": "homeiq-calendar",
@@ -443,7 +442,7 @@ class DockerService:
             if service_name in ["influxdb", "websocket-ingestion"]:
                 status = ContainerStatus.RUNNING
                 ports = {"8086/tcp": "8086"} if service_name == "influxdb" else {"8001/tcp": "8001"}
-            elif service_name in ["weather-api", "carbon-intensity-service"]:
+            elif service_name == "weather-api":
                 status = ContainerStatus.STOPPED
                 ports = {}
             else:

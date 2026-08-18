@@ -323,20 +323,16 @@ class PredictiveAnalyticsEngine:
             # Evaluate models (use appropriate test set based on model type)
             if model_type == "tabpfn":
                 # TabPFN uses unscaled features
-                await self._evaluate_models(X_test, y_failure_test, use_scaled=False)
+                await self._evaluate_models(X_test, y_failure_test)
             else:
                 # Other models use scaled features
-                await self._evaluate_models(X_test_scaled, y_failure_test, use_scaled=True)
+                await self._evaluate_models(X_test_scaled, y_failure_test)
 
             # Validate models before saving (use appropriate test set based on model type)
             if model_type == "tabpfn":
-                validation_result = await self._validate_models(
-                    X_test, y_failure_test, use_scaled=False
-                )
+                validation_result = await self._validate_models(X_test)
             else:
-                validation_result = await self._validate_models(
-                    X_test_scaled, y_failure_test, use_scaled=True
-                )
+                validation_result = await self._validate_models(X_test_scaled)
             if not validation_result["valid"]:
                 logger.warning(f"Model validation failed: {validation_result['reason']}")
                 logger.warning("Models will not be saved. Using existing models if available.")
@@ -810,16 +806,16 @@ class PredictiveAnalyticsEngine:
 
         return recommendations
 
-    async def _evaluate_models(
-        self, X_test: np.ndarray, y_test: np.ndarray, use_scaled: bool = True
-    ):
+    async def _evaluate_models(self, X_test: np.ndarray, y_test: np.ndarray):
         """
         Evaluate model performance.
+
+        The caller passes the test matrix already in the form the model expects
+        (unscaled for TabPFN, scaled otherwise).
 
         Args:
             X_test: Test features
             y_test: Test labels
-            use_scaled: Whether features are already scaled (for TabPFN, use False)
         """
         try:
             y_pred = self.models["failure_prediction"].predict(X_test)
@@ -848,16 +844,16 @@ class PredictiveAnalyticsEngine:
                 "evaluated_at": datetime.now(UTC).isoformat(),
             }
 
-    async def _validate_models(
-        self, X_test: np.ndarray, y_test: np.ndarray, use_scaled: bool = True
-    ) -> dict[str, Any]:
+    async def _validate_models(self, X_test: np.ndarray) -> dict[str, Any]:
         """
         Validate models meet minimum performance thresholds.
 
+        Scoring metrics come from ``self.model_performance``, populated by
+        ``_evaluate_models``; X_test is used only for the sample-prediction
+        smoke checks below.
+
         Args:
             X_test: Test features
-            y_test: Test labels
-            use_scaled: Whether features are already scaled (for TabPFN, use False)
         """
         try:
             # Check if models exist

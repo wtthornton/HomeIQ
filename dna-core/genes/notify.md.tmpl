@@ -29,7 +29,7 @@ mcp_servers: []
 capabilities:
 - {{prefix}}.act.notify
 failure_mode: required
-max_budget_usd: 0.1
+max_budget_usd: {{max_budget_usd}}
 credentials:
 - key: {{env_prefix}}_NOTIFY_WEBHOOK
   scope: project:{{slug}}

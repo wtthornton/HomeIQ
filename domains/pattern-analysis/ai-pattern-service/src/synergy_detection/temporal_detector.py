@@ -307,9 +307,8 @@ class TemporalSynergyDetector:
             # Climate synergies more valuable in summer/winter
             if month in [6, 7, 8, 12, 1, 2]:
                 return 1.1  # 10% boost
-        elif has_lighting:
-            # Lighting synergies more valuable in winter (shorter days)
-            if month in [12, 1, 2]:
-                return 1.1  # 10% boost
+        # Lighting synergies more valuable in winter (shorter days)
+        elif has_lighting and month in [12, 1, 2]:
+            return 1.1  # 10% boost
 
         return 1.0  # No adjustment

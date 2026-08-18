@@ -57,10 +57,6 @@ class TestSyntheticSessionGenerator:
     def automation_config(self):
         return ConfigLoader.load(_config_path("ai_automation_service.yaml"))
 
-    @pytest.fixture
-    def core_config(self):
-        return ConfigLoader.load(_config_path("ai_core_service.yaml"))
-
     def test_generates_correct_count(self, ha_config):
         gen = SyntheticSessionGenerator(ha_config)
         sessions = gen.generate(count=5)
@@ -141,11 +137,6 @@ class TestSyntheticSessionGenerator:
         gen = SyntheticSessionGenerator(automation_config)
         sessions = gen.generate(count=5)
         assert all(s.agent_name == "ai-automation-service" for s in sessions)
-
-    def test_core_service_sessions(self, core_config):
-        gen = SyntheticSessionGenerator(core_config)
-        sessions = gen.generate(count=5)
-        assert all(s.agent_name == "ai-core-service" for s in sessions)
 
     def test_tool_calls_have_parameters(self, ha_config):
         gen = SyntheticSessionGenerator(ha_config)
@@ -232,11 +223,10 @@ class TestRunEvaluation:
                 output_dir=Path(tmpdir),
                 seed=42,
             )
-            assert len(reports) == 4
+            assert len(reports) == 3
             assert "ha-ai-agent" in reports
             assert "proactive-agent" in reports
             assert "ai-automation-service" in reports
-            assert "ai-core-service" in reports
 
     @pytest.mark.asyncio
     async def test_markdown_report_written(self):

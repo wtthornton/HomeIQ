@@ -11,13 +11,13 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-class ComplexityLevel(str, Enum):
+class ComplexityLevel(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -106,7 +106,6 @@ class ComplexityClassifier:
 
         # Factor 1: Token/character count (0.0-1.0)
         char_count = len(message.strip())
-        word_count = len(message.split())
         if char_count > self.token_high:
             factors["token_count"] = 1.0
         elif char_count > self.token_medium:
@@ -115,10 +114,7 @@ class ComplexityClassifier:
             factors["token_count"] = 0.1
 
         # Factor 2: Entity count (0.0-1.0)
-        if entity_ids:
-            entity_count = len(entity_ids)
-        else:
-            entity_count = len(_ENTITY_PATTERN.findall(message))
+        entity_count = len(entity_ids) if entity_ids else len(_ENTITY_PATTERN.findall(message))
         if entity_count >= self.entity_high:
             factors["entity_count"] = 1.0
         elif entity_count >= 1:

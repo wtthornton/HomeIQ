@@ -34,9 +34,9 @@ export const getMockAlerts = (): Alert[] => {
       id: '3',
       timestamp: new Date(Date.now() - 5 * 3600000).toISOString(),
       severity: 'error',
-      service: 'carbon-intensity',
+      service: 'electricity-pricing',
       title: 'API Connection Failed',
-      message: 'Failed to connect to Carbon Intensity API (timeout after 30s)',
+      message: 'Failed to connect to Electricity Pricing API (timeout after 30s)',
       acknowledged: true,
       acknowledgedBy: 'admin',
       acknowledgedAt: new Date(Date.now() - 4 * 3600000).toISOString()

@@ -16,13 +16,10 @@ declare -A DB_SERVICES=(
   ["websocket-ingestion"]=8001
   ["ha-ai-agent-service"]=8030
   ["ai-automation-service-new"]=8036
-  ["ai-query-service"]=8035
   ["automation-trace-service"]=8046
   ["device-health-monitor"]=8019
-  ["energy-correlator"]=8017
   ["proactive-agent-service"]=8031
   ["blueprint-index"]=8038
-  ["activity-writer"]=8045
 )
 
 echo -e "${BOLD}${BLUE}╔══════════════════════════════════════════════════════════════════╗${NC}"

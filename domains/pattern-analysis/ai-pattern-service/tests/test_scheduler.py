@@ -36,7 +36,7 @@ class TestPatternAnalysisScheduler:
     @pytest.mark.integration
     @pytest.mark.scheduler
     async def test_run_pattern_analysis_empty_events(
-        self, _test_db, mock_data_api_client, mock_mqtt_client
+        self, test_db, mock_data_api_client, mock_mqtt_client
     ):
         """Test pattern analysis with empty events."""
         scheduler = PatternAnalysisScheduler()
@@ -58,7 +58,7 @@ class TestPatternAnalysisScheduler:
     @pytest.mark.scheduler
     @pytest.mark.slow
     async def test_run_pattern_analysis_with_events(
-        self, _test_db, _mock_data_api_client, mock_mqtt_client
+        self, test_db, mock_data_api_client, mock_mqtt_client
     ):
         """Test pattern analysis with sample events."""
         scheduler = PatternAnalysisScheduler()

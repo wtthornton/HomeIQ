@@ -135,11 +135,10 @@ class TestAPIKeyServiceInit:
         assert svc.allow_secret_writes is True
 
     def test_api_key_config_contains_expected_services(self):
-        """api_key_config is pre-populated with the six known services."""
+        """api_key_config is pre-populated with the five known services."""
         svc = APIKeyService()
         expected = {
             "weather",
-            "carbon-intensity",
             "electricity-pricing",
             "air-quality",
             "calendar",
@@ -488,16 +487,6 @@ class TestValidateKeyFormat:
         """Weather key well above minimum returns True."""
         svc = APIKeyService()
         assert svc._validate_key_format("weather", "a" * 32) is True
-
-    def test_carbon_intensity_minimum_length_returns_true(self):
-        """Carbon-intensity key of 10 chars returns True."""
-        svc = APIKeyService()
-        assert svc._validate_key_format("carbon-intensity", "a" * 10) is True
-
-    def test_carbon_intensity_too_short_returns_false(self):
-        """Carbon-intensity key shorter than 10 chars returns False."""
-        svc = APIKeyService()
-        assert svc._validate_key_format("carbon-intensity", "short") is False
 
     def test_generic_service_minimum_length_returns_true(self):
         """Generic service key of 5 chars returns True."""

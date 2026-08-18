@@ -53,6 +53,14 @@ jobs:
       - name: no committed credential defaults (compose + env templates)
         run: bash scripts/check-compose-credential-defaults.sh
 
+      # TAP-5303: the production container count is a ratchet — it fails when a
+      # service is added AND when the file is stale after one is removed, so the
+      # 58-container regrowth cannot repeat and consolidation progress is locked in.
+      - name: container-count and memory-footprint ratchet (TAP-5303)
+        run: |
+          python -m pip install --quiet pyyaml
+          python scripts/check-container-budget.py
+
   quality-gate:
     name: TAPPS Quality Gate
     runs-on: ubuntu-latest

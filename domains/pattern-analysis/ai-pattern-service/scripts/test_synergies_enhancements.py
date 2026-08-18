@@ -12,7 +12,6 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from config import settings
 from services.energy_savings_calculator import EnergySavingsCalculator
 from synergy_detection import (
     DeviceCapabilityAnalyzer,
@@ -21,6 +20,8 @@ from synergy_detection import (
     SpatialIntelligenceService,
     TemporalSynergyDetector,
 )
+
+from config import settings
 
 
 async def test_energy_savings_calculator():

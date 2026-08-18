@@ -22,26 +22,20 @@ declare -A SERVICES=(
   ["smart-meter-service"]=8014
   ["sports-api"]=8005
   ["air-quality-service"]=8012
-  ["carbon-intensity-service"]=18010
   ["electricity-pricing-service"]=8011
   ["calendar-service"]=8013
   ["log-aggregator"]=8015
   # ML Engine
-  ["ai-core-service"]=8033
   ["openvino-service"]=8026
   ["ml-service"]=8025
   ["ner-service"]=8020
-  ["openai-service"]=8027
   ["rag-service"]=8018
-  ["ai-training-service"]=8028
   ["device-intelligence-service"]=8019
   # Automation Core
   ["ha-ai-agent-service"]=8030
   ["ai-automation-service-new"]=8036
-  ["ai-query-service"]=8035
   ["yaml-validation-service"]=8037
   ["automation-linter"]=8016
-  ["ai-code-executor"]=8044
   ["automation-trace-service"]=8046
   # Blueprints
   ["blueprint-index"]=8038
@@ -49,16 +43,12 @@ declare -A SERVICES=(
   ["rule-recommendation-ml"]=8040
   ["automation-miner"]=8029
   # Energy Analytics
-  ["energy-correlator"]=8017
-  ["energy-forecasting"]=8042
   ["proactive-agent-service"]=8031
   # Device Management
   ["device-health-monitor"]=8019
   ["device-setup-assistant"]=8021
   ["device-database-client"]=8022
   ["device-recommender"]=8023
-  ["activity-recognition"]=8043
-  ["activity-writer"]=8045
   ["ha-setup-service"]=8024
   # Pattern Analysis
   ["ai-pattern-service"]=8034
@@ -77,7 +67,7 @@ TOTAL=${#SERVICES[@]}
 # Data collectors expose /ready (TAP-5903): dependency-aware readiness.
 # "(healthy)" counts measure uptime, not function — a collector is only
 # counted READY when its /ready answers 200.
-COLLECTORS="weather-api smart-meter-service sports-api air-quality-service carbon-intensity-service electricity-pricing-service calendar-service log-aggregator"
+COLLECTORS="weather-api smart-meter-service sports-api air-quality-service electricity-pricing-service calendar-service log-aggregator"
 READY=0
 NOT_READY=0
 

@@ -116,7 +116,7 @@ async def extract_entities(request: EntityExtractionRequest):
 
     except Exception as e:
         logger.error(f"Entity extraction failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Extraction failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Extraction failed: {str(e)}") from e
 
 @app.get("/model-info")
 async def get_model_info():

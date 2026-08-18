@@ -6,8 +6,6 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-logger = logging.getLogger(__name__)
-
 from ..models import (
     BackupCreateRequest,
     BackupHistoryResponse,
@@ -17,6 +15,8 @@ from ..models import (
     RestoreRequest,
     RestoreResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/backup", tags=["backup"])
 

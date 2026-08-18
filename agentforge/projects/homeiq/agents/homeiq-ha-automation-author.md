@@ -19,7 +19,7 @@ approved: true
 allowed_tools: ''
 mcp_servers: []
 risk_level: medium
-max_budget_usd: 0.5
+max_budget_usd: 1.5
 role: producer
 failure_mode: required
 capability:

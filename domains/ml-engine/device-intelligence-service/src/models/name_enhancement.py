@@ -11,7 +11,7 @@ from sqlalchemy import Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
-from .database import Base
+from .database import Base, Device
 
 
 class NameSuggestion(Base):
@@ -56,7 +56,7 @@ class NameSuggestion(Base):
     )  # Optional user feedback
 
     # Relationships
-    device: Mapped["Device"] = relationship("Device", backref="name_suggestions")
+    device: Mapped[Device] = relationship("Device", backref="name_suggestions")
 
     # Indexes
     __table_args__ = (

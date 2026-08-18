@@ -548,10 +548,7 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
             # First user message is not in recent messages, add it
             first_user_msg = messages[first_user_idx]
             # Combine: first user + recent (avoid duplicates)
-            if first_user_msg not in recent_messages:
-                truncated = [first_user_msg] + recent_messages
-            else:
-                truncated = recent_messages
+            truncated = [first_user_msg, *recent_messages] if first_user_msg not in recent_messages else recent_messages
         else:
             truncated = recent_messages
 

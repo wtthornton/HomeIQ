@@ -47,7 +47,6 @@ TIER2_SERVICES=(
   "smart-meter-service:8014"
   "sports-api:8005"
   "calendar-service:8013"
-  "carbon-intensity:8010"
   "electricity-pricing:8011"
   "air-quality:8012"
   "log-aggregator:8015"

@@ -69,9 +69,6 @@ class HealthEndpoints:
             "weather-api": os.getenv("WEATHER_SERVICE_URL", "http://weather-api:8009"),
             "sports-api": os.getenv("SPORTS_API_URL", "http://sports-api:8005"),
             # Data source services - Docker Compose service names
-            "carbon-intensity-service": os.getenv(
-                "CARBON_INTENSITY_URL", "http://carbon-intensity:8010"
-            ),
             "electricity-pricing-service": os.getenv(
                 "ELECTRICITY_PRICING_URL", "http://electricity-pricing:8011"
             ),
@@ -84,12 +81,6 @@ class HealthEndpoints:
                 "RULE_RECOMMENDATION_URL", "http://rule-recommendation-ml:8035"
             ),
             # Energy Analytics
-            "energy-correlator": os.getenv(
-                "ENERGY_CORRELATOR_URL", "http://energy-correlator:8017"
-            ),
-            "energy-forecasting": os.getenv(
-                "ENERGY_FORECASTING_URL", "http://energy-forecasting:8037"
-            ),
             "proactive-agent-service": os.getenv(
                 "PROACTIVE_AGENT_URL", "http://proactive-agent-service:8031"
             ),
@@ -103,7 +94,6 @@ class HealthEndpoints:
                 "AUTOMATION_EDGE_URL", "http://api-automation-edge:8025"
             ),
             # ML Engine
-            "ai-core-service": os.getenv("AI_CORE_URL", "http://ai-core-service:8018"),
             "device-intelligence-service": os.getenv(
                 "DEVICE_INTELLIGENCE_URL", "http://device-intelligence-service:8019"
             ),
@@ -136,14 +126,12 @@ class HealthEndpoints:
             "data-collectors": [
                 "weather-api",
                 "sports-api",
-                "carbon-intensity-service",
                 "electricity-pricing-service",
                 "air-quality-service",
                 "calendar-service",
                 "smart-meter-service",
             ],
             "ml-engine": [
-                "ai-core-service",
                 "device-intelligence-service",
                 "rag-service",
             ],
@@ -151,8 +139,6 @@ class HealthEndpoints:
                 "ai-automation-service",
             ],
             "energy-analytics": [
-                "energy-correlator",
-                "energy-forecasting",
                 "proactive-agent-service",
             ],
             "blueprints": [
@@ -383,7 +369,6 @@ class HealthEndpoints:
         # Custom health paths for services that don't use /health
         custom_health_paths = {
             "rule-recommendation-ml": "/api/v1/health",
-            "energy-forecasting": "/api/v1/health",
         }
 
         logger.debug(

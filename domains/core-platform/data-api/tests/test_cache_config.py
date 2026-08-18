@@ -27,6 +27,7 @@ from unittest.mock import patch
 
 import pytest
 import pytest_asyncio
+from pydantic import ValidationError
 
 # ---------------------------------------------------------------------------
 # Override conftest fresh_db — no real DB needed
@@ -213,5 +214,5 @@ class TestSettings:
             os.environ.pop("DATA_API_API_KEY", None)
             os.environ.pop("DATA_API_KEY", None)
             os.environ.pop("API_KEY", None)
-            with pytest.raises(Exception):
+            with pytest.raises(ValidationError):
                 Settings()

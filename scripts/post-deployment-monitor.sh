@@ -62,22 +62,17 @@ ALL_SERVICES=(
   "smart-meter-service:8014:/health"
   "sports-api:8005:/health"
   "calendar-service:8013:/health"
-  "carbon-intensity:8010:/health"
   "electricity-pricing:8011:/health"
   "air-quality:8012:/health"
   "log-aggregator:8015:/health"
   # Tier 3 — ML/AI
   "openvino-service:8026:/health"
   "ml-service:8025:/health"
-  "ai-core-service:8018:/health"
-  "ai-training-service:8033:/health"
   "device-intelligence-service:8028:/health"
   "rag-service:8027:/health"
-  "openai-service:8020:/health"
   # Tier 4 — Automation Core
   "ha-ai-agent-service:8030:/health"
   "ai-automation-service-new:8036:/health"
-  "ai-query-service:8035:/health"
   "yaml-validation-service:8037:/health"
   "automation-linter:8016:/health"
   "automation-trace-service:8044:/health"
@@ -87,8 +82,6 @@ ALL_SERVICES=(
   "rule-recommendation-ml:8040:/api/v1/health"
   "automation-miner:8029:/health"
   # Tier 6 — Energy Analytics
-  "energy-correlator:8017:/health"
-  "energy-forecasting:8042:/api/v1/health"
   "proactive-agent-service:8031:/health"
   # Tier 7 — Device Management
   "device-health-monitor:8019:/health"
@@ -96,7 +89,6 @@ ALL_SERVICES=(
   "device-setup-assistant:8021:/health"
   "device-database-client:8022:/health"
   "device-recommender:8023:/health"
-  "activity-writer:8045:/health"
   "ha-setup-service:8024:/health"
   # Tier 8 — Pattern Analysis
   "ai-pattern-service:8034:/health"

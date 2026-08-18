@@ -7,8 +7,8 @@ pytest: `python -m pytest` prepends the current directory to sys.path, and the
 every `from src...` import raised ModuleNotFoundError and the suite failed
 wholesale while passing locally under `python -m pytest`.
 
-Matches the idiom already used by the sibling services in this domain
-(e.g. activity-recognition). Deliberately not a pytest.ini: these tests
+Matches the idiom already used by the sibling services in this domain.
+Deliberately not a pytest.ini: these tests
 currently inherit the repo-root [tool.pytest.ini_options], and adding a
 service-level ini would move rootdir here and silently drop that config.
 """

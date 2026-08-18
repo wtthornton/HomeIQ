@@ -66,14 +66,6 @@ _AGENT_PROMPTS: dict[str, dict[str, str]] = {
         "missing_params": "Deploy something",
         "error_session": "Deploy the automation for the living room",
     },
-    "ai-core-service": {
-        "happy_path": "Analyze patterns in device usage data",
-        "happy_path_alt": "Run full analysis: embed, cluster, detect anomalies",
-        "partial_success": "Quick clustering of recent data",
-        "wrong_tool_order": "Cluster data without embedding first",
-        "missing_params": "Analyze the data",
-        "error_session": "Generate suggestions from device patterns",
-    },
 }
 
 # Agent-specific response templates
@@ -101,14 +93,6 @@ _AGENT_RESPONSES: dict[str, dict[str, str]] = {
         "wrong_tool_order": "Deployed without validation. Warning: this bypasses safety checks.",
         "missing_params": "Created a plan but missing required template parameters.",
         "error_session": "Deployment failed: compiled YAML contained an invalid entity reference.",
-    },
-    "ai-core-service": {
-        "happy_path": "Analysis complete: embedded 50 items, found 3 clusters with distinct usage patterns.",
-        "happy_path_alt": "Full pipeline complete: 50 embeddings generated, 4 clusters identified, 2 anomalies detected.",
-        "partial_success": "Clustering completed with default parameters. Some embeddings had low confidence.",
-        "wrong_tool_order": "Attempted clustering without embeddings. Using raw data fallback.",
-        "missing_params": "Analysis started but context data was incomplete.",
-        "error_session": "ML service unavailable. Circuit breaker triggered after 3 retries.",
     },
 }
 

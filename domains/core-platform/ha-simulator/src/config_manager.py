@@ -25,7 +25,7 @@ class ConfigManager:
         """Load configuration from file and environment"""
         # Load base configuration
         if Path(self.config_path).exists():
-            with open(self.config_path) as f:
+            with Path(self.config_path).open() as f:
                 self.config = yaml.safe_load(f)
             logger.info(f"Loaded configuration from {self.config_path}")
         else:

@@ -7,13 +7,13 @@ Domain models for conversations and messages (separated from service to avoid ci
 
 import logging
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
 
-class ConversationState(str, Enum):
+class ConversationState(StrEnum):
     """Conversation state enum"""
 
     ACTIVE = "active"
@@ -67,7 +67,7 @@ class Message:
         }
 
 
-class ConversationSource(str, Enum):
+class ConversationSource(StrEnum):
     """Conversation source enum - tracks where the conversation originated"""
 
     USER = "user"  # Direct user chat

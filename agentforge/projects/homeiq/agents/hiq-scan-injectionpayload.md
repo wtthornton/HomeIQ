@@ -32,7 +32,7 @@ mcp_servers: []
 capabilities:
 - hiq.judge.quarantine
 failure_mode: required
-max_budget_usd: 0.5
+max_budget_usd: 0.75
 guardrails:
 - type: anti-pii
   pii_types:

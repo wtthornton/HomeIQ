@@ -241,11 +241,8 @@ class DeviceAnomalyDetector:
                 is_anomaly = labels.get("iforest", 0) == 1
 
             # Calculate ensemble score (average of decision functions)
-            if raw_scores:
-                ensemble_score = np.mean(list(raw_scores.values()))
-            else:
-                # All models failed - use default score
-                ensemble_score = 0.0
+            # 0.0 when every model failed to score.
+            ensemble_score = np.mean(list(raw_scores.values())) if raw_scores else 0.0
 
             # Normalize score to 0-1 range
             normalized_score = self._normalize_score(ensemble_score)

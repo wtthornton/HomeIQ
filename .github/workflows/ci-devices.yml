@@ -29,4 +29,4 @@ jobs:
     with:
       group_name: devices
       domain_dir: device-management
-      services: '["device-health-monitor","device-context-classifier","device-setup-assistant","device-database-client","device-recommender","activity-recognition","activity-writer","ha-setup-service"]'
+      services: '["device-health-monitor","device-context-classifier","device-setup-assistant","device-database-client","device-recommender","ha-setup-service"]'

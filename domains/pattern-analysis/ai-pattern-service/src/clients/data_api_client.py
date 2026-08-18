@@ -22,6 +22,12 @@ logger = logging.getLogger(__name__)
 _core_platform_breaker = CircuitBreaker(name="core-platform")
 
 
+#: /api/v1/events declares ``limit: int = Query(100, ge=1, le=1000)``, so a
+#: single request for more is a 422, not a truncated page. Callers ask for
+#: tens of thousands of events, so the client pages to reach them.
+_EVENTS_PAGE_SIZE = 1000
+
+
 class DataAPIClient:
     """Resilient client for fetching historical data from Data API (core-platform group)."""
 
@@ -69,17 +75,16 @@ class DataAPIClient:
             if end_time is None:
                 end_time = datetime.now(UTC)
 
-            params: dict[str, Any] = {
+            base_params: dict[str, Any] = {
                 "start_time": start_time.isoformat(),
                 "end_time": end_time.isoformat(),
-                "limit": limit,
             }
             if entity_id:
-                params["entity_id"] = entity_id
+                base_params["entity_id"] = entity_id
             if device_id:
-                params["device_id"] = device_id
+                base_params["device_id"] = device_id
             if event_type:
-                params["event_type"] = event_type
+                base_params["event_type"] = event_type
 
             logger.info(
                 "Fetching events from Data API: start=%s, end=%s, limit=%s",
@@ -88,20 +93,31 @@ class DataAPIClient:
                 limit,
             )
 
-            response = await self._cross_client.call(
-                "GET",
-                "/api/v1/events",
-                params=params,
-            )
-            response.raise_for_status()
-            events_data = response.json()
+            events: list[dict[str, Any]] = []
+            offset = 0
+            while len(events) < limit:
+                page_size = min(_EVENTS_PAGE_SIZE, limit - len(events))
+                response = await self._cross_client.call(
+                    "GET",
+                    "/api/v1/events",
+                    params={**base_params, "limit": page_size, "offset": offset},
+                )
+                response.raise_for_status()
+                payload = response.json()
 
-            if isinstance(events_data, list):
-                events = events_data
-            elif isinstance(events_data, dict) and "events" in events_data:
-                events = events_data["events"]
-            else:
-                events = []
+                if isinstance(payload, list):
+                    batch = payload
+                elif isinstance(payload, dict) and "events" in payload:
+                    batch = payload["events"]
+                else:
+                    batch = []
+
+                if not batch:
+                    break
+                events.extend(batch)
+                if len(batch) < page_size:
+                    break
+                offset += len(batch)
 
             if not events:
                 logger.warning(

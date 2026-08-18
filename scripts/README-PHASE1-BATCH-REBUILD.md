@@ -63,15 +63,14 @@ docs/planning/
 
 ## 📊 What Gets Rebuilt
 
-### 40 Services in 7 Categories
+### 33 Services in 6 Categories
 
 | Category | Count | Risk | Examples |
 |----------|-------|------|----------|
-| **Integration** | 8 | LOW | weather-api, sports-api, calendar |
-| **AI/ML** | 13 | MED | ai-core, ml-service, rag-service |
+| **Integration** | 7 | LOW | weather-api, sports-api, calendar |
+| **AI/ML** | 9 | MED | ml-service, rag-service, openvino-service |
 | **Device** | 7 | MED | device-intelligence, device-health-monitor |
 | **Automation** | 6 | LOW | automation-linter, blueprint-index |
-| **Analytics** | 2 | LOW | energy-correlator, energy-forecasting |
 | **Frontend** | 2 | LOW | health-dashboard, ai-automation-ui |
 | **Other** | 2 | LOW | observability-dashboard, ha-simulator |
 
@@ -247,14 +246,13 @@ With BuildKit caching and default batch size (5):
 
 | Category | Services | Time |
 |----------|----------|------|
-| Integration | 8 | ~15-20 min |
-| AI/ML | 13 | ~35-45 min |
+| Integration | 7 | ~13-18 min |
+| AI/ML | 9 | ~25-32 min |
 | Device | 7 | ~20-25 min |
 | Automation | 6 | ~15-20 min |
-| Analytics | 2 | ~8-10 min |
 | Frontend | 2 | ~10-15 min |
 | Other | 2 | ~8-10 min |
-| **Total** | **40** | **~2-3 hours** |
+| **Total** | **33** | **~1.5-2 hours** |
 
 Adjust with `--batch-size` for faster/slower execution.
 
@@ -284,7 +282,7 @@ Includes:
 
 Phase 1 complete when:
 
-- [ ] All 40 services rebuilt successfully
+- [ ] All 33 services rebuilt successfully
 - [ ] Critical services pass health checks
 - [ ] State file shows 40 completed
 - [ ] Docker shows 40+ containers "Up"
@@ -372,7 +370,7 @@ Edit [`phase1-service-config.yaml`](./phase1-service-config.yaml) to customize:
 
 ```
 Orchestrator (phase1-batch-rebuild.sh)
-    ├─> Service Categorization (40 services in 7 categories)
+    ├─> Service Categorization (33 services in 6 categories)
     ├─> Batch Processor (parallel builds)
     │   ├─> Build (Docker with BuildKit)
     │   ├─> Test (pytest/npm test)

@@ -3,7 +3,7 @@
 The field was a plain ``str`` on ``Settings``, so any repr/log dump of the
 settings object leaked the raw key. It is now a ``SecretStr``; the env var
 OPENAI_API_KEY still populates it, and ``AINameSuggester`` must unwrap it
-before handing it to the OpenAI SDK (mirrors ai-query-service's
+before handing it to the OpenAI SDK (mirrors the sibling services'
 TestBuildProcessorOpenAIKey).
 """
 

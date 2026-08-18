@@ -1,6 +1,6 @@
 # start-stack.ps1 — Start all 9 HomeIQ domains in dependency order.
 # Each domain launches as a separate Docker Desktop group (via compose name: directive).
-# Uses --profile production so data-collectors includes air-quality, carbon-intensity, etc.
+# Uses --profile production so data-collectors includes air-quality, electricity-pricing, etc.
 #
 # Usage:
 #   .\scripts\start-stack.ps1              # Full startup with health polling

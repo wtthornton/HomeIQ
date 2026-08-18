@@ -50,7 +50,7 @@ async def test_get_areas_list_with_areas(areas_service, mock_context_builder):
 
 
 @pytest.mark.asyncio
-async def test_get_areas_list_empty(areas_service, _mock_context_builder):
+async def test_get_areas_list_empty(areas_service, mock_context_builder):
     """Test getting areas list with no areas"""
     # Mock data_api_client.get_areas() returning empty, then fallback to entity extraction
     with (

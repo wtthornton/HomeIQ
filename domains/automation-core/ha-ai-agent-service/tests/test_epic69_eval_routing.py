@@ -239,7 +239,7 @@ class TestEvalAlerting:
 
         # Simulate sudden drop
         for _ in range(6):
-            result = svc.record_score("agent-1", "quality", 60.0)
+            svc.record_score("agent-1", "quality", 60.0)
 
         # Should eventually alert
         alerts = svc.get_alerts()

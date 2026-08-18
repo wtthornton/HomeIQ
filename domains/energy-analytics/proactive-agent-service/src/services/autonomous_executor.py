@@ -16,12 +16,14 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from ..clients.device_control_client import DeviceControlClient
-from ..config import Settings
 from ..models.autonomous_action import ActionOutcome, AutonomousActionAudit
 from .confidence_scorer import SAFETY_BLOCKED_DOMAINS, ActionScore
+
+if TYPE_CHECKING:
+    from ..clients.device_control_client import DeviceControlClient
+    from ..config import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +139,6 @@ class AutonomousExecutor:
             pre_state = audit.pre_action_state
             success = await self._restore_state(
                 entity_id=audit.entity_id,
-                action_type=audit.action_type,
                 pre_state=pre_state,
             )
 
@@ -193,7 +194,6 @@ class AutonomousExecutor:
     async def _restore_state(
         self,
         entity_id: str,
-        action_type: str,
         pre_state: dict[str, Any],
     ) -> bool:
         """Restore an entity to its pre-action state."""

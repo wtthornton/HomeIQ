@@ -415,11 +415,17 @@ services:
       dockerfile: domains/core-platform/homeiq-mcp/Dockerfile
     container_name: homeiq-mcp
     restart: unless-stopped
-    # HOMEIQ_MCP_BIND narrows the published address (e.g. the docker gateway IP that
-    # AgentForge dials, so the port is not LAN-exposed). Bearer auth + Host allowlist
-    # guard it either way.
+    # Two explicit publishes rather than one 0.0.0.0 bind, which would also expose
+    # the port on Tailscale and the ~18 other docker bridges on this host:
+    #   HOMEIQ_MCP_BIND      - the docker gateway address AgentForge dials.
+    #   HOMEIQ_MCP_LAN_BIND  - the host LAN address Home Assistant dials (TAP-5305..5309);
+    #                          leave unset to keep the MCP off the LAN entirely.
+    # The two must differ. Bearer auth + the Host allowlist guard both paths, and any
+    # address added here must also be listed in HOMEIQ_MCP_ALLOWED_HOSTS or the Host
+    # check rejects the request.
     ports:
       - "${HOMEIQ_MCP_BIND:-0.0.0.0}:8050:8050"
+      - "${HOMEIQ_MCP_LAN_BIND:-127.0.0.1}:8050:8050"
     read_only: true
     tmpfs:
       - /tmp

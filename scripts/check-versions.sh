@@ -32,22 +32,17 @@ SERVICES=(
   "smart-meter-service:8014"
   "sports-api:8005"
   "calendar-service:8013"
-  "carbon-intensity:8010"
   "electricity-pricing:8011"
   "air-quality:8012"
   "log-aggregator:8015"
   # Tier 3: ML/AI
   "openvino-service:8026"
   "ml-service:8025"
-  "ai-core-service:8018"
-  "ai-training-service:8033"
   "device-intelligence-service:8028"
   "rag-service:8027"
-  "openai-service:8020"
   # Tier 4: Automation Core
   "ha-ai-agent-service:8030"
   "ai-automation-service-new:8036"
-  "ai-query-service:8035"
   "automation-linter:8016"
   "yaml-validation-service:8037"
   "automation-trace-service:8044"
@@ -58,8 +53,6 @@ SERVICES=(
   "automation-miner:8029"
   "rule-recommendation-ml:8040"
   # Tier 6: Energy Analytics
-  "energy-correlator:8017"
-  "energy-forecasting:8042"
   "proactive-agent-service:8031"
   # Tier 7: Device Management
   "device-health-monitor:8019"
@@ -68,15 +61,12 @@ SERVICES=(
   "device-recommender:8023"
   "ha-setup-service:8024"
   "device-context-classifier:8032"
-  "activity-recognition:8043"
-  "activity-writer:8045"
   # Tier 8: Pattern Analysis
   "ai-pattern-service:8034"
   "api-automation-edge:8041"
   # Tier 9: Frontends
   "ai-automation-ui:3001"
   "observability-dashboard:8501"
-  "voice-gateway:8047"
 )
 
 printf "%-35s %-12s %-10s %s\n" "SERVICE" "GIT_SHA" "VERSION" "BUILD_TIME"

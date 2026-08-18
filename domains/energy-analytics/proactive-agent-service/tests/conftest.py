@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import os
 import sys
-from collections.abc import AsyncGenerator
 from pathlib import Path
 
 import pytest
@@ -19,8 +18,13 @@ if _service_root not in sys.path:
 if _service_src not in sys.path:
     sys.path.insert(0, _service_src)
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from src.database import Base
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
 
 # Phase 2: event_loop fixture removed — pytest-asyncio 1.3.0 manages event loops internally
 

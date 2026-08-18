@@ -3,8 +3,8 @@ name: homeiq-data-collectors
 # Stateless data fetchers. Each polls an external API and writes to InfluxDB.
 # Deploy cadence: Medium — per-API contract change
 #
-# Services: weather-api, smart-meter, sports-api, air-quality, carbon-intensity,
-#           electricity-pricing, calendar, log-aggregator, zeek, zeek-network-service
+# Services: weather-api, smart-meter, sports-api, air-quality, electricity-pricing,
+#           calendar, log-aggregator, zeek, zeek-network-service
 # Depends on: Group 1 (influxdb write, data-api metadata)
 # Depended on by: Groups 3, 4 (indirect — via InfluxDB data)
 
@@ -196,53 +196,6 @@ services:
         labels: "service=air-quality,group=data-collectors,environment=production"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8012/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    profiles:
-      - production
-
-  carbon-intensity:
-    build:
-      context: ../..
-      dockerfile: domains/data-collectors/carbon-intensity-service/Dockerfile
-    container_name: homeiq-carbon-intensity
-    restart: unless-stopped
-    ports:
-      - "${HOMEIQ_CARBON_HOST_PORT:-8010}:8010"
-    env_file:
-      - ../../.env
-    environment:
-      - WATTTIME_USERNAME=${WATTTIME_USERNAME:-}
-      - WATTTIME_PASSWORD=${WATTTIME_PASSWORD:-}
-      - WATTTIME_API_TOKEN=${WATTTIME_API_TOKEN:-}
-      - GRID_REGION=${GRID_REGION:-CAISO_NORTH}
-      - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
-      - INFLUXDB_ORG=${INFLUXDB_ORG:-ha-ingestor}
-      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
-      - SERVICE_PORT=8010
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    # Cross-group depends_on removed (influxdb is in core-platform)
-    networks:
-      - homeiq-network
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.5'
-        reservations:
-          memory: 128M
-          cpus: '0.25'
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        labels: "service=carbon-intensity,group=data-collectors,environment=production"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8010/health"]
       interval: 30s
       timeout: 10s
       retries: 3

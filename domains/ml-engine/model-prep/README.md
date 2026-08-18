@@ -18,7 +18,7 @@ The model-prep container downloads all ML models used by HomeIQ AI services into
 |-------|-------------|---------|---------|
 | `all-MiniLM-L6-v2` | ~20MB | ai-automation-service | Embeddings |
 | `bge-reranker-base` | ~280MB | ai-automation-service | Re-ranking |
-| `flan-t5-small` | ~80MB | ai-automation-service, ai-training-service | Classification/Training |
+| `flan-t5-small` | ~80MB | ai-automation-service | Classification |
 
 **Total:** ~380MB (INT8) or ~1.5GB (FP32)
 

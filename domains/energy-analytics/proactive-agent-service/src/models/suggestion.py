@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, Text, func
@@ -21,7 +21,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ..database import Base
 
 
-class InvalidReportReason(str, Enum):
+class InvalidReportReason(StrEnum):
     """Reasons for reporting an invalid suggestion."""
 
     DEVICE_NOT_FOUND = "device_not_found"
@@ -30,7 +30,7 @@ class InvalidReportReason(str, Enum):
     OTHER = "other"
 
 
-class SuggestionEngagement(str, Enum):
+class SuggestionEngagement(StrEnum):
     """Engagement types for suggestion tracking (Story 31.4)."""
 
     DELIVERED = "delivered"

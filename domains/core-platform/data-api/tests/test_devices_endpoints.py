@@ -296,8 +296,8 @@ class TestResponseModels:
     def test_label_response_prefix(self):
         from src.devices_endpoints import LabelResponse
 
-        l = LabelResponse(label="ai:automatable", entity_count=10, prefix="ai")
-        assert l.prefix == "ai"
+        label = LabelResponse(label="ai:automatable", entity_count=10, prefix="ai")
+        assert label.prefix == "ai"
 
     def test_devices_list_response(self):
         from src.devices_endpoints import DeviceResponse, DevicesListResponse

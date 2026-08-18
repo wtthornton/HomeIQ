@@ -244,8 +244,6 @@ async def suggest_name(
 
         # Build convention-aware name
         suggested, confidence, reasoning = _build_convention_name(
-            entity_id=entity_id,
-            current_name=current_name,
             area_id=area_id,
             domain=domain,
             device_class=device_class,
@@ -269,8 +267,6 @@ async def suggest_name(
 
 
 def _build_convention_name(
-    entity_id: str,
-    current_name: str,
     area_id: str,
     domain: str,
     device_class: str,

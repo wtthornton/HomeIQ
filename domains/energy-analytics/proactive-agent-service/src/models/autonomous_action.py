@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from sqlalchemy import JSON, Boolean, DateTime, Float, Index, Integer, String, Text, func
@@ -18,7 +18,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from ..database import Base
 
 
-class RiskLevel(str, Enum):
+class RiskLevel(StrEnum):
     """Risk levels for proactive actions."""
 
     LOW = "low"
@@ -27,7 +27,7 @@ class RiskLevel(str, Enum):
     CRITICAL = "critical"
 
 
-class ActionOutcome(str, Enum):
+class ActionOutcome(StrEnum):
     """Outcome types for autonomous actions and suggestions."""
 
     AUTO_EXECUTED = "auto_executed"

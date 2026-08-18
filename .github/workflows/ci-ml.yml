@@ -29,4 +29,4 @@ jobs:
     with:
       group_name: ml
       domain_dir: ml-engine
-      services: '["openvino-service","ml-service","ai-core-service","ai-training-service","device-intelligence-service","rag-service","model-prep"]'
+      services: '["openvino-service","ml-service","device-intelligence-service","rag-service","model-prep"]'

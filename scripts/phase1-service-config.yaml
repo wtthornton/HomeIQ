@@ -64,10 +64,10 @@ library_upgrades:
 # ==================================================================================
 service_categories:
 
-  # Integration Services (8 services)
+  # Integration Services (7 services)
   integration:
     description: "External API integration services"
-    count: 8
+    count: 7
     priority: high
     dependencies: []
     services:
@@ -79,12 +79,6 @@ service_categories:
 
       - name: sports-api
         port: 8005
-        type: python
-        health_check: "/health"
-        critical: false
-
-      - name: carbon-intensity-service
-        port: 8010
         type: python
         health_check: "/health"
         critical: false
@@ -119,22 +113,13 @@ service_categories:
         health_check: "/health"
         critical: false
 
-  # AI/ML Services (13 services)
+  # AI/ML Services (9 services)
   ai_ml:
     description: "AI/ML processing and inference services"
-    count: 13
+    count: 9
     priority: high
     dependencies: []
     services:
-      - name: ai-core-service
-        port: 8018
-        type: python
-        health_check: "/health"
-        critical: true
-        special_requirements:
-          - "NumPy 2.x compatible (Phase 3)"
-          - "OpenAI SDK updates"
-
       - name: ai-pattern-service
         port: 8034
         type: python
@@ -143,24 +128,6 @@ service_categories:
 
       - name: ai-automation-service-new
         port: 8036
-        type: python
-        health_check: "/health"
-        critical: false
-
-      - name: ai-query-service
-        port: 8035
-        type: python
-        health_check: "/health"
-        critical: false
-
-      - name: ai-training-service
-        port: 8033
-        type: python
-        health_check: "/health"
-        critical: false
-
-      - name: ai-code-executor
-        port: 8030
         type: python
         health_check: "/health"
         critical: false
@@ -300,25 +267,6 @@ service_categories:
 
       - name: api-automation-edge
         port: 8040
-        type: python
-        health_check: "/health"
-        critical: false
-
-  # Analytics Services (2 services)
-  analytics:
-    description: "Energy analytics and forecasting"
-    count: 2
-    priority: medium
-    dependencies: []
-    services:
-      - name: energy-correlator
-        port: 8041
-        type: python
-        health_check: "/health"
-        critical: false
-
-      - name: energy-forecasting
-        port: 8042
         type: python
         health_check: "/health"
         critical: false
@@ -512,7 +460,7 @@ notes: |
   of the HomeIQ library upgrade plan.
 
   **Key Points:**
-  - 40 services to rebuild (45 total - 5 core services excluded)
+  - 33 services to rebuild (38 total - 5 core services excluded)
   - Parallel batch processing with dependency awareness
   - BuildKit optimization for faster builds
   - Automated health checks and rollback support

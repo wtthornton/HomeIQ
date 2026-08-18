@@ -171,7 +171,7 @@ class ConfigManager:
 
         # Set secure permissions (owner read/write only) - ignore errors for mounted volumes
         try:
-            os.chmod(env_file, 0o600)
+            env_file.chmod(0o600)
         except PermissionError:
             # Ignore permission errors for mounted volumes (like Docker bind mounts)
             logger.debug(f"Could not change permissions for {env_file} (mounted volume)")

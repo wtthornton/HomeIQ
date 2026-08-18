@@ -29,4 +29,4 @@ jobs:
     with:
       group_name: automation-core
       domain_dir: automation-core
-      services: '["ha-ai-agent-service","ai-automation-service-new","ai-query-service","automation-linter","yaml-validation-service","ai-code-executor","automation-trace-service"]'
+      services: '["ha-ai-agent-service","ai-automation-service-new","automation-linter","yaml-validation-service","automation-trace-service"]'

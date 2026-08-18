@@ -29,6 +29,7 @@ import pytest
 import pytest_asyncio
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+from pydantic import ValidationError
 from src.events_endpoints import EventData, EventFilter, EventSearch, EventsEndpoints
 
 # ---------------------------------------------------------------------------
@@ -95,7 +96,7 @@ class TestEventDataModel:
         assert event.new_state["state"] == "21.0"
 
     def test_required_fields_enforced(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             EventData()  # Missing required fields
 
 

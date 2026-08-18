@@ -193,9 +193,7 @@ def get_service_client(
             # Use default service URLs based on service name
             defaults = {
                 "data-api": "http://data-api:8006",
-                "ai-query-service": "http://ai-query-service:8018",
                 "ai-automation-service": "http://ai-automation-service-new:8025",
-                "ai-training-service": "http://ai-training-service:8022",
                 "ai-pattern-service": "http://ai-pattern-service:8020",
             }
             base_url = defaults.get(service_name)

@@ -53,9 +53,8 @@ async def test_list_conversations_empty(conversation_service):
 async def test_list_conversations_with_data(conversation_service):
     """Test listing conversations with data"""
     # Create some conversations
-    conv1 = await conversation_service.create_conversation()
-    conv2 = await conversation_service.create_conversation()
-    conv3 = await conversation_service.create_conversation()
+    for _ in range(3):
+        await conversation_service.create_conversation()
 
     # List all conversations
     conversations = await conversation_service.list_conversations()
@@ -70,7 +69,7 @@ async def test_list_conversations_with_data(conversation_service):
 async def test_list_conversations_with_pagination(conversation_service):
     """Test listing conversations with pagination"""
     # Create 5 conversations
-    for i in range(5):
+    for _ in range(5):
         await conversation_service.create_conversation()
 
     # List with limit
@@ -110,8 +109,8 @@ async def test_list_conversations_with_date_filter(conversation_service):
     # Note: We can't easily set created_at in the past for new conversations
     # So we'll test with conversations created now and filter by a future date
     now = datetime.now()
-    conv1 = await conversation_service.create_conversation()
-    conv2 = await conversation_service.create_conversation()
+    for _ in range(2):
+        await conversation_service.create_conversation()
 
     # Filter by start_date in the future (should return empty)
     future = now + timedelta(days=1)
@@ -134,7 +133,7 @@ async def test_list_conversations_with_date_filter(conversation_service):
 async def test_count_conversations(conversation_service):
     """Test counting conversations"""
     # Create conversations
-    for i in range(3):
+    for _ in range(3):
         await conversation_service.create_conversation()
 
     # Count all

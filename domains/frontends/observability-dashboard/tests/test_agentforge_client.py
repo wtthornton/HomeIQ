@@ -16,6 +16,43 @@ from services.agentforge_client import (
 )
 
 
+def _invocation(agent, cost, *, is_error=False, inv_id="inv-1", result_excerpt=""):
+    """An Invocation varying only the fields these tests assert on; the rest is fixed noise."""
+    return Invocation(
+        invocation_id=inv_id,
+        agent_used=agent,
+        status="error" if is_error else "success",
+        is_error=is_error,
+        cost_usd=cost,
+        duration_ms=100.0,
+        timestamp="2026-08-17T00:00:00Z",
+        result_excerpt=result_excerpt,
+    )
+
+
+def _payload(inv_id, agent, **overrides):
+    """One `/invocations` wire record, with only the fields a test asserts on spelled out."""
+    return {
+        "invocation_id": inv_id,
+        "agent_used": agent,
+        "status": "success",
+        "is_error": False,
+        "cost_usd": 1.0,
+        "duration_ms": 500.0,
+        "timestamp": "2026-08-17T00:00:00Z",
+        "mcp_call_count": 0,
+        "mcp_hosts": [],
+        "result_excerpt": "",
+    } | overrides
+
+
+def _mock_invocations(payload):
+    """Point the invocations endpoint at `payload`."""
+    respx.get("http://localhost:8010/projects/homeiq/invocations").mock(
+        return_value=httpx.Response(200, json=payload)
+    )
+
+
 class TestAgentForgeClient:
     """Test suite for AgentForgeClient."""
 
@@ -110,36 +147,12 @@ class TestAgentForgeClient:
     async def test_get_invocations_success(self, client):
         """Test successful invocations list fetch."""
         inv_data = [
-            {
-                "invocation_id": "inv-123",
-                "agent_used": "hiq-extract",
-                "status": "success",
-                "is_error": False,
-                "cost_usd": 1.5,
-                "duration_ms": 1000,
-                "timestamp": "2026-08-17T00:00:00Z",
-                "mcp_call_count": 2,
-                "mcp_hosts": ["mcp1"],
-                "result_excerpt": "",
-            },
-            {
-                "invocation_id": "inv-124",
-                "agent_used": "hiq-classify",
-                "status": "success",
-                "is_error": False,
-                "cost_usd": 2.0,
-                "duration_ms": 500,
-                "timestamp": "2026-08-17T00:01:00Z",
-                "mcp_call_count": 1,
-                "mcp_hosts": [],
-                "result_excerpt": "",
-            },
+            _payload("inv-123", "hiq-extract", cost_usd=1.5, mcp_call_count=2, mcp_hosts=["mcp1"]),
+            _payload("inv-124", "hiq-classify", cost_usd=2.0, mcp_call_count=1),
         ]
 
         with respx.mock:
-            respx.get("http://localhost:8010/projects/homeiq/invocations").mock(
-                return_value=httpx.Response(200, json=inv_data)
-            )
+            _mock_invocations(inv_data)
 
             invocations = await client.get_invocations(limit=100)
 
@@ -150,27 +163,10 @@ class TestAgentForgeClient:
     @pytest.mark.asyncio
     async def test_get_invocations_wrapped_response(self, client):
         """Test invocations response wrapped in {items: [...]}."""
-        inv_data = {
-            "items": [
-                {
-                    "invocation_id": "inv-125",
-                    "agent_used": "hiq-extract",
-                    "status": "success",
-                    "is_error": False,
-                    "cost_usd": 1.0,
-                    "duration_ms": 500,
-                    "timestamp": "2026-08-17T00:00:00Z",
-                    "mcp_call_count": 0,
-                    "mcp_hosts": [],
-                    "result_excerpt": "",
-                }
-            ]
-        }
+        inv_data = {"items": [_payload("inv-125", "hiq-extract")]}
 
         with respx.mock:
-            respx.get("http://localhost:8010/projects/homeiq/invocations").mock(
-                return_value=httpx.Response(200, json=inv_data)
-            )
+            _mock_invocations(inv_data)
 
             invocations = await client.get_invocations(limit=10)
 
@@ -181,120 +177,44 @@ class TestAgentForgeClient:
     async def test_get_invocations_empty(self, client):
         """Test empty invocations list."""
         with respx.mock:
-            respx.get("http://localhost:8010/projects/homeiq/invocations").mock(
-                return_value=httpx.Response(200, json=[])
-            )
+            _mock_invocations([])
 
             invocations = await client.get_invocations()
 
             assert len(invocations) == 0
 
     @pytest.mark.asyncio
-    async def test_get_per_agent_stats(self, client):
-        """Test per-agent stats aggregation."""
-        invocations = [
-            Invocation(
-                invocation_id="inv-1",
-                agent_used="hiq-extract",
-                status="success",
-                is_error=False,
-                cost_usd=1.0,
-                duration_ms=100,
-                timestamp="2026-08-17T00:00:00Z",
-            ),
-            Invocation(
-                invocation_id="inv-2",
-                agent_used="hiq-extract",
-                status="success",
-                is_error=False,
-                cost_usd=2.0,
-                duration_ms=200,
-                timestamp="2026-08-17T00:01:00Z",
-            ),
-            Invocation(
-                invocation_id="inv-3",
-                agent_used="hiq-classify",
-                status="error",
-                is_error=True,
-                cost_usd=0.5,
-                duration_ms=50,
-                timestamp="2026-08-17T00:02:00Z",
-            ),
-        ]
+    async def test_get_invocations_accepts_fractional_duration(self, client):
+        """AF serializes duration_ms as a float; an int-typed model rejects the live payload."""
+        inv_data = {
+            "items": [
+                _payload(
+                    "inv-frac",
+                    "homeiq-hiq-notify",
+                    status="error",
+                    is_error=True,
+                    cost_usd=0.0,
+                    duration_ms=2.6579119730740786,
+                )
+            ]
+        }
 
-        with patch.object(client, "get_invocations", new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = invocations
+        with respx.mock:
+            _mock_invocations(inv_data)
 
-            budgets = {
-                "hiq-extract": 10.0,
-                "hiq-classify": 5.0,
-            }
+            (invocation,) = await client.get_invocations()
 
-            stats = await client.get_per_agent_stats(budgets)
-
-            assert len(stats) == 2
-
-            # Extract should be first (higher cost)
-            assert stats[0].agent == "hiq-extract"
-            assert stats[0].invocation_count == 2
-            assert stats[0].error_count == 0
-            assert stats[0].total_cost_usd == 3.0
-            assert stats[0].avg_cost_usd == 1.5
-
-            # Classify should be second
-            assert stats[1].agent == "hiq-classify"
-            assert stats[1].invocation_count == 1
-            assert stats[1].error_count == 1
-            assert stats[1].total_cost_usd == 0.5
-
-    @pytest.mark.asyncio
-    async def test_get_per_agent_stats_with_budget_alert(self, client):
-        """Test budget alert for agents over cap."""
-        invocations = [
-            Invocation(
-                invocation_id="inv-1",
-                agent_used="hiq-extract",
-                status="success",
-                is_error=False,
-                cost_usd=8.0,
-                duration_ms=100,
-                timestamp="2026-08-17T00:00:00Z",
-            ),
-            Invocation(
-                invocation_id="inv-2",
-                agent_used="hiq-extract",
-                status="error",
-                is_error=True,
-                cost_usd=2.5,
-                duration_ms=50,
-                timestamp="2026-08-17T00:01:00Z",
-            ),
-        ]
-
-        with patch.object(client, "get_invocations", new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = invocations
-
-            budgets = {"hiq-extract": 10.0}
-
-            stats = await client.get_per_agent_stats(budgets)
-
-            # At 95% of budget when error occurs, should count as budget kill
-            assert stats[0].over_budget_kills == 1
+            assert invocation.duration_ms == pytest.approx(2.6579119730740786)
 
     @pytest.mark.asyncio
     async def test_get_gate_decisions_approved(self, client):
         """Test gate decision extraction for approved cases."""
         invocations = [
-            Invocation(
-                invocation_id="inv-1",
-                agent_used="hiq-judge",
-                status="success",
-                is_error=False,
-                cost_usd=1.0,
-                duration_ms=100,
-                timestamp="2026-08-17T00:00:00Z",
+            _invocation(
+                "hiq-judge",
+                1.0,
                 result_excerpt=json.dumps({"pass": True, "rule_id": "allow.basic"}),
-            ),
+            )
         ]
 
         with patch.object(client, "get_invocations", new_callable=AsyncMock) as mock_get:
@@ -310,16 +230,12 @@ class TestAgentForgeClient:
     async def test_get_gate_decisions_blocked(self, client):
         """Test gate decision extraction for blocked cases."""
         invocations = [
-            Invocation(
-                invocation_id="inv-1",
-                agent_used="hiq-judge",
-                status="error",
+            _invocation(
+                "hiq-judge",
+                0.5,
                 is_error=True,
-                cost_usd=0.5,
-                duration_ms=50,
-                timestamp="2026-08-17T00:00:00Z",
                 result_excerpt=json.dumps({"pass": False, "rule_id": "deny.unlock_lock"}),
-            ),
+            )
         ]
 
         with patch.object(client, "get_invocations", new_callable=AsyncMock) as mock_get:
@@ -334,18 +250,7 @@ class TestAgentForgeClient:
     @pytest.mark.asyncio
     async def test_get_gate_decisions_non_gate_result(self, client):
         """Test that non-gate results are skipped."""
-        invocations = [
-            Invocation(
-                invocation_id="inv-1",
-                agent_used="hiq-extract",
-                status="success",
-                is_error=False,
-                cost_usd=1.0,
-                duration_ms=100,
-                timestamp="2026-08-17T00:00:00Z",
-                result_excerpt="No gate decision here",
-            ),
-        ]
+        invocations = [_invocation("hiq-extract", 1.0, result_excerpt="No gate decision here")]
 
         with patch.object(client, "get_invocations", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = invocations

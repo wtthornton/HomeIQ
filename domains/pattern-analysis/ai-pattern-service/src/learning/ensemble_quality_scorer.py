@@ -81,7 +81,7 @@ class EnsembleQualityScorer:
             and len(getattr(self.optimization_loop, "training_history", [])) >= 10
         ):
             optimized_quality = getattr(
-                self.optimization_loop, "_calculate_quality", lambda p: scores["base"]
+                self.optimization_loop, "_calculate_quality", lambda _pattern: scores["base"]
             )(pattern)
             scores["optimized"] = optimized_quality
         else:
@@ -184,7 +184,7 @@ class EnsembleQualityScorer:
             and len(getattr(self.optimization_loop, "training_history", [])) >= 10
         ):
             scores["optimized"] = getattr(
-                self.optimization_loop, "_calculate_quality", lambda p: scores["base"]
+                self.optimization_loop, "_calculate_quality", lambda _pattern: scores["base"]
             )(pattern)
         else:
             scores["optimized"] = scores["base"]

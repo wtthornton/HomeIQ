@@ -12,6 +12,7 @@ Priority: HIGH
 """
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.device import Device
 from src.models.entity import Entity
@@ -94,8 +95,8 @@ class TestDatabaseOperations:
         )
         test_db.add(entity)
 
-        # Should raise IntegrityError or handle gracefully
-        with pytest.raises(Exception):  # Adjust exception type based on actual behavior
+        # The FK to devices.device_id does not exist, so the flush must fail.
+        with pytest.raises(IntegrityError):
             await test_db.commit()
 
     @pytest.mark.asyncio

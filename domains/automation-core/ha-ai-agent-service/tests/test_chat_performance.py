@@ -79,7 +79,7 @@ async def prompt_assembly_service(settings, mock_context_builder, conversation_s
 @pytest.fixture
 async def test_client(
     settings,
-    _mock_context_builder,
+    mock_context_builder,
     conversation_service,
     prompt_assembly_service,
     mock_openai_client,
@@ -261,7 +261,7 @@ async def test_chat_error_recovery_performance(test_client, mock_openai_client):
 
     # Measure error recovery time
     start_time = time.perf_counter()
-    response = await test_client.post(
+    await test_client.post(
         "/api/v1/chat",
         json={
             "message": "Test with error recovery",

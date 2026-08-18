@@ -241,10 +241,7 @@ class AutomationPatternsService:
                     target_str = f"area: {target['area_id']}"
                 elif "entity_id" in target:
                     entity_id = target["entity_id"]
-                    if isinstance(entity_id, list):
-                        target_str = f"{len(entity_id)} entities"
-                    else:
-                        target_str = f"entity: {entity_id}"
+                    target_str = f"{len(entity_id)} entities" if isinstance(entity_id, list) else f"entity: {entity_id}"
 
             # Format data (key parameters only)
             data_parts = []

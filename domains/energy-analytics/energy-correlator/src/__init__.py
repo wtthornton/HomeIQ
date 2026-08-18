@@ -1,1 +1,0 @@
-"""Energy Correlator Service"""

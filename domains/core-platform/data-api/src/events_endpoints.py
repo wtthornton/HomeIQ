@@ -950,8 +950,15 @@ from(bucket: "{bucket}")
         Returns:
             Tuple of (measurement_name, field_name)
             - Last 10 days: ("home_assistant_events", "context_id")
-            - 10-30 days: ("statistics_short_term", "mean")
-            - Beyond 30 days: ("statistics", "mean")
+            - 10-30 days: ("statistics_short_term", "count")
+            - Beyond 30 days: ("statistics", "count")
+
+        The downsampled tiers carry both a ``count`` and a ``mean`` field
+        (infrastructure/influxdb/tasks/*.flux). This endpoint serves *events*, so
+        it reads ``count``, which is defined for every entity. ``mean`` exists
+        only where states parse as numbers - on this instance that is 1,228 rows
+        against 30,061, so reading ``mean`` here would silently drop every
+        light, switch and binary_sensor from any window over 10 days.
         """
         now = datetime.now(UTC)
 
@@ -979,11 +986,11 @@ from(bucket: "{bucket}")
             # Last 10 days: Use raw events
             return ("home_assistant_events", "context_id")
         elif days_ago <= 30:
-            # 10-30 days: Use short-term statistics
-            return ("statistics_short_term", "mean")
+            # 10-30 days: 5-minute downsample
+            return ("statistics_short_term", "count")
         else:
-            # Beyond 30 days: Use long-term statistics
-            return ("statistics", "mean")
+            # Beyond 30 days: hourly downsample
+            return ("statistics", "count")
 
     async def _get_events_from_influxdb(
         self, event_filter: EventFilter, limit: int, offset: int
@@ -1182,10 +1189,14 @@ from(bucket: "{bucket}")
                     seen_event_ids.add(event_id)
 
                     # Pivoted raw events expose context_id / state_value / previous_state as
-                    # columns; statistics rows still carry their single field in _value.
-                    context_id = (
-                        record.values.get("context_id") or record.values.get("_value") or event_id
-                    )
+                    # columns. Downsampled rows have no context_id and carry an aggregate in
+                    # _value — a number, not an identifier — so only a non-empty string is
+                    # usable here. Falling through to the synthesized event_id also keeps the
+                    # dedup below honest: every statistics row for a 5-minute window with one
+                    # state change has _value == 1, so keying on it collapsed them all into
+                    # one event.
+                    candidate = record.values.get("context_id") or record.values.get("_value")
+                    context_id = candidate if isinstance(candidate, str) and candidate else event_id
 
                     # attributes stay out of this query on purpose (large JSON per row);
                     # GET /events/{event_id} serves the full record.

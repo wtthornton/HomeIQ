@@ -21,5 +21,9 @@ dependencies = [
 where = ["src"]
 
 [tool.setuptools.package-data]
+# The ZHA quirks are Python source deployed verbatim to the Home Assistant
+# host, not modules this package imports; they are data as far as it is
+# concerned, and agent/quirks/ deliberately has no __init__.py.
+"homeiq_ha.agent" = ["quirks/*.py"]
 "homeiq_ha.homeiq_automation" = ["*.json"]
 "homeiq_ha.yaml_validation_service" = ["*.json"]

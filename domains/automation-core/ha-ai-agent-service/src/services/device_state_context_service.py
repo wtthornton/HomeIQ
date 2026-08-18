@@ -59,7 +59,7 @@ class DeviceStateContextService:
         # Sort entity IDs for consistent hashing
         sorted_ids = sorted(entity_ids)
         ids_str = ",".join(sorted_ids)
-        ids_hash = hashlib.md5(ids_str.encode()).hexdigest()[:12]
+        ids_hash = hashlib.md5(ids_str.encode(), usedforsecurity=False).hexdigest()[:12]
         return f"device_state_context_{ids_hash}"
 
     def _format_state_entry(self, state: dict[str, Any]) -> str:

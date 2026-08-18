@@ -115,7 +115,7 @@ export const AnimatedDependencyGraph: React.FC<AnimatedDependencyGraphProps> = (
       return 'bg-green-500'; // Ingestion services
     } else if (serviceName.includes('weather') || serviceName.includes('sports') || serviceName.includes('air-quality')) {
       return 'bg-purple-500'; // External APIs
-    } else if (serviceName.includes('carbon') || serviceName.includes('electricity') || serviceName.includes('energy')) {
+    } else if (serviceName.includes('electricity') || serviceName.includes('energy')) {
       return 'bg-orange-500'; // Energy services
     } else if (serviceName.includes('calendar') || serviceName.includes('smart-meter')) {
       return 'bg-indigo-500'; // Integration services
@@ -130,7 +130,7 @@ export const AnimatedDependencyGraph: React.FC<AnimatedDependencyGraphProps> = (
   // Epic 31 Architecture: Direct writes, no enrichment-pipeline
   const nodes: ServiceNode[] = [
     // Layer 1: External Sources (Spread horizontally across top)
-    { id: 'external-apis', name: 'External APIs', icon: '🌐', type: 'external', position: { x: 60, y: 50 }, layer: 1, description: 'Air quality, carbon, pricing, electricity' },
+    { id: 'external-apis', name: 'External APIs', icon: '🌐', type: 'external', position: { x: 60, y: 50 }, layer: 1, description: 'Air quality, pricing, electricity' },
     { id: 'espn-api', name: 'ESPN API', icon: '🏈🏒', type: 'external', position: { x: 180, y: 50 }, layer: 1, description: 'NFL/NHL game data' },
     { id: 'home-assistant', name: 'Home Assistant', icon: '🏠', type: 'source', position: { x: 300, y: 50 }, layer: 1, description: 'External event source' },
     { id: 'openweather', name: 'OpenWeather', icon: '☁️', type: 'external', position: { x: 420, y: 50 }, layer: 1, description: 'OpenWeatherMap API (external)' },

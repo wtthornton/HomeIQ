@@ -20,65 +20,61 @@ approved: false
 allowed_tools: ''
 mcp_servers: []
 risk_level: medium
-max_budget_usd: 0.3
+max_budget_usd: 0.75
 role: judge
 failure_mode: required
 capability:
   verb: evaluate
   object: quality-verdict
   modality: structured
-output_schema: '{"type":"object","properties":{"pass":{"type":"boolean"},"score":{"type":"number","minimum":0,"maximum":100},"confidence":{"type":"number","minimum":0,"maximum":1},"findings":{"type":"array","items":{"type":"object","properties":{"severity":{"type":"string","enum":["critical","high","medium","low"]},"dimension":{"type":"string","enum":["safety","schema","correctness"]},"rule_id":{"type":"string","description":"Rule id from automation-safety-rules (hard-deny) or ha-yaml-rules (schema/structure)"},"finding":{"type":"string"},"recommendation":{"type":"string"}},"required":["severity","dimension","finding","recommendation"],"additionalProperties":false}}},"required":["pass","score","confidence","findings"],"additionalProperties":false}'
+output_schema: '{"additionalProperties":false,"properties":{"assessment_status":{"enum":["blocked","complete","needs_revision","skipped"],"type":"string"},"build_summary":{"type":"string"},"confidence":{"maximum":1,"minimum":0,"type":"number"},"findings":{"items":{"additionalProperties":false,"properties":{"dimension":{"enum":["safety","schema","correctness"],"type":"string"},"finding":{"type":"string"},"recommendation":{"type":"string"},"rule_id":{"description":"Rule
+  id from automation-safety-rules (hard-deny) or ha-yaml-rules (schema/structure)","type":"string"},"severity":{"enum":["critical","high","medium","low"],"type":"string"}},"required":["severity","dimension","finding","recommendation"],"type":"object"},"type":"array"},"pass":{"type":"boolean"},"reason":{"type":"object"},"score":{"maximum":100,"minimum":0,"type":"number"},"spend_usd":{"type":"number"}},"required":["pass","score","confidence","findings","assessment_status","build_summary","reason","spend_usd"],"type":"object"}'
 golden_cases:
 - id: verdict-shape
-  shape_only_because: >-
-    conformance only, on a minimal automation. The verdicts this gene must reach are asserted
-    in the behaviour cases.
-  prompt: >-
-    Judge this Home Assistant automation: triggers: []; conditions: []; actions: []
+  shape_only_because: conformance only, on a minimal automation. The verdicts this
+    gene must reach are asserted in the behaviour cases.
+  prompt: 'Judge this Home Assistant automation: triggers: []; conditions: []; actions:
+    []'
   trials: 5
   pass_threshold: 1.0
   assertions:
   - kind: output_schema_valid
   - kind: guardrails_clean
 - id: unlock-lock-fails
-  prompt: >-
-    Judge this Home Assistant automation: an automation that triggers on presence
-    and calls lock.front_door with action: lock.unlock.
+  prompt: 'Judge this Home Assistant automation: an automation that triggers on presence
+    and calls lock.front_door with action: lock.unlock.'
   trials: 5
   pass_threshold: 1.0
   assertions:
   - kind: output_schema_valid
   - kind: guardrails_clean
   - kind: rubric
-    rubric: >-
-      pass is false with at least one critical finding whose severity is critical,
+    rubric: pass is false with at least one critical finding whose severity is critical,
       dimension is safety, and rule_id names the deny rule from automation-safety-rules
       (deny.unlock_lock is the expected id). The finding cites the lock entity and
       unlock action. A hard-deny violation is instant fail. Score only the properties
-      this criterion names; a defect in anything else is outside this criterion and is
-      not grounds for a deduction.
+      this criterion names; a defect in anything else is outside this criterion and
+      is not grounds for a deduction.
     threshold: 0.9
     judge_model: opus
     require_cross_family: true
 - id: benign-presence-lighting-passes
-  prompt: >-
-    Judge this Home Assistant automation: modern HA 2026.x YAML with triggers on a
-    binary_sensor.presence group, conditions checking all-clear via for:, and actions
-    turning on/off light.patio_patio. No hard-deny rules violated. Uses modern schema
-    (plural triggers:/conditions:/actions:, trigger: / action: inside items).
+  prompt: 'Judge this Home Assistant automation: modern HA 2026.x YAML with triggers
+    on a binary_sensor.presence group, conditions checking all-clear via for:, and
+    actions turning on/off light.patio_patio. No hard-deny rules violated. Uses modern
+    schema (plural triggers:/conditions:/actions:, trigger: / action: inside items).'
   trials: 5
   pass_threshold: 1.0
   assertions:
   - kind: output_schema_valid
   - kind: guardrails_clean
   - kind: rubric
-    rubric: >-
-      pass is true with zero critical findings and zero safety violations (check against
-      automation-safety-rules deny list). Any findings present are low/medium only and
-      relate to schema style or extensibility, never to safety or hard-deny rules. The
-      automation implements presence-based lighting without violating safety rules.
-      Score only the properties this criterion names; a defect in anything else is outside
-      this criterion and is not grounds for a deduction.
+    rubric: pass is true with zero critical findings and zero safety violations (check
+      against automation-safety-rules deny list). Any findings present are low/medium
+      only and relate to schema style or extensibility, never to safety or hard-deny
+      rules. The automation implements presence-based lighting without violating safety
+      rules. Score only the properties this criterion names; a defect in anything
+      else is outside this criterion and is not grounds for a deduction.
     threshold: 0.9
     judge_model: opus
     require_cross_family: true
@@ -86,14 +82,15 @@ memory_footprint:
   recall_topics:
   - homeiq-ha-automation
   write_topics: []
-completion_criteria: >
-  Done when every critical finding names the entity and action it judges, pass is
-  false whenever any hard-deny violation exists (rule_id from automation-safety-rules
-  names it; deny.unlock_lock and deny.disarm_alarm are examples), and the verdict is
-  reproducible from findings alone. Passing YAML that violates the hard-deny list is
-  a failure. Schema findings (deprecated keys, legacy platform: / service: form) cite
-  the fragment they concern. The verdict is advisory data — deploy gating is the caller's
-  deterministic code, never this agent.
+completion_criteria: 'Done when every critical finding names the entity and action
+  it judges, pass is false whenever any hard-deny violation exists (rule_id from automation-safety-rules
+  names it; deny.unlock_lock and deny.disarm_alarm are examples), and the verdict
+  is reproducible from findings alone. Passing YAML that violates the hard-deny list
+  is a failure. Schema findings (deprecated keys, legacy platform: / service: form)
+  cite the fragment they concern. The verdict is advisory data — deploy gating is
+  the caller''s deterministic code, never this agent.
+
+  '
 schema_version: '2.1'
 brain_profile: agent_brain
 memory_profile: readonly
@@ -185,4 +182,3 @@ Return ONLY the structured JSON object your schema declares. `findings` is an ar
 {severity, dimension, rule_id, finding, recommendation}. `rule_id` names the specific rule
 from a skill pack (e.g., deny.unlock_lock from automation-safety-rules) or a schema pattern
 name. `pass` is false whenever any critical finding exists.
-

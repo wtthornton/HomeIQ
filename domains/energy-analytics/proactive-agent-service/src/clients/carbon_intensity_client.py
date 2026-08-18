@@ -22,12 +22,7 @@ logger = logging.getLogger(__name__)
 class CarbonIntensityClient:
     """Resilient client for fetching carbon intensity via Data API (core-platform group)."""
 
-    def __init__(
-        self,
-        base_url: str = "http://carbon-intensity:8010",
-        data_api_url: str = "http://data-api:8006",
-    ):
-        self.base_url = base_url.rstrip("/")
+    def __init__(self, data_api_url: str = "http://data-api:8006"):
         self.data_api_url = data_api_url.rstrip("/")
         api_key = os.getenv("DATA_API_API_KEY") or os.getenv("API_KEY")
         # Carbon intensity data is fetched through data-api (core-platform)

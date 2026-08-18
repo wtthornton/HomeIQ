@@ -7,6 +7,7 @@ Provides REST API for querying patterns from the database.
 
 import json
 import logging
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -186,9 +187,6 @@ async def list_patterns(
 
     except Exception as e:
         # Check for database corruption errors
-        from pathlib import Path
-
-        from ..config import settings
         from ..database.integrity import (
             attempt_database_repair,
             is_database_corruption_error,
@@ -301,9 +299,6 @@ async def get_pattern_stats(db: AsyncSession = Depends(get_db)) -> dict[str, Any
     Returns summary statistics about detected patterns.
     Handles database corruption gracefully with automatic recovery attempts.
     """
-    from pathlib import Path
-
-    from ..config import settings
     from ..database.integrity import (
         DatabaseIntegrityError,
         attempt_database_repair,
@@ -494,9 +489,6 @@ async def repair_database(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     Returns:
         Repair status and result
     """
-    from pathlib import Path
-
-    from ..config import settings
     from ..database.integrity import attempt_database_repair, check_database_integrity
 
     try:

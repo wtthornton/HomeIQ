@@ -33,6 +33,14 @@ def _matches(candidate: str, tokens: Iterable[str]) -> bool:
     return matched
 
 
+def bearer_credential(header: str) -> str | None:
+    """Return the credential from an ``Authorization: Bearer <token>`` header."""
+    scheme, _, credential = header.partition(" ")
+    if scheme.lower() != "bearer":
+        return None
+    return credential.strip() or None
+
+
 def resolve_scopes(
     candidate: str, read_tokens: list[str], write_tokens: list[str]
 ) -> frozenset[str] | None:
@@ -64,10 +72,10 @@ class BearerScopeMiddleware:
         header = next((v for k, v in scope["headers"] if k == b"authorization"), b"").decode(
             "latin-1"
         )
-        scheme, _, credential = header.partition(" ")
+        credential = bearer_credential(header)
         scopes = None
-        if scheme.lower() == "bearer" and credential:
-            scopes = resolve_scopes(credential.strip(), self.read_tokens, self.write_tokens)
+        if credential is not None:
+            scopes = resolve_scopes(credential, self.read_tokens, self.write_tokens)
         if scopes is None:
             await _reject(send)
             return

@@ -2,7 +2,6 @@
 
 import pytest
 from fastapi import HTTPException
-
 from src.entity_management_endpoints import (
     SetLabelsRequest,
     _make_ws_caller,

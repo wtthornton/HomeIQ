@@ -126,7 +126,7 @@ async def test_write_error_handling(service_with_mock, mock_influxdb_client):
 
 
 @pytest.mark.asyncio
-async def test_write_empty_data(service_with_mock, _mock_influxdb_client):
+async def test_write_empty_data(service_with_mock, mock_influxdb_client):
     """Test handling of empty data"""
     # Empty data should not cause errors
     test_data = {

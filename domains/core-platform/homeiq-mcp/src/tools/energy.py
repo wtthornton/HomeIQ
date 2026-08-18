@@ -7,8 +7,9 @@ Metric definitions (lifted into the energy-truth skill under TAP-5316):
 - `average_power_w`: mean reading over that window, watts.
 - `top_consumers[].average_power_on_w`: mean draw while the entity is on, watts;
   `estimated_daily_kwh`: data-api's projection from that draw (its own duty-cycle assumption).
-- `carbon.grams_per_kwh`: latest grid intensity written by carbon-intensity-service (gCO2/kWh);
-  omitted when data-api has no reading (404) — never fabricated.
+- `carbon.grams_per_kwh`: latest grid intensity recorded in the carbon bucket (gCO2/kWh);
+  omitted when data-api has no reading (404) — never fabricated. The collector that
+  populated that bucket was retired, so this field is absent on new deployments.
 """
 
 from __future__ import annotations

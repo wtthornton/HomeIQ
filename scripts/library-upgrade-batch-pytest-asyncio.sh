@@ -30,8 +30,6 @@ declare -a PHASE_A_SERVICES=(
 
 declare -a PHASE_B_SERVICES=(
     "ai-pattern-service"
-    "ai-query-service"
-    "ai-training-service"
     "device-intelligence-service"
     "ha-ai-agent-service"
     "openvino-service"
@@ -40,7 +38,6 @@ declare -a PHASE_B_SERVICES=(
 )
 
 declare -a PHASE_C_SERVICES=(
-    "ai-core-service"
     "ml-service"
     "admin-api"
     "data-retention"

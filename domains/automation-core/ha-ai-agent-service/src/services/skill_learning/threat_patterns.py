@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 
-class ThreatCategory(str, Enum):
+class ThreatCategory(StrEnum):
     """Categories of threats detected in skills."""
 
     PROMPT_INJECTION = "prompt_injection"

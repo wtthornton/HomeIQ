@@ -92,8 +92,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS ix_context_cache_cache_key ON context_cache (c
 CREATE INDEX IF NOT EXISTS ix_context_cache_expires_at ON context_cache (expires_at);
 
 -- =============================================================================
--- Automation schema tables (ai-automation-service-new, ai-query-service,
--- ai-pattern-service, ai-training-service)
+-- Automation schema tables (ai-automation-service-new, ai-pattern-service)
 -- =============================================================================
 SET search_path TO automation;
 
@@ -187,27 +186,6 @@ CREATE TABLE IF NOT EXISTS deployments (
     ui_source VARCHAR,
     deployed_at TIMESTAMPTZ DEFAULT NOW(),
     audit_data JSONB
-);
-
--- ai-query-service tables
-CREATE TABLE IF NOT EXISTS ask_ai_queries (
-    id VARCHAR(36) PRIMARY KEY,
-    user_query TEXT NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'pending',
-    entities JSONB,
-    suggestions JSONB,
-    confidence_score DOUBLE PRECISION,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS clarification_sessions (
-    id VARCHAR(36) PRIMARY KEY,
-    query_id VARCHAR(36) NOT NULL REFERENCES ask_ai_queries(id),
-    question TEXT NOT NULL,
-    response TEXT,
-    resolved BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ai-pattern-service tables
@@ -337,27 +315,6 @@ CREATE TABLE IF NOT EXISTS ml_models (
 
 CREATE INDEX IF NOT EXISTS ix_ml_models_model_name ON ml_models (model_name);
 CREATE INDEX IF NOT EXISTS ix_ml_models_is_active ON ml_models (is_active);
-
--- ai-training-service tables
-CREATE TABLE IF NOT EXISTS training_runs (
-    id SERIAL PRIMARY KEY,
-    training_type VARCHAR(20) NOT NULL,
-    status VARCHAR(20) NOT NULL,
-    started_at TIMESTAMP NOT NULL,
-    finished_at TIMESTAMP,
-    dataset_size INTEGER,
-    base_model VARCHAR,
-    output_dir VARCHAR,
-    run_identifier VARCHAR UNIQUE,
-    final_loss DOUBLE PRECISION,
-    error_message TEXT,
-    metadata_path VARCHAR,
-    triggered_by VARCHAR NOT NULL,
-    iteration_history_json JSON
-);
-
-CREATE INDEX IF NOT EXISTS idx_training_runs_status ON training_runs (status);
-CREATE INDEX IF NOT EXISTS idx_training_runs_started_at ON training_runs (started_at);
 
 -- =============================================================================
 -- Blueprints schema tables (blueprint-index, blueprint-suggestion, automation-miner)

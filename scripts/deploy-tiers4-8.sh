@@ -66,7 +66,6 @@ declare -A TIER_NAMES=(
 TIER4_SERVICES=(
   "ha-ai-agent-service:8030"
   "ai-automation-service-new:8036"
-  "ai-query-service:8035"
   "yaml-validation-service:8037"
   "automation-linter:8016"
   "automation-trace-service:8044"
@@ -82,8 +81,6 @@ TIER5_SERVICES=(
 
 # Tier 6: energy-analytics
 TIER6_SERVICES=(
-  "energy-correlator:8017"
-  "energy-forecasting:8042:/api/v1/health"
   "proactive-agent-service:8031"
 )
 
@@ -94,7 +91,6 @@ TIER7_SERVICES=(
   "device-setup-assistant:8021"
   "device-database-client:8022"
   "device-recommender:8023"
-  "activity-writer:8045"
   "ha-setup-service:8024"
 )
 
@@ -190,7 +186,6 @@ log_header "Cross-Group Communication Verification"
 log_info "Checking cross-group connectivity..."
 CROSS_CHECKS=(
   "ha-ai-agent -> data-api:8006"
-  "energy-correlator -> influxdb:8086"
   "proactive-agent -> ha-ai-agent:8030"
   "blueprint-suggestion -> blueprint-index:8038"
 )

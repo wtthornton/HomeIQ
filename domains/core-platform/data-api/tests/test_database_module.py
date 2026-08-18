@@ -297,7 +297,6 @@ class TestInitDbSuccess:
 
     @pytest.mark.asyncio
     async def test_init_db_assigns_async_engine_global(self):
-        import src.database as db_module
         from src.database import init_db
 
         mock_db, _ = _make_mock_db_manager()
@@ -316,7 +315,6 @@ class TestInitDbSuccess:
 
     @pytest.mark.asyncio
     async def test_init_db_assigns_async_session_local_global(self):
-        import src.database as db_module
         from src.database import init_db
 
         mock_db, _ = _make_mock_db_manager()

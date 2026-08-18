@@ -2,8 +2,7 @@
 # =============================================================================
 # HomeIQ Deploy — Tier 3: ML/AI Services
 # =============================================================================
-# Deploys: openvino-service, ml-service, ner-service, openai-service,
-#          rag-service, ai-core-service, ai-training-service,
+# Deploys: openvino-service, ml-service, ner-service, rag-service,
 #          device-intelligence-service
 # (model-prep is development profile only — excluded)
 #
@@ -45,11 +44,8 @@ START_TIME=$(date +%s)
 TIER3_SERVICES=(
   "openvino-service:8026"
   "ml-service:8025"
-  "ai-core-service:8018"
-  "ai-training-service:8033"
   "device-intelligence-service:8028"
   "rag-service:8027"
-  "openai-service:8020"
 )
 
 # --- Rollback ---
@@ -110,13 +106,6 @@ fi
 
 # --- Verify model loading ---
 log_info "Step 4/4: Verifying ML service responses..."
-
-# Quick inference check on ai-core-service
-if curl -f -s --max-time 10 "http://localhost:8018/health" | grep -qi "ok\|healthy\|true" 2>/dev/null; then
-  log_success "ai-core-service responding with healthy status"
-else
-  log_warn "ai-core-service health response format unexpected (service is up)"
-fi
 
 # Check openvino model status
 if curl -f -s --max-time 10 "http://localhost:8026/health" | grep -qi "ok\|healthy\|true" 2>/dev/null; then

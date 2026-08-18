@@ -13,20 +13,23 @@ The loop runs on a configurable interval (default: 15 minutes).
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 from datetime import UTC, datetime, time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ..clients.device_control_client import DeviceControlClient
 from ..clients.ha_agent_client import HAAgentClient
-from ..config import Settings
 from ..models.autonomous_action import ActionOutcome
 from .autonomous_executor import AutonomousExecutor
 from .confidence_scorer import SAFETY_BLOCKED_DOMAINS, ActionScore, ConfidenceScorer
 from .context_analysis_service import ContextAnalysisService
 from .feedback_recorder import FeedbackRecorder
 from .preference_service import PreferenceService
+
+if TYPE_CHECKING:
+    from ..config import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -130,10 +133,10 @@ class ProactiveAgentLoop:
         self._running = False
         if self._task:
             self._task.cancel()
-            try:
+            # Awaiting a task we just cancelled always raises CancelledError --
+            # that is how the cancellation is confirmed, not an error to handle.
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._task
-            except asyncio.CancelledError:
-                pass
             self._task = None
         logger.info("Proactive agent loop stopped")
 
@@ -303,11 +306,9 @@ class ProactiveAgentLoop:
             score = self.scorer.score_action(
                 action_type=action_type,
                 entity_domain=entity_domain,
-                context_type=action.get("context_type", "unknown"),
                 llm_confidence=action.get("confidence", 0.5),
                 acceptance_rate=acceptance_rate,
                 context_match_strength=0.6,
-                time_slot=time_slot,
             )
 
             # Route

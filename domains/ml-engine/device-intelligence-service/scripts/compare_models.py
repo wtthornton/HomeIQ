@@ -111,7 +111,7 @@ async def compare_models(days_back: int = 180, output_file: str | None = None):
                         X_train, y_train, feature_names=test_engine.feature_columns
                     )
                     # Evaluate on unscaled features
-                    await test_engine._evaluate_models(X_test, y_test, use_scaled=False)
+                    await test_engine._evaluate_models(X_test, y_test)
                 elif model_type == "lightgbm":
                     try:
                         from lightgbm import LGBMClassifier
@@ -125,7 +125,7 @@ async def compare_models(days_back: int = 180, output_file: str | None = None):
                             verbose=-1,
                         )
                         test_engine.models["failure_prediction"].fit(X_train_scaled, y_train)
-                        await test_engine._evaluate_models(X_test_scaled, y_test, use_scaled=True)
+                        await test_engine._evaluate_models(X_test_scaled, y_test)
                     except ImportError:
                         logger.warning("⚠️  LightGBM not available, skipping")
                         continue
@@ -136,7 +136,7 @@ async def compare_models(days_back: int = 180, output_file: str | None = None):
                         n_estimators=100, max_depth=10, random_state=42, class_weight="balanced"
                     )
                     test_engine.models["failure_prediction"].fit(X_train_scaled, y_train)
-                    await test_engine._evaluate_models(X_test_scaled, y_test, use_scaled=True)
+                    await test_engine._evaluate_models(X_test_scaled, y_test)
 
                 training_time = time.time() - start_time
 

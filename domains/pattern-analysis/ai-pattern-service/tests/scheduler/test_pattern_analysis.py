@@ -73,9 +73,9 @@ class TestSchedulerLifecycle:
         """Test scheduler start failure handling."""
         scheduler = PatternAnalysisScheduler()
         scheduler.scheduler = MagicMock()
-        scheduler.scheduler.add_job.side_effect = Exception("Start failed")
+        scheduler.scheduler.add_job.side_effect = RuntimeError("Start failed")
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Start failed"):
             scheduler.start()
 
         assert scheduler.is_running is False

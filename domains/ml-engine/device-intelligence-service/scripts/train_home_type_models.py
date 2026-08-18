@@ -15,11 +15,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
-# Add src to path for imports
-src_path = Path(__file__).parent.parent / "src"
-sys.path.insert(0, str(src_path))
+# Add parent directory to path to import service modules
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# Import with proper path handling
 from src.config import Settings
 from src.core.database import initialize_database
 from src.core.predictive_analytics import PredictiveAnalyticsEngine

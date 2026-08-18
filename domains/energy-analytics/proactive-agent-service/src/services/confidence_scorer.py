@@ -111,11 +111,9 @@ class ConfidenceScorer:
         self,
         action_type: str,
         entity_domain: str,
-        context_type: str,
         llm_confidence: float,
         acceptance_rate: float | None = None,
         context_match_strength: float = 0.5,
-        time_slot: str = "afternoon",
         preference_alignment: float = 0.5,
     ) -> ActionScore:
         """Score a proposed action for confidence and risk.
@@ -123,11 +121,9 @@ class ConfidenceScorer:
         Args:
             action_type: e.g. "turn_off", "set_brightness", "set_temperature"
             entity_domain: HA entity domain (light, switch, climate, etc.)
-            context_type: what triggered this (weather, energy, historical_pattern, etc.)
             llm_confidence: LLM's self-reported confidence (0.0-1.0)
             acceptance_rate: historical acceptance rate for similar actions (0.0-1.0, None if no history)
             context_match_strength: how well current context matches the action (0.0-1.0)
-            time_slot: morning, afternoon, evening, night
             preference_alignment: how well this aligns with known preferences (0.0-1.0)
 
         Returns:

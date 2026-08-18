@@ -82,12 +82,10 @@ main() {
         local services=(
             "health-dashboard"
             "log-aggregator"
-            "energy-correlator"
             "smart-meter-service"
             "calendar-service"
             "air-quality-service"
             "electricity-pricing-service"
-            "carbon-intensity-service"
             "weather-api"
             "websocket-ingestion"
             "admin-api"

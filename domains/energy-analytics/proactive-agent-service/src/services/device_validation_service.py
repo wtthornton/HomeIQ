@@ -366,11 +366,7 @@ class DeviceValidationService:
         """
         devices = await self.get_device_inventory()
 
-        for device in devices:
-            if device.get("domain") == device_type:
-                return True
-
-        return False
+        return any(device.get("domain") == device_type for device in devices)
 
     async def get_device_domains(self) -> set[str]:
         """

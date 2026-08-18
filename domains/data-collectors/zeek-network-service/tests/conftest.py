@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock
 
 import pytest
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # Set test environment variables before importing app modules
 os.environ.setdefault("INFLUXDB_TOKEN", "test-token")

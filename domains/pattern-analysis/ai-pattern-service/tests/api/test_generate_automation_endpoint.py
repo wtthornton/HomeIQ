@@ -152,7 +152,7 @@ class TestGenerateAutomationEndpoint:
     async def test_generate_automation_missing_synergy_404(
         self,
         api_client: httpx.AsyncClient,
-        _test_db: AsyncSession,
+        test_db: AsyncSession,
         monkeypatch: pytest.MonkeyPatch,
     ):
         # Arrange: ensure HA config is present

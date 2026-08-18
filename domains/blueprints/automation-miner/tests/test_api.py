@@ -95,7 +95,7 @@ async def test_root_endpoint():
 
 
 @pytest.mark.asyncio
-async def test_search_endpoint(_sample_automation):
+async def test_search_endpoint(sample_automation):
     """Test search endpoint"""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get(
@@ -111,7 +111,7 @@ async def test_search_endpoint(_sample_automation):
 
 
 @pytest.mark.asyncio
-async def test_stats_endpoint(_sample_automation):
+async def test_stats_endpoint(sample_automation):
     """Test stats endpoint"""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/api/automation-miner/corpus/stats")

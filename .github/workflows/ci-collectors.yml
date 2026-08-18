@@ -29,4 +29,4 @@ jobs:
     with:
       group_name: collectors
       domain_dir: data-collectors
-      services: '["weather-api","smart-meter-service","sports-api","air-quality-service","carbon-intensity-service","electricity-pricing-service","calendar-service","log-aggregator"]'
+      services: '["weather-api","smart-meter-service","sports-api","air-quality-service","electricity-pricing-service","calendar-service","log-aggregator"]'
