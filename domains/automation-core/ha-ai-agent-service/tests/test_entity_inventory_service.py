@@ -76,9 +76,7 @@ async def test_get_summary_cached(entity_inventory_service, mock_context_builder
     cached_summary = "Cached summary: Light: 5 entities (office: 3, kitchen: 2)"
     mock_context_builder._get_cached_value = AsyncMock(return_value=cached_summary)
 
-    with patch.object(
-        entity_inventory_service.data_api_client, "fetch_entities", new_callable=AsyncMock
-    ) as mock_fetch:
+    with patch.object(entity_inventory_service.data_api_client, "fetch_entities", new_callable=AsyncMock) as mock_fetch:
         summary = await entity_inventory_service.get_summary()
 
     assert summary == cached_summary

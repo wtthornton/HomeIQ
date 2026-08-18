@@ -55,6 +55,8 @@ async def test_get_area_registry_error_drops_connection(ha_client):
 
     assert ha_client._ws is None
     connection.close.assert_awaited_once()
+
+
 @pytest.mark.asyncio
 async def test_get_services_success(ha_client):
     """Test successfully fetching services"""
@@ -217,6 +219,8 @@ async def test_get_device_registry_error_drops_connection(ha_client):
 
     assert ha_client._ws is None
     connection.close.assert_awaited_once()
+
+
 @pytest.mark.asyncio
 async def test_get_entity_registry_success(ha_client):
     """Entity registry is read over the shared WebSocket connection."""

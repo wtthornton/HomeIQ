@@ -273,7 +273,9 @@ def _build_patterns() -> list[ThreatPattern]:
     add(pv, "critical", "Sudoers/passwordless escalation", r"(pkexec\b|doas\s|sudoers|NOPASSWD)")
     add(pv, "critical", "SUID/SGID manipulation", r"(chmod\s+[ug]?\+s|chmod\s+[24]\d{3}|find\s+\S*-perm\s+-[24]000)")
     add(pv, "high", "Linux capability grant", r"(setcap\b|cap_sys_admin|cap_setuid)")
-    add(pv, "critical", "Container escape", r"(--privileged\b|/var/run/docker\.sock|nsenter\b|docker\s+run\S*\s-v\s*/:)")
+    add(
+        pv, "critical", "Container escape", r"(--privileged\b|/var/run/docker\.sock|nsenter\b|docker\s+run\S*\s-v\s*/:)"
+    )
     add(pv, "critical", "Kernel module loading", r"(insmod\b|modprobe\s+(?!-r)|/lib/modules)")
     add(pv, "high", "Namespace/chroot escape", r"(unshare\s+-|chroot\s+/|pivot_root)")
     add(pv, "critical", "Credential store access", r"(/etc/shadow|/etc/passwd|lsass|security\s+dump-keychain)")
@@ -295,9 +297,16 @@ def _build_patterns() -> list[ThreatPattern]:
     )
     add(sc, "medium", "Dependency integrity override", r"(--force-reinstall|--ignore-installed|--no-deps)")
     add(sc, "critical", "Remote installer script", r"(curl|wget)\s[^\n]{0,80}(install\.sh|get-pip|setup\.sh)")
-    add(sc, "critical", "Dynamic remote code import", r"(__import__\s*\(|importlib\.import_module|exec\s*\(\s*requests)")
+    add(
+        sc, "critical", "Dynamic remote code import", r"(__import__\s*\(|importlib\.import_module|exec\s*\(\s*requests)"
+    )
     add(sc, "critical", "Unsafe deserialization", r"(pickle\.loads?|marshal\.loads|yaml\.load\s*\((?!.*Loader))")
-    add(sc, "high", "Git remote/submodule injection", r"(git\s+remote\s+(add|set-url)|\.gitmodules|git\s+submodule\s+add)")
+    add(
+        sc,
+        "high",
+        "Git remote/submodule injection",
+        r"(git\s+remote\s+(add|set-url)|\.gitmodules|git\s+submodule\s+add)",
+    )
     add(
         sc,
         "high",
