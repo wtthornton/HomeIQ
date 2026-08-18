@@ -46,7 +46,7 @@ class AutomationPatternsService:
         self._cache_ttl = 1800  # 30 minutes (patterns change occasionally)
 
     async def get_recent_patterns(
-        self, _user_prompt: str | None = None, area_id: str | None = None, limit: int = 3, skip_truncation: bool = False
+        self, user_prompt: str | None = None, area_id: str | None = None, limit: int = 3, skip_truncation: bool = False
     ) -> str:
         """
         Get recent automation patterns formatted for context injection.

@@ -261,6 +261,9 @@ class DevicesSummaryService:
                     # Phase 1.2: Device relationships
                     "device_description": device_description,
                     "device_type": device_type,
+                    # Phase 2.4: Energy consumption
+                    "power_consumption_active_w": power_w,
+                    "daily_kwh": daily_kwh,
                     # Zigbee2MQTT fields (will be populated if available)
                     "zigbee_ieee": None,
                     "lqi": None,
