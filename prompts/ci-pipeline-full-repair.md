@@ -244,11 +244,12 @@ Known root causes, already diagnosed — start here:
   reflexively update the assertion to match current behavior; that ratifies bugs.
 - **carbon-intensity:** needs `INFLUXDB_TOKEN` (CI sets no such var) and references a missing
   fixture `_mock_env`.
-- **data-api:** `src/docker_service.py:13` imports `docker`, absent from its `requirements.txt`
-  (admin-api pins `docker==6.1.3`; data-api doesn't) → 2 modules fail collection (~100 tests).
-  Also `pytest.ini:27` sets `--cov-fail-under=60` against a measured **23.29%** → non-zero exit
-  even at 100% green. **Do not delete the gate to pass.** Either raise real coverage or, if the
-  threshold was aspirational, that's a policy call → hard-stop and ask.
+- **data-api: RESOLVED (TAP-6169 branch).** The `docker` import was real but the code was not:
+  `src/docker_endpoints.py` was registered in no router list, a stale unauthenticated fork of
+  admin-api's live copy. Deleted rather than adding the dependency. Suite 1302 → 1202 collected
+  (the two deleted modules collected exactly 100), 1202 pass. The `--cov-fail-under=60` gate is
+  **not** a problem here — measured coverage is **73.64%**, so it passes. The earlier 23.29%
+  figure was measured before the suite could run.
 - **ai-pattern-service:** `tests/test_pattern_detection_properties.py:18` imports `hypothesis`,
   in no requirements file.
 - **ha-ai-agent-service:** `tests/integration/test_chat_flow_e2e.py:97` and
