@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import httpx
 import respx
+from src.server import SERVER_VERSION
 from starlette.testclient import TestClient
 
 from tests.conftest import READ_TOKEN, WRITE_TOKEN
@@ -41,7 +42,7 @@ def test_health_reports_backings_and_tools(app, registry):
     respx.get("http://devint.test:8028/health").mock(return_value=httpx.Response(503))
 
     with _client(app) as client:
-        response = client.get("/health")
+        response = client.get("/health", headers=_bearer(READ_TOKEN))
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ok"
@@ -87,9 +88,40 @@ def test_mcp_requires_bearer(app):
         assert client.get("/health").status_code in (200, 503)
 
 
-def test_health_needs_no_token(app):
+@respx.mock
+def test_health_without_a_token_is_liveness_only(app):
+    """The port is LAN-published, so an anonymous probe learns nothing about topology."""
+    respx.get("http://data-api.test:8006/health").mock(
+        return_value=httpx.Response(200, json={"status": "ok"})
+    )
+    respx.get("http://patterns.test:8020/health").mock(return_value=httpx.Response(200))
+    respx.get("http://devint.test:8028/health").mock(return_value=httpx.Response(200))
+
     with _client(app) as client:
-        assert client.get("/health").status_code in (200, 503)
+        response = client.get("/health")
+        wrong = client.get("/health", headers=_bearer("not-a-real-token"))
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok", "service": "homeiq-mcp", "version": SERVER_VERSION}
+    # A rejected token is treated exactly like no token: 200 liveness, never a 401,
+    # so the healthcheck cannot be broken by a bad credential.
+    assert wrong.status_code == 200
+    assert wrong.json() == response.json()
+
+
+@respx.mock
+def test_health_liveness_view_still_reports_degraded(app):
+    """Withholding topology must not hide that the server is unhealthy."""
+    respx.get("http://data-api.test:8006/health").mock(side_effect=httpx.ConnectError("down"))
+    respx.get("http://patterns.test:8020/health").mock(return_value=httpx.Response(200))
+    respx.get("http://devint.test:8028/health").mock(return_value=httpx.Response(200))
+
+    with _client(app) as client:
+        response = client.get("/health")
+
+    assert response.status_code == 503
+    assert response.json()["status"] == "degraded"
+    assert "backings" not in response.json()
 
 
 def _initialize_and_list(client, token):
