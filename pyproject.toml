@@ -36,6 +36,19 @@ markers = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
+# Agent-DNA kit scripts are forked from the shared-genome factory repo
+# (WebStoreDNA) and re-synced on genome updates. Their uniform-callback
+# signatures keep args some callbacks ignore (ARG001) and their import style
+# predates this repo's TC00x preference; rewriting them would create permanent
+# divergence from the factory source the drift check exists to track.
+"scripts/af_suite_diff.py" = ["ARG001"]
+"scripts/render_dna_core.py" = ["ARG001", "TC003"]
+"scripts/kit_checks.py" = ["TC003"]
+"scripts/input_source.py" = ["TC003"]
+# The kit's own test suite (also factory-forked; ARG001/E402 for the same reason
+# the general tests/** entry below exists, plus the factory import style).
+"tests/genome_kit/**" = ["ARG001", "TC003", "SIM300", "E402"]
+
 # E402: Imports must follow sys.path setup for shared module resolution
 "domains/core-platform/admin-api/src/main.py" = ["E402"]
 "domains/core-platform/data-api/src/main.py" = ["E402"]

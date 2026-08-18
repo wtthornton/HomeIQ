@@ -1,0 +1,36 @@
+# Reuse tiers for the packs this export shipped. The exporting kit's
+# species- and deployment-tier packs are withheld by design, so they are
+# absent here too — a pack classified but not present fails the gate.
+skills:
+  agentic-surface:
+    tier: domain
+    why: "The machine-readable surface of a storefront \u2014 UCP profile ownership,\
+      \ MCP cart/checkout/catalog endpoints, agentic-catalog eligibility, and the\
+      \ product route shape. Commerce-specific but names no gene. The third dated\
+      \ pack; carries verified_at/expires per L14, and needs it more than the others\
+      \ \u2014 two tool families were renamed and removed in the four months before\
+      \ it was written."
+  ai-disclosure-matrix:
+    tier: core
+    why: "Per-channel AI-disclosure decision table across platform and statutory regimes.\
+      \ Applies to any species that publishes generated content. The only dated pack\
+      \ \u2014 carries verified_at/expires per L14, so re-verify on adoption."
+  cx-guardrails:
+    tier: domain
+    why: What a customer-facing reply may assert from retrieved evidence and what
+      it may never promise. Commerce-specific, but names no gene.
+  kpi-truth:
+    tier: domain
+    why: Source-authority rules for commerce metrics and which cross-platform discrepancies
+      are expected. Commerce-specific, but names no gene.
+  passk-eval:
+    tier: core
+    why: Golden-case trial counts and pass^k thresholds by gene role. Pure agent-eval
+      discipline; the one product-description example is illustrative, not structural.
+  site-compliance:
+    tier: domain
+    why: "Privacy policy/consent/accessibility/price-display regimes for any storefront.\
+      \ Commerce-specific (price-display rules only apply to a seller), but names\
+      \ no gene \u2014 the pool audit gene that will consume it is not built in Phase\
+      \ 0. The second dated pack alongside ai-disclosure-matrix; carries verified_at/expires\
+      \ per L14."

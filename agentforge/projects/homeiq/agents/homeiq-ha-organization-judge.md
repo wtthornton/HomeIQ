@@ -29,6 +29,70 @@ capability:
   object: quality-verdict
   modality: structured
 output_schema: '{"type":"object","properties":{"pass":{"type":"boolean"},"score":{"type":"number","minimum":0,"maximum":100},"confidence":{"type":"number","minimum":0,"maximum":1},"findings":{"type":"array","items":{"type":"object","properties":{"severity":{"type":"string","enum":["critical","high","medium","low"]},"dimension":{"type":"string","enum":["correctness","safety","completeness","discipline"]},"finding":{"type":"string"},"recommendation":{"type":"string"}},"required":["severity","dimension","finding","recommendation"],"additionalProperties":false}}},"required":["pass","score","confidence","findings"],"additionalProperties":false}'
+golden_cases:
+- id: verdict-shape
+  shape_only_because: >-
+    conformance only, on a minimal manifest. The verdicts this gene must reach are asserted 
+    in the behaviour cases.
+  prompt: >-
+    Inventory: 3 devices, 2 areas (office, garage), 5 entities. 
+    Authored manifest: empty manifest, no assignments, no labels. design_notes explain 
+    the decision.
+  trials: 5
+  pass_threshold: 1.0
+  assertions:
+  - kind: output_schema_valid
+  - kind: guardrails_clean
+- id: undeclared-label-prefix-critical
+  prompt: >-
+    Inventory: 3 devices (device_1 in office, device_2 in garage, device_3 unassigned); 
+    entities with light.office, light.garage, sensor.total_power; areas [office, garage].
+    
+    Authored manifest: device_areas [device_1 -> office, device_2 -> garage]; 
+    entity_labels [light.office -> ["area:office", "role:primary"]]; 
+    managed_label_prefixes ["area:"]. The label prefix "role:" is used but NOT declared.
+  trials: 5
+  pass_threshold: 1.0
+  assertions:
+  - kind: output_schema_valid
+  - kind: guardrails_clean
+  - kind: rubric
+    rubric: >-
+      pass is false with at least one critical/safety finding that names the undeclared 
+      label prefix "role:" as not in managed_label_prefixes. Recipe reconciliation requires 
+      all label prefixes to be declared — undeclared prefixes cause recipe safety failures. 
+      Score only the properties this criterion names; a defect in anything else is outside 
+      this criterion and is not grounds for a deduction.
+    threshold: 0.9
+    judge_model: opus
+    require_cross_family: true
+- id: correct-manifest-passes
+  prompt: >-
+    Inventory: 3 devices (garage_motion=device_1 in garage, office_light=device_2 in office, 
+    bridge=device_3 unassigned virtual); 5 entities (light.garage, light.office, 
+    sensor.presence_garage, sensor.presence_office, system.bridge); areas [office, garage].
+    
+    Authored manifest: device_areas [device_1 -> garage (reason: name), device_2 -> office]; 
+    entity_labels [light.garage -> ["area:garage"], sensor.presence_garage -> ["role:presence"]]; 
+    entity_aliases [light.garage -> ["main_light"]]; helpers [group for presence]; 
+    not_applicable [device_3 scope:device status:not_applicable reason:virtual]. 
+    managed_label_prefixes ["area:", "role:"]. design_notes cover all decisions.
+  trials: 5
+  pass_threshold: 1.0
+  assertions:
+  - kind: output_schema_valid
+  - kind: guardrails_clean
+  - kind: rubric
+    rubric: >-
+      pass is true with zero critical findings. The manifest correctly assigns every physical 
+      device to an area or not_applicable, declares all label prefixes used, references only 
+      inventory ids, carries no entity_id renames, and every entry has a checkable reason. 
+      The verdict is reproducible from the findings alone. Score only the properties this 
+      criterion names; a defect in anything else is outside this criterion and is not grounds 
+      for a deduction.
+    threshold: 0.9
+    judge_model: opus
+    require_cross_family: true
 memory_footprint:
   recall_topics:
   - homeiq-ha-organization

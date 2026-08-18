@@ -1,0 +1,20 @@
+# Policy rules for homeiq.
+#
+# One placeholder rule. It is deliberately NOT a copy of the exporting
+# genome's rules: capability names are species-specific, and a deny that
+# matches nothing reads as protection while providing none.
+#
+# Semantics worth knowing before you edit:
+#   * conditions AND together; an empty list matches anything
+#   * deny always wins, regardless of priority
+#   * nothing matching = ALLOW, so every restriction must be explicit
+#
+# And the part that is easy to miss: an authored rules file is a
+# SPECIFICATION until the runtime is proven to load and enforce it. Check
+# what your engine actually does before treating this as a control.
+rules:
+  - rule_id: homeiq-deny-placeholder
+    description: "Replace with a real capability for this species."
+    capabilities: ["homeiq.act.placeholder"]
+    decision: deny
+    priority: 100

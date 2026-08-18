@@ -1,0 +1,65 @@
+name: "Genome Kit Validation"
+
+# TAP-5311: the shared Agent-DNA genome is forked into dna-core/ and rendered
+# into agentforge/projects/homeiq/agents/. This runs the offline kit validation
+# (scripts/validate.py — includes the dna-core drift check: templates must
+# render byte-identical to the published genes) and the kit's own test suite,
+# so the genome cannot silently diverge from what is published to AgentForge.
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - "dna-core/**"
+      - "agentforge/**"
+      - "skills/**"
+      - "policy/**"
+      - "scripts/render_dna_core.py"
+      - "scripts/validate.py"
+      - "scripts/kit_checks.py"
+      - "scripts/kit_rules.py"
+      - "scripts/skill_pack.py"
+      - "tests/genome_kit/**"
+      - ".github/workflows/genome-kit.yml"
+  pull_request:
+    paths:
+      - "dna-core/**"
+      - "agentforge/**"
+      - "skills/**"
+      - "policy/**"
+      - "scripts/render_dna_core.py"
+      - "scripts/validate.py"
+      - "scripts/kit_checks.py"
+      - "scripts/kit_rules.py"
+      - "scripts/skill_pack.py"
+      - "tests/genome_kit/**"
+      - ".github/workflows/genome-kit.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: genome-kit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  kit-validation:
+    name: Offline kit validation (drift check included)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install kit dependencies
+        run: pip install "pyyaml>=6" "pytest>=8"
+
+      - name: Offline kit validation
+        run: python scripts/validate.py
+
+      - name: Kit test suite
+        run: python -m pytest -q tests/genome_kit

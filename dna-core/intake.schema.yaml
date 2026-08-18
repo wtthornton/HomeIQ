@@ -1,0 +1,760 @@
+# Intake schema — everything one store must supply to be stamped (FR-2, TAP-5395).
+#
+# The species genome is shared; this file names what is *not* shared. Each field
+# here fills a slot in a `deployment`-tier skill pack (dna-core/skills.yaml),
+# which is the tier defined as "populated per storefront, not per species".
+#
+# Three consumers read this schema, and it exists because they were otherwise
+# going to keep three drifting copies of the same list:
+#
+#   1. `wstore-new-store` (TAP-5394) prompts the operator field by field.
+#   2. `render_dna_core.py --instance` renders the deployment packs from a
+#      store's intake values.
+#   3. The kit validator refuses a stamp whose required fields are unfilled.
+#
+# ## Required vs optional, and why the split is not cosmetic
+#
+# `required: true` means a stamp **fails** without it. These are facts that
+# exist the moment a store exists — its domains, its admin identity, its plan,
+# its brand. There is no legitimate reason to ship them `UNSET`, and a gene that
+# reads one is entitled to assume it is real.
+#
+# `required: false` means `UNSET` is a **correct** value, not a missing one, and
+# every optional field below carries the reason. This matters more than it
+# looks: `skills/store-atlas/SKILL.md:134` makes `UNSET` mean "no such target",
+# and genes refuse rather than guess when they read it. A channel with no
+# account yet is honestly UNSET; forcing a placeholder there would turn a
+# refusal into a wrong publish target.
+#
+# ## The UNSET rule this schema enforces
+#
+# `check_skill_tiers` already forbids `UNSET` in any pack above `deployment`
+# tier, and exempts `deployment` unconditionally. That exemption is right for
+# the factory (which has no storefront) and wrong for a stamped store, which is
+# how a fully-unfilled atlas could pass validation with every host check
+# short-circuiting green on an empty set. `required: true` here is the missing
+# half of that rule.
+#
+# ## Decided: no `docs/brand/` copy. This file is the brand's home. (TAP-5395)
+#
+# The alternative was to copy the canonical brand pack out of the read-only
+# sibling repos into `docs/brand/` so a stamped store carried the corpus. It is
+# not wanted, for two reasons.
+#
+# A stamped store is already self-contained. This file carries brand *values*,
+# not pointers to them — a gene reads `brand_name` from the rendered pack and
+# never touches a sibling repo. The `file:line` anchors beside each value are
+# provenance for a human auditing a claim, not a runtime dependency, and a
+# stamped store's `validate.py` needs none of them to exit 0.
+#
+# A copy would be a third place brand facts live, free to drift from both the
+# sibling source and from these values, with nothing comparing the three. That
+# is the failure this schema exists to prevent one level up: `--instance` used
+# to copy `store-atlas` verbatim, so every stamped store inherited the previous
+# store's domains. The adversarial audit of `intake/web-store.yaml` found 20
+# defects in citations alone — one fabricated material claim, eight anchors on
+# the wrong line. Doubling the corpus doubles that surface and buys nothing a
+# gene can read.
+#
+# The cost, named rather than hidden: someone without access to the sibling
+# repos cannot re-verify a citation. They can still read every value and run
+# every check. Verification is an audit affordance, and audit belongs with the
+# people who have the sources.
+
+# Top-level keys of an intake file are `version`, `slug`, and one section per
+# deployment-tier pack.
+version: 1
+
+slug:
+  kind: identifier
+  required: true
+  description: >-
+    The project slug this intake belongs to — the same value
+    `render_dna_core.py --instance --slug` stamps, and the filename under
+    `dna-core/intake/`. Deliberately NOT under `storefront`:
+    `storefront.store_slug` is the atlas's internal short name for one
+    shopfront, and the two are different identifiers that happen to look alike.
+  source: Chosen at provisioning; must match the stamped project slug.
+
+# --- Storefront identity -> skills/store-atlas/SKILL.md -----------------------
+#
+# The registry of what the kit may touch. An unlisted target does not exist.
+
+storefront:
+  store_slug:
+    kind: identifier
+    required: true
+    description: Short name for this storefront inside the atlas. Not the project slug.
+    source: Chosen at provisioning; conventionally the brand's shop handle.
+
+  platform:
+    kind: enum
+    required: true
+    values: [shopify]
+    description: Commerce platform. Only Shopify is implemented in Phase 1.
+    source: Fixed until a second platform ships.
+
+  primary_domain:
+    kind: hostname
+    required: true
+    description: >-
+      The shopper-facing host. This is what `wstore-probe-storefront` fetches and
+      the only host a storefront-ingest gene may hold in its WebFetch grant
+      (check_storefront_probe_targets).
+    source: Shopify admin, Online Store -> Domains.
+
+  myshopify_domain:
+    kind: hostname
+    required: true
+    description: >-
+      The Admin-API host. Deliberately separate from primary_domain — handing an
+      Admin gene the shopper domain fails in a way that looks like a credential
+      problem, which is the confusion the atlas exists to prevent.
+    source: Shopify admin URL, `<store>.myshopify.com`.
+
+  admin_host:
+    kind: hostname
+    required: true
+    description: The admin console host, for operator links only. No gene fetches it.
+    source: Shopify admin URL.
+
+  head:
+    kind: enum
+    required: true
+    values: [theme, hydrogen]
+    description: >-
+      Which storefront renders. Decides whether agent-discovery paths missing on
+      a theme store are defects or expected absences (TAP-5186).
+    source: Set to `theme` at provisioning; `hydrogen` once FR-3 deploys.
+
+  agent_origin:
+    kind: hostname
+    required: true
+    description: >-
+      The origin serving `/api/mcp`. Equal to primary_domain while `head: theme`,
+      because one origin serves the whole agent-discovery surface. Under
+      `head: hydrogen` it is the **Hydrogen** origin, not the `.myshopify.com`
+      one: Hydrogen reverse-proxies `/api/mcp` inside `createRequestHandler`,
+      before React Router sees the request, adding server-side credential
+      injection. Always-on since 2026.4.0 and needs no route file or app code
+      (VERIFIED against a clone of Shopify/hydrogen@main —
+      docs/research/oxygen-deploy-facts.md section 6).
+    source: >-
+      The atlas, which populates it even when it equals primary_domain. Required
+      rather than optional on purpose: `UNSET` means "no such target" to a gene,
+      so leaving it unset to avoid restating a value would make a reachable
+      origin unreachable. An earlier draft of this schema said the opposite and
+      was wrong.
+
+  ucp_origin:
+    kind: hostname
+    required: true
+    description: >-
+      The origin serving `/api/ucp/mcp` and `/.well-known/ucp`. Always
+      Shopify-served, and it does NOT follow the head: Hydrogen's proxy route
+      list is exactly two paths — the versioned Storefront GraphQL endpoint and
+      `/api/mcp` — so UCP stays on the `.myshopify.com` origin while agent_origin
+      moves to the Hydrogen head. Equal to primary_domain while `head: theme`.
+      Shopify staff guidance is explicitly not to host, proxy, or redirect
+      `/.well-known/ucp` yourself, even on a custom headless storefront, so a 404
+      for it on the Hydrogen origin is expected rather than a defect.
+    source: >-
+      The atlas. Required for the same reason as agent_origin: `UNSET` means "no
+      such target" to a gene, and a probe that cannot address the UCP origin
+      reports an absence it never actually checked — which is the one thing the
+      probe gene is forbidden to conflate.
+
+  status:
+    kind: enum
+    required: true
+    values: [dev, live]
+    description: >-
+      `dev` is password-walled by construction, so a 302 on a well-known path is
+      the password page, not a missing endpoint.
+    source: Whether the store is publicly reachable.
+
+  plan_display_name:
+    kind: text
+    required: true
+    description: >-
+      Plan tier verbatim from the Admin API. Load-bearing, not decorative — the
+      plan determines which API surface exists, and a trial expires.
+    source: "Admin GraphQL: `{ shop { plan { displayName } } }`. Record the date read."
+
+  partner_development:
+    kind: boolean
+    required: true
+    description: Whether this is a Partner development store (free, permanently login-walled).
+    source: "Admin GraphQL: `{ shop { plan { partnerDevelopment } } }`."
+
+  payments_verified:
+    kind: boolean
+    required: true
+    description: >-
+      False blocks every marketing and listing publish against this storefront
+      (store-atlas rule 3). Drafting and probing stay allowed.
+    source: Shopify admin, Settings -> Payments.
+
+  pages:
+    kind: list
+    render: inline
+    required: false
+    # The only storefront field no pack template reads. `pack_slots` derives a
+    # pack's slots from this schema and treats an unread slot as an error — a
+    # pack that stops reading one of its own fields is a real defect — so a
+    # field consumed somewhere other than a pack has to say so. Without this,
+    # declaring `storefront.pages` fails the stamp before `instance_pages_yaml`
+    # ever runs, which is exactly what it did between a8ed538 and this line.
+    pack_slot: false
+    consumed_by: render_dna_core.py instance_pages_yaml -> frontend/pages.yaml
+    unset_means: >-
+      Every page the kit ships. The honest default: a store that has not chosen
+      a page set wants the template's, not an empty storefront. This is why the
+      field is optional despite being load-bearing — absent means "all", which
+      is a usable storefront, whereas an empty list would mean "none".
+    description: >-
+      The pages this store renders, by `name` from `frontend/pages.yaml`.
+      Consumed by `render_dna_core.py --instance` (`instance_pages_yaml`), which
+      keeps the named pages in the kit's order and drops the rest. This is the
+      field that lets two stores share every component and still render
+      different route sets, so it is what makes the G4 page divergence real
+      rather than cosmetic.
+
+      A name the kit does not ship **refuses the stamp** rather than silently
+      omitting the route — a typo that quietly dropped a page would surface as a
+      404 in production long after the stamp that caused it.
+    source: >-
+      Operator decision, constrained to the `name` values in
+      `frontend/pages.yaml`. Documented here late: the stamp read this field
+      before the schema described it, which is exactly the drift this schema
+      exists to prevent — three consumers, one list.
+
+  protected_paths:
+    kind: list
+    render: inline
+    required: false
+    unset_means: No paths are off-limits beyond the platform's own.
+    description: Paths every action gene refuses, naming the atlas in the refusal.
+    source: Operator decision.
+
+  do_not_touch:
+    kind: list
+    render: inline
+    required: false
+    unset_means: Nothing is quarantined from agent action beyond protected_paths.
+    description: Resources refused regardless of phase gate.
+    source: Operator decision.
+
+  competitors:
+    kind: rows
+    render: rows
+    required: false
+    unset_means: >-
+      No competitor storefronts registered for probe scope yet. Competitor probes
+      are read-only and always `trust: external`, so an empty list costs nothing
+      but reach.
+    columns: [slug, primary_domain, why_tracked]
+    description: Reference storefronts the kit may probe read-only.
+    source: Operator decision; add as the market is mapped.
+
+  channels:
+    kind: rows
+    render: rows
+    required: false
+    unset_means: >-
+      No account registered on that channel yet. This is the field where a
+      placeholder would do real damage: entitlement is read live per run by
+      `wstore-fetch-social` and the publish gate trusts that reading, so this
+      table records only what we *expect*, to make drift visible. A guessed
+      handle here is a wrong publish target.
+    columns: [channel, account_handle, entitlement]
+    description: Social channel accounts and their expected entitlement tier.
+    source: Each platform's developer console, once an account exists.
+
+  reviews_host:
+    kind: hostname
+    required: true
+    description: >-
+      Vendor host for the reviews ingest leg. Read-only, and everything it
+      returns is `trust: customer`. Required because the atlas already names a
+      live vendor for it — the schema omitted this field entirely at first,
+      which is how a populated deployment fact ended up with nowhere to live.
+    source: Whichever reviews platform the store adopts; paired with its vault credential.
+
+  helpdesk_host:
+    kind: hostname
+    required: false
+    unset_means: >-
+      No helpdesk vendor chosen. The gene reports the leg in
+      `sources_unavailable` rather than guessing a vendor. Note that naming a
+      host here is necessary but not sufficient — it must also be added to
+      `wstore-pull-tickets`'s WebFetch grant, because the atlas records intent
+      and the grant enforces it.
+    description: Vendor host for the helpdesk ingest leg.
+    source: Whichever helpdesk the store adopts.
+
+  citation_corpus:
+    kind: list
+    render: numbered
+    required: false
+    unset_means: >-
+      No baseline started. Deliberately deferred until the catalog is loaded: a
+      corpus is written from a catalog, and starting a baseline against a store
+      that cannot yet rank for its own queries manufactures a decline.
+    description: Fixed shopper-intent queries `wstore-monitor-citation` runs.
+    source: Written from the loaded catalog, in the same change that loads it.
+
+# --- Brand -> skills/brand-voice-pack/SKILL.md --------------------------------
+#
+# All required. A store with no brand definition generates copy that is fluent,
+# generic, and indistinguishable from every competitor's — which is the specific
+# failure this pack exists to prevent, so there is no "fill it in later" here.
+
+brand:
+  brand_name:
+    kind: text
+    required: true
+    description: The brand's exact name as it appears to customers.
+    source: The brand.
+
+  what_we_sell:
+    kind: sentence
+    required: true
+    description: One sentence. Not a tagline, not a positioning statement.
+    source: The brand.
+
+  customer:
+    kind: sentence
+    required: true
+    description: Who the customer is, concretely enough to exclude someone.
+    source: The brand.
+
+  voice_adjectives:
+    kind: list
+    render: inline
+    required: true
+    length: 3
+    description: >-
+      Exactly three. More than three is not a voice definition, it is a wish
+      list, and a generator averages it back to generic.
+    source: The brand's style guide.
+
+  register:
+    kind: text
+    required: true
+    description: Reading level and register for default copy.
+    source: The brand's style guide.
+
+  proof_points:
+    kind: pairs
+    render: rows
+    required: true
+    columns: [claim, source]
+    description: >-
+      Every proof point carries a source. Anything numeric, material,
+      comparative, certified, or time-bound is a claim, and a claim without a
+      source does not appear in copy — including a hedged version of it.
+    source: Substantiation on file. A proof point with no source is excluded, not softened.
+
+  banned_phrases:
+    kind: groups
+    render: groups
+    required: true
+    groups: [company_wide, merch_additional]
+    description: >-
+      Phrases that never appear in copy. Grouped rather than flat because the
+      scopes are genuinely different: a company-wide ban binds every surface,
+      while a merch ban binds garment art and drop copy only.
+    source: The brand's style guide, plus any lane-specific tagline rules.
+
+  lane_exemptions:
+    kind: map
+    render: map
+    required: false
+    unset_means: No term is banned on one surface and permitted on another.
+    description: >-
+      Terms whose ban is scoped rather than absolute, and the scope. This exists
+      because brand sources contradict each other in practice — a company style
+      guide bans a word that an approved lane-specific tagline set uses — and a
+      generator that reads only one of them puts a banned string on a product.
+      Recording the resolution here is what stops it being re-litigated per run.
+    source: An owner decision, taken once, with both conflicting sources cited.
+
+  may_mention_competitors:
+    kind: boolean
+    required: true
+    default: false
+    description: Whether copy may name a competitor. Default no.
+    source: Operator decision.
+
+  margin_floor:
+    kind: text
+    required: true
+    description: >-
+      No discount may be drafted below this. Expressed as a percentage or a
+      currency amount, and it must state which. Derived from per-product price
+      and COGS, so it changes when the catalog does.
+    source: Computed from the catalog's `price_usd` and `cogs_estimate_usd`.
+
+  # TAP-5933. A second floor rather than a widened first one, because the two
+  # are not the same instrument and the physical one does not bound digital at
+  # all. `margin_floor` is a *gross-margin* bound computed against COGS: on a
+  # garment costing $22 it stops a $72 tee being drafted below $44. A download's
+  # COGS is ~$0, so its gross margin is ~100% at every price above zero and a
+  # percentage floor permits a $49 playbook drafted at $0.01 while still reading
+  # as compliant. The bound that means anything on a near-zero-COGS good is a
+  # price floor in currency, so that is what this field is.
+  digital_price_floor:
+    kind: text
+    required: false
+    unset_means: >-
+      This store lists no `product_kind: digital` rows, so there is no digital
+      price to bound. It is NOT "any digital price is allowed" — a store that
+      adds a digital row owes this value, and `margin_floor` does not cover it.
+    description: >-
+      The lowest price a `product_kind: digital` listing may be drafted at,
+      including after a discount. Expressed as a currency amount and it must
+      state the currency; a percentage here would restate `margin_floor`'s
+      mistake, since a percentage of a near-zero COGS is near zero.
+    source: >-
+      Operator decision per digital lane, anchored on the catalog's digital
+      `price_usd` values rather than on `cogs_estimate_usd`, which is ~0.
+
+# The visual half of the brand. `brand` above is voice and copy; nothing there
+# tells a front end what the store looks like, so a template built from it alone
+# would carry whichever store was rendered first. These are the values FR-3's
+# `brand.tokens.json` is generated from — one file per store, no code edit.
+#
+# Colors are hex or a CSS color function, and every one of them is REQUIRED with
+# no `unset_means`: an absent token is not a store that declined to have a
+# background, it is a store that renders unreadable. The type stack is required
+# for the same reason. Optional entries below are the ones a store can genuinely
+# do without — a store with no display face falls back to `font_body`.
+tokens:
+  bg_primary:
+    kind: text
+    required: true
+    description: Page background. The darkest surface in the palette.
+    source: The brand's stylesheet or design system.
+
+  bg_surface:
+    kind: text
+    required: true
+    description: Card and panel background, one step up from the page.
+    source: The brand's stylesheet or design system.
+
+  bg_elevated:
+    kind: text
+    required: true
+    description: Modal, popover, and sticky-header background.
+    source: The brand's stylesheet or design system.
+
+  accent_primary:
+    kind: text
+    required: true
+    description: >-
+      The brand's primary action color — buttons, active states, price. This is
+      the token most likely to be governed by a colorway rule, so check the
+      style guide for a retired value before copying whatever renders today.
+    source: The brand's stylesheet or design system.
+
+  accent_secondary:
+    kind: text
+    required: true
+    description: Hover and gradient partner to `accent_primary`.
+    source: The brand's stylesheet or design system.
+
+  accent_dim:
+    kind: text
+    required: false
+    unset_means: >-
+      Pressed and dimmed states reuse `accent_primary`, which reads as no
+      response to a press rather than as a deliberate choice.
+    description: Pressed and dimmed accent — one step darker than `accent_primary`.
+    source: The brand's stylesheet or design system.
+
+  gradient:
+    kind: text
+    required: false
+    unset_means: >-
+      Primary actions take a flat `accent_primary` fill. A real choice, not a
+      missing value — but note the storefront's checkout button, hero call to
+      action and consent banner all read this, so a store with a gradient in
+      its guide must declare it here or ship flat buttons.
+    description: >-
+      Fill for primary actions. A CSS gradient, usually running
+      `accent_primary` to `accent_secondary`. Gradient *fills* only — the
+      brand guide rejects gradient-clipped text as a template tell.
+    source: The brand's stylesheet or design system.
+
+  text_primary:
+    kind: text
+    required: true
+    description: Body text on `bg_primary`. Must clear WCAG AA against it.
+    source: The brand's stylesheet or design system.
+
+  text_secondary:
+    kind: text
+    required: true
+    description: >-
+      Muted text — captions, metadata, disabled labels. Must still clear WCAG AA
+      against `bg_primary`; a token that only passes AA Large is a caption
+      nobody can read.
+    source: The brand's stylesheet or design system.
+
+  text_on_accent:
+    kind: text
+    required: false
+    unset_means: >-
+      White. Correct for a saturated or dark accent, wrong for a pale one — a
+      store whose `accent_primary` is light must set this, or its checkout
+      button renders white text on a near-white fill.
+    description: >-
+      Label colour on an `accent_primary` or `gradient` fill — the checkout
+      button, the hero call to action, the consent banner's primary control.
+      Must clear WCAG AA against `accent_primary`.
+    source: The brand's stylesheet or design system.
+
+  border:
+    kind: text
+    required: true
+    description: Hairline dividers and input outlines.
+    source: The brand's stylesheet or design system.
+
+  error:
+    kind: text
+    required: true
+    description: >-
+      Validation and failure states. Required rather than optional because a
+      checkout that cannot render an error in a distinguishable color is a
+      compliance problem, not a styling gap.
+    source: The brand's stylesheet or design system.
+
+  font_body:
+    kind: text
+    required: true
+    description: >-
+      Body font stack, including fallbacks. A stack, not a single family — the
+      store must render before a webfont loads.
+    source: The brand's stylesheet or design system.
+
+  font_display:
+    kind: text
+    required: false
+    unset_means: >-
+      No separate display face. Headings use `font_body`, which is a real
+      typographic choice and not a missing value.
+    description: Heading font stack, including fallbacks.
+    source: The brand's stylesheet or design system.
+
+  font_mono:
+    kind: text
+    required: false
+    unset_means: >-
+      No monospace face is used in the storefront. Order numbers and SKUs render
+      in `font_body`.
+    description: Monospace stack for SKUs, order ids, and code.
+    source: The brand's stylesheet or design system.
+
+  # --- shape, rhythm and scale --------------------------------------------
+  #
+  # These were live in store zero's `brand.tokens.json` without ever being
+  # declared here, which meant the stamp dropped every one of them: a store
+  # two stamped from this schema would have rendered with the skeleton's
+  # square corners, its spacing and its type scale, no matter what its intake
+  # said. Declaring them is what makes the identity actually transfer.
+
+  radius_control:
+    kind: text
+    required: false
+    unset_means: 4px — the skeleton's own corner on buttons and inputs.
+    description: Corner radius for buttons, inputs and other controls.
+    source: The brand's stylesheet or design system.
+
+  radius_surface:
+    kind: text
+    required: false
+    unset_means: Square corners on cards and panels.
+    description: Corner radius for cards, panels and elevated surfaces.
+    source: The brand's stylesheet or design system.
+
+  radius_well:
+    kind: text
+    required: false
+    unset_means: Square corners on inset wells and icon tiles.
+    description: Corner radius for inset wells, icon tiles and media thumbnails.
+    source: The brand's stylesheet or design system.
+
+  space_gutter:
+    kind: text
+    required: false
+    unset_means: 1.5rem — the skeleton's own side padding.
+    description: Horizontal padding inside sections and page chrome.
+    source: The brand's stylesheet or design system.
+
+  space_section:
+    kind: text
+    required: false
+    unset_means: 2.5rem — the skeleton's own vertical rhythm.
+    description: Vertical spacing between major page sections.
+    source: The brand's stylesheet or design system.
+
+  type_display:
+    kind: text
+    required: false
+    unset_means: The skeleton's own hero size, which is not a brand statement.
+    description: >-
+      Hero headline size. A `clamp()` rather than a fixed size, so the store
+      reads on a phone and on a desktop without a media query per store.
+    source: The brand's stylesheet or design system.
+
+  type_heading:
+    kind: text
+    required: false
+    unset_means: The skeleton's own heading size.
+    description: Section heading size, usually a `clamp()`.
+    source: The brand's stylesheet or design system.
+
+  type_body:
+    kind: text
+    required: false
+    unset_means: 1rem.
+    description: Body copy size.
+    source: The brand's stylesheet or design system.
+
+  type_small:
+    kind: text
+    required: false
+    unset_means: 0.875rem.
+    description: Caption, metadata and footnote size.
+    source: The brand's stylesheet or design system.
+
+  ease:
+    kind: text
+    required: false
+    unset_means: >-
+      `ease` — the browser default, which is the one curve that reads as
+      un-designed.
+    description: >-
+      The store's primary easing curve, used for entrances and for every
+      transition that is not an exit. See `motion_ease_exit` for departures.
+    source: The brand's stylesheet or design system.
+
+  assets:
+    kind: object
+    required: false
+    unset_means: >-
+      The storefront renders the shop's name as text in place of a lockup, the
+      browser's default icon, and whatever `font_body` resolves to locally.
+      Legible, but not the store's identity.
+    description: >-
+      Files and URLs a CSS custom property cannot hold. Keys — `logo` and
+      `favicon` name files the store ships in `frontend/app/assets/brand/`
+      (basename only; the bundler decides the served URL), `logo_width` and
+      `logo_height` are the lockup's intrinsic size, and `font_css_url` is the
+      stylesheet that actually loads the faces `font_body` names. Without that
+      last one the store silently renders in a system face while its token
+      file reads correct. `font_origins` lists every origin the faces are
+      served from — usually the stylesheet host and a separate host for the
+      font files — and is what widens the Content Security Policy to let them
+      through. Naming the stylesheet without naming its origins gets the
+      request blocked and the store renders in the browser's default face.
+    source: The brand's logo pack and webfont provider.
+
+  # --- motion -------------------------------------------------------------
+  #
+  # The storefront's animation is per-store for the same reason its palette is:
+  # a house style has a tempo, and a store that wants a calmer or brisker one
+  # should get it by declaring tokens, not by editing a component. Every key
+  # below is optional — a store that declares none inherits the template's own
+  # timing, which is a deliberate look rather than a missing value.
+  #
+  # `prefers-reduced-motion` overrides all of it unconditionally. These tokens
+  # choose what motion looks like when it is welcome; they cannot make it
+  # happen when it is not.
+
+  motion_duration_fast:
+    kind: text
+    required: false
+    unset_means: 140ms — the template's own timing for a press or a hover.
+    description: Duration for immediate feedback (button press, hover, focus).
+    source: The brand's design system, or leave unset.
+
+  motion_duration_base:
+    kind: text
+    required: false
+    unset_means: 260ms — the template's own timing for a panel or a line item.
+    description: >-
+      Duration for the storefront's ordinary transitions — the cart drawer, a
+      cart line arriving or leaving, the buy bar.
+    source: The brand's design system, or leave unset.
+
+  motion_duration_slow:
+    kind: text
+    required: false
+    unset_means: 460ms — the template's own timing for a reveal.
+    description: Duration for reveals, crossfades, and the success sweep.
+    source: The brand's design system, or leave unset.
+
+  motion_ease_exit:
+    kind: text
+    required: false
+    unset_means: >-
+      `cubic-bezier(0.55, 0, 1, 0.45)`. Note this is the *exit* curve; entrances
+      use the `ease` token so arrivals and departures are not the same shape.
+    description: Easing for something leaving the screen or being dismissed.
+    source: The brand's design system, or leave unset.
+
+  motion_stagger_step:
+    kind: text
+    required: false
+    unset_means: 70ms between siblings.
+    description: Delay between adjacent items in a staggered reveal.
+    source: The brand's design system, or leave unset.
+
+  motion_lift_distance:
+    kind: text
+    required: false
+    unset_means: -4px.
+    description: How far a card rises on hover. Negative is upward.
+    source: The brand's design system, or leave unset.
+
+  motion_lift_shadow:
+    kind: text
+    required: false
+    unset_means: No glow behind a lifted card; the lift is the whole effect.
+    description: >-
+      Shadow behind a lifted product card. Usually tinted toward
+      `accent_primary` at low alpha.
+    source: The brand's design system, or leave unset.
+
+  motion:
+    kind: object
+    required: false
+    unset_means: >-
+      The template's own defaults, resolved in `frontend/app/lib/motion.ts`:
+      interaction feedback on, lockup sweep off. Feedback defaults on because a
+      shopper who cannot see that an add landed is looking at a defect; the
+      sweep defaults off because it is a flourish tuned to particular artwork
+      and should be opted into, not inherited.
+    description: >-
+      Enable flags CSS cannot express. Keys — `enabled` is the master switch,
+      `logo_sweep` plus its `logo_sweep_first_delay_ms` /
+      `logo_sweep_min_delay_ms` / `logo_sweep_max_delay_ms` govern the lockup
+      glint, and `reveal`, `fly_to_cart`, `drawer_on_add` and
+      `view_transitions` each turn one effect on or off. All booleans except
+      the delays. None of them can override `prefers-reduced-motion`.
+    source: A product decision, not a design-system value.
+
+  motion_sweep_gradient:
+    kind: text
+    required: false
+    unset_means: >-
+      No travelling highlight anywhere — the lockup glint, the add-to-cart
+      success sweep and the hero CTA shimmer all render as no-ops. This is the
+      correct setting for a store that wants motion but no shine.
+    description: >-
+      The gradient that travels across the header lockup, the primary button on
+      a successful add, and the hero call to action on hover. A linear gradient
+      running transparent to accent and back.
+    source: The brand's design system, or leave unset.

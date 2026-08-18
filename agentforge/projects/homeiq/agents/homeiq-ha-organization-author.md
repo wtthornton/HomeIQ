@@ -29,6 +29,70 @@ capability:
   object: spec
   modality: structured
 output_schema: '{"type":"object","properties":{"manifest":{"type":"object","properties":{"managed_label_prefixes":{"type":"array","items":{"type":"string"}},"device_areas":{"type":"array","items":{"type":"object","properties":{"device_id":{"type":"string"},"area_id":{"type":"string"},"reason":{"type":"string"}},"required":["device_id","area_id","reason"],"additionalProperties":false}},"entity_labels":{"type":"array","items":{"type":"object","properties":{"entity_id":{"type":"string"},"labels":{"type":"array","items":{"type":"string"}},"reason":{"type":"string"}},"required":["entity_id","labels","reason"],"additionalProperties":false}},"entity_aliases":{"type":"array","items":{"type":"object","properties":{"entity_id":{"type":"string"},"aliases":{"type":"array","items":{"type":"string"}},"reason":{"type":"string"}},"required":["entity_id","aliases","reason"],"additionalProperties":false}},"helpers":{"type":"array","items":{"type":"object","properties":{"kind":{"type":"string"},"slug":{"type":"string"},"name":{"type":"string"},"config":{"type":"object"},"reason":{"type":"string"}},"required":["kind","slug","name","config","reason"],"additionalProperties":false}},"not_applicable":{"type":"array","items":{"type":"object","properties":{"scope":{"type":"string","enum":["device","entity"]},"id":{"type":"string"},"status":{"type":"string","enum":["not_applicable","blocked_on_human"]},"reason":{"type":"string"}},"required":["scope","id","status","reason"],"additionalProperties":false}}},"required":["managed_label_prefixes","device_areas","entity_labels","entity_aliases","helpers","not_applicable"],"additionalProperties":false},"design_notes":{"type":"string"},"confidence":{"type":"number","minimum":0,"maximum":1}},"required":["manifest","design_notes","confidence"],"additionalProperties":false}'
+golden_cases:
+- id: manifest-shape
+  shape_only_because: >-
+    conformance only, on a minimal inventory. The verdicts this gene must reach are asserted 
+    in the behaviour cases.
+  prompt: >-
+    Inventory: 2 devices (device_1, device_2), 1 area (garage), 2 entities (light.garage, 
+    sensor.presence_garage).
+  trials: 3
+  pass_threshold: 1.0
+  assertions:
+  - kind: output_schema_valid
+  - kind: guardrails_clean
+- id: device-area-assignments-correct
+  prompt: >-
+    Inventory: 5 physical devices (garage_light model:Philips device_1, office_switch 
+    model:Lutron device_2, patio_sensor model:Aqara device_3, hub=Rpi model:RPi device_4, 
+    adapter model:ConBee device_5); 2 areas (garage, office); entities per device.
+    
+    Requirement: organize devices by room where evident from name/model, mark infrastructure 
+    as not_applicable.
+  trials: 3
+  pass_threshold: 1.0
+  assertions:
+  - kind: output_schema_valid
+  - kind: guardrails_clean
+  - kind: rubric
+    rubric: >-
+      manifest correctly assigns every physical device to an area (garage_light, office_switch, 
+      patio_sensor) or marks it not_applicable (hub, adapter as infrastructure). No device 
+      appears in both or neither. device_areas entries use device_id and area_id from the 
+      inventory, each has a checkable reason (name/model evidence). managed_label_prefixes 
+      are declared. Zero entity_id renames proposed. Score only the properties this criterion 
+      names; a defect in anything else is outside this criterion and is not grounds for 
+      a deduction.
+    threshold: 0.85
+    judge_model: opus
+    require_cross_family: true
+- id: label-taxonomy-with-helpers
+  prompt: >-
+    Inventory: 8 entities (light.garage, light.office, sensor.total_power, 
+    sensor.presence_garage, sensor.presence_office, binary_sensor.door_garage, 
+    switch.ac_compressor, switch.heater); 2 areas (garage, office, patio); 
+    existing helper: binary_sensor.presence_all_group.
+    
+    Requirement: label entities by role (presence, power, access) and area, create helper 
+    if needed for multi-source fusion.
+  trials: 3
+  pass_threshold: 1.0
+  assertions:
+  - kind: output_schema_valid
+  - kind: guardrails_clean
+  - kind: rubric
+    rubric: >-
+      manifest declares a taxonomy of label prefixes (e.g. "area:", "role:", "class:") in 
+      managed_label_prefixes, applies them consistently to entities, and every label uses 
+      a declared prefix. Helper for fusion (if proposed) carries a stable slug and clear 
+      reason. design_notes explain the taxonomy choice. Every entry is checkable against 
+      the inventory. Zero entity_id renames proposed. Score only the properties this criterion 
+      names; a defect in anything else is outside this criterion and is not grounds for 
+      a deduction.
+    threshold: 0.85
+    judge_model: opus
+    require_cross_family: true
 memory_footprint:
   recall_topics:
   - homeiq-ha-organization

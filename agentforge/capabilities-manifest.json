@@ -1,0 +1,52 @@
+{
+  "af_version": "4.59.1",
+  "fetched_at": "2026-08-11",
+  "manifest": {
+    "contracts": {
+      "a2a_protocol_version": "0.3.0",
+      "agent_schema_version": "2.1",
+      "trace_contract_version": "agentforge-workflow-v3"
+    },
+    "git_sha": "31a3910b7662534d801801d4a368129b5999b6b0",
+    "mcp_registry_keys": [
+      "brave",
+      "exa",
+      "firecrawl",
+      "gmail",
+      "google-calendar",
+      "google-drive",
+      "linear",
+      "qdrant",
+      "tapps-brain",
+      "tavily"
+    ],
+    "templates": [
+      "doc-extract",
+      "notify",
+      "openai-stream"
+    ],
+    "version": "4.59.1",
+    "workflow": {
+      "node_kinds": [
+        "gate",
+        "http",
+        "ledger",
+        "python",
+        "run_ref",
+        "script",
+        "sql",
+        "task",
+        "transform"
+      ],
+      "script_ids": [
+        "external-job-relay"
+      ],
+      "trigger_types": [
+        "event",
+        "once",
+        "schedule"
+      ]
+    }
+  },
+  "source": "http://127.0.0.1:8010/capabilities/manifest"
+}
