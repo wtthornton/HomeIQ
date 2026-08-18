@@ -1,48 +1,44 @@
 # Session handoff
-**Updated:** 2026-08-18T18:30:40Z
-**Git:** de0ef06c (master; PRs #90/#91/#92 merged, none open)
-**Linear P0:** TAP-6191
+**Updated:** 2026-08-18T20:05:00Z
+**Git:** de79217b (master; PRs #94/#95/#96 merged, none open)
+**Linear P0:** TAP-6204
 
 ## Done
-- PR #90: deleted data-api's docker fork instead of adding the `docker` dep the old handoff prescribed — it was registered in no router list, a stale unauthenticated fork of admin-api's live copy. 1202 pass, coverage 73.64%.
-- PR #91: TAP-6182/6172/6173 all **Done**, CI-verified. **273 -> 188 failures, 85 tests fixed, none skipped**; all three error signatures now appear 0 times.
-- TAP-6169 epic filed with 17 children (TAP-6170..6185, 6191): 4 cross-cutting causes fixed once each, rest per-service.
+- TAP-6191 **Done** (PR #94). Not the filed cause: init-schemas.sql has no GIN index and alembic passes clean against it. The creator is data-api conftest's `drop_all`+`create_all`, whose teardown only deletes rows. Fixed by giving `Test Alembic migrations` its own `homeiq_migrations` DB; migration 011 untouched.
+- TAP-6176 **Done** (PR #95). requirements.txt lacked fastapi/uvicorn/websockets + 4 homeiq libs. Underneath: 3 failures + 17 errors, all test drift. 62 passed, exit 0, 78% coverage. No production code changed.
+- TAP-6179 **Done** (PR #96). Two fixtures -> `AsyncClient(transport=ASGITransport(app=app))`. CI resolves httpx 0.28.1; `app` TypeError at zero. Merged knowingly with the service still red.
 
 ## Open
-- 14 children remain: TAP-6170/6171/6174/6175/6176/6177/6178/6179/6180/6181/6183/6184/6185/6191.
-- Unfiled: `_context` in `AIAutomationClient.validate_yaml` is the same ARG002 rename as TAP-6182; docstring claims "kept for compatibility" but `context=` now raises TypeError. No in-repo caller passes it.
-- `events_endpoints.py` 60.9 vs the 70 gate. TAP-6152 open by design (needs TAP-6167 AgentForge publish).
+- 11 epic children remain: TAP-6170/6171/6174/6175/6177/6178/6180/6181/6183/6184/6185 (all Backlog; see each for its service + signature).
+- **TAP-6204** (new, P0): ha-ai-agent-service 90 failed / 439 passed. `ASGITransport` does not emit lifespan events (verified directly), so `main.py:170 init_database` never runs and DB endpoints 500 with "Database not available" (136x in CI). Repo has NO `asgi-lifespan`/`LifespanManager` anywhere — needs a decision, not an alignment. Event-loop errors (`Event loop is closed` 58x, `different loop` 34x) are a SEPARATE cause; do not assume they vanish.
+- **TAP-6202** (new, P3): zeek-network-service, ha-simulator, ha-device-control, nlp-fine-tuning have code but appear in no `ci-*.yml` services matrix. zeek has an alembic.ini whose migrations have never run anywhere.
 
 ## Next (P0)
-- Fix the `idx_entity_labels_gin` double-create failing data-api's `Test Alembic migrations`. Declared both on the model (`entity.py:99`) and in migration `011`, so `alembic upgrade head` collides with schema-init. Decide which side owns it and delete the other — do not add an existence check. Highest leverage: only thing between data-api and a fully green job. Then TAP-6176 (calendar-service deps) and TAP-6179 (httpx 0.28).
+- TAP-6204. Decide fixture-runs-lifespan (add `asgi-lifespan`) vs fixture-inits-DB-directly, apply consistently, then re-count the event-loop failures and file what survives.
 
 ## Blockers
 - none
 
 ## Expect a second root cause behind every child
-Each fix exposes the next defect, because the earlier failure gated the later step. Four instances: TAP-6150's format gate skipped `Run tests` across 17 services; data-api's collection abort skipped Alembic (-> TAP-6191); TAP-6182's TypeError hid a global-RNG bug; TAP-6172's AttributeError hid four pieces of drift. Never call a child done on one green step.
+Held again 3/3 this session. Never call a child done on one green step.
 
-## Corrections (earlier notes were wrong)
-1. `unrecognized arguments: --cov=src` is a shell **comment**, not a failure.
-2. No lint/format gate has failed since TAP-6150/6155 — they hold.
-3. No service fails for an unreachable container; postgres failures are schema/fixture bugs.
-4. `automation-miner`'s 10 `async with lifespan(app)` sites are **correct** (plain `@asynccontextmanager`, not ServiceLifespan) — do not apply TAP-6173's fix there.
-5. air-quality's `homeiq` vs `home_assistant` bucket mismatch could not be reproduced.
+## Corrections to earlier notes
+1. TAP-6191's filed cause was wrong; see Done above.
+2. `create_all` ALONE is a no-op on tables init-schemas.sql already made (`checkfirst`). Only `drop_all` first installs model indexes.
+3. data-api's suite never touches postgres locally: 17 test files shadow conftest's `fresh_db`, and `_database_ready` skips `init_db()` when `async_engine` is set. A full local run leaves the DB unchanged — CI behaves differently. Local runs cannot reproduce schema-state bugs.
+4. This `gh` build does NOT support `--json` on `gh pr checks` (it does on `gh run view`). A monitor using it fails silently.
 
 ## Environment traps
-- **Postgres is 15432.** 5432 is `nlt-research-postgres` (another project) — conftests defaulting to 5432 hang instead of failing. Export `TEST_DATABASE_URL=postgresql+asyncpg://homeiq:homeiq@localhost:15432/homeiq_test`.
-- `test_*_client.py` run locally in <1s; service `test_main.py` suites need infra — use CI.
+- **Postgres is 15432**, container `homeiq-postgres`, password in its `POSTGRES_PASSWORD` env (not `homeiq`). 5432 is another project.
+- I dropped and recreated local DB `homeiq_test` this session (seeded from init-schemas.sql). Any prior local data in it is gone.
+- Verify service fixes in a clean venv (`python3 -m venv`, install `libs/homeiq-*/` then requirements.txt then pytest tooling) — the repo `.venv` masks missing deps.
 - device-intelligence runs rewrite tracked `models/model_metadata.json`; revert, don't commit.
-- The `home-assistant-datasets` submodule is third-party; a stale cwd there targets that repo on push.
-
-## Delegation note
-Three of four subagents failed to complete their Linear writes, two claiming success with confabulated "ids assigned later" text. Verify write claims against a real `save_issue` response id.
+- `home-assistant-datasets` submodule is third-party; a stale cwd there targets that repo.
 
 ## Verify
-- `gh pr list --state open` -> empty; `git log --oneline -1` -> de0ef06c.
-- `cd domains/core-platform/data-api && python -m pytest tests/ -q` -> 1202 passed (needs pg on 15432).
+- `gh pr list --state open` -> empty; `git log --oneline -1` -> de79217b.
 - `ruff check libs/ domains/ custom_components/` — clean.
-- master is red on 7/8 group workflows: pre-existing TAP-6169 debt, not regression.
+- master still red on most group workflows: remaining TAP-6169 debt, not regression.
 
 ## Success criterion
-- Each TAP-6169 child closes with its CI error signature at zero in a real run, nothing skipped or xfailed.
+- Each child closes with its CI error signature at zero in a real run, nothing skipped or xfailed.
