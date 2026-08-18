@@ -14,8 +14,13 @@
 4. `threat_patterns.py` held 54 patterns where its own section headers and the story AC said 100+. Completed to 125 across 10 categories rather than weakening the test.
 
 ## Next (P0)
-- **Watch PR #100 CI.** The 528-passing run is local; CI on real infra is TAP-6205's actual acceptance criterion. Merge, then close TAP-6205.
+- **Merge PR #100**, then close TAP-6205. `ci / CI — ha-ai-agent-service` is **green in CI: 528 passed, 0 failed, nothing skipped** — the acceptance criterion is met on real infra, not just locally.
+- The 9 other red checks on the PR (quality-review, E2E, Integration, TAPPS Quality Gate, automation-linter, automation-trace-service, Shared Library Compatibility, the two summaries) are **pre-existing**: master itself is red on Quality Gate, E2E & Integration, Cross-Group Integration and CI — Automation Core. Confirmed via `gh run list --branch master`. Not caused by this branch.
 - Then pick the next TAP-6169 child.
+
+### CI trap learned the hard way
+CI runs **`ruff format --check`** in addition to `ruff check`. I only ran the latter, so the first ha-ai-agent-service run failed at the format gate *before reaching pytest* (commit a154f790 fixed it). Always run both:
+`ruff check <path> && ruff format --check <path>`
 
 ## Open
 - 10 epic children left under TAP-6169: TAP-6170/6171/6174/6175/6177/6178/6180/6181/6183/6184/6185 minus any closed.
