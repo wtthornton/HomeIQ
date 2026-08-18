@@ -184,24 +184,14 @@ async def get_prompt_breakdown_by_debug_id(
 
         base_system_prompt = SYSTEM_PROMPT
 
-        # Get complete system prompt with context
-        # For debug display, always use skip_truncation=True to show full data
-        complete_system_prompt = conversation.get_context_cache()
-        if not complete_system_prompt or refresh_context:
-            if context_builder:
-                # Use skip_truncation=True for debug to show full context
-                complete_system_prompt = await context_builder.build_complete_system_prompt(skip_truncation=True)
-                # Don't cache the full (non-truncated) version, as it's only for debug
-                # The cached version should remain truncated for normal use
-                if not refresh_context:
-                    # Only set cache if we're not forcing refresh (to avoid overwriting with full version)
-                    conversation.set_context_cache(complete_system_prompt)
-            else:
-                complete_system_prompt = base_system_prompt
-        else:
-            # If using cached, rebuild with skip_truncation for debug display
-            if context_builder:
-                complete_system_prompt = await context_builder.build_complete_system_prompt(skip_truncation=True)
+        # Get complete system prompt with context.
+        # Debug always rebuilds with skip_truncation=True to show full data, so the
+        # shared cache is deliberately neither read nor written here: it holds the
+        # truncated prompt used for normal turns and must not be overwritten with
+        # this full version.
+        complete_system_prompt = base_system_prompt
+        if context_builder:
+            complete_system_prompt = await context_builder.build_complete_system_prompt(skip_truncation=True)
 
         # Extract injected context (everything after base system prompt)
         injected_context = ""
@@ -329,24 +319,14 @@ async def get_prompt_breakdown(
 
         base_system_prompt = SYSTEM_PROMPT
 
-        # Get complete system prompt with context
-        # For debug display, always use skip_truncation=True to show full data
-        complete_system_prompt = conversation.get_context_cache()
-        if not complete_system_prompt or refresh_context:
-            if context_builder:
-                # Use skip_truncation=True for debug to show full context
-                complete_system_prompt = await context_builder.build_complete_system_prompt(skip_truncation=True)
-                # Don't cache the full (non-truncated) version, as it's only for debug
-                # The cached version should remain truncated for normal use
-                if not refresh_context:
-                    # Only set cache if we're not forcing refresh (to avoid overwriting with full version)
-                    conversation.set_context_cache(complete_system_prompt)
-            else:
-                complete_system_prompt = base_system_prompt
-        else:
-            # If using cached, rebuild with skip_truncation for debug display
-            if context_builder:
-                complete_system_prompt = await context_builder.build_complete_system_prompt(skip_truncation=True)
+        # Get complete system prompt with context.
+        # Debug always rebuilds with skip_truncation=True to show full data, so the
+        # shared cache is deliberately neither read nor written here: it holds the
+        # truncated prompt used for normal turns and must not be overwritten with
+        # this full version.
+        complete_system_prompt = base_system_prompt
+        if context_builder:
+            complete_system_prompt = await context_builder.build_complete_system_prompt(skip_truncation=True)
 
         # Extract injected context (everything after base system prompt)
         injected_context = ""

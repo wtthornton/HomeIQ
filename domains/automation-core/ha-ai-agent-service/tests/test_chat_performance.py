@@ -23,6 +23,7 @@ from src.services.conversation_service import ConversationService
 from src.services.openai_client import OpenAIClient
 from src.services.prompt_assembly_service import PromptAssemblyService
 from src.services.tool_service import ToolService
+from tests.conftest import attach_context_cache
 
 
 @pytest.fixture
@@ -43,7 +44,7 @@ def mock_context_builder():
     builder.initialize = AsyncMock()
     builder.close = AsyncMock()
     builder._initialized = True
-    return builder
+    return attach_context_cache(builder)
 
 
 @pytest.fixture

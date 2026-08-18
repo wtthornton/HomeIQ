@@ -31,6 +31,14 @@ def mock_data_api_client():
             {"entity_id": "light.kitchen", "friendly_name": "Kitchen Light", "area_id": "kitchen", "domain": "light"},
         ]
     )
+    # Story 62.5: area extraction resolves areas dynamically via get_areas()
+    client.get_areas = AsyncMock(
+        return_value=[
+            {"area_id": "office", "display_name": "Office"},
+            {"area_id": "kitchen", "display_name": "Kitchen"},
+            {"area_id": "bedroom", "display_name": "Bedroom"},
+        ]
+    )
     return client
 
 
@@ -42,15 +50,16 @@ class TestEntityResolutionService:
         service = EntityResolutionService(mock_data_api_client)
         assert service.data_api_client == mock_data_api_client
 
-    def test__extract_area_from_prompt(self, mock_data_api_client):
-        """Test _extract_area_from_prompt method."""
+    @pytest.mark.asyncio
+    async def test__extract_area_from_prompt(self, mock_data_api_client):
+        """Test _extract_area_from_prompt method (async since Story 62.5)."""
         service = EntityResolutionService(mock_data_api_client)
 
         # Test area extraction
-        assert service._extract_area_from_prompt("turn on office lights") == "office"
-        assert service._extract_area_from_prompt("kitchen light") == "kitchen"
-        assert service._extract_area_from_prompt("bedroom fan") == "bedroom"
-        assert service._extract_area_from_prompt("turn on lights") is None
+        assert await service._extract_area_from_prompt("turn on office lights") == "office"
+        assert await service._extract_area_from_prompt("kitchen light") == "kitchen"
+        assert await service._extract_area_from_prompt("bedroom fan") == "bedroom"
+        assert await service._extract_area_from_prompt("turn on lights") is None
 
     def test__filter_by_area(self, mock_data_api_client):
         """Test _filter_by_area method."""

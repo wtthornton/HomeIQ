@@ -28,7 +28,38 @@ class TestComplexityClassifier:
         assert result.score < 0.30
 
     def test_complex_multi_entity_is_high(self):
-        """Long multi-entity request classifies as high."""
+        """Long multi-entity, multi-step request classifies as high.
+
+        HIGH needs a weighted score >= 0.55. Maxing entity_count (>=3
+        entities) and tool_hint (>=2 multi-step keywords) only reaches
+        0.41, so a first-turn request must also clear the 200-character
+        length threshold to be classified HIGH.
+        """
+        from src.services.eval_routing.complexity_classifier import (
+            ComplexityClassifier,
+            ComplexityLevel,
+        )
+
+        c = ComplexityClassifier()
+        msg = (
+            "Create an automation that turns on light.kitchen, light.bedroom, "
+            "and light.living_room when sensor.motion_front is triggered, "
+            "and then also set climate.hallway to 22 degrees, and after that "
+            "close cover.garage and lock lock.front_door once everyone has left"
+        )
+        assert len(msg) > 200
+        result = c.classify(msg)
+        assert result.level == ComplexityLevel.HIGH
+        assert result.factors["token_count"] == 1.0
+        assert result.factors["entity_count"] == 1.0
+        assert result.factors["tool_hint"] == 0.8
+
+    def test_multi_entity_under_length_threshold_is_medium(self):
+        """The same request shape, but under 200 chars, stops at medium.
+
+        Entity and tool-hint signals alone cap the score at 0.535, just
+        under the 0.55 HIGH threshold.
+        """
         from src.services.eval_routing.complexity_classifier import (
             ComplexityClassifier,
             ComplexityLevel,
@@ -40,11 +71,34 @@ class TestComplexityClassifier:
             "and light.living_room when sensor.motion_front is triggered, "
             "and then also set climate.hallway to 22 degrees"
         )
+        assert len(msg) < 200
         result = c.classify(msg)
-        assert result.level == ComplexityLevel.HIGH
+        assert result.level == ComplexityLevel.MEDIUM
+        assert result.factors["entity_count"] == 1.0
+        assert result.factors["tool_hint"] == 0.8
 
     def test_medium_complexity(self):
-        """Medium-length request with some entities."""
+        """Several explicit entities plus one multi-step hint is medium."""
+        from src.services.eval_routing.complexity_classifier import (
+            ComplexityClassifier,
+            ComplexityLevel,
+        )
+
+        c = ComplexityClassifier()
+        result = c.classify(
+            "Set the brightness on light.kitchen and light.dining to 40 percent "
+            "and then turn off switch.porch when the sun goes down",
+            conversation_depth=2,
+        )
+        assert result.level == ComplexityLevel.MEDIUM
+
+    def test_natural_language_device_names_are_not_entities(self):
+        """Only `domain.entity_id` tokens count toward entity_count.
+
+        A short single-device request phrased in natural language carries
+        no entity signal, so it stays LOW and routes to the cheap model
+        even a few turns into a conversation.
+        """
         from src.services.eval_routing.complexity_classifier import (
             ComplexityClassifier,
             ComplexityLevel,
@@ -55,7 +109,8 @@ class TestComplexityClassifier:
             "Turn on the kitchen light and set brightness to 50%",
             conversation_depth=3,
         )
-        assert result.level in (ComplexityLevel.MEDIUM, ComplexityLevel.HIGH)
+        assert result.factors["entity_count"] == 0.0
+        assert result.level == ComplexityLevel.LOW
 
     def test_deep_conversation_increases_complexity(self):
         """Deep conversation history increases complexity score."""
@@ -116,15 +171,20 @@ class TestModelRouter:
 
     def test_high_complexity_uses_primary(self):
         """High complexity always routes to primary."""
+        from src.services.eval_routing.complexity_classifier import ComplexityLevel
         from src.services.eval_routing.model_router import ModelRouter
 
         router = ModelRouter()
         decision = router.route(
-            "Create a complex automation with light.a, light.b, light.c, "
-            "sensor.motion and then also configure climate.hall",
+            "Create a complex automation with light.a, light.b, light.c and "
+            "sensor.motion and then also configure climate.hall, and after "
+            "that close cover.garage and lock lock.front_door whenever the "
+            "house reports that nobody is home",
             conversation_id="test-1",
         )
+        assert decision.complexity.level == ComplexityLevel.HIGH
         assert decision.chosen_model == "gpt-5.2-codex"
+        assert decision.reason == "high_complexity"
 
     def test_low_complexity_uses_cheap(self):
         """Low complexity routes to cheap model."""
@@ -216,20 +276,34 @@ class TestEvalAlerting:
         assert result is None  # Not enough samples
 
     def test_floor_breach_alert(self):
-        """Alert fires when score drops below floor (50)."""
+        """Alert fires once when score drops below floor (50).
+
+        The alert fires on the fifth sample (the minimum sample count);
+        further samples inside the one-hour cooldown return None rather
+        than re-firing for the same dimension.
+        """
         from src.services.eval_routing.eval_alerting import EvalAlertService
 
         svc = EvalAlertService()
         # Record enough samples below floor
-        for _ in range(6):
-            result = svc.record_score("agent-1", "accuracy", 40.0)
+        results = [svc.record_score("agent-1", "accuracy", 40.0) for _ in range(6)]
 
-        assert result is not None
-        assert result.alert_type == "floor_breach"
-        assert result.agent_name == "agent-1"
+        fired = [r for r in results if r is not None]
+        assert len(fired) == 1
+        assert fired[0].alert_type == "floor_breach"
+        assert fired[0].agent_name == "agent-1"
+        assert fired[0].current_score == 40.0
+        # Samples 6+ are suppressed by the cooldown, not re-alerted.
+        assert results[-1] is None
 
     def test_degradation_alert(self):
-        """Alert fires when rolling avg drops >10% from baseline."""
+        """Alert fires when rolling 24h avg drops >10% from the 7d baseline.
+
+        The baseline is the 7-day average, which includes the last 24
+        hours, so a drop is only visible once there is older history to
+        compare against. Backdating the good scores by two days is what
+        makes the two windows differ.
+        """
         from src.services.eval_routing.eval_alerting import EvalAlertService
 
         svc = EvalAlertService()
@@ -237,13 +311,21 @@ class TestEvalAlerting:
         for _ in range(10):
             svc.record_score("agent-1", "quality", 80.0)
 
+        # Age the baseline out of the 24h window so it is baseline-only.
+        tracker = svc._trackers["agent-1:quality"]
+        tracker.recent_scores = [(ts - 2 * 86400, score) for ts, score in tracker.recent_scores]
+
         # Simulate sudden drop
         for _ in range(6):
             svc.record_score("agent-1", "quality", 60.0)
 
-        # Should eventually alert
+        assert tracker.rolling_24h_avg == 60.0
+        assert tracker.rolling_7d_avg > 60.0
+
         alerts = svc.get_alerts()
-        assert len(alerts) > 0
+        assert len(alerts) == 1
+        assert alerts[0]["alert_type"] == "degradation"
+        assert alerts[0]["drop_pct"] > 10.0
 
     def test_acknowledge_alert(self):
         """Alert can be acknowledged."""

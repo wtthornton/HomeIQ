@@ -1,5 +1,6 @@
 """Tests for Context Builder Service"""
 
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -42,10 +43,8 @@ async def test_initialize(context_builder):
 async def test_build_context_success(context_builder):
     """Test building context with all services working"""
     # Mock all services
-    context_builder._entity_inventory_service = MagicMock()
-    context_builder._entity_inventory_service.get_summary = AsyncMock(
-        return_value="Light: 5 entities (office: 3, kitchen: 2)"
-    )
+    context_builder._devices_summary_service = MagicMock()
+    context_builder._devices_summary_service.get_summary = AsyncMock(return_value="Philips Hue Go (Signify) - Office")
 
     context_builder._areas_service = MagicMock()
     context_builder._areas_service.get_areas_list = AsyncMock(return_value="Office, Kitchen, Bedroom")
@@ -61,24 +60,50 @@ async def test_build_context_success(context_builder):
     context_builder._helpers_scenes_service = MagicMock()
     context_builder._helpers_scenes_service.get_summary = AsyncMock(return_value="input_boolean: automation_enabled")
 
+    context_builder._enhanced_context_builder = MagicMock()
+    context_builder._enhanced_context_builder.build_area_entity_context = AsyncMock(
+        return_value="ENTITIES BY AREA:\n\nOffice (area_id: office):\n  light (1):\n    - light.office_go"
+    )
+    context_builder._enhanced_context_builder.build_binary_sensor_context = AsyncMock(
+        return_value="BINARY SENSORS:\n- binary_sensor.office_motion [device_class: motion]"
+    )
+    context_builder._enhanced_context_builder.build_existing_automations_context = AsyncMock(
+        return_value="EXISTING AUTOMATIONS:\n- automation.office_lights"
+    )
+    context_builder._enhanced_context_builder.build_trigger_platforms_reference = MagicMock(
+        return_value="TRIGGER PLATFORMS:\n- state"
+    )
+
     context_builder._initialized = True
 
     context = await context_builder.build_context()
 
     assert "HOME ASSISTANT CONTEXT" in context
-    assert "ENTITY INVENTORY" in context
-    assert "AREAS" in context
-    assert "AVAILABLE SERVICES" in context
-    assert "DEVICE CAPABILITY PATTERNS" in context
-    assert "HELPERS & SCENES" in context
+    assert "DEVICES:\nPhilips Hue Go (Signify) - Office" in context
+    assert "AREAS:\nOffice, Kitchen, Bedroom" in context
+    assert "AVAILABLE SERVICES:\nlight.turn_on, light.turn_off" in context
+    assert "HELPERS & SCENES:\ninput_boolean: automation_enabled" in context
+    assert "(unavailable)" not in context
+
+    # Entity inventory is supplied by the enhanced context builder, not by a
+    # dedicated "ENTITY INVENTORY" section.
+    assert "ENTITIES BY AREA:" in context
+    assert "BINARY SENSORS:" in context
+    assert "EXISTING AUTOMATIONS:" in context
+    assert "TRIGGER PLATFORMS:" in context
+
+    # Capability patterns were deliberately dropped from the static context
+    # (consolidated into the entity inventory), so the service is never called.
+    assert "DEVICE CAPABILITY PATTERNS" not in context
+    context_builder._capability_patterns_service.get_patterns.assert_not_awaited()
 
 
 @pytest.mark.asyncio
 async def test_build_context_with_errors(context_builder):
     """Test building context when some services fail"""
     # Mock services with some failures
-    context_builder._entity_inventory_service = MagicMock()
-    context_builder._entity_inventory_service.get_summary = AsyncMock(return_value="Light: 5 entities")
+    context_builder._devices_summary_service = MagicMock()
+    context_builder._devices_summary_service.get_summary = AsyncMock(side_effect=Exception("Service error"))
 
     context_builder._areas_service = MagicMock()
     context_builder._areas_service.get_areas_list = AsyncMock(side_effect=Exception("Service error"))
@@ -92,15 +117,25 @@ async def test_build_context_with_errors(context_builder):
     context_builder._helpers_scenes_service = MagicMock()
     context_builder._helpers_scenes_service.get_summary = AsyncMock(return_value="input_boolean: test")
 
+    context_builder._enhanced_context_builder = MagicMock()
+    context_builder._enhanced_context_builder.build_area_entity_context = AsyncMock(
+        side_effect=Exception("Data API unavailable")
+    )
+    context_builder._enhanced_context_builder.build_binary_sensor_context = AsyncMock(
+        side_effect=Exception("Data API unavailable")
+    )
+
     context_builder._initialized = True
 
     context = await context_builder.build_context()
 
     # Should still build context with fallbacks
     assert "HOME ASSISTANT CONTEXT" in context
-    assert "ENTITY INVENTORY" in context
-    assert "AREAS" in context
-    assert "(unavailable)" in context  # Failed services show as unavailable
+    assert "DEVICES: (unavailable)" in context
+    assert "AREAS: (unavailable)" in context
+    # Healthy services still contribute their sections
+    assert "AVAILABLE SERVICES:\nlight.turn_on" in context
+    assert "HELPERS & SCENES:\ninput_boolean: test" in context
 
 
 @pytest.mark.asyncio
@@ -141,22 +176,19 @@ async def test_get_cached_value(context_builder):
     cache_key = "test_key"
     cache_value = "test_value"
 
-    # Mock database session
+    # Mock database session (AsyncSession: execute() is awaitable)
     mock_session = MagicMock()
     mock_result = MagicMock()
     mock_result.scalar_one_or_none.return_value = cache_value
-    mock_session.execute.return_value = mock_result
+    mock_session.execute = AsyncMock(return_value=mock_result)
 
     with patch("src.services.context_builder.get_session") as mock_get_session:
         mock_get_session.return_value.__aiter__.return_value = [mock_session]
 
-        # Mock ContextCache query
-        with patch("src.services.context_builder.ContextCache"):
-            result = await context_builder._get_cached_value(cache_key)
+        result = await context_builder._get_cached_value(cache_key)
 
-            # Should return None if cache expired or not found
-            # (actual implementation depends on database state)
-            assert result is None or result == cache_value
+        assert result == cache_value
+        mock_session.execute.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -166,19 +198,25 @@ async def test_set_cached_value(context_builder):
     cache_value = "test_value"
     ttl_seconds = 300
 
-    # Mock database session
+    # Mock database session (AsyncSession: execute()/commit() are awaitable)
     mock_session = MagicMock()
     mock_result = MagicMock()
     mock_result.scalar_one_or_none.return_value = None  # No existing entry
-    mock_session.execute.return_value = mock_result
+    mock_session.execute = AsyncMock(return_value=mock_result)
+    mock_session.commit = AsyncMock()
 
     with patch("src.services.context_builder.get_session") as mock_get_session:
         mock_get_session.return_value.__aiter__.return_value = [mock_session]
 
         await context_builder._set_cached_value(cache_key, cache_value, ttl_seconds)
 
-        # Verify session.add was called (for new entry) or update was called
-        assert mock_session.add.called or mock_session.commit.called
+        # A new cache row is added and committed
+        mock_session.add.assert_called_once()
+        added_entry = mock_session.add.call_args.args[0]
+        assert added_entry.cache_key == cache_key
+        assert added_entry.cache_value == cache_value
+        assert added_entry.expires_at > datetime.now()
+        mock_session.commit.assert_awaited_once()
 
 
 @pytest.mark.asyncio

@@ -76,14 +76,14 @@ async def test_get_summary_cached(entity_inventory_service, mock_context_builder
     cached_summary = "Cached summary: Light: 5 entities (office: 3, kitchen: 2)"
     mock_context_builder._get_cached_value = AsyncMock(return_value=cached_summary)
 
-    summary = await entity_inventory_service.get_summary()
+    with patch.object(
+        entity_inventory_service.data_api_client, "fetch_entities", new_callable=AsyncMock
+    ) as mock_fetch:
+        summary = await entity_inventory_service.get_summary()
 
     assert summary == cached_summary
     # Should not call fetch_entities when cached
-    assert (
-        not hasattr(entity_inventory_service.data_api_client, "fetch_entities")
-        or not entity_inventory_service.data_api_client.fetch_entities.called
-    )
+    mock_fetch.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -159,8 +159,11 @@ async def test_get_summary_with_device_area_resolution(entity_inventory_service,
         # Verify all 7 Office lights are found (not just 2)
         assert "Light" in summary
         assert "office" in summary.lower()
-        # Should show 7 lights in office, not just 2
-        assert summary.count("office") >= 2  # At least mentioned twice (area name + count)
+        # Should show 7 lights in office, not just the 2 with a direct area_id.
+        # Areas are rendered once, by display name plus count ("Office: 7").
+        assert "Office: 7" in summary
+        # The 5 lights that inherit their area from device2 must not fall through to unassigned
+        assert "unassigned" not in summary.lower()
 
         # Verify cache was set
         mock_context_builder._set_cached_value.assert_called_once()

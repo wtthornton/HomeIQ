@@ -52,11 +52,13 @@ async def test_context_builder_full_integration(context_builder):
         assert "HOME ASSISTANT CONTEXT" in context
 
         # Verify all sections are present (even if unavailable)
-        assert "ENTITY INVENTORY" in context
+        assert "DEVICES" in context
         assert "AREAS" in context
         assert "AVAILABLE SERVICES" in context
-        assert "DEVICE CAPABILITY PATTERNS" in context
         assert "HELPERS & SCENES" in context
+        # Capability patterns are deliberately excluded from the static context
+        # (consolidated into the entity inventory built by EnhancedContextBuilder)
+        assert "DEVICE CAPABILITY PATTERNS" not in context
 
     finally:
         await context_builder.close()
@@ -131,16 +133,15 @@ async def test_context_builder_error_handling(context_builder):
     try:
         # Mock one service to fail
         with patch.object(
-            context_builder._entity_inventory_service, "get_summary", side_effect=Exception("Service unavailable")
+            context_builder._devices_summary_service, "get_summary", side_effect=Exception("Service unavailable")
         ):
             context = await context_builder.build_context()
 
             # Should still return valid context with fallback
             assert isinstance(context, str)
             assert "HOME ASSISTANT CONTEXT" in context
-            assert "ENTITY INVENTORY" in context
-            # Should show unavailable for failed service
-            assert "(unavailable)" in context
+            # Should show unavailable for the failed service
+            assert "DEVICES: (unavailable)" in context
 
     finally:
         await context_builder.close()

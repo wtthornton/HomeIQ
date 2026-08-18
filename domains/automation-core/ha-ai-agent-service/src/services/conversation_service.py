@@ -111,6 +111,9 @@ class ConversationService:
         self.context_builder = context_builder
         logger.info("✅ Conversation service initialized (database-backed)")
 
+    _CONTEXT_CACHE_KEY_PREFIX = "conversation_system_prompt:"
+    _CONTEXT_CACHE_TTL_SECONDS = 300
+
     async def create_conversation(
         self,
         conversation_id: str | None = None,
@@ -313,7 +316,7 @@ class ConversationService:
         """
         Get system prompt with context injection for a conversation.
 
-        Uses cached context if available and recent, otherwise rebuilds context.
+        Uses the shared context cache if a recent entry exists, otherwise rebuilds.
 
         Args:
             conversation: Conversation instance
@@ -321,29 +324,36 @@ class ConversationService:
         Returns:
             Complete system prompt with context
         """
-        # Check if we should refresh context
-        # Refresh if:
-        # 1. No cached context exists
-        # 2. Context is older than 5 minutes (configurable)
-        # 3. Conversation has new messages since last context update
-
-        should_refresh = False
-        if not conversation._context_cache:
-            should_refresh = True
-        elif conversation._context_updated_at:
-            # Refresh if context is older than 5 minutes
-            age_seconds = (datetime.now() - conversation._context_updated_at).total_seconds()
-            if age_seconds > 300:  # 5 minutes
-                should_refresh = True
-
-        if should_refresh:
-            logger.debug(f"Refreshing context for conversation {conversation.conversation_id}")
-            context = await self.context_builder.build_complete_system_prompt()
-            conversation.set_context_cache(context)
-        else:
+        cached = await self.get_cached_context(conversation.conversation_id)
+        if cached:
             logger.debug(f"Using cached context for conversation {conversation.conversation_id}")
+            conversation.set_context_cache(cached)
+            return cached
 
-        return conversation.get_context_cache() or ""
+        logger.debug(f"Refreshing context for conversation {conversation.conversation_id}")
+        context = await self.context_builder.build_complete_system_prompt()
+        await self.set_cached_context(conversation.conversation_id, context)
+        conversation.set_context_cache(context)
+        return context
+
+    async def get_cached_context(self, conversation_id: str) -> str | None:
+        """
+        Read a conversation's cached system prompt from the shared context cache.
+
+        The cache is keyed in the shared context cache rather than held on the
+        Conversation object. Callers reload the conversation from the database on
+        every request, so a per-object cache is always empty on arrival and the
+        prompt would be rebuilt on every turn.
+        """
+        return await self.context_builder._get_cached_value(f"{self._CONTEXT_CACHE_KEY_PREFIX}{conversation_id}")
+
+    async def set_cached_context(self, conversation_id: str, system_prompt: str) -> None:
+        """Store a conversation's system prompt in the shared context cache."""
+        await self.context_builder._set_cached_value(
+            f"{self._CONTEXT_CACHE_KEY_PREFIX}{conversation_id}",
+            system_prompt,
+            self._CONTEXT_CACHE_TTL_SECONDS,
+        )
 
     async def archive_conversation(self, conversation_id: str) -> bool:
         """

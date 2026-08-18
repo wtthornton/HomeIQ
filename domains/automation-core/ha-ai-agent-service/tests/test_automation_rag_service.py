@@ -17,7 +17,9 @@ class TestSportsIntentMatching:
     @pytest.mark.parametrize(
         "prompt",
         [
-            "Lakers score lights",
+            # Bare "score" is deliberately NOT a keyword (avoids "credit score");
+            # sports scoring is matched via multi-word terms like "score flash".
+            "Lakers score flash lights",
             "PGA birdie automation",
             "Super Bowl lights when Seahawks score",
             "Flash lights when my team scores a touchdown",
@@ -45,6 +47,8 @@ class TestSportsIntentMatching:
             "Lock the front door",
             "Play music in the kitchen",
             "Open the garage door",
+            # Bare "score" must not trigger sports intent
+            "Notify me when my credit score changes",
         ],
     )
     def test_non_sports_prompts_no_match(self, automation_rag_service: AutomationRAGService, prompt: str):
@@ -67,7 +71,7 @@ class TestGetAutomationContext:
     @pytest.mark.asyncio
     async def test_returns_context_for_sports_prompt(self, automation_rag_service: AutomationRAGService):
         """Sports prompts should return RAG context with corpus."""
-        result = await automation_rag_service.get_automation_context("Lakers score lights")
+        result = await automation_rag_service.get_automation_context("Lakers score flash lights")
         assert "AUTOMATION RAG CONTEXT" in result
         assert "Sports/Team Tracker patterns" in result
         assert len(result) > 100

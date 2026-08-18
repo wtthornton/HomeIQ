@@ -26,6 +26,11 @@ def mock_context_builder():
     """Create mock context builder"""
     builder = MagicMock()
     builder.build_complete_system_prompt = AsyncMock(return_value="System prompt with context")
+
+    # Back the context cache with a real dict so cache hits/misses are exercised.
+    cache: dict[str, str] = {}
+    builder._get_cached_value = AsyncMock(side_effect=lambda key: cache.get(key))
+    builder._set_cached_value = AsyncMock(side_effect=lambda key, value, ttl: cache.__setitem__(key, value))
     return builder
 
 
@@ -50,7 +55,9 @@ async def test_create_conversation_with_id(conversation_service):
     """Test creating a conversation with specific ID"""
     conversation = await conversation_service.create_conversation(conversation_id="test-id-123")
     assert conversation.conversation_id == "test-id-123"
-    assert await conversation_service.get_conversation("test-id-123") == conversation
+    retrieved = await conversation_service.get_conversation("test-id-123")
+    assert retrieved is not None
+    assert retrieved.conversation_id == conversation.conversation_id
 
 
 @pytest.mark.asyncio
@@ -58,7 +65,9 @@ async def test_get_conversation(conversation_service):
     """Test getting a conversation"""
     conversation = await conversation_service.create_conversation()
     retrieved = await conversation_service.get_conversation(conversation.conversation_id)
-    assert retrieved == conversation
+    assert retrieved is not None
+    assert retrieved.conversation_id == conversation.conversation_id
+    assert retrieved.state == conversation.state
 
 
 @pytest.mark.asyncio
@@ -76,7 +85,8 @@ async def test_add_message(conversation_service):
     assert message is not None
     assert message.role == "user"
     assert message.content == "Hello, agent!"
-    assert conversation.message_count == 1
+    reloaded = await conversation_service.get_conversation(conversation.conversation_id)
+    assert reloaded.message_count == 1
 
 
 @pytest.mark.asyncio
@@ -141,9 +151,10 @@ async def test_list_conversations(conversation_service):
 
     conversations = await conversation_service.list_conversations()
     assert len(conversations) == 3
-    assert conv1 in conversations
-    assert conv2 in conversations
-    assert conv3 in conversations
+    listed_ids = {c.conversation_id for c in conversations}
+    assert conv1.conversation_id in listed_ids
+    assert conv2.conversation_id in listed_ids
+    assert conv3.conversation_id in listed_ids
 
 
 @pytest.mark.asyncio
@@ -157,9 +168,9 @@ async def test_list_conversations_with_state_filter(conversation_service):
     archived = await conversation_service.list_conversations(state=ConversationState.ARCHIVED)
 
     assert len(active) == 1
-    assert conv1 in active
+    assert active[0].conversation_id == conv1.conversation_id
     assert len(archived) == 1
-    assert conv2 in archived
+    assert archived[0].conversation_id == conv2.conversation_id
 
 
 @pytest.mark.asyncio
@@ -209,7 +220,8 @@ async def test_archive_conversation(conversation_service):
 
     result = await conversation_service.archive_conversation(conversation.conversation_id)
     assert result is True
-    assert conversation.state == ConversationState.ARCHIVED
+    reloaded = await conversation_service.get_conversation(conversation.conversation_id)
+    assert reloaded.state == ConversationState.ARCHIVED
 
 
 @pytest.mark.asyncio
@@ -217,11 +229,13 @@ async def test_activate_conversation(conversation_service):
     """Test activating an archived conversation"""
     conversation = await conversation_service.create_conversation()
     await conversation_service.archive_conversation(conversation.conversation_id)
-    assert conversation.state == ConversationState.ARCHIVED
+    archived = await conversation_service.get_conversation(conversation.conversation_id)
+    assert archived.state == ConversationState.ARCHIVED
 
     result = await conversation_service.activate_conversation(conversation.conversation_id)
     assert result is True
-    assert conversation.state == ConversationState.ACTIVE
+    reloaded = await conversation_service.get_conversation(conversation.conversation_id)
+    assert reloaded.state == ConversationState.ACTIVE
 
 
 @pytest.mark.asyncio
@@ -273,7 +287,8 @@ async def test_conversation_to_dict(conversation_service):
     conversation = await conversation_service.create_conversation()
     await conversation_service.add_message(conversation.conversation_id, "user", "Test")
 
-    conv_dict = conversation.to_dict()
+    reloaded = await conversation_service.get_conversation(conversation.conversation_id)
+    conv_dict = reloaded.to_dict()
     assert conv_dict["conversation_id"] == conversation.conversation_id
     assert conv_dict["state"] == ConversationState.ACTIVE.value
     assert conv_dict["message_count"] == 1
@@ -379,7 +394,7 @@ class TestConversationTitleAndSource:
         conversation = await conversation_service.create_conversation(title="Original Title")
 
         # Update the title
-        result = await conversation_service.update_title(conversation.conversation_id, "Updated Title")
+        result = await conversation_service.update_conversation_title(conversation.conversation_id, "Updated Title")
         assert result is True
 
         # Verify the title was updated
@@ -389,7 +404,7 @@ class TestConversationTitleAndSource:
     @pytest.mark.asyncio
     async def test_update_title_nonexistent_conversation(self, conversation_service):
         """Test updating title of a non-existent conversation"""
-        result = await conversation_service.update_title("non-existent-id", "New Title")
+        result = await conversation_service.update_conversation_title("non-existent-id", "New Title")
         assert result is False
 
     @pytest.mark.asyncio
@@ -404,7 +419,7 @@ class TestConversationTitleAndSource:
 
         # Auto-generate title
         result = await conversation_service.auto_generate_title(conversation.conversation_id)
-        assert result is True
+        assert result == "Turn on the living room lights please"
 
         # Verify title was generated
         updated = await conversation_service.get_conversation(conversation.conversation_id)

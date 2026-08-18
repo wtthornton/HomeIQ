@@ -100,11 +100,11 @@ class PromptAssemblyService:
             raise ValueError(f"Conversation {conversation_id} not found after adding message")
 
         # Get system prompt with context
-        if refresh_context or not conversation.get_context_cache():
+        cached_prompt = None if refresh_context else await self.conversation_service.get_cached_context(conversation_id)
+        if not cached_prompt:
             logger.info(
                 f"[Context Building] Conversation {conversation_id}: "
-                f"Building fresh context (refresh_context={refresh_context}, "
-                f"has_cache={bool(conversation.get_context_cache())})"
+                f"Building fresh context (refresh_context={refresh_context})"
             )
             try:
                 system_prompt = await self.context_builder.build_complete_system_prompt()
@@ -123,6 +123,7 @@ class PromptAssemblyService:
                         f"Contains 'HOME ASSISTANT CONTEXT': {'HOME ASSISTANT CONTEXT' in system_prompt}"
                     )
 
+                await self.conversation_service.set_cached_context(conversation_id, system_prompt)
                 conversation.set_context_cache(system_prompt)
             except RuntimeError as e:
                 if "not initialized" in str(e):
@@ -141,16 +142,17 @@ class PromptAssemblyService:
                 raise
         else:
             logger.debug(f"Using cached context for conversation {conversation_id}")
-            system_prompt = conversation.get_context_cache()
+            system_prompt = cached_prompt
 
             # Verify cached prompt is valid
-            if not system_prompt or len(system_prompt.strip()) < 100:
+            if len(system_prompt.strip()) < 100:
                 logger.warning(
                     f"[Context Building] Conversation {conversation_id}: "
                     f"⚠️ Cached system prompt is invalid (too short/empty). Rebuilding..."
                 )
                 system_prompt = await self.context_builder.build_complete_system_prompt()
-                conversation.set_context_cache(system_prompt)
+                await self.conversation_service.set_cached_context(conversation_id, system_prompt)
+            conversation.set_context_cache(system_prompt)
 
         # Inject device state context if entities mentioned in user message (Epic AI-20: Context Enhancement)
         try:
@@ -583,10 +585,10 @@ Instructions: Process this request now. Use tools if needed. Do not respond with
             raise ValueError(f"Conversation {conversation_id} not found")
 
         # Get system prompt
-        system_prompt = conversation.get_context_cache()
+        system_prompt = await self.conversation_service.get_cached_context(conversation_id)
         if not system_prompt:
             system_prompt = await self.context_builder.build_complete_system_prompt()
-            conversation.set_context_cache(system_prompt)
+            await self.conversation_service.set_cached_context(conversation_id, system_prompt)
 
         system_tokens = count_tokens(system_prompt, self.model)
 

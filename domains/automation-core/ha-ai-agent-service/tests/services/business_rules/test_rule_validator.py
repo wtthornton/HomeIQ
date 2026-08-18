@@ -68,8 +68,9 @@ class TestBusinessRuleValidator:
         required_entities = ["light.office"]
         context_entities = [{"entity_id": "light.office", "friendly_name": "Office Light"}]
 
+        # First arg is `_user_prompt` (unused by the rule) so it is passed positionally
         is_complete, missing = validator.validate_context_completeness(
-            user_prompt="turn on office light", required_entities=required_entities, context_entities=context_entities
+            "turn on office light", required_entities=required_entities, context_entities=context_entities
         )
         assert is_complete is True
         assert len(missing) == 0
@@ -85,7 +86,7 @@ class TestBusinessRuleValidator:
         ]
 
         is_complete, missing = validator.validate_context_completeness(
-            user_prompt="turn on office and kitchen lights",
+            "turn on office and kitchen lights",
             required_entities=required_entities,
             context_entities=context_entities,
         )
