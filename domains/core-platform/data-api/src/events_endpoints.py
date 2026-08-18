@@ -1189,10 +1189,14 @@ from(bucket: "{bucket}")
                     seen_event_ids.add(event_id)
 
                     # Pivoted raw events expose context_id / state_value / previous_state as
-                    # columns; statistics rows still carry their single field in _value.
-                    context_id = (
-                        record.values.get("context_id") or record.values.get("_value") or event_id
-                    )
+                    # columns. Downsampled rows have no context_id and carry an aggregate in
+                    # _value — a number, not an identifier — so only a non-empty string is
+                    # usable here. Falling through to the synthesized event_id also keeps the
+                    # dedup below honest: every statistics row for a 5-minute window with one
+                    # state change has _value == 1, so keying on it collapsed them all into
+                    # one event.
+                    candidate = record.values.get("context_id") or record.values.get("_value")
+                    context_id = candidate if isinstance(candidate, str) and candidate else event_id
 
                     # attributes stay out of this query on purpose (large JSON per row);
                     # GET /events/{event_id} serves the full record.

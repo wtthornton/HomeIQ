@@ -102,3 +102,39 @@ async def test_legacy_state_object_repr_rows_yield_bare_state(monkeypatch):
 def test_state_dict_keeps_braces_that_are_not_state_objects():
     assert ee._state_dict("{not really}") == {"state": "{not really}"}
     assert ee._state_dict("{'state': None}") == {"state": "{'state': None}"}
+
+
+@pytest.mark.asyncio
+async def test_downsampled_rows_do_not_use_the_aggregate_as_an_id(monkeypatch):
+    """A statistics row carries a count in _value, which is not a context id.
+
+    Using it built EventData(id=1), which fails validation; the broad handler in
+    _get_events_from_influxdb turned that into an empty 200, so every window over
+    10 days looked like "no events occurred".
+    """
+    def _stat_row(entity_id: str) -> MagicMock:
+        # What a downsampled row actually looks like: no context_id, no states,
+        # the aggregate in _value.
+        rec = MagicMock()
+        rec.values = {
+            "entity_id": entity_id,
+            "event_type": "state_changed",
+            "domain": entity_id.split(".")[0],
+            "_value": 1,
+        }
+        rec.get_time.return_value = datetime(2026, 8, 17, 10, 0, 0, tzinfo=UTC)
+        return rec
+
+    rows = [_stat_row("sensor.a"), _stat_row("sensor.b")]
+    client, _ = _stub(rows)
+    monkeypatch.setattr(ee, "_get_shared_influxdb_client", lambda: client)
+    old = datetime(2026, 7, 1, tzinfo=UTC)
+
+    events = await EventsEndpoints()._get_events_from_influxdb(
+        EventFilter(start_time=old), limit=10, offset=0
+    )
+
+    # Both survive: distinct synthesized ids, not one collapsed row keyed on "1".
+    assert len(events) == 2
+    assert {e.entity_id for e in events} == {"sensor.a", "sensor.b"}
+    assert all(isinstance(e.id, str) for e in events)
