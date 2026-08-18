@@ -69,11 +69,23 @@
 
 <script>
 "use strict";
-// v2: state.areas keys changed from display names to registry ids — the
-// version bump retires stale name-keyed saves from pre-fix visits.
+// v3: state.triage keys changed from ephemeral flow:{flow_id} ids to the
+// queue item's stable triage_key (TAP-6034) — flow ids are re-minted on
+// every rescan, so v2 saves could never match their item again.
 // Secrets are deliberately never put here.
-const LS_KEY = "homeiq-setup-answers-v2";
+const LS_KEY = "homeiq-setup-answers-v3";
 const state = { areas: {}, addons: {}, triage: {}, teams: [], scenes: {} };
+let showAll = false;
+
+async function post(path, body) {
+  const response = await fetch(path, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body || {}),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.detail || response.status);
+  return result;
+}
 
 function loadSaved() {
   try { Object.assign(state, JSON.parse(localStorage.getItem(LS_KEY) || "{}")); }
@@ -133,17 +145,105 @@ function textFieldsWidget(item) {
   return box;
 }
 
+function decisionStatus(result) {
+  // The endpoint's typed outcomes, mapped to one status word (TAP-6034).
+  if (result.routed) return "routed";
+  if (result.decision === "add") return result.completed ? "completed" : "failed";
+  if (result.decision === "ignore") return result.ignored ? "ignored" : "failed";
+  if (result.decision === "later") return result.deferred ? "deferred" : "failed";
+  return "failed";
+}
+
+function renderOutcome(box, result) {
+  const status = decisionStatus(result);
+  // The nested step summary carries the actionable half of routed/failed
+  // outcomes (which step, which fields, why) — surface it (TAP-6034 polish).
+  const step = result.step || {};
+  const detail = [
+    result.entry_state ? `entry ${result.entry_state}` : null,
+    result.read_back ? `read-back ${result.read_back}` : null,
+    result.reason ? `reason: ${result.reason}` : null,
+    result.key ? `key ${result.key}` : null,
+    step.step_type ? `step: ${step.step_type}${step.step_id ? ` (${step.step_id})` : ""}` : null,
+    (step.fields || []).length ? `enter: ${step.fields.join(", ")}` : null,
+    step.reason ? `step reason: ${step.reason}` : null,
+  ].filter(Boolean).join(" · ");
+  const cls = { completed: "converged", routed: "converged", ignored: "skipped",
+                deferred: "skipped", failed: "failed" }[status];
+  box.replaceChildren(el("div", { class: `result ${cls}`,
+    text: detail ? `${status} · ${detail}` : status }));
+}
+
 function triageWidget(item) {
+  // Page-side state keys on triage_key: stable across rescans, unlike the
+  // flow:{flow_id} item id (TAP-6034 acceptance).
+  const key = item.triage_key || item.id;
+  const flowId = item.id.replace(/^flow:/, "");
   const box = el("div", { class: "choices" });
+  const outcome = el("div", {});
   for (const option of item.decision.options) {
     const radio = el("input", { type: "radio", name: item.id, value: option,
-      checked: state.triage[item.id] === option ? "" : null,
-      onchange: () => { state.triage[item.id] = option; persist(); } });
+      checked: state.triage[key] === option ? "" : null,
+      onchange: async () => {
+        state.triage[key] = option; persist();
+        outcome.replaceChildren(el("div", { class: "note", text: `applying ${option}…` }));
+        try {
+          const result = await post(`api/v1/init/flows/${encodeURIComponent(flowId)}/decision`,
+            { decision: option });
+          renderOutcome(outcome, result);
+          if (decisionStatus(result) === "deferred") loadQueue();
+        } catch (err) {
+          outcome.replaceChildren(el("div", { class: "result failed",
+            text: `decision failed: ${err.message}` }));
+        }
+      } });
     box.append(el("label", {}, radio, document.createTextNode(option)));
   }
-  box.append(el("div", { class: "note",
-    text: "Triage decisions are saved here and applied in the triage step." }));
+  box.append(outcome);
   return box;
+}
+
+function renderTriggerResult(box, result) {
+  const rows = [];
+  if (result.opened) rows.push(`pairing window open for ${result.duration}s ` +
+    `(closes ${result.closes_at})`);
+  if (result.step_type) rows.push(`flow step: ${result.step_type}` +
+    (result.step_id ? ` (${result.step_id})` : ""));
+  for (const [k, v] of Object.entries(result.description_placeholders || {}))
+    rows.push(`${k}: ${v}`);
+  if ((result.fields || []).length) rows.push(`enter: ${result.fields.join(", ")}`);
+  if (result.reason) rows.push(`reason: ${result.reason}`);
+  // An honest refusal (flow_not_found, not_a_readiness_flow) must not
+  // render green (TAP-6034 polish).
+  const cls = result.reason ? "result blocked" : "result converged";
+  box.replaceChildren(...rows.map(text => el("div", { class: cls, text })));
+}
+
+function readinessTrigger(item) {
+  // handler → trigger endpoint (TAP-5946 surface): zha opens a pairing
+  // window, hacs starts device-code onboarding, PIN handlers advance the
+  // flow to its human-readable step.
+  const isHacs = item.handler === "hacs" ||
+    (item.decision && item.decision.action === "github_device_code");
+  const label = item.handler === "zha" ? "Open pairing window"
+    : isHacs ? "Start HACS authorization" : "Start pairing";
+  const out = el("div", {});
+  const button = el("button", { class: "small", text: label,
+    onclick: async () => {
+      out.replaceChildren(el("div", { class: "note", text: "starting…" }));
+      try {
+        const result = item.handler === "zha"
+          ? await post("api/v1/init/pairing/permit", {})
+          : isHacs
+            ? await post("api/v1/init/hacs/start", {})
+            : await post(`api/v1/init/flows/${encodeURIComponent(item.id.replace(/^flow:/, ""))}/start`);
+        renderTriggerResult(out, result);
+      } catch (err) {
+        out.replaceChildren(el("div", { class: "result failed",
+          text: `trigger failed: ${err.message}` }));
+      }
+    } });
+  return el("div", {}, button, out);
 }
 
 function widgetFor(item) {
@@ -180,12 +280,20 @@ function render(queue) {
         text: "be at the device — " + (item.readiness_reason || "person needed") }));
       card.append(h);
       if (item.human_action) card.append(el("div", { class: "action", text: item.human_action }));
+      if (item.readiness || (item.decision && item.decision.type === "readiness"))
+        card.append(readinessTrigger(item));
       card.append(widgetFor(item));
       root.append(card);
     }
   }
+  const deferred = queue.deferred_count
+    ? ` · ${queue.deferred_count} deferred hidden` : "";
+  root.append(el("label", { class: "note" },
+    el("input", { type: "checkbox", checked: showAll ? "" : null,
+      onchange: (e) => { showAll = e.target.checked; loadQueue(); } }),
+    document.createTextNode(" show deferred (later) items")));
   document.getElementById("status").textContent =
-    `${queue.items.length} open item(s) · generated from ${queue.generated_from}`;
+    `${queue.items.length} open item(s)${deferred} · generated from ${queue.generated_from}`;
 }
 
 function teamRow(team = {}) {
@@ -246,7 +354,7 @@ async function submit() {
 
 async function loadQueue() {
   try {
-    const response = await fetch("api/v1/init/queue");
+    const response = await fetch("api/v1/init/queue" + (showAll ? "?show_all=true" : ""));
     render(await response.json());
   } catch (err) {
     const queueBox = document.getElementById("queue");

@@ -108,6 +108,8 @@ class SimWs:
             return True, self.state.get("zha_devices", [])
         if command_type == "config_entries/flow/progress":
             return True, self.state.get("flow_progress", [])
+        if command_type == "hacs/repositories/list":
+            return True, self.state.get("hacs_repositories", [])
         return False, None
 
     def _write(self, command_type: str, args: dict[str, Any]) -> Any:
@@ -134,6 +136,12 @@ class SimWs:
                     "title": args.get("title"),
                 }
             )
+            return None
+        if command_type == "hacs/repository/download":
+            # Mirror HACS: download flips installed; loading needs a restart.
+            for repo in self.state.get("hacs_repositories", []):
+                if str(repo.get("id")) == str(args.get("repository")):
+                    repo["installed"] = True
             return None
         if command_type == "backup/config/update":
             return self._backup_config_update(args)
@@ -200,6 +208,9 @@ class SimWs:
         # The live device-registry API takes device_id even though the
         # registry entries themselves are keyed "id".
         target = args.pop(id_field, None) or args.pop("device_id", None)
+        # Mirror HA: an entity rename arrives as new_entity_id.
+        if key == "entities" and "new_entity_id" in args:
+            args["entity_id"] = args.pop("new_entity_id")
         for entry in self.state[key]:
             if entry.get(id_field) == target:
                 entry.update(args)
@@ -241,6 +252,12 @@ class SimWs:
 
     async def list_entities(self) -> list[dict[str, Any]]:
         return self.state["entities"]
+
+    async def close(self) -> None:
+        self.state.setdefault("ws_reconnects", []).append("close")
+
+    async def connect(self) -> None:
+        self.state.setdefault("ws_reconnects", []).append("connect")
 
     async def supervisor_api(
         self,
@@ -295,11 +312,22 @@ class SimRest:
     ) -> dict[str, Any]:
         self.writes.append(f"flow_advance {flow_id}")
         self.state.setdefault("flow_inputs", []).append(dict(user_input))
-        step = dict(self.state.get("flow_next_step") or {"type": "create_entry"})
-        if step.get("type") == "create_entry" and user_input.get("name"):
-            # Mirror HA: the created entity_id derives from the name.
-            slug = re.sub(r"[^a-z0-9]+", "_", str(user_input["name"]).lower()).strip("_")
-            self.state["entities"].append({"entity_id": f"sensor.{slug}"})
+        queue = self.state.get("flow_steps")
+        if queue:
+            # Scripted multi-step flow: each advance pops the next step.
+            step = dict(queue.pop(0))
+        else:
+            step = dict(self.state.get("flow_next_step") or {"type": "create_entry"})
+            if step.get("type") == "create_entry" and user_input.get("name"):
+                # Mirror HA: the created entity_id derives from the name.
+                slug = re.sub(r"[^a-z0-9]+", "_", str(user_input["name"]).lower()).strip("_")
+                self.state["entities"].append({"entity_id": f"sensor.{slug}"})
+        for entity in step.pop("add_entities", []):
+            # Scripted side effect: entities the completing step materialises.
+            self.state["entities"].append(dict(entity))
+        for flow in step.pop("add_flows", []):
+            # Scripted side effect: discovery flows a completing setup opens.
+            self.state.setdefault("flow_progress", []).append(dict(flow))
         result = step.get("result")
         if step.get("type") == "create_entry" and isinstance(result, dict):
             # Mirror HA: a completed flow's entry becomes readable back.
@@ -308,11 +336,20 @@ class SimRest:
 
     async def abort_config_flow(self, flow_id: str) -> None:
         self.writes.append(f"flow_abort {flow_id}")
+        self.state["flow_progress"] = [
+            f for f in self.state.get("flow_progress", []) if f.get("flow_id") != flow_id
+        ]
 
     async def get_config_flow(self, flow_id: str) -> dict[str, Any]:
-        """Current-step re-render (a read), scripted via state['flow_current_step']."""
+        """Current-step re-render (a read).
+
+        Scripted via state['flow_current_steps'] (per flow_id) falling back
+        to state['flow_current_step'] (one shared step).
+        """
+        per_flow = self.state.get("flow_current_steps") or {}
         return dict(
-            self.state.get("flow_current_step")
+            per_flow.get(flow_id)
+            or self.state.get("flow_current_step")
             or {"type": "form", "flow_id": flow_id, "data_schema": []}
         )
 
@@ -326,6 +363,8 @@ class SimRest:
     async def request(self, method: str, path: str, **_kwargs: Any) -> Any:
         if method.upper() != "GET":
             self.writes.append(f"{method.upper()} {path}")
+        if path == "/api/config":
+            return {"state": "RUNNING"}
         if path == "/api/config/config_entries/entry":
             return self.state["config_entries"]
         if method.upper() == "DELETE" and path.startswith("/api/config/config_entries/entry/"):
@@ -338,6 +377,17 @@ class SimRest:
 
     async def get_config_entries(self) -> list[dict[str, Any]]:
         return await self.request("GET", "/api/config/config_entries/entry")
+
+    async def get_states(self) -> list[dict[str, Any]]:
+        return self.state.get("states", [])
+
+    async def check_config(self) -> dict[str, Any]:
+        return dict(self.state.get("check_config") or {"result": "valid"})
+
+    async def call_service(self, domain: str, service: str, **data: Any) -> Any:
+        self.writes.append(f"service {domain}.{service}")
+        self.state.setdefault("service_calls", []).append((domain, service, data))
+        return {}
 
     async def run_config_flow(self, domain: str, _steps: list[dict[str, Any]], **_c: Any) -> Any:
         self.writes.append(f"config_flow {domain}")

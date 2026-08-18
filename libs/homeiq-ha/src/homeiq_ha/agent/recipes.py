@@ -30,6 +30,7 @@ from .diagnostics import (
     ZigbeeCoordinatorWatchdogRecipe,
     ZigbeeMeshHealthRecipe,
 )
+from .enablement import LocalCalendarRecipe
 from .helpers import ManifestHelpersRecipe
 from .integration import IntegrationRecipe, TeamTrackerRecipe
 from .manifest import DEFAULT_MANIFEST_PATH, OrganizationManifest, load_manifest
@@ -37,6 +38,7 @@ from .organization import (
     ManifestEntityAliasesRecipe,
     ManifestEntityLabelsRecipe,
 )
+from .powercalc import PowercalcRecipe
 from .recipe import (
     PHASE_ADDONS,
     PHASE_CORRECTNESS,
@@ -348,6 +350,9 @@ def default_recipes(
         # OpenThread Border Router deliberately absent: no Thread radio on
         # this host — owner decision 2026-08-12, add-on uninstalled same day.
         HACSBootstrapRecipe(),
+        # Powercalc rides HACS (phase 5): download, restart, confirm a
+        # discovered power sensor. TAP-5431.
+        PowercalcRecipe(),
         # NWS deliberately absent: the stack already carries three weather
         # feeds (data-collectors/weather-api, websocket-ingestion's
         # OpenWeatherMap client, HA's met.no entry) — owner call 2026-08-12.
@@ -358,6 +363,9 @@ def default_recipes(
                 "sensor so its entity_id contains 'team_tracker'."
             ),
         ),
+        # Local Calendar (phase 6): feeds calendar-service once the entity
+        # exists and CALENDAR_ENTITIES names it. TAP-5431.
+        LocalCalendarRecipe(),
         ZHARecipe(zha_serial_path),
         ZigbeeCoordinatorWatchdogRecipe(zha_serial_path),
         ZigbeeMeshHealthRecipe(),
@@ -398,6 +406,8 @@ __all__ = [
     "HACSBootstrapRecipe",
     "IntegrationRecipe",
     "LabelsRecipe",
+    "LocalCalendarRecipe",
+    "PowercalcRecipe",
     "ManifestDeviceAreasRecipe",
     "ManifestEntityAliasesRecipe",
     "ManifestEntityLabelsRecipe",

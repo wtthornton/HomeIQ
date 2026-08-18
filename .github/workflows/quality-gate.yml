@@ -49,8 +49,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash scripts/check-workflow-enablement.sh
 
-      # TAP-5993: no committed credential defaults in compose files.
-      - name: compose files carry no credential defaults
+      # TAP-5993 + TAP-6036: no committed credential defaults in compose files or tracked env templates.
+      - name: no committed credential defaults (compose + env templates)
         run: bash scripts/check-compose-credential-defaults.sh
 
   quality-gate:

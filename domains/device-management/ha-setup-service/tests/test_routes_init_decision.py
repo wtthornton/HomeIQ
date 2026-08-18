@@ -171,6 +171,76 @@ def test_same_origin_post_passes_the_guard(monkeypatch: Any) -> None:
     assert resp.status_code == 200
 
 
+def test_rebinding_shape_matching_foreign_origin_and_host_is_403() -> None:
+    """Origin == Host == attacker DNS name — the TAP-6035 bypass shape.
+
+    The old guard compared Origin to the request's own Host, which a DNS-
+    rebinding page satisfies trivially; both must now pass the expected-host
+    policy instead.
+    """
+    resp = _client().post(
+        "/api/v1/init/pairing/permit",
+        json={"duration": 5},
+        headers={"Origin": "http://evil.example", "Host": "evil.example"},
+    )
+    assert resp.status_code == 403
+
+
+def test_foreign_host_without_origin_is_403() -> None:
+    resp = _client().post(
+        "/api/v1/init/pairing/permit",
+        json={"duration": 5},
+        headers={"Host": "evil.example"},
+    )
+    assert resp.status_code == 403
+
+
+def test_ip_literal_host_passes_without_configuration(monkeypatch: Any) -> None:
+    """LAN curl shape: IP-literal Host, no Origin — must keep working."""
+    from src import routes_init
+
+    _patch_ha(monkeypatch)
+
+    async def _fake_permit(ha: Any, duration: int = 60) -> dict[str, Any]:
+        return {"opened": True, "duration": duration}
+
+    monkeypatch.setattr(routes_init, "open_permit_window", _fake_permit)
+    resp = _client().post(
+        "/api/v1/init/pairing/permit",
+        json={"duration": 5},
+        headers={"Host": "192.168.1.80:8024"},
+    )
+    assert resp.status_code == 200
+
+
+def test_configured_expected_host_is_honored(monkeypatch: Any) -> None:
+    from types import SimpleNamespace
+
+    from src import routes_init
+
+    _patch_ha(monkeypatch)
+
+    async def _fake_permit(ha: Any, duration: int = 60) -> dict[str, Any]:
+        return {"opened": True, "duration": duration}
+
+    monkeypatch.setattr(routes_init, "open_permit_window", _fake_permit)
+    monkeypatch.setattr(
+        routes_init, "get_settings", lambda: SimpleNamespace(expected_hosts="homeiq.lan")
+    )
+    ok = _client().post(
+        "/api/v1/init/pairing/permit",
+        json={"duration": 5},
+        headers={"Host": "homeiq.lan:8024", "Origin": "http://homeiq.lan:8024"},
+    )
+    refused = _client().post(
+        "/api/v1/init/pairing/permit",
+        json={"duration": 5},
+        headers={"Host": "other.lan:8024"},
+    )
+    assert ok.status_code == 200
+    assert refused.status_code == 403
+
+
 def test_read_only_queue_is_not_origin_guarded(monkeypatch: Any) -> None:
     _patch_queue(monkeypatch, deferred=set())
     resp = _client().get(

@@ -57,8 +57,30 @@ done < <({ grep -inE "$SHAPE_A" $files /dev/null
            grep -inE "$SHAPE_D" $files /dev/null; } 2>/dev/null \
           | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' | sort -u || true)
 
+# TAP-6036: tracked env TEMPLATES (infrastructure/env.*) must not carry
+# non-empty credential values either — they are copied to .env verbatim, so
+# a baked value is a committed working credential. Same name-level contract:
+# print names and locations, never values. An interpolation value (`$...`)
+# is allowed; anything else non-empty on a credential-shaped name fails.
+env_files=$(git ls-files 'infrastructure/env.*' || true)
+if [[ -n "$env_files" ]]; then
+  while IFS=: read -r file ln content; do
+    [[ -z "$file" ]] && continue
+    target=${content%%=*}
+    name=$(grep -oiE "[A-Z0-9_]*${CRED}[A-Z0-9_]*" <<<"$target" | head -1 || true)
+    [[ -z "$name" ]] && continue
+    [[ "${name^^}" =~ (EXPIRE|EXPIRY|TTL|_FILE|_PATH|HEADER) ]] && continue
+    value=${content#*=}
+    [[ -z "$value" || "$value" == \$* ]] && continue
+    [[ "$value" =~ ^(true|false|[0-9]+)$ ]] && continue
+    echo "::error file=${file},line=${ln}::committed credential value (${name}) in a tracked env template — leave empty, set locally after copying to .env"
+    fail=1
+  done < <(grep -inE "^[A-Za-z0-9_]*${CRED}[A-Za-z0-9_]*=" $env_files /dev/null 2>/dev/null \
+            | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
+fi
+
 if [[ $fail -ne 0 ]]; then
   echo "FAIL: committed credential defaults found (names only above; values never printed)."
   exit 1
 fi
-echo "OK: zero non-empty credential defaults across $(wc -w <<<"$files") tracked compose files."
+echo "OK: zero non-empty credential defaults across $(wc -w <<<"$files") tracked compose files and $(wc -w <<<"$env_files") tracked env templates."
