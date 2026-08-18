@@ -56,11 +56,15 @@ async def test_get_summary_with_services(services_summary_service, mock_context_
 
 @pytest.mark.asyncio
 async def test_get_summary_empty(services_summary_service, mock_context_builder):
-    """Test getting summary with no services"""
+    """No services from Home Assistant falls back to the known-service summary"""
     with patch.object(services_summary_service.ha_client, "get_services", new_callable=AsyncMock, return_value={}):
         summary = await services_summary_service.get_summary()
 
-        assert "No services available" in summary
+        # Production substitutes a curated fallback rather than reporting nothing,
+        # so the model still knows the core service signatures.
+        assert "light.turn_on:" in summary
+        assert "rgb_color" in summary
+        # The fallback is cached too, so an empty API does not re-trigger it every turn.
         mock_context_builder._set_cached_value.assert_called_once()
 
 

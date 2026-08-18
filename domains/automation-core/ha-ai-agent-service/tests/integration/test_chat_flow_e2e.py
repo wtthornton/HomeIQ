@@ -337,9 +337,9 @@ async def test_chat_flow_error_handling(test_client, mock_openai_client):
         },
     )
 
-    assert response.status_code == 500
-    data = response.json()
-    assert "error" in data or "detail" in data
+    # An upstream OpenAI failure is a dependency outage, not an internal error.
+    assert response.status_code == 503
+    assert "try again later" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
