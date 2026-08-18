@@ -414,9 +414,13 @@ class SuggestionPipelineService:
                         end_hour = int(end.split(":")[0])
                         # Handle overnight quiet hours (e.g., 22:00 - 07:00)
                         if start_hour > end_hour:
-                            in_quiet_period = current_hour >= start_hour or current_hour < end_hour
+                            in_quiet_period = in_quiet_period or (
+                                current_hour >= start_hour or current_hour < end_hour
+                            )
                         else:
-                            in_quiet_period = start_hour <= current_hour < end_hour
+                            in_quiet_period = in_quiet_period or (
+                                start_hour <= current_hour < end_hour
+                            )
                     except (ValueError, IndexError):
                         pass
 

@@ -7,7 +7,7 @@ Uses mocked database dependencies to avoid real DB connections.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -188,3 +188,49 @@ class TestAcceptDeclineEndpoints:
             "/api/blueprint-suggestions/00000000-0000-0000-0000-000000000001/decline"
         )
         assert response.status_code != 404
+
+    @pytest.mark.asyncio
+    async def test_accept_surfaces_blueprint_inputs_from_producer_field(self):
+        """blueprint-index's BlueprintResponse serializes inputs under the
+        `inputs` field (src/api/schemas.py:57 in blueprint-index), not
+        `blueprint_inputs`. accept_suggestion must read that field so
+        AcceptSuggestionResponse.blueprint_inputs is populated.
+
+        Calls the route handler directly (bypassing the FastAPI TestClient
+        layer) since it exercises the exact buggy line without depending on
+        the shared `client` fixture's mocked `get_db`.
+        """
+        from src.api.routes import accept_suggestion
+
+        mock_suggestion = MagicMock(
+            id="00000000-0000-0000-0000-000000000001",
+            status="accepted",
+            blueprint_id="blueprint-1",
+            matched_devices=[{"entity_id": "light.kitchen", "domain": "light"}],
+            suggestion_score=0.9,
+            conversation_id=None,
+        )
+        mock_service = MagicMock()
+        mock_service.accept_suggestion = AsyncMock(return_value=mock_suggestion)
+
+        mock_blueprint_client = AsyncMock()
+        mock_blueprint_client.__aenter__.return_value = mock_blueprint_client
+        mock_blueprint_client.get_blueprint = AsyncMock(
+            return_value={
+                "yaml_content": "blueprint: {}",
+                "inputs": {"target_entity": "light.kitchen"},
+            }
+        )
+
+        with patch(
+            "src.clients.blueprint_client.BlueprintClient",
+            return_value=mock_blueprint_client,
+        ):
+            response = await accept_suggestion(
+                suggestion_id="00000000-0000-0000-0000-000000000001",
+                conversation_id=None,
+                db=AsyncMock(),
+                service=mock_service,
+            )
+
+        assert response.blueprint_inputs == {"target_entity": "light.kitchen"}
