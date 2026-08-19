@@ -7,22 +7,49 @@ from pathlib import Path
 
 import pytest
 import pytest_asyncio
+from homeiq_ha.client.errors import HACommandError
+from homeiq_ha.registry_writer import UnknownTarget, WriteNotVerified
 from src.config import Settings
 from src.core.database import get_db_session, initialize_database
 from src.models.database import DeviceHygieneIssue
 from src.services.remediation_service import DeviceHygieneRemediationService
 
+#: What HA's config/device_registry/update command schema actually accepts. A
+#: fake that echoed back any field handed to it is what let the `name=` rename
+#: look like it worked -- real HA answers success: false for anything else.
+_DEVICE_UPDATE_FIELDS = {"area_id", "disabled_by", "labels", "name_by_user"}
+
 
 class FakeHaClient:
-    def __init__(self, succeed: bool = True):
-        self.succeed = succeed
-        self.calls = []
+    """A registry just deep enough to answer HARegistryWriter's read-back."""
 
-    async def update_device_registry_entry(self, device_id: str, **fields):
-        self.calls.append(("device_update", device_id, fields))
-        if not self.succeed:
-            raise RuntimeError("update failed")
-        return {"id": device_id, **fields}
+    def __init__(self, succeed: bool = True, *, drop_writes: bool = False):
+        self.succeed = succeed
+        self.drop_writes = drop_writes
+        self.calls = []
+        self.devices = [{"id": "device-1", "name": "Kitchen Light", "area_id": None}]
+        self.areas = [{"area_id": "kitchen", "name": "Kitchen"}]
+
+    async def send_command(self, command_type: str, *, fields=None, **payload):
+        args = {**payload, **(fields or {})}
+        self.calls.append((command_type, args))
+
+        if command_type == "config/device_registry/list":
+            return self.devices
+        if command_type == "config/area_registry/list":
+            return self.areas
+        if command_type == "config/device_registry/update":
+            if not self.succeed:
+                raise RuntimeError("update failed")
+            changes = {k: v for k, v in args.items() if k != "device_id"}
+            if unknown := set(changes) - _DEVICE_UPDATE_FIELDS:
+                raise HACommandError(command_type, "invalid_format", f"extra keys: {unknown}")
+            if self.drop_writes:
+                return {}
+            entry = next(d for d in self.devices if d["id"] == args["device_id"])
+            entry.update(changes)
+            return entry
+        raise AssertionError(f"unexpected command {command_type}")
 
     async def update_entity_registry_entry(self, entity_id: str, **fields):
         self.calls.append(("entity_update", entity_id, fields))
@@ -126,3 +153,66 @@ async def test_remediation_failure_rolls_back(fresh_issue):
         await session.refresh(issue)
         assert issue.status == "open"
         break
+
+
+# -- Registry-gateway behaviour, without a database -------------------------
+#
+# The cases above need Postgres to build a DeviceHygieneIssue. These use a stand-in
+# so the Home Assistant side stays covered wherever the suite runs.
+
+
+class _Issue:
+    def __init__(self) -> None:
+        self.device_id = "device-1"
+        self.entity_id = None
+        self.status = "open"
+        self.metadata_json: dict = {}
+        self.updated_at = None
+        self.resolved_at = None
+
+
+class _Session:
+    async def commit(self) -> None:
+        pass
+
+    async def rollback(self) -> None:  # pragma: no cover - SQLAlchemy errors only
+        pass
+
+
+@pytest.mark.asyncio
+async def test_rename_writes_name_by_user_and_leaves_the_integration_name():
+    ha = FakeHaClient()
+    issue = _Issue()
+
+    assert await DeviceHygieneRemediationService(ha, _Session()).apply_action(
+        issue, "rename_device", "Kitchen Main Light"
+    ) is True
+    assert ha.devices[0]["name_by_user"] == "Kitchen Main Light"
+    assert ha.devices[0]["name"] == "Kitchen Light"  # integration-owned, untouched
+
+
+@pytest.mark.asyncio
+async def test_a_rename_that_does_not_land_leaves_the_issue_open():
+    ha = FakeHaClient(drop_writes=True)
+    issue = _Issue()
+
+    with pytest.raises(WriteNotVerified):
+        await DeviceHygieneRemediationService(ha, _Session()).apply_action(
+            issue, "rename_device", "Kitchen Main Light"
+        )
+    assert issue.status == "open"
+
+
+@pytest.mark.asyncio
+async def test_assign_area_refuses_an_area_that_does_not_exist():
+    ha = FakeHaClient()
+    issue = _Issue()
+    service = DeviceHygieneRemediationService(ha, _Session())
+
+    assert await service.apply_action(issue, "assign_area", "kitchen") is True
+    assert ha.devices[0]["area_id"] == "kitchen"
+
+    issue.status = "open"
+    with pytest.raises(UnknownTarget):
+        await service.apply_action(issue, "assign_area", "attic")
+    assert issue.status == "open"

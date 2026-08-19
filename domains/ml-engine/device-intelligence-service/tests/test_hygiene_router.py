@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 import pytest_asyncio
+from homeiq_ha.client.errors import HACommandError
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from src.api.hygiene_router import get_ha_client
@@ -15,14 +16,43 @@ from src.core.database import get_db_session, initialize_database
 from src.main import app
 from src.models.database import Device, DeviceHygieneIssue
 
+#: What HA's config/device_registry/update command schema actually accepts. A
+#: stub that echoed back any field it was handed is what let the `name=` rename
+#: look like it worked -- real HA answers success: false for anything else.
+_DEVICE_UPDATE_FIELDS = {"area_id", "disabled_by", "labels", "name_by_user"}
+
 
 class StubHomeAssistantClient:
+    """A registry just deep enough to answer HARegistryWriter's read-back."""
+
     def __init__(self):
         self.calls = []
+        self.devices = [{"id": "device-1", "name": "Kitchen Light", "area_id": "kitchen"}]
+        self.entities = [{"entity_id": "light.kitchen", "disabled_by": "user"}]
+        self.areas = [{"area_id": "kitchen", "name": "Kitchen"}]
 
-    async def update_device_registry_entry(self, device_id: str, **fields):
-        self.calls.append(("device_update", device_id, fields))
-        return {"id": device_id, **fields}
+    async def send_command(self, command_type: str, *, fields=None, **payload):
+        args = {**payload, **(fields or {})}
+        self.calls.append((command_type, args))
+
+        if command_type == "config/device_registry/list":
+            return self.devices
+        if command_type == "config/area_registry/list":
+            return self.areas
+        if command_type == "config/entity_registry/get":
+            return next(e for e in self.entities if e["entity_id"] == args["entity_id"])
+        if command_type == "config/device_registry/update":
+            changes = {k: v for k, v in args.items() if k != "device_id"}
+            if unknown := set(changes) - _DEVICE_UPDATE_FIELDS:
+                raise HACommandError(command_type, "invalid_format", f"extra keys: {unknown}")
+            entry = next(d for d in self.devices if d["id"] == args["device_id"])
+            entry.update(changes)
+            return entry
+        if command_type == "config/entity_registry/update":
+            entry = next(e for e in self.entities if e["entity_id"] == args["entity_id"])
+            entry.update({k: v for k, v in args.items() if k != "entity_id"})
+            return entry
+        raise AssertionError(f"unexpected command {command_type}")
 
     async def update_entity_registry_entry(self, entity_id: str, **fields):
         self.calls.append(("entity_update", entity_id, fields))
@@ -107,7 +137,12 @@ async def test_apply_action_uses_home_assistant_client(test_client):
     assert response.status_code == 200
     payload = response.json()
     assert payload["status"] == "resolved"
-    assert stub_client.calls[0][0] == "device_update"
+    # The rename must reach name_by_user -- a device's `name` is integration-owned.
+    assert stub_client.devices[0]["name_by_user"] == "Kitchen Main Light"
+    assert ("config/device_registry/update", {
+        "device_id": "device-1",
+        "name_by_user": "Kitchen Main Light",
+    }) in stub_client.calls
 
     # Verify database updated
     async for session in get_db_session():

@@ -12,8 +12,10 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from homeiq_ha.client import HAClient
+from homeiq_ha.client.errors import HAClientError
+from homeiq_ha.registry_writer import HARegistryWriter
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -59,6 +61,11 @@ class AcceptNameResponse(BaseModel):
     device_id: str
     old_name: str
     new_name: str
+    synced_to_ha: bool | None = Field(
+        default=None,
+        description="Whether the rename was verified in the HA registry. "
+        "None when sync_to_ha was not requested.",
+    )
 
 
 class BatchEnhanceRequest(BaseModel):
@@ -83,44 +90,33 @@ class BatchEnhanceResponse(BaseModel):
 
 
 async def sync_name_to_ha(device_id: str, new_name: str) -> bool:
-    """Sync a device name update to Home Assistant.
+    """Rename a device in the Home Assistant registry.
 
-    Calls the HA REST API to update the entity's friendly name.
+    ``device_id`` is the HA device registry id — ``Device.id`` is populated
+    straight from ``config/device_registry/list``, so it can be passed through.
 
-    Args:
-        device_id: The entity ID to update in Home Assistant.
-        new_name: The new friendly name to set.
+    Until TAP-6230 this posted to the ``homeassistant.update_entity`` service
+    with a ``name`` field. That service only forces a state refresh: it has no
+    ``name`` field, it cannot write the registry, and a device id is not an
+    entity id. It answered 200 to every call, so the rename was logged as
+    "Synced" and never happened. The gateway reads the value back, which is the
+    only check that would have caught it.
 
     Returns:
-        True if the sync succeeded, False otherwise.
+        True if the registry now holds ``new_name``.
     """
     if settings.HA_TOKEN is None:
         logger.warning("Cannot sync name to HA: HA_TOKEN is not configured")
         return False
 
-    url = f"{settings.HA_URL}/api/services/homeassistant/update_entity"
-    headers = {
-        "Authorization": f"Bearer {settings.HA_TOKEN}",
-        "Content-Type": "application/json",
-    }
-    payload = {"entity_id": device_id, "name": new_name}
-
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(url, json=payload, headers=headers)
-        if response.status_code == 200:
-            logger.info("Synced name '%s' to HA for entity %s", new_name, device_id)
-            return True
-        logger.warning(
-            "HA sync returned status %d for entity %s: %s",
-            response.status_code,
-            device_id,
-            response.text,
-        )
+        async with HAClient(settings.HA_URL, settings.HA_TOKEN) as ha:
+            await HARegistryWriter(ha.ws).set_device_name(device_id, new_name)
+    except HAClientError:
+        logger.exception("Failed to rename device %s to '%s' in HA", device_id, new_name)
         return False
-    except httpx.HTTPError:
-        logger.exception("Failed to sync name to HA for entity %s", device_id)
-        return False
+    logger.info("Renamed device %s to '%s' in HA", device_id, new_name)
+    return True
 
 
 @router.get("/devices/{device_id}/suggestions", response_model=NameSuggestionsResponse)
@@ -192,8 +188,6 @@ async def accept_suggested_name(
 
         old_name = device.name_by_user or device.name or "Unknown"
 
-        old_name = device.name_by_user or device.name or "Unknown"
-
         # Update device name_by_user
         device.name_by_user = request.suggested_name
         device.updated_at = datetime.now(UTC)
@@ -251,12 +245,16 @@ async def accept_suggested_name(
 
         await session.commit()
 
-        # Sync to Home Assistant if requested
-        if request.sync_to_ha:
-            await sync_name_to_ha(device_id, request.suggested_name)
+        # Sync to Home Assistant if requested. The DB write above stands either
+        # way; `synced` is what tells the caller whether HA agrees with it.
+        synced = await sync_name_to_ha(device_id, request.suggested_name) if request.sync_to_ha else None
 
         return AcceptNameResponse(
-            success=True, device_id=device_id, old_name=old_name, new_name=request.suggested_name
+            success=True,
+            device_id=device_id,
+            old_name=old_name,
+            new_name=request.suggested_name,
+            synced_to_ha=synced,
         )
     except HTTPException:
         raise

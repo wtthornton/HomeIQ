@@ -498,9 +498,20 @@ class HAWebSocketClient:
         return await self._registry_list("device_registry")
 
     async def update_device(self, device_id: str, **changes: Any) -> dict[str, Any]:
-        """Update a device. Renaming a device with ``has_entity_name`` cascades
-        to its entity_ids and friendly names — 19 device renames rather than
-        164 entity renames."""
+        """Update a device. Accepts ``area_id``, ``disabled_by``, ``labels`` and
+        ``name_by_user`` — HA core rejects anything else, and a device's ``name``
+        stays integration-owned.
+
+        Renaming a device recomputes the *friendly name* of every entity on it
+        with ``has_entity_name`` — 19 device renames rather than 164 entity
+        renames. It does **not** touch ``entity_id`` slugs: this command never
+        reaches the entity registry, and HA moves a slug only when handed
+        ``new_entity_id``. Verified against HA core 2026.8.2
+        (``components/config/device_registry.py``).
+
+        Prefer :class:`homeiq_ha.registry_writer.HARegistryWriter` for name and
+        area writes — it reads the value back and refuses to report a write that
+        did not land."""
         return await self.send_command(
             "config/device_registry/update", device_id=device_id, **changes
         )

@@ -15,6 +15,7 @@ from typing import Any
 
 import aiohttp
 import websockets
+from homeiq_ha.client.errors import HACommandError
 from websockets.exceptions import ConnectionClosed
 
 logger = logging.getLogger(__name__)
@@ -588,8 +589,36 @@ class HomeAssistantClient:
             logger.error(f"Failed to get system config: {e}")
             return {}
 
+    async def send_command(
+        self, command_type: str, *, fields: dict[str, Any] | None = None, **payload: Any
+    ) -> Any:
+        """Send one command and return its ``result``.
+
+        Mirrors ``homeiq_ha.client.ws.HAWebSocketClient.send_command`` so this
+        client can drive :class:`homeiq_ha.registry_writer.HARegistryWriter`
+        without opening a second connection to the same instance.
+
+        Raises:
+            HACommandError: Home Assistant answered ``success: false``.
+        """
+        message = {"type": command_type, **payload, **(fields or {})}
+        response = await self.send_message(message)
+        if response.get("success"):
+            return response.get("result")
+
+        error = response.get("error") or {}
+        raise HACommandError(
+            command_type, error.get("code", "unknown"), error.get("message", str(error))
+        )
+
     async def update_device_registry_entry(self, device_id: str, **fields: Any) -> dict[str, Any]:
-        """Update device registry entry with safety checks."""
+        """Update device registry entry with safety checks.
+
+        Prefer :class:`homeiq_ha.registry_writer.HARegistryWriter` for name and
+        area writes — HA accepts only ``area_id``, ``disabled_by``, ``labels``
+        and ``name_by_user`` here, and answers ``success: false`` for anything
+        else, including a plain ``name``.
+        """
         if not device_id:
             raise ValueError("device_id is required")
         if not fields:

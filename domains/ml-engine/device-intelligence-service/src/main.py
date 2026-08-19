@@ -16,9 +16,8 @@ from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 
 from .api.database_management import router as database_management_router
 from .api.device_mappings_router import router as device_mappings_router
-from .api.discovery import get_discovery_service
+from .api.discovery import get_discovery_service, shutdown_discovery_service
 from .api.discovery import router as discovery_router
-from .api.discovery import shutdown_discovery_service
 from .api.health import router as health_router
 from .api.health_router import router as health_api_router
 from .api.hygiene_router import router as hygiene_router

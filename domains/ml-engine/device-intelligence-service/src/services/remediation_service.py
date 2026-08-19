@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from homeiq_ha.registry_writer import HARegistryWriter
 from sqlalchemy.exc import SQLAlchemyError
 
 if TYPE_CHECKING:
@@ -20,6 +21,7 @@ class DeviceHygieneRemediationService:
     def __init__(self, ha_client: HomeAssistantClient, session: AsyncSession):
         self._ha_client = ha_client
         self._session = session
+        self._writer = HARegistryWriter(ha_client)
 
     async def apply_action(
         self,
@@ -41,20 +43,19 @@ class DeviceHygieneRemediationService:
         if not issue.device_id or not name or not name.strip():
             return False
 
-        result = await self._ha_client.update_device_registry_entry(
-            issue.device_id,
-            name=name.strip(),
-        )
-        return await self._mark_resolved(issue, {"applied_value": result.get("name", name.strip())})
+        applied = name.strip()
+        # Was `update_device_registry_entry(name=...)`, which HA rejects outright:
+        # the command schema accepts name_by_user, and a device's `name` stays
+        # integration-owned. The gateway writes the right field and reads it back,
+        # so an issue is only marked resolved once HA agrees.
+        await self._writer.set_device_name(issue.device_id, applied)
+        return await self._mark_resolved(issue, {"applied_value": applied})
 
     async def _assign_area(self, issue: DeviceHygieneIssue, area_id: str | None) -> bool:
         if not issue.device_id or not area_id:
             return False
 
-        await self._ha_client.update_device_registry_entry(
-            issue.device_id,
-            area_id=area_id,
-        )
+        await self._writer.set_device_area(issue.device_id, area_id)
         return await self._mark_resolved(issue, {"area_id": area_id})
 
     async def _enable_entity(self, issue: DeviceHygieneIssue) -> bool:
