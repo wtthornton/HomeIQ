@@ -26,9 +26,21 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Production stage
 FROM python:3.12-alpine
 
+# openssh-client backs the init agent's write path to the HA host's /config
+# (host_files.SSHHostFiles shells out to `ssh` against the core_ssh add-on).
+# Without it the FP1E quirk recipe could never do more than report
+# NOT_APPLICABLE, because the binary it invokes was not in the image.
+RUN apk add --no-cache openssh-client
+
 # Add non-root user for security
 RUN addgroup -g 1001 -S appgroup && \
     adduser -S appuser -u 1001 -G appgroup
+
+# ssh writes known_hosts here on first contact (StrictHostKeyChecking=accept-new),
+# so the directory has to exist and be owned by the runtime user.
+RUN mkdir -p /home/appuser/.ssh && \
+    chown -R appuser:appgroup /home/appuser/.ssh && \
+    chmod 700 /home/appuser/.ssh
 
 WORKDIR /app
 

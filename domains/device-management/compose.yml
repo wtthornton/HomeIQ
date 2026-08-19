@@ -234,10 +234,26 @@ services:
       - INTEGRATION_CHECK_INTERVAL=300
       - ENABLE_PERFORMANCE_MONITORING=true
       - PERFORMANCE_SAMPLE_INTERVAL=30
+      # Overrides the .env value, which names a path on the HOST. Inside the
+      # container the key is only ever at the mount target below.
+      - HOMEIQ_HA_SSH_KEY=/run/secrets/ha_agent_key
     volumes:
       - ha_setup_data:/app/data
       - ../../config:/app/config
       - homeiq_logs:/var/log/homeiq
+      # Private key for the init agent's write path to the HA host's /config
+      # (the core_ssh add-on). Read-only, and a SEPARATE copy of the operator's
+      # key rather than the key itself: a bind mount keeps host ownership, so
+      # the file must be group-readable for uid 1001 to open it at all, and
+      # loosening the original would make ssh on the host reject it. The copy
+      # is 0640 root-group-1000; SSHHostFiles restages it 0600 before invoking
+      # ssh, because OpenSSH refuses a group-readable private key.
+      #
+      # NOTE: this grants the container root SSH to Home Assistant. Point
+      # HOMEIQ_HA_SSH_KEY_HOST at your own copy, or drop this mount and the
+      # env override above to disable the write path entirely (recipes needing
+      # it then report NOT_APPLICABLE rather than failing).
+      - ${HOMEIQ_HA_SSH_KEY_HOST:-/home/wtthornton/.homeiq-secrets/ha_agent_key}:/run/secrets/ha_agent_key:ro
     # appuser is uid 1001; the repo's config/ files are 1000:1000 mode 664.
     # Joining group 1000 makes the bind-mounted manifest writable without
     # changing the user (which would break ha_setup_data ownership).

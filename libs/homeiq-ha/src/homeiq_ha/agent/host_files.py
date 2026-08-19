@@ -194,11 +194,41 @@ class SSHHostFiles:
         self.timeout = timeout
         self._now = now or (lambda: datetime.now(UTC))
 
+    def _key_file(self) -> str:
+        """Return a private-key path ``ssh`` will actually accept.
+
+        OpenSSH refuses a key that is group- or world-readable, and a key
+        delivered by bind mount keeps its host ownership and mode — which in a
+        container is somebody else's uid. The mount therefore has to be
+        group-readable to be readable at all, which is exactly what ssh rejects.
+
+        So when the key as presented is not already private to this process, a
+        0600 copy is staged under the runtime user's own ``~/.ssh``. The staged
+        path is stable rather than a temp file: restaging on every call would
+        churn the filesystem, and a fixed name is idempotent.
+        """
+        src = Path(self.target.key_path).expanduser()
+        try:
+            st = src.stat()
+        except OSError:
+            # Missing or unreadable: hand the original to ssh and let its own
+            # error message say so, rather than masking it with a copy failure.
+            return str(src)
+        if st.st_uid == os.getuid() and not st.st_mode & 0o077:
+            return str(src)
+        staged = Path.home() / ".ssh" / "homeiq-agent-key"
+        staged.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        data = src.read_bytes()
+        if not staged.exists() or staged.read_bytes() != data:
+            staged.write_bytes(data)
+        staged.chmod(0o600)
+        return str(staged)
+
     def _argv(self, remote_command: str) -> list[str]:
         return [
             "ssh",
             "-i",
-            str(Path(self.target.key_path).expanduser()),
+            self._key_file(),
             "-p",
             str(self.target.port),
             # accept-new, not no: the host key is still pinned after first
