@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..clients.ha_client import HAArea, HADevice, HAEntity
@@ -207,6 +208,10 @@ class DiscoveryService:
 
             # Parse and unify device data
             await self._unify_device_data()
+            # Entities must land before the analyzer runs: hygiene findings carry
+            # a foreign key to device_entities, so an empty table makes every
+            # entity-scoped finding unpersistable.
+            await self._persist_entities()
             await self._run_hygiene_analysis()
 
             # Update last discovery timestamp
@@ -220,6 +225,83 @@ class DiscoveryService:
         except Exception as e:
             logger.error("Error during discovery: %s", e)
             self.errors.append(f"Discovery error: {str(e)}")
+
+    async def _persist_entities(self):
+        """Mirror the Home Assistant entity registry into ``device_entities``.
+
+        Nothing populated this table, while ``device_hygiene_issues.entity_id``
+        carries a foreign key to it. The analyzer therefore produced findings on
+        every run and lost all of them to a ForeignKeyViolationError, which read
+        in the dashboard as "no issues" rather than as a failure.
+
+        ``device_id`` is nulled when the referenced device is absent from
+        ``devices``: that column has its own FK, and an entity whose device has
+        not synced yet must not take the whole batch down with it. Helper
+        entities legitimately carry no device at all.
+        """
+        if not self.ha_entities:
+            return
+        try:
+            async for session in get_db_session():
+                known = set(
+                    (await session.execute(text("SELECT id FROM devices"))).scalars().all()
+                )
+                rows = [
+                    {
+                        "entity_id": e.entity_id,
+                        "device_id": e.device_id if e.device_id in known else None,
+                        "name": e.name,
+                        "original_name": e.original_name,
+                        "platform": e.platform or "unknown",
+                        "domain": e.domain or e.entity_id.split(".", 1)[0],
+                        "disabled_by": e.disabled_by,
+                        "entity_category": e.entity_category,
+                        "hidden_by": e.hidden_by,
+                        "has_entity_name": bool(e.has_entity_name),
+                        "original_icon": e.original_icon,
+                        "unique_id": e.unique_id,
+                        "translation_key": e.translation_key,
+                    }
+                    for e in self.ha_entities
+                ]
+                await session.execute(
+                    text(
+                        """
+                        INSERT INTO device_entities (
+                            entity_id, device_id, name, original_name, platform, domain,
+                            disabled_by, entity_category, hidden_by, has_entity_name,
+                            original_icon, unique_id, translation_key,
+                            created_at, updated_at
+                        ) VALUES (
+                            :entity_id, :device_id, :name, :original_name, :platform, :domain,
+                            :disabled_by, :entity_category, :hidden_by, :has_entity_name,
+                            :original_icon, :unique_id, :translation_key,
+                            NOW(), NOW()
+                        )
+                        ON CONFLICT (entity_id) DO UPDATE SET
+                            device_id = EXCLUDED.device_id,
+                            name = EXCLUDED.name,
+                            original_name = EXCLUDED.original_name,
+                            platform = EXCLUDED.platform,
+                            domain = EXCLUDED.domain,
+                            disabled_by = EXCLUDED.disabled_by,
+                            entity_category = EXCLUDED.entity_category,
+                            hidden_by = EXCLUDED.hidden_by,
+                            has_entity_name = EXCLUDED.has_entity_name,
+                            original_icon = EXCLUDED.original_icon,
+                            unique_id = EXCLUDED.unique_id,
+                            translation_key = EXCLUDED.translation_key,
+                            updated_at = NOW()
+                        """
+                    ),
+                    rows,
+                )
+                await session.commit()
+                logger.info("Persisted %d entities to device_entities", len(rows))
+                break
+        except Exception as e:
+            logger.error("Error persisting entities: %s", e)
+            self.errors.append(f"Entity persistence error: {str(e)}")
 
     async def _run_hygiene_analysis(self):
         """Analyze device hygiene and persist findings."""

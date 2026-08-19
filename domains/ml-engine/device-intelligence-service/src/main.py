@@ -16,6 +16,7 @@ from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 
 from .api.database_management import router as database_management_router
 from .api.device_mappings_router import router as device_mappings_router
+from .api.discovery import get_discovery_service
 from .api.discovery import router as discovery_router
 from .api.discovery import shutdown_discovery_service
 from .api.health import router as health_router
@@ -81,6 +82,25 @@ async def _startup_analytics() -> None:
     logger.info("Training scheduler initialized")
 
 
+async def _startup_discovery() -> None:
+    """Start device discovery so its periodic hygiene analysis actually runs.
+
+    Without this the service was only ever constructed lazily, as a FastAPI
+    dependency of the ``/api/discovery/*`` routes. Nothing polls those routes,
+    so the five-minute loop that populates ``devices.device_hygiene_issues``
+    never started and the findings tables stayed empty.
+
+    A failure here is logged and swallowed on purpose: Home Assistant being
+    unreachable at boot must leave the rest of the service (health, mappings,
+    predictions) serving, exactly as an unavailable database does.
+    """
+    try:
+        await get_discovery_service()
+        logger.info("Device discovery started; hygiene analysis scheduled")
+    except Exception as exc:
+        logger.warning("Device discovery unavailable -- starting without it: %s", exc)
+
+
 async def _shutdown_resources() -> None:
     """Stop training scheduler, discovery service, analytics engine, and database."""
     if _training_scheduler:
@@ -102,6 +122,7 @@ async def _shutdown_resources() -> None:
 lifespan = ServiceLifespan(settings.service_name)
 lifespan.on_startup(_startup_db, name="database")
 lifespan.on_startup(_startup_analytics, name="analytics-engine")
+lifespan.on_startup(_startup_discovery, name="device-discovery")
 lifespan.on_shutdown(_shutdown_resources, name="all-resources")
 
 

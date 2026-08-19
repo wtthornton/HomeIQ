@@ -132,12 +132,15 @@ class HomeAssistantClient:
 
                 logger.info(f"Connecting to Home Assistant WebSocket: {ws_url}")
 
-                # Connect with authentication header
-                headers = {"Authorization": f"Bearer {self.token}"}
-
+                # No Authorization header: Home Assistant authenticates the
+                # WebSocket in-band (auth_required -> auth -> auth_ok, handled
+                # below) and ignores the header entirely. Passing one also cost
+                # us the connection outright — websockets renamed the keyword to
+                # additional_headers in 14.0, so the extra_headers spelling this
+                # used to carry raised TypeError against the pinned 17.x and
+                # every connect attempt failed before the handshake.
                 self.websocket = await websockets.connect(
                     ws_url,
-                    extra_headers=headers,
                     ping_interval=20,
                     ping_timeout=10,
                     close_timeout=10,

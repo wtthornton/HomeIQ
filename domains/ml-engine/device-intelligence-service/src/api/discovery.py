@@ -74,11 +74,15 @@ async def get_discovery_service() -> DiscoveryService:
 
     if _discovery_service is None:
         settings = Settings()
-        _discovery_service = DiscoveryService(settings)
+        service = DiscoveryService(settings)
 
-        # Start the service
-        if not await _discovery_service.start():
+        # Only publish the singleton once it is actually running. Assigning
+        # before start() meant a failed start left a stopped service cached,
+        # so every later call returned it as healthy and the discovery loop
+        # never ran again for the life of the process.
+        if not await service.start():
             raise HTTPException(status_code=500, detail="Failed to start discovery service")
+        _discovery_service = service
 
     return _discovery_service
 
