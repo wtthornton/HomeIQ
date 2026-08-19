@@ -1,9 +1,10 @@
 # Session handoff
-**Updated:** 2026-08-19T21:40:00Z
-**Git:** ed48df8f (branch tap-6230-ha-write-gateway)
+**Updated:** 2026-08-19T22:30:00Z
+**Git:** 106d832d (branch tap-6230-ha-write-gateway)
 **Linear P0:** TAP-6230
 
 ## Done
+- **Success criterion met.** Exactly one component writes a device/entity name or area (`HARegistryWriter`); admin-api, ha-setup-service, device-intelligence and the device-areas recipe all route through it. Three WS client implementations against one instance are now two.
 - `HARegistryWriter` (`libs/homeiq-ha/src/homeiq_ha/registry_writer.py`) is the single verified path for device/entity **name and area** writes. Takes anything with `send_command`, so it composes with `HAClient.ws`, the read-only proxy, the sim, and device-intelligence's own client. Every write reads the value back and raises `WriteNotVerified` on disagreement; refuses an unknown `area_id` (HA stores those verbatim and they would verify cleanly into a phantom area). Never sends `new_entity_id`, so entity_id slugs cannot move through it. 8 tests.
 - Fixed three defects the read-back exposed, all previously invisible behind a 200 or a stub:
   1. `sync_name_to_ha` posted to the `homeassistant.update_entity` **service** with a `name` field — a state-refresh service with no `name`, and a device id used as an entity id. Logged "Synced name", renamed nothing. Result was also discarded (`success=True` hardcoded); `AcceptNameResponse` now carries `synced_to_ha`.
@@ -13,7 +14,6 @@
 - Suites: homeiq-ha 315 passed (was 307), homeiq 3.14 113 passed, device-intelligence +9 runnable tests.
 
 ## Open
-- **Two callers still not routed through the gateway** (blocks the epic's success criterion): `admin-api` `entity_management_endpoints._sync_to_ha` (hand-rolled aiohttp WS, new connection + auth handshake *per write*, no read-back) and `ha-setup-service` `validation_service.apply_fix` (shared lib, no read-back). The agent recipes verify via their own contract and are fine.
 - 88 hygiene findings still unread — but the entity_id-cascade fear that froze them was unfounded, so device renames are now safe to act on.
 - TAP-6230 children still untouched: shared rules module (rubric implemented 5x incl. a TypeScript copy in `useEntityAudit.ts`), the brand-token contradiction, `AUTO_GENERATE_NAME_SUGGESTIONS` (still `False`, pipeline dark), TAP-6227, TAP-6228.
 - AF agent `homeiq-ha-automation-tester` committed but unpublished — needs a homeiq-scoped `afp_*` key; the one in `AgentForge/.env` returns 403.
@@ -28,7 +28,7 @@
 - `curl -s localhost:8024/api/v1/init/audit` — expect 24 satisfied, 1 blocked_on_human
 
 ## Next (P0)
-- Route `admin-api` `_sync_to_ha` and `ha-setup-service` `apply_fix` through `HARegistryWriter`, deleting the hand-rolled aiohttp WS client in admin-api. That closes "exactly one component writes a name or area, every other caller routes through it".
+- The write-gateway story is DONE. Next child: extract naming/area **rules** into one shared module. The rubric is implemented 5x — `convention_rules.py`, `name_generator.py`, `hygiene_analyzer._suggest_device_name`, `suggestion_engine.py`, and a TypeScript reimplementation in `useEntityAudit.ts:53-119`. The AC wants a test asserting dashboard and backend score the same entity identically; it will fail on day one, which is the point.
 
 ## Success criterion
 - Exactly one component writes a device or entity name or area to Home Assistant, and every other caller routes through it.
