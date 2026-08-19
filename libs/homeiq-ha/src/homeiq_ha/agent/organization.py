@@ -223,16 +223,28 @@ class ManifestEntityAliasesRecipe(Recipe):
         self.manifest = manifest
 
     async def _state(self, ha: Any) -> tuple[dict[str, tuple[list[str], list[str]]], list[str]]:
+        """Diff manifest aliases against the registry.
+
+        Existence is settled from the list, but aliases are read one entity at
+        a time: ``config/entity_registry/list`` returns a trimmed row that omits
+        ``aliases`` entirely, so every entity looked like it had none. The check
+        could never reach SATISFIED and a nightly converge rewrote the same
+        aliases forever. ``config/entity_registry/get`` returns the full entry.
+        The extra round trips are bounded by the manifest, not the instance —
+        only entities this recipe manages are fetched.
+        """
         entities = await ha.ws.send_command("config/entity_registry/list")
-        by_entity = {e["entity_id"]: e for e in entities or []}
+        known = {e["entity_id"] for e in entities or []}
         moves: dict[str, tuple[list[str], list[str]]] = {}
         stale: list[str] = []
         for row in self.manifest.entity_aliases:
-            entity = by_entity.get(row.entity_id)
-            if entity is None:
+            if row.entity_id not in known:
                 stale.append(row.entity_id)
                 continue
-            current = [str(a) for a in entity.get("aliases") or []]
+            entry = await ha.ws.send_command(
+                "config/entity_registry/get", entity_id=row.entity_id
+            )
+            current = [str(a) for a in (entry or {}).get("aliases") or []]
             missing = [a for a in row.aliases if a not in current]
             if missing:
                 moves[row.entity_id] = (current, current + missing)

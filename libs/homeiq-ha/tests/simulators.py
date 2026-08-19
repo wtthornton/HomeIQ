@@ -79,7 +79,7 @@ class SimWs:
         args = {**payload, **fields}
         self.calls.append((command_type, copy.deepcopy(args)))
 
-        handled, result = self._read(command_type)
+        handled, result = self._read(command_type, args)
         if handled:
             return result
         if command_type == "supervisor/api":
@@ -89,7 +89,7 @@ class SimWs:
         self.writes.append(command_type)
         return self._write(command_type, args)
 
-    def _read(self, command_type: str) -> tuple[bool, Any]:
+    def _read(self, command_type: str, args: dict[str, Any]) -> tuple[bool, Any]:
         """Answer a read command; ``(False, None)`` when it isn't one."""
         if command_type == "backup/config/info":
             return True, {"config": self.state["backup_config"]}
@@ -103,7 +103,21 @@ class SimWs:
         if command_type == "get_config":
             return True, self.state["core_config"]
         if command_type.endswith("_registry/list"):
-            return True, self.state[_registry_key(command_type)]
+            # The real entity_registry/list returns a TRIMMED row: aliases are
+            # not in it. Modelling that matters -- a simulator that returned the
+            # full entry let a recipe read entity["aliases"] from the list, see
+            # None on every entity, and report drift forever against aliases
+            # that were already set. Only /get carries them.
+            rows = self.state[_registry_key(command_type)]
+            if _registry_key(command_type) == "entities":
+                rows = [{k: v for k, v in e.items() if k != "aliases"} for e in rows]
+            return True, rows
+        if command_type.endswith("_registry/get"):
+            key = _registry_key(command_type)
+            id_field = _registry_id_field(command_type)
+            wanted = args.get(id_field)
+            entry = next((e for e in self.state[key] if e.get(id_field) == wanted), None)
+            return (True, entry) if entry is not None else (False, None)
         if command_type == "zha/devices":
             return True, self.state.get("zha_devices", [])
         if command_type == "config_entries/flow/progress":
