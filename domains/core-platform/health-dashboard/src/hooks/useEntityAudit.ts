@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { dataApi, adminApi } from '../services/api';
+import { scoreEntities, type ServerEntityScore } from '../services/namingApi';
 
 // --- Types ---
 
@@ -39,115 +40,53 @@ export interface LabelInfo {
 
 export interface AuditScore {
   entity_id: string;
+  /** Points awarded by the backend rubric. Never computed here. */
   total: number;
+  /** The rubric's maximum, so the UI never has to hardcode 100. */
+  max: number;
   hasArea: boolean;
   hasLabels: boolean;
-  hasAiLabel: boolean;
   hasAliases: boolean;
   nameFollowsConvention: boolean;
   hasDeviceClass: boolean;
   issues: string[];
 }
 
-// Known manufacturer/model strings to detect in friendly names
-const BRAND_PATTERNS = [
-  /philips/i, /hue/i, /aqara/i, /ikea/i, /tradfri/i, /sonoff/i,
-  /shelly/i, /zigbee/i, /z-wave/i, /zwave/i, /tuya/i, /xiaomi/i,
-  /tp-link/i, /tapo/i, /meross/i, /wemo/i, /broadlink/i,
-];
-
 const AI_INTENT_LABELS = ['ai:automatable', 'ai:monitor-only', 'ai:ignore', 'ai:critical'];
 const SENSOR_ROLE_LABELS = ['sensor:primary', 'sensor:trigger', 'sensor:condition', 'sensor:diagnostic'];
 
-function isTitleCase(name: string): boolean {
-  return name.split(/\s+/).every(w => w.length === 0 || w[0] === w[0].toUpperCase());
-}
+/**
+ * Rule names emitted by the backend rubric (convention_rules.ALL_RULES). The
+ * dashboard reads these; it does not decide them.
+ */
+const RULE_AREA = 'area_id';
+const RULE_LABELS = 'labels';
+const RULE_ALIASES = 'aliases';
+const RULE_FRIENDLY_NAME = 'friendly_name';
+const RULE_DEVICE_CLASS = 'device_class';
 
-function hasBrandInName(name: string): boolean {
-  return BRAND_PATTERNS.some(p => p.test(name));
-}
-
-export function scoreEntity(entity: EntityRecord, areaNames: string[]): AuditScore {
-  const issues: string[] = [];
-  let total = 0;
-
-  // Has area? (+20)
-  const hasArea = !!entity.area_id;
-  if (hasArea) total += 20;
-  else issues.push('No area assigned');
-
-  // Has labels? (+20, +10 if AI intent)
-  const labels = entity.labels || [];
-  const hasLabels = labels.length > 0;
-  const hasAiLabel = labels.some(l => AI_INTENT_LABELS.includes(l));
-  if (hasLabels) {
-    total += 20;
-    if (hasAiLabel) total += 10;
-  } else {
-    issues.push('No labels');
-  }
-
-  // Has aliases? (+20)
-  const aliases = entity.aliases || [];
-  const hasAliases = aliases.length > 0;
-  if (hasAliases) total += 20;
-  else issues.push('No aliases');
-
-  // Friendly name follows convention? (+20)
-  const fname = entity.friendly_name || entity.name || entity.original_name || '';
-  let nameFollowsConvention = true;
-  if (fname) {
-    let nameScore = 0;
-    // Starts with area name (+8)
-    const areaId = entity.area_id || '';
-    const areaDisplay = areaId.replace(/_/g, ' ');
-    const startsWithArea = areaNames.some(a =>
-      fname.toLowerCase().startsWith(a.toLowerCase())
-    ) || (areaDisplay && fname.toLowerCase().startsWith(areaDisplay.toLowerCase()));
-    if (startsWithArea) nameScore += 8;
-    else if (entity.area_id) issues.push('Name doesn\'t start with area');
-
-    // Title Case (+4)
-    if (isTitleCase(fname)) nameScore += 4;
-    else issues.push('Name not Title Case');
-
-    // No brand (+4)
-    if (!hasBrandInName(fname)) nameScore += 4;
-    else issues.push('Name contains brand/model');
-
-    // No integration prefix (+4)
-    const integrationPrefixes = ['zigbee', 'z-wave', 'mqtt', 'esphome', 'tasmota'];
-    const hasIntegrationPrefix = integrationPrefixes.some(p =>
-      fname.toLowerCase().startsWith(p)
-    );
-    if (!hasIntegrationPrefix) nameScore += 4;
-    else issues.push('Name has integration prefix');
-
-    total += nameScore;
-    nameFollowsConvention = nameScore >= 16;
-  } else {
-    nameFollowsConvention = false;
-    issues.push('No friendly name');
-  }
-
-  // Device class set? (+10 for sensors/binary_sensors)
-  const needsDeviceClass = entity.domain === 'sensor' || entity.domain === 'binary_sensor';
-  const hasDeviceClass = !!entity.device_class;
-  if (needsDeviceClass) {
-    if (hasDeviceClass) total += 10;
-    else issues.push('No device_class set');
-  }
+/**
+ * Translate one server score into the shape the audit components render.
+ *
+ * Every field here is derived from the server's verdict. The dashboard
+ * deliberately owns no scoring logic of its own — it used to, and the two
+ * rubrics silently disagreed on six separate axes (TAP-6230).
+ */
+export function toAuditScore(score: ServerEntityScore): AuditScore {
+  const earned = new Map(score.rules.map(r => [r.rule, r]));
+  const satisfied = (rule: string): boolean => (earned.get(rule)?.earned ?? 0) > 0;
+  const friendlyName = earned.get(RULE_FRIENDLY_NAME);
 
   return {
-    entity_id: entity.entity_id,
-    total: Math.min(total, 100),
-    hasArea,
-    hasLabels,
-    hasAiLabel,
-    hasAliases,
-    nameFollowsConvention,
-    hasDeviceClass,
-    issues,
+    entity_id: score.entity_id,
+    total: score.total_score,
+    max: score.max_score,
+    hasArea: satisfied(RULE_AREA),
+    hasLabels: satisfied(RULE_LABELS),
+    hasAliases: satisfied(RULE_ALIASES),
+    hasDeviceClass: satisfied(RULE_DEVICE_CLASS),
+    nameFollowsConvention: friendlyName ? friendlyName.earned === friendlyName.max : false,
+    issues: score.issues,
   };
 }
 
@@ -269,6 +208,7 @@ export function useEntityAudit() {
   const [entities, setEntities] = useState<EntityRecord[]>([]);
   const [areas, setAreas] = useState<AreaInfo[]>([]);
   const [labelsList, setLabelsList] = useState<LabelInfo[]>([]);
+  const [scores, setScores] = useState<AuditScore[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [subView, setSubView] = useState<SubView>('audit');
@@ -284,9 +224,15 @@ export function useEntityAudit() {
         dataApi.getLabels(),
       ]);
       if (!mounted.current) return;
-      setEntities(entitiesRes.entities || []);
+      const loadedEntities = entitiesRes.entities || [];
+      setEntities(loadedEntities);
       setAreas(areasRes.areas || []);
       setLabelsList(labelsRes.labels || []);
+
+      // Scored by the backend rubric, for exactly the entities on screen.
+      const serverScores = await scoreEntities(loadedEntities);
+      if (!mounted.current) return;
+      setScores(serverScores.map(toAuditScore));
     } catch (err) {
       if (!mounted.current) return;
       setError(err instanceof Error ? err.message : 'Failed to load entity data');
@@ -301,41 +247,63 @@ export function useEntityAudit() {
     return () => { mounted.current = false; };
   }, [fetchData]);
 
-  const areaNames = areas.map(a => a.display_name);
+  /**
+   * Re-score entities the user just edited. The write has not necessarily
+   * reached the service's registry yet, so the entity is sent along rather
+   * than looked up — otherwise the row would show a stale score until sync.
+   */
+  const rescore = useCallback(async (updated: EntityRecord[]) => {
+    const fresh = await scoreEntities(updated);
+    if (!mounted.current) return;
+    const byId = new Map(fresh.map(s => [s.entity_id, toAuditScore(s)]));
+    setScores(prev => prev.map(score => byId.get(score.entity_id) ?? score));
+  }, []);
 
-  const scores = entities.map(e => scoreEntity(e, areaNames));
+  /** Apply a change to one entity locally, then re-score it on the backend. */
+  const applyEntityPatch = useCallback(
+    async (entityId: string, patch: Partial<EntityRecord>) => {
+      let updated: EntityRecord | undefined;
+      setEntities(prev =>
+        prev.map(e => {
+          if (e.entity_id !== entityId) return e;
+          updated = { ...e, ...patch };
+          return updated;
+        })
+      );
+      if (updated) await rescore([updated]);
+    },
+    [rescore]
+  );
 
   const updateEntityLabels = useCallback(async (entityId: string, labels: string[]) => {
     await adminApi.setEntityLabels(entityId, labels);
-    setEntities(prev => prev.map(e =>
-      e.entity_id === entityId ? { ...e, labels } : e
-    ));
-  }, []);
+    await applyEntityPatch(entityId, { labels });
+  }, [applyEntityPatch]);
 
   const updateEntityAliases = useCallback(async (entityId: string, aliases: string[]) => {
     await adminApi.setEntityAliases(entityId, aliases);
-    setEntities(prev => prev.map(e =>
-      e.entity_id === entityId ? { ...e, aliases } : e
-    ));
-  }, []);
+    await applyEntityPatch(entityId, { aliases });
+  }, [applyEntityPatch]);
 
   const updateEntityName = useCallback(async (entityId: string, nameByUser: string) => {
     await adminApi.setEntityName(entityId, nameByUser);
-    setEntities(prev => prev.map(e =>
-      e.entity_id === entityId ? { ...e, name_by_user: nameByUser, friendly_name: nameByUser } : e
-    ));
-  }, []);
+    await applyEntityPatch(entityId, { name_by_user: nameByUser, friendly_name: nameByUser });
+  }, [applyEntityPatch]);
 
   const bulkAddLabels = useCallback(async (entityIds: string[], addLabels: string[], removeLabels: string[] = []) => {
     await adminApi.bulkLabel(entityIds, addLabels, removeLabels);
+    const touched: EntityRecord[] = [];
     setEntities(prev => prev.map(e => {
       if (!entityIds.includes(e.entity_id)) return e;
       const current = new Set(e.labels || []);
       addLabels.forEach(l => current.add(l));
       removeLabels.forEach(l => current.delete(l));
-      return { ...e, labels: Array.from(current) };
+      const updated = { ...e, labels: Array.from(current) };
+      touched.push(updated);
+      return updated;
     }));
-  }, []);
+    await rescore(touched);
+  }, [rescore]);
 
   return {
     entities, areas, labelsList, loading, error, scores,

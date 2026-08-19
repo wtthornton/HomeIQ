@@ -5,24 +5,7 @@
  * and "Fix" links to HA Setup tab. Auto-refreshes every 5 minutes.
  */
 import React, { useState, useEffect, useCallback } from 'react';
-
-interface TopIssue {
-  issue: string;
-  count: number;
-}
-
-interface AuditData {
-  total_entities: number;
-  average_score: number;
-  compliance_pct: number;
-  top_issues: TopIssue[];
-  score_distribution: {
-    excellent: number;
-    good: number;
-    fair: number;
-    poor: number;
-  };
-}
+import { fetchNamingAudit, type NamingAuditResponse } from '../services/namingApi';
 
 interface Props {
   darkMode: boolean;
@@ -32,16 +15,13 @@ interface Props {
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 export const ConventionComplianceCard: React.FC<Props> = ({ darkMode, onNavigateToSetup }) => {
-  const [audit, setAudit] = useState<AuditData | null>(null);
+  const [audit, setAudit] = useState<NamingAuditResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchAudit = useCallback(async () => {
     try {
-      const resp = await fetch('/device-intelligence/api/naming/audit?limit=500');
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const data = await resp.json();
-      setAudit(data);
+      setAudit(await fetchNamingAudit(500));
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load');

@@ -4,6 +4,7 @@ Naming Convention API Endpoints (Epic 64, Stories 64.1, 64.2, 64.4).
 Endpoints:
   GET  /api/naming/audit           — Full audit across all entities
   GET  /api/naming/score/{id}      — Score a single entity
+  POST /api/naming/score           — Score caller-supplied entities (stateless)
   POST /api/naming/suggest-aliases — Generate alias suggestions
   GET  /api/naming/suggest-name/{id} — Suggest convention-aware name
 """
@@ -35,6 +36,29 @@ _alias_generator = AliasGenerator()
 
 
 # ---------------------------------------------------------------------------
+# Request Models
+# ---------------------------------------------------------------------------
+
+
+class ScoreEntityInput(BaseModel):
+    """One entity to score. Mirrors the fields the rubric reads."""
+
+    entity_id: str
+    domain: str = ""
+    area_id: str = ""
+    friendly_name: str = ""
+    device_class: str = ""
+    aliases: list[str] = []
+    labels: list[str] = []
+
+
+class ScoreBatchRequest(BaseModel):
+    """Score entities as supplied, without reading the database."""
+
+    entities: list[ScoreEntityInput] = Field(..., min_length=1, max_length=500)
+
+
+# ---------------------------------------------------------------------------
 # Response Models
 # ---------------------------------------------------------------------------
 
@@ -55,6 +79,10 @@ class EntityScoreResponse(BaseModel):
     rules: list[RuleScoreResponse] = []
     issues: list[str] = []
     suggestions: list[str] = []
+
+
+class ScoreBatchResponse(BaseModel):
+    entities: list[EntityScoreResponse] = []
 
 
 class TopIssueResponse(BaseModel):
@@ -188,6 +216,23 @@ async def score_entity(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
         ) from e
+
+
+@router.post("/score", response_model=ScoreBatchResponse)
+async def score_entities(request: ScoreBatchRequest):
+    """Score caller-supplied entities against the naming rubric.
+
+    Unlike ``GET /score/{entity_id}``, this reads nothing from the database, so
+    a caller holding an entity the registry has not synced yet — an edit the
+    dashboard just applied, say — still gets an authoritative score rather than
+    a stale one. It is the only way for a client to score without owning a
+    second copy of the rubric (TAP-6230).
+    """
+    scores = [
+        _score_engine.score_entity(entity.model_dump()).to_dict()
+        for entity in request.entities
+    ]
+    return {"entities": scores}
 
 
 @router.post("/suggest-aliases", response_model=AliasBatchResponse)

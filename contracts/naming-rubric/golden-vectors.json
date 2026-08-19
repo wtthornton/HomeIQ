@@ -1,0 +1,847 @@
+{
+  "vectors": [
+    {
+      "name": "perfect_sensor",
+      "why": "All six rules satisfied; anchors the top of the 100-point scale.",
+      "entity": {
+        "entity_id": "sensor.kitchen_temperature",
+        "domain": "sensor",
+        "area_id": "kitchen",
+        "friendly_name": "Kitchen Temperature",
+        "device_class": "temperature",
+        "aliases": [
+          "kitchen temp",
+          "the kitchen thermometer"
+        ],
+        "labels": [
+          "ai:monitor-only",
+          "role:temperature"
+        ]
+      },
+      "expected": {
+        "entity_id": "sensor.kitchen_temperature",
+        "total_score": 100,
+        "max_score": 100,
+        "pct": 100.0,
+        "rules": [
+          {
+            "rule": "area_id",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "labels",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "aliases",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "friendly_name",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "device_class",
+            "earned": 10,
+            "max": 10,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "sensor_role",
+            "earned": 10,
+            "max": 10,
+            "issues": [],
+            "suggestions": []
+          }
+        ],
+        "issues": [],
+        "suggestions": []
+      }
+    },
+    {
+      "name": "bare_entity",
+      "why": "Nothing set; anchors the bottom. Non-sensor domains still earn the sensor_role rule.",
+      "entity": {
+        "entity_id": "light.unknown",
+        "domain": "light"
+      },
+      "expected": {
+        "entity_id": "light.unknown",
+        "total_score": 10,
+        "max_score": 100,
+        "pct": 10.0,
+        "rules": [
+          {
+            "rule": "area_id",
+            "earned": 0,
+            "max": 20,
+            "issues": [
+              "Entity has no area_id assigned"
+            ],
+            "suggestions": [
+              "Assign this entity to an area in Home Assistant"
+            ]
+          },
+          {
+            "rule": "labels",
+            "earned": 0,
+            "max": 20,
+            "issues": [
+              "Entity has no labels"
+            ],
+            "suggestions": [
+              "Add labels like 'ai:lighting', 'ai:climate' for better AI understanding"
+            ]
+          },
+          {
+            "rule": "aliases",
+            "earned": 0,
+            "max": 20,
+            "issues": [
+              "Entity has no aliases"
+            ],
+            "suggestions": [
+              "Add aliases for voice and chat recognition (e.g., 'kitchen light', 'the big lamp')"
+            ]
+          },
+          {
+            "rule": "friendly_name",
+            "earned": 0,
+            "max": 20,
+            "issues": [
+              "Entity has no friendly name"
+            ],
+            "suggestions": [
+              "Set a descriptive friendly name"
+            ]
+          },
+          {
+            "rule": "device_class",
+            "earned": 0,
+            "max": 10,
+            "issues": [
+              "Entity has no device_class"
+            ],
+            "suggestions": [
+              "Set device_class in HA for proper icon/unit handling"
+            ]
+          },
+          {
+            "rule": "sensor_role",
+            "earned": 10,
+            "max": 10,
+            "issues": [],
+            "suggestions": []
+          }
+        ],
+        "issues": [
+          "Entity has no area_id assigned",
+          "Entity has no labels",
+          "Entity has no aliases",
+          "Entity has no friendly name",
+          "Entity has no device_class"
+        ],
+        "suggestions": [
+          "Assign this entity to an area in Home Assistant",
+          "Add labels like 'ai:lighting', 'ai:climate' for better AI understanding",
+          "Add aliases for voice and chat recognition (e.g., 'kitchen light', 'the big lamp')",
+          "Set a descriptive friendly name",
+          "Set device_class in HA for proper icon/unit handling"
+        ]
+      }
+    },
+    {
+      "name": "single_alias",
+      "why": "One alias earns 15, not 20. The TS copy awarded a flat 20 here.",
+      "entity": {
+        "entity_id": "light.office_lamp",
+        "domain": "light",
+        "area_id": "office",
+        "friendly_name": "Office Lamp",
+        "device_class": "light",
+        "aliases": [
+          "desk lamp"
+        ],
+        "labels": [
+          "ai:automatable"
+        ]
+      },
+      "expected": {
+        "entity_id": "light.office_lamp",
+        "total_score": 95,
+        "max_score": 100,
+        "pct": 95.0,
+        "rules": [
+          {
+            "rule": "area_id",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "labels",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "aliases",
+            "earned": 15,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "friendly_name",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "device_class",
+            "earned": 10,
+            "max": 10,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "sensor_role",
+            "earned": 10,
+            "max": 10,
+            "issues": [],
+            "suggestions": []
+          }
+        ],
+        "issues": [],
+        "suggestions": []
+      }
+    },
+    {
+      "name": "ai_intent_label",
+      "why": "An ai: label earns the flat 20 for labels. The TS copy added a +10 bonus, overflowing past 100.",
+      "entity": {
+        "entity_id": "light.office_ceiling",
+        "domain": "light",
+        "area_id": "office",
+        "friendly_name": "Office Ceiling",
+        "device_class": "light",
+        "aliases": [
+          "ceiling",
+          "office light"
+        ],
+        "labels": [
+          "ai:automatable"
+        ]
+      },
+      "expected": {
+        "entity_id": "light.office_ceiling",
+        "total_score": 100,
+        "max_score": 100,
+        "pct": 100.0,
+        "rules": [
+          {
+            "rule": "area_id",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "labels",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "aliases",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "friendly_name",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "device_class",
+            "earned": 10,
+            "max": 10,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "sensor_role",
+            "earned": 10,
+            "max": 10,
+            "issues": [],
+            "suggestions": []
+          }
+        ],
+        "issues": [],
+        "suggestions": []
+      }
+    },
+    {
+      "name": "light_missing_device_class",
+      "why": "device_class is scored on every domain. The TS copy only scored it for sensors.",
+      "entity": {
+        "entity_id": "light.hallway_main",
+        "domain": "light",
+        "area_id": "hallway",
+        "friendly_name": "Hallway Main",
+        "aliases": [
+          "hall light",
+          "hallway"
+        ],
+        "labels": [
+          "ai:automatable"
+        ]
+      },
+      "expected": {
+        "entity_id": "light.hallway_main",
+        "total_score": 90,
+        "max_score": 100,
+        "pct": 90.0,
+        "rules": [
+          {
+            "rule": "area_id",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "labels",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "aliases",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "friendly_name",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "device_class",
+            "earned": 0,
+            "max": 10,
+            "issues": [
+              "Entity has no device_class"
+            ],
+            "suggestions": [
+              "Set device_class in HA for proper icon/unit handling"
+            ]
+          },
+          {
+            "rule": "sensor_role",
+            "earned": 10,
+            "max": 10,
+            "issues": [],
+            "suggestions": []
+          }
+        ],
+        "issues": [
+          "Entity has no device_class"
+        ],
+        "suggestions": [
+          "Set device_class in HA for proper icon/unit handling"
+        ]
+      }
+    },
+    {
+      "name": "brand_esp32",
+      "why": "esp32 is a brand token here but absent from the TS brand list.",
+      "entity": {
+        "entity_id": "switch.garage_esp32_relay",
+        "domain": "switch",
+        "area_id": "garage",
+        "friendly_name": "Garage Esp32 Relay",
+        "device_class": "switch",
+        "aliases": [
+          "garage relay",
+          "relay"
+        ],
+        "labels": [
+          "ai:automatable"
+        ]
+      },
+      "expected": {
+        "entity_id": "switch.garage_esp32_relay",
+        "total_score": 90,
+        "max_score": 100,
+        "pct": 90.0,
+        "rules": [
+          {
+            "rule": "area_id",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "labels",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "aliases",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "friendly_name",
+            "earned": 10,
+            "max": 20,
+            "issues": [
+              "Name 'Garage Esp32 Relay' is not Title Case",
+              "Name contains brand 'esp32'"
+            ],
+            "suggestions": [
+              "Rename to 'Garage Esp32 Relay'",
+              "Remove brand names from friendly name"
+            ]
+          },
+          {
+            "rule": "device_class",
+            "earned": 10,
+            "max": 10,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "sensor_role",
+            "earned": 10,
+            "max": 10,
+            "issues": [],
+            "suggestions": []
+          }
+        ],
+        "issues": [
+          "Name 'Garage Esp32 Relay' is not Title Case",
+          "Name contains brand 'esp32'"
+        ],
+        "suggestions": [
+          "Rename to 'Garage Esp32 Relay'",
+          "Remove brand names from friendly name"
+        ]
+      }
+    },
+    {
+      "name": "brand_tapo",
+      "why": "tapo is in the TS brand list but not this engine's, so the two disagreed in the other direction.",
+      "entity": {
+        "entity_id": "switch.office_tapo_plug",
+        "domain": "switch",
+        "area_id": "office",
+        "friendly_name": "Office Tapo Plug",
+        "device_class": "outlet",
+        "aliases": [
+          "office plug",
+          "plug"
+        ],
+        "labels": [
+          "ai:automatable"
+        ]
+      },
+      "expected": {
+        "entity_id": "switch.office_tapo_plug",
+        "total_score": 100,
+        "max_score": 100,
+        "pct": 100.0,
+        "rules": [
+          {
+            "rule": "area_id",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "labels",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "aliases",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "friendly_name",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "device_class",
+            "earned": 10,
+            "max": 10,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "sensor_role",
+            "earned": 10,
+            "max": 10,
+            "issues": [],
+            "suggestions": []
+          }
+        ],
+        "issues": [],
+        "suggestions": []
+      }
+    },
+    {
+      "name": "sensor_role_namespace",
+      "why": "The sensor_role rule requires a 'role:' prefix; the dashboard suggested 'sensor:' labels that earn nothing.",
+      "entity": {
+        "entity_id": "sensor.bedroom_motion",
+        "domain": "sensor",
+        "area_id": "bedroom",
+        "friendly_name": "Bedroom Motion",
+        "device_class": "motion",
+        "aliases": [
+          "bedroom pir",
+          "motion"
+        ],
+        "labels": [
+          "sensor:trigger"
+        ]
+      },
+      "expected": {
+        "entity_id": "sensor.bedroom_motion",
+        "total_score": 90,
+        "max_score": 100,
+        "pct": 90.0,
+        "rules": [
+          {
+            "rule": "area_id",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "labels",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "aliases",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "friendly_name",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "device_class",
+            "earned": 10,
+            "max": 10,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "sensor_role",
+            "earned": 0,
+            "max": 10,
+            "issues": [
+              "Sensor entity has no role label"
+            ],
+            "suggestions": [
+              "Add a role label like 'role:temperature', 'role:motion', 'role:energy'"
+            ]
+          }
+        ],
+        "issues": [
+          "Sensor entity has no role label"
+        ],
+        "suggestions": [
+          "Add a role label like 'role:temperature', 'role:motion', 'role:energy'"
+        ]
+      }
+    },
+    {
+      "name": "integration_prefix",
+      "why": "A leading integration name is not penalised here; the TS copy docked 4 points for it.",
+      "entity": {
+        "entity_id": "light.mqtt_porch",
+        "domain": "light",
+        "area_id": "porch",
+        "friendly_name": "Mqtt Porch",
+        "device_class": "light",
+        "aliases": [
+          "porch",
+          "porch light"
+        ],
+        "labels": [
+          "ai:automatable"
+        ]
+      },
+      "expected": {
+        "entity_id": "light.mqtt_porch",
+        "total_score": 95,
+        "max_score": 100,
+        "pct": 95.0,
+        "rules": [
+          {
+            "rule": "area_id",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "labels",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "aliases",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "friendly_name",
+            "earned": 15,
+            "max": 20,
+            "issues": [
+              "Name does not start with area name"
+            ],
+            "suggestions": [
+              "Prefix with area: 'Porch Mqtt Porch'"
+            ]
+          },
+          {
+            "rule": "device_class",
+            "earned": 10,
+            "max": 10,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "sensor_role",
+            "earned": 10,
+            "max": 10,
+            "issues": [],
+            "suggestions": []
+          }
+        ],
+        "issues": [
+          "Name does not start with area name"
+        ],
+        "suggestions": [
+          "Prefix with area: 'Porch Mqtt Porch'"
+        ]
+      }
+    },
+    {
+      "name": "lowercase_name",
+      "why": "Title Case is a strict regex here, far stricter than the TS per-word first-letter check.",
+      "entity": {
+        "entity_id": "light.den_lamp",
+        "domain": "light",
+        "area_id": "den",
+        "friendly_name": "den lamp",
+        "device_class": "light",
+        "aliases": [
+          "den",
+          "den light"
+        ],
+        "labels": [
+          "ai:automatable"
+        ]
+      },
+      "expected": {
+        "entity_id": "light.den_lamp",
+        "total_score": 95,
+        "max_score": 100,
+        "pct": 95.0,
+        "rules": [
+          {
+            "rule": "area_id",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "labels",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "aliases",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "friendly_name",
+            "earned": 15,
+            "max": 20,
+            "issues": [
+              "Name 'den lamp' is not Title Case"
+            ],
+            "suggestions": [
+              "Rename to 'Den Lamp'"
+            ]
+          },
+          {
+            "rule": "device_class",
+            "earned": 10,
+            "max": 10,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "sensor_role",
+            "earned": 10,
+            "max": 10,
+            "issues": [],
+            "suggestions": []
+          }
+        ],
+        "issues": [
+          "Name 'den lamp' is not Title Case"
+        ],
+        "suggestions": [
+          "Rename to 'Den Lamp'"
+        ]
+      }
+    },
+    {
+      "name": "no_area_prefix",
+      "why": "A name that omits its area prefix loses 5 of the friendly_name points.",
+      "entity": {
+        "entity_id": "light.attic_bulb",
+        "domain": "light",
+        "area_id": "attic",
+        "friendly_name": "Spare Bulb",
+        "device_class": "light",
+        "aliases": [
+          "spare",
+          "attic bulb"
+        ],
+        "labels": [
+          "ai:automatable"
+        ]
+      },
+      "expected": {
+        "entity_id": "light.attic_bulb",
+        "total_score": 95,
+        "max_score": 100,
+        "pct": 95.0,
+        "rules": [
+          {
+            "rule": "area_id",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "labels",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "aliases",
+            "earned": 20,
+            "max": 20,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "friendly_name",
+            "earned": 15,
+            "max": 20,
+            "issues": [
+              "Name does not start with area name"
+            ],
+            "suggestions": [
+              "Prefix with area: 'Attic Spare Bulb'"
+            ]
+          },
+          {
+            "rule": "device_class",
+            "earned": 10,
+            "max": 10,
+            "issues": [],
+            "suggestions": []
+          },
+          {
+            "rule": "sensor_role",
+            "earned": 10,
+            "max": 10,
+            "issues": [],
+            "suggestions": []
+          }
+        ],
+        "issues": [
+          "Name does not start with area name"
+        ],
+        "suggestions": [
+          "Prefix with area: 'Attic Spare Bulb'"
+        ]
+      }
+    }
+  ]
+}
