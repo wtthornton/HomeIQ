@@ -81,6 +81,41 @@ async def restart_core(
             raise HAClientError(f"HA did not reach state RUNNING within {timeout}s of the restart")
         await asyncio.sleep(poll_interval)
 
+    failed = await _automations_that_failed_to_load(ha)
+    if failed:
+        raise HAClientError(
+            f"core restarted but {len(failed)} automation(s) failed to load: "
+            f"{', '.join(failed)}"
+        )
+
+
+async def _automations_that_failed_to_load(ha: Any) -> list[str]:
+    """Automation entities Home Assistant could not set up, sorted.
+
+    RUNNING is not the same as healthy. A schema-broken automation does not
+    vanish on restart — it registers as an entity in state ``unavailable`` —
+    and that is the only signal Home Assistant gives, because the pre-flight
+    ``check_config`` above cannot see it: ``automation/config.py`` swallows
+    invalid items with ``raise_on_errors=False``, so the offending automation
+    is neither an error nor a warning and the config reports clean (core issue
+    86924, verified against 2026.8.2).
+
+    Without this, a restart that brings the home back with every automation
+    disabled reports success, the recipe reports applied, the audit reports
+    satisfied, and the lights simply stop responding.
+
+    Read failures are deliberately not swallowed. Being unable to verify is not
+    the same as having verified, and a caller that just restarted a live home
+    is owed the difference.
+    """
+    states = await ha.rest.request("GET", "/api/states")
+    return sorted(
+        entry["entity_id"]
+        for entry in states or []
+        if str(entry.get("entity_id", "")).startswith("automation.")
+        and entry.get("state") == "unavailable"
+    )
+
     # The restart killed the WebSocket; reconnect it for the reads that follow
     # (the client has no auto-reconnect on this path).
     await ha.ws.close()
