@@ -8,12 +8,13 @@ Writes to HomeIQ's data-api and syncs to Home Assistant Entity Registry.
 import logging
 import os
 import re
-from itertools import count
 from typing import Any
 
-import aiohttp
 import httpx
 from fastapi import APIRouter, HTTPException, status
+from homeiq_ha.client import HAClient
+from homeiq_ha.client.errors import HAClientError
+from homeiq_ha.registry_writer import HARegistryWriter
 from pydantic import BaseModel, Field, field_validator
 
 logger = logging.getLogger(__name__)
@@ -98,29 +99,12 @@ async def _patch_data_api(entity_id: str, patch: dict[str, Any]) -> dict[str, An
         ) from exc
 
 
-def _make_ws_caller(ws: aiohttp.ClientWebSocketResponse) -> Any:
-    """Return an async callable running one HA WS command and returning its result."""
-    counter = count(1)
-
-    async def call(payload: dict[str, Any]) -> Any:
-        msg_id = next(counter)
-        await ws.send_json({"id": msg_id, **payload})
-        while True:
-            msg = await ws.receive_json()
-            if msg.get("id") == msg_id and msg.get("type") == "result":
-                if not msg.get("success"):
-                    raise RuntimeError(str(msg.get("error")))
-                return msg.get("result")
-
-    return call
-
-
 def _slugify_label(name: str) -> str:
     """Approximate HA's label_id slugification (lowercase, non-alnum -> _)."""
     return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
 
 
-async def _resolve_label_ids(call: Any, label_names: list[str]) -> list[str]:
+async def _resolve_label_ids(ws: Any, label_names: list[str]) -> list[str]:
     """Map label names to label_registry ids, creating missing labels.
 
     Matches by exact name OR by slug: HA stores label_ids as slugs, and those
@@ -128,7 +112,7 @@ async def _resolve_label_ids(call: Any, label_names: list[str]) -> list[str]:
     (e.g. "role_presence" for "role:presence"). Treating such a slug as a new
     name would mint a duplicate "<slug>_2" label on every re-apply.
     """
-    registry = await call({"type": "config/label_registry/list"})
+    registry = await ws.send_command("config/label_registry/list")
     by_name = {lbl["name"]: lbl["label_id"] for lbl in registry}
     by_id = {lbl["label_id"] for lbl in registry}
     label_ids = []
@@ -138,7 +122,7 @@ async def _resolve_label_ids(call: Any, label_names: list[str]) -> list[str]:
         elif name in by_id or _slugify_label(name) in by_id:
             label_ids.append(name if name in by_id else _slugify_label(name))
         else:
-            created = await call({"type": "config/label_registry/create", "name": name})
+            created = await ws.send_command("config/label_registry/create", name=name)
             by_name[name] = created["label_id"]
             by_id.add(created["label_id"])
             label_ids.append(created["label_id"])
@@ -152,35 +136,38 @@ async def _sync_to_ha(entity_id: str, ha_patch: dict[str, Any]) -> dict[str, Any
     reference label_registry ids, so label names are resolved (and created)
     there first. Returns {"synced": bool, "detail": str} so callers can surface
     whether HA actually applied the change.
+
+    A name goes through HARegistryWriter, the one path that writes a name or an
+    area (TAP-6230). It reads the value back, so ``synced`` means the registry
+    holds the new name rather than that a command was accepted. Aliases and
+    labels are neither, and still write directly.
     """
     if not HA_URL or not HA_TOKEN:
         return {"synced": False, "detail": "HA_URL or HA_TOKEN not configured"}
 
-    ws_url = re.sub(r"^http", "ws", HA_URL.rstrip("/"), count=1) + "/api/websocket"
     try:
-        timeout = aiohttp.ClientTimeout(total=15)
-        async with (
-            aiohttp.ClientSession(timeout=timeout) as session,
-            session.ws_connect(ws_url) as ws,
-        ):
-            await ws.receive_json()  # auth_required
-            await ws.send_json({"type": "auth", "access_token": HA_TOKEN})
-            auth = await ws.receive_json()
-            if auth.get("type") != "auth_ok":
-                logger.warning("HA sync auth failed for %s", entity_id)
-                return {"synced": False, "detail": "HA websocket auth failed"}
-
-            call = _make_ws_caller(ws)
+        # The shared client owns the ws:// derivation, the auth handshake and
+        # request/response correlation, which this used to hand-roll.
+        async with HAClient(HA_URL, HA_TOKEN) as ha:
             patch = dict(ha_patch)
-            if "labels" in patch:
-                patch["labels"] = await _resolve_label_ids(call, patch["labels"])
+            name_given = "name" in patch
+            name = patch.pop("name", None)
 
-            await call({"type": "config/entity_registry/update", "entity_id": entity_id, **patch})
-            logger.info("Synced entity %s to HA registry", entity_id)
-            return {"synced": True, "detail": "ok"}
-    except (aiohttp.ClientError, RuntimeError, TimeoutError) as exc:
+            if "labels" in patch:
+                patch["labels"] = await _resolve_label_ids(ha.ws, patch["labels"])
+            if patch:
+                await ha.ws.send_command(
+                    "config/entity_registry/update",
+                    fields={"entity_id": entity_id, **patch},
+                )
+            if name_given:
+                await HARegistryWriter(ha.ws).set_entity_name(entity_id, name)
+    except (HAClientError, OSError, TimeoutError) as exc:
         logger.warning("HA sync failed for %s: %s", entity_id, exc)
         return {"synced": False, "detail": f"HA sync failed: {exc}"}
+
+    logger.info("Synced entity %s to HA registry", entity_id)
+    return {"synced": True, "detail": "ok"}
 
 
 # ── Endpoints ───────────────────────────────────────────────────────────────

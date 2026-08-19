@@ -10,6 +10,7 @@ The apply path matters most. It POSTed to a REST path that does not exist, so
 
 from __future__ import annotations
 
+from copy import deepcopy
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -26,7 +27,26 @@ def _ws():
     ws.list_entities = AsyncMock(return_value=ENTITIES)
     ws.list_areas = AsyncMock(return_value=AREAS)
     ws.list_devices = AsyncMock(return_value=DEVICES)
-    ws.update_entity = AsyncMock(return_value={"entity_id": "light.lamp", "area_id": "area_lr"})
+
+    # Applying a fix goes through HARegistryWriter, which reads the value back
+    # (TAP-6230). A mock that only echoed the update would report success against
+    # a registry that never changed, so this one holds state.
+    registry = deepcopy(ENTITIES)
+
+    async def send_command(command_type, *, fields=None, **payload):
+        args = {**payload, **(fields or {})}
+        if command_type == "config/area_registry/list":
+            return AREAS
+        if command_type == "config/entity_registry/get":
+            return next(e for e in registry if e["entity_id"] == args["entity_id"])
+        if command_type == "config/entity_registry/update":
+            entry = next(e for e in registry if e["entity_id"] == args["entity_id"])
+            entry.update({k: v for k, v in args.items() if k != "entity_id"})
+            return entry
+        raise AssertionError(f"unexpected command {command_type}")
+
+    ws.send_command = AsyncMock(side_effect=send_command)
+    ws.registry = registry
     return ws
 
 
@@ -48,14 +68,33 @@ class TestValidationServiceRegistry:
 
         assert result["success"] is True
         assert result["entity_id"] == "light.lamp"
-        ws.update_entity.assert_awaited_once_with("light.lamp", area_id="area_lr")
+        assert result["changed"] is True
+        # The area is reported applied only because the registry now holds it.
+        assert ws.registry[0]["area_id"] == "area_lr"
+        ws.send_command.assert_any_await(
+            "config/entity_registry/update",
+            fields={"entity_id": "light.lamp", "area_id": "area_lr"},
+        )
+
+    @pytest.mark.asyncio
+    async def test_apply_fix_refuses_an_area_home_assistant_does_not_have(self):
+        from homeiq_ha.registry_writer import UnknownTarget
+        from src.validation_service import ValidationService
+
+        ws = _ws()
+        with patch("src.validation_service.SharedHAClient", return_value=_facade(ws)):
+            service = ValidationService()
+            with pytest.raises(UnknownTarget):
+                await service.apply_fix("light.lamp", "area_attic")
+
+        assert ws.registry[0]["area_id"] is None
 
     @pytest.mark.asyncio
     async def test_apply_fix_raises_and_drops_connection(self):
         from src.validation_service import ValidationService
 
         ws = _ws()
-        ws.update_entity.side_effect = RuntimeError("command failed")
+        ws.send_command.side_effect = RuntimeError("command failed")
         with patch("src.validation_service.SharedHAClient", return_value=_facade(ws)):
             service = ValidationService()
             with pytest.raises(RuntimeError):

@@ -13,6 +13,7 @@ from typing import Any
 import aiohttp
 from homeiq_ha.client import HAClient as SharedHAClient
 from homeiq_ha.client import HAWebSocketClient
+from homeiq_ha.registry_writer import HARegistryWriter
 from pydantic import BaseModel, Field
 
 from .config import get_settings
@@ -298,15 +299,21 @@ class ValidationService:
         try:
             # config/entity_registry/update is a WebSocket command; the REST path
             # this used to POST to does not exist, so no fix was ever applied.
+            # HARegistryWriter is the one path that writes an area (TAP-6230): it
+            # reads the value back, so "applied" here means the registry agrees,
+            # and it refuses an area_id HA does not know rather than storing a
+            # dangling one. Clearing the cache afterwards re-derives the view; it
+            # was never a check that the write landed.
             connection = await self._connection()
-            result = await connection.update_entity(entity_id, area_id=area_id)
+            result = await HARegistryWriter(connection).set_entity_area(entity_id, area_id)
             logger.info(f"Successfully updated {entity_id} to area {area_id}")
             return {
                 "success": True,
                 "entity_id": entity_id,
                 "area_id": area_id,
                 "applied_at": datetime.now(UTC).isoformat(),
-                "result": result,
+                "changed": result.wrote,
+                "previous_area_id": result.previous,
             }
 
         except Exception as e:
