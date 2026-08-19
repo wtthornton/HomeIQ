@@ -179,14 +179,61 @@ async def test_mesh_health_emits_one_row_per_device_sorted_by_lqi():
         ]
     )
     result = await ZigbeeMeshHealthRecipe().check(ha)
-    assert result.status is CheckStatus.SATISFIED
+    # An unreachable device blocks. This asserted SATISFIED until 2026-08-18,
+    # when six nightly audits in a row printed "1 unavailable" in green over an
+    # FP1E that had been off the mesh since 12 August.
+    assert result.status is CheckStatus.BLOCKED_ON_HUMAN
+    assert result.human_action and "00:4" in result.human_action
     d = result.details
     assert d["device_count"] == 4
     assert d["unavailable"] == ["00:4"]
     assert d["weak_lqi"] == ["00:3"]
     # rows sorted weakest-LQI first (None sinks to the end)
     assert [r["ieee"] for r in d["devices"]] == ["00:3", "00:4", "00:2", "00:1"]
-    assert ha.ws.writes == [], "report-only: no writes"
+    assert ha.ws.writes == [], "never writes"
+
+
+@pytest.mark.asyncio
+async def test_mesh_health_satisfied_when_every_device_is_reachable():
+    """A weak but live link is informational; only unreachable blocks."""
+    from homeiq_ha.agent.recipes import ZigbeeMeshHealthRecipe
+
+    ha = _MeshHA(
+        [
+            {
+                "ieee": "00:1",
+                "name": "Coordinator",
+                "lqi": None,
+                "available": True,
+                "device_type": "Coordinator",
+            },
+            {"ieee": "00:3", "name": "Weak", "lqi": 12, "available": True},
+        ]
+    )
+    result = await ZigbeeMeshHealthRecipe().check(ha)
+    assert result.status is CheckStatus.SATISFIED
+    assert result.details["weak_lqi"] == ["00:3"]
+
+
+@pytest.mark.asyncio
+async def test_mesh_health_ignores_an_unavailable_coordinator():
+    """The coordinator watchdog owns the coordinator; this check must not double-report."""
+    from homeiq_ha.agent.recipes import ZigbeeMeshHealthRecipe
+
+    ha = _MeshHA(
+        [
+            {
+                "ieee": "00:1",
+                "name": "Coordinator",
+                "lqi": None,
+                "available": False,
+                "device_type": "Coordinator",
+            },
+        ]
+    )
+    result = await ZigbeeMeshHealthRecipe().check(ha)
+    assert result.status is CheckStatus.SATISFIED
+    assert result.details["unavailable"] == []
 
 
 @pytest.mark.asyncio

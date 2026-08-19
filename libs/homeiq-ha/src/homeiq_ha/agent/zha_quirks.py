@@ -299,9 +299,28 @@ class AqaraFP1EQuirkRecipe(Recipe):
             )
         summary = f"quirk installed; {len(quirked)} FP1E unit(s) quirked"
         if uninterviewed:
+            # Partial success is not success. Reporting SATISFIED here because
+            # *some* unit matched demoted "this presence sensor has no
+            # occupancy entity" to a suffix on a green line, which is how a
+            # dead FP1E survived six nightly audits unnoticed.
             summary += (
                 f"; {len(uninterviewed)} uninterviewed and unmatchable until "
                 f"re-interviewed: {uninterviewed}"
+            )
+            return CheckResult(
+                CheckStatus.BLOCKED_ON_HUMAN,
+                summary,
+                details,
+                human_action=(
+                    f"{len(uninterviewed)} FP1E unit(s) never finished the Zigbee "
+                    f"interview, so their manufacturer reads "
+                    f"'{UNKNOWN_MANUFACTURER}' and no quirk can match them: "
+                    f"{uninterviewed}. Confirm the unit has power, press its "
+                    "reset button once to wake it, then re-interview it in "
+                    "Settings > Devices > ZHA. Its Basic cluster has to answer "
+                    "before any quirk can match it, and only physical access "
+                    "can make that happen."
+                ),
             )
         return CheckResult(CheckStatus.SATISFIED, summary, details)
 

@@ -91,15 +91,31 @@ class ScenePolicyRecipe(Recipe):
 
 
 class ZigbeeMeshHealthRecipe(Recipe):
-    """Report-only per-device Zigbee mesh health (LQI + availability, TAP-5982).
+    """Per-device Zigbee mesh health (LQI + availability, TAP-5982).
 
     Emits one row per ZHA device (name, ieee, lqi, available, last_seen) into
     the audit so signal degradation is visible before it becomes a silent
     outage — the SLZB coordinator dropped mid-pairing 2026-08-12 and nothing
-    reported it. Strictly report-only: never writes, never blocks, never
-    alerts (the coordinator watchdog owns alerting). When ZHA is absent or its
-    API errors, it degrades to SATISFIED with a note rather than crashing the
-    nightly audit. Field names in the ``zha/devices`` payload
+    reported it.
+
+    Originally strictly report-only, which turned out to reproduce the very
+    failure it was written for: an Aqara FP1E went unreachable 2026-08-12 and
+    six consecutive nightly audits rendered it as ``SATISFIED`` — "6 device(s);
+    1 unavailable" printed in green. An unreachable device now degrades the
+    check to ``BLOCKED_ON_HUMAN``, because restoring one means going to the
+    hardware: mains, batteries, or a wake button. LQI stays informational —
+    weak links are worth seeing but do not yet imply an action.
+
+    Availability is ZHA's own verdict rather than a threshold invented here.
+    ZHA marks a device unavailable only after ``consider_unavailable_mains``
+    (2 h) or ``consider_unavailable_battery`` (6 h) of silence, so anything
+    still flagged at audit time has been quiet for hours, not seconds. This
+    also avoids parsing ``last_seen``, which ZHA reports as a naive local
+    timestamp that a UTC container would misread by the whole offset.
+
+    Never writes. When ZHA is absent or its API errors, it degrades to
+    SATISFIED with a note rather than crashing the nightly audit. Field names
+    in the ``zha/devices`` payload
     (``user_given_name``/``lqi``/``last_seen``/``device_type``) are as of
     HA 2026.8.1, verified live 2026-08-12.
     """
@@ -135,23 +151,37 @@ class ZigbeeMeshHealthRecipe(Recipe):
             for d in devices
         ]
         rows.sort(key=lambda r: (r["lqi"] is None, r["lqi"] if r["lqi"] is not None else 0))
-        unavailable = [r["ieee"] for r in rows if not r["available"]]
+        # The coordinator is excluded: it has no availability of its own, and
+        # its health is the coordinator watchdog's job, not this check's.
+        offline = [r for r in rows if not r["available"] and not r["is_coordinator"]]
+        unavailable = [r["ieee"] for r in offline]
         weak = [r["ieee"] for r in rows if isinstance(r["lqi"], int) and r["lqi"] < self.WEAK_LQI]
         lqis = [r["lqi"] for r in rows if isinstance(r["lqi"], int)]
         summary = (
             f"{len(rows)} device(s); {len(unavailable)} unavailable; "
             f"weakest LQI {min(lqis) if lqis else 'n/a'}"
         )
-        return CheckResult(
-            CheckStatus.SATISFIED,
-            summary,
-            {
-                "device_count": len(rows),
-                "unavailable": unavailable,
-                "weak_lqi": weak,
-                "devices": rows,
-            },
-        )
+        details = {
+            "device_count": len(rows),
+            "unavailable": unavailable,
+            "weak_lqi": weak,
+            "devices": rows,
+        }
+        if offline:
+            names = ", ".join(f"{r['name']} ({r['ieee']}, last seen {r['last_seen']})" for r in offline)
+            return CheckResult(
+                CheckStatus.BLOCKED_ON_HUMAN,
+                summary,
+                details,
+                human_action=(
+                    f"{len(offline)} Zigbee device(s) unreachable: {names}. "
+                    "Check mains or batteries first — a device off the mesh for "
+                    "hours has usually lost power rather than lost signal. If it "
+                    "is powered, press its button once to wake the radio so it "
+                    "can rejoin."
+                ),
+            )
+        return CheckResult(CheckStatus.SATISFIED, summary, details)
 
     async def plan(self, _ha: HAClient) -> Plan:
         return Plan(())

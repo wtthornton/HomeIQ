@@ -29,6 +29,12 @@ class Settings(BaseServiceSettings):
     # Admin API configuration
     admin_api_url: str = "http://homeiq-admin-api:8004"
 
+    # Shared internal API key, sent as a bearer token on service-to-service
+    # calls. data-api runs with ENABLE_AUTH=true, so the ingestor sync probe
+    # returned 401 without it -- and until the Device Discovery check learned to
+    # read its own sync result, that 401 was reported as "healthy".
+    api_key: str = ""
+
     # DNS-rebinding hardening (TAP-6035): extra Host/Origin authorities the
     # init write endpoints accept, comma-separated ``host`` or ``host:port``
     # entries (e.g. "homeiq.lan,ha-setup.local:8024"). IP literals and

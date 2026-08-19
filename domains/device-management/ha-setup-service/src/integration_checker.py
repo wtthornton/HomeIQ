@@ -54,6 +54,7 @@ class IntegrationHealthChecker:
         self.ha_token = settings.ha_token
         self._ws: HAWebSocketClient | None = None
         self.data_api_url = settings.data_api_url
+        self.api_key = settings.api_key
         self.timeout = aiohttp.ClientTimeout(total=10)
 
     async def check_all_integrations(self) -> list[CheckResult]:
@@ -328,7 +329,30 @@ class IntegrationHealthChecker:
             # Check if HA Ingestor is syncing devices
             ingestor_sync = await self._check_ingestor_device_sync(device_count)
 
-            status = IntegrationStatus.HEALTHY if device_count > 0 else IntegrationStatus.WARNING
+            # The verdict has to carry the worst of what was measured. Deriving
+            # it from device_count alone reported HEALTHY while the very same
+            # payload said sync_status "error" at 0% -- a green light over a
+            # device store that had never received a row.
+            sync_status = ingestor_sync.get("status", "unknown")
+            if device_count == 0:
+                status = IntegrationStatus.WARNING
+                recommendation = "Home Assistant reports no devices; check its integrations"
+            elif sync_status == "error":
+                status = IntegrationStatus.ERROR
+                recommendation = (
+                    f"Devices are not reaching the ingestor: {ingestor_sync.get('error', 'sync failed')}"
+                )
+            elif sync_status in ("not_synced", "partial"):
+                status = IntegrationStatus.WARNING
+                recommendation = (
+                    f"Only {ingestor_sync.get('count', 0)} of {device_count} devices synced "
+                    f"({ingestor_sync.get('percentage', 0)}%)"
+                )
+            else:
+                status = IntegrationStatus.HEALTHY
+                recommendation = (
+                    "Check device integrations if count is low" if device_count < 5 else None
+                )
 
             return CheckResult(
                 integration_name="Device Discovery",
@@ -339,11 +363,9 @@ class IntegrationHealthChecker:
                 check_details={
                     "ha_device_count": device_count,
                     "ingestor_device_count": ingestor_sync.get("count", 0),
-                    "sync_status": ingestor_sync.get("status", "unknown"),
+                    "sync_status": sync_status,
                     "sync_percentage": ingestor_sync.get("percentage", 0),
-                    "recommendation": "Check device integrations if count is low"
-                    if device_count < 5
-                    else None,
+                    "recommendation": recommendation,
                 },
             )
 
@@ -386,8 +408,13 @@ class IntegrationHealthChecker:
         """Check if HA Ingestor has synced devices from HA"""
         try:
             session = await get_http_session()
+            # data-api runs with auth enabled and validates a bearer token
+            # against the same shared API_KEY this service already holds.
+            headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
             async with session.get(
-                f"{self.data_api_url}/api/devices", timeout=aiohttp.ClientTimeout(total=5)
+                f"{self.data_api_url}/api/devices",
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=5),
             ) as response:
                 if response.status == 200:
                     data = await response.json()

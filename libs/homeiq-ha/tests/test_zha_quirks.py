@@ -328,7 +328,15 @@ async def test_apply_refuses_to_claim_success_when_a_device_stays_unquirked(sim)
 
 
 @pytest.mark.asyncio
-async def test_an_uninterviewed_unit_is_reported_but_does_not_block_satisfied(sim):
+async def test_an_uninterviewed_unit_blocks_even_when_another_unit_is_quirked(sim):
+    """Partial success must not report as success.
+
+    This asserted SATISFIED until 2026-08-18. One FP1E was quirked and a second
+    sat uninterviewed with no occupancy entity; the green status carried it as a
+    suffix on the summary, and six consecutive nightly audits passed over a
+    presence sensor that had been off the mesh since 12 August. The unit count
+    that matters is the one still needing hands, not the one already working.
+    """
     _restart_applies_quirks(_with_devices(sim, INTERVIEWED, UNINTERVIEWED))
     files = FakeHostFiles()
     recipe = _recipe(files)
@@ -336,11 +344,13 @@ async def test_an_uninterviewed_unit_is_reported_but_does_not_block_satisfied(si
 
     result = await recipe.check(sim)
 
-    assert result.status is CheckStatus.SATISFIED
+    assert result.status is CheckStatus.BLOCKED_ON_HUMAN
     assert result.details["uninterviewed"] == [UNINTERVIEWED["ieee"]]
     assert result.details["quirked"] == [INTERVIEWED["ieee"]]
     # Named in the summary, not quietly dropped from the count.
     assert UNINTERVIEWED["ieee"] in result.summary
+    # And the operator is told what to physically do about it.
+    assert result.human_action and UNINTERVIEWED["ieee"] in result.human_action
 
 
 @pytest.mark.asyncio
