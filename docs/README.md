@@ -68,6 +68,8 @@ This is the **single index** for project documentation. Use it for correct paths
 | [Monitoring Setup](operations/monitoring-setup.md) | Prometheus + Grafana configuration |
 | [Service Health Checks](operations/service-health-checks.md) | Health endpoint patterns and verification |
 | [Agent Evaluation](operations/agent-evaluation-runbook.md) | AI agent evaluation framework operations |
+| [Init Gateway](operations/init-gateway.md) | HA init agent: audit/converge endpoints, Zigbee watchdog and mesh health, the SSH write path to `/config` |
+| [Device Findings](operations/device-findings.md) | Discovery loop, hygiene detectors, where findings surface, and the failure modes that made them look absent |
 
 ---
 

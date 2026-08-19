@@ -865,30 +865,74 @@ manifest:
     reason: WLED firmware update entity; preserved.
   - entity_id: input_boolean.office_presence_proxy
     labels:
-    - role:presence
     - area:office
-    reason: Existing office presence proxy helper feeding presence automations; preserved.
+    reason: 'Manual presence override, kept for testing. role:presence removed 2026-08-18:
+      it is not a sensor, and while it carried that label the office presence group
+      was fused from proxies alone and both presence automations sat dead for six days.'
   - entity_id: input_boolean.office_presence_proxy_2
     labels:
-    - role:presence
     - area:office
-    reason: Existing office presence proxy helper; preserved.
+    reason: 'Second manual override; role:presence removed for the same reason as
+      the first.'
   - entity_id: binary_sensor.office_presence_1
     labels:
-    - role:presence
     - area:office
-    reason: Existing office presence sensor; preserved.
+    reason: 'Template sensor fed by office_presence_proxy. Stood up as the fallback
+      when no real presence hardware existed; superseded 2026-08-18 by the Aqara
+      sensor. role:presence removed so label-driven automations stop matching an
+      entity that is permanently off.'
   - entity_id: binary_sensor.office_presence_2
+    labels:
+    - area:office
+    reason: 'Template sensor fed by office_presence_proxy_2; superseded, see above.'
+  - entity_id: binary_sensor.office_aqara_presence_sensor_fp1e
     labels:
     - role:presence
     - area:office
-    reason: Existing office presence sensor; preserved.
+    reason: 'Real office presence: Aqara mmWave (lumi.sensor_occupy.agl8), holds
+      through stillness. Re-paired 2026-08-18 after a factory reset.'
+  - entity_id: binary_sensor.office_office_motion_area
+    labels:
+    - role:presence
+    - area:office
+    reason: 'Hue PIR in the office. Fused with the Aqara so fast entry is caught by
+      PIR and stationary occupancy held by mmWave.'
+  - entity_id: binary_sensor.bar_aqara_presence_sensor_fp1e
+    labels:
+    - role:presence
+    - area:bar
+    reason: 'Real bar presence: Aqara mmWave. Off the mesh 2026-08-12 to 2026-08-18;
+      recovered by factory reset plus a re-interview while awake.'
   - entity_id: binary_sensor.office_presence_group
     labels:
     - role:presence
     - area:office
-    reason: Existing office presence group sensor; preserved.
-  entity_aliases: []
+    reason: Fused office presence; the entity both office automations trigger on.
+  entity_aliases:
+  - entity_id: binary_sensor.office_aqara_presence_sensor_fp1e
+    name: Office Presence
+    aliases:
+    - Office Occupancy
+    - Office Presence Sensor
+    reason: 'Display layer. entity_id is left alone -- every slug is a foreign key --
+      so the user-facing name lives here. Area-first Title Case with no brand token,
+      per convention_rules.score_friendly_name.'
+  - entity_id: binary_sensor.bar_aqara_presence_sensor_fp1e
+    name: Bar Presence
+    aliases:
+    - Bar Occupancy
+    - Bar Presence Sensor
+    reason: Display layer for the bar sensor; same convention.
+  - entity_id: binary_sensor.office_office_motion_area
+    name: Office Motion
+    aliases:
+    - Office Motion Sensor
+    reason: Display layer for the Hue PIR.
+  - entity_id: binary_sensor.office_presence_group
+    name: Office Presence Group
+    aliases:
+    - Office Presence Fused
+    reason: Display layer for the fused group.
   helpers:
   - kind: group
     slug: backyard_presence
