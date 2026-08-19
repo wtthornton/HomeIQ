@@ -21,6 +21,28 @@ git checkout -b feature/your-feature-name
 - **Tests** — add tests for new features, run `pytest` before submitting
 - **Docker** — test your changes build with `docker compose build <service-name>`
 
+### Testing a Home Assistant automation
+
+Automations are not covered by `pytest`. They need a real Home Assistant core,
+which lives in its own environment because HA 2026.8 requires Python 3.14:
+
+```bash
+uv venv --python 3.14 .venv-ha
+VIRTUAL_ENV=.venv-ha uv pip install -r requirements-homeiq-integration.txt
+.venv-ha/bin/python -m pytest -c pytest-homeiq.ini
+```
+
+`tests/automations/` executes automations against synthetic state — a full HA
+boot plus a dozen scenarios runs in under a second, and `freezer.tick()`
+collapses a `for: 00:05:00` delay to nothing.
+
+**Write a behavioural test for any automation with a state trigger.** Linting
+cannot reach this class of defect: a trigger reading `from: "off", to: "on"`
+is referentially valid and schema-valid, and still never fires when the source
+entity passes through `unavailable` — which it does on every restart, reload,
+and battery-device dropout. That shipped to production once already; see
+`tests/automations/test_office_presence_lighting.py` for the shape.
+
 ### Local full stack (optional)
 
 - Copy `infrastructure/env.example` to **`.env` in the repo root** (Compose and `start-stack` expect this path).
