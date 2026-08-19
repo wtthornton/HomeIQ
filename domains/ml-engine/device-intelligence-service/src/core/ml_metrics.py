@@ -12,6 +12,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from ..config import DEFAULT_MODELS_DIR
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,14 +29,17 @@ class MLMetricsTracker:
     - Data source
     """
 
-    def __init__(self, metrics_dir: str = "models/metrics"):
+    def __init__(self, metrics_dir: str | None = None):
         """
         Initialize metrics tracker.
 
         Args:
             metrics_dir: Directory to store metrics history
         """
-        self.metrics_dir = Path(metrics_dir)
+        # Defaults to the anchored models directory rather than a path
+        # relative to the working directory, which scattered a stray
+        # models/metrics wherever a process was launched from.
+        self.metrics_dir = Path(metrics_dir) if metrics_dir else DEFAULT_MODELS_DIR / "metrics"
         self.metrics_dir.mkdir(parents=True, exist_ok=True)
         # Use bounded deque to prevent unbounded memory growth (HIGH-3)
         self.metrics_history: deque[dict[str, Any]] = deque(maxlen=10_000)

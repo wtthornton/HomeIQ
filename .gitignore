@@ -293,8 +293,11 @@ phase2_results_*.json
 # Timestamped copies predictive_analytics.py writes before overwriting a
 # model (and predictions_router.py reads back). Real behaviour, but running
 # the suite leaves them in the working tree, and .pkl.backup_<ts> does not
-# match the *.pkl rule above.
-domains/ml-engine/device-intelligence-service/models/*.backup_*
+# match the *.pkl rule above. Not path-scoped: the previous rule only covered
+# the service directory, so a run with a different working directory dropped
+# an unignored copy elsewhere.
+*.pkl.backup_[0-9]*
+model_metadata.json.backup_[0-9]*
 .tapps-mcp/backups/
 .tapps-mcp/hook-backups/
 .tapps-mcp/.lookup-docs-events.jsonl

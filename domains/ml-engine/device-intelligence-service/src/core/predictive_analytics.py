@@ -37,7 +37,7 @@ from sklearn.preprocessing import StandardScaler
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..config import Settings
+from ..config import DEFAULT_MODELS_DIR, Settings
 from ..core.database import get_db_session
 from ..models.database import Device, DeviceHealthMetric
 
@@ -88,7 +88,7 @@ class PredictiveAnalyticsEngine:
         ]
         self.model_performance = {}
         self.is_trained = False
-        self.models_dir = "models"
+        self.models_dir = str(DEFAULT_MODELS_DIR)
         self.model_metadata = {
             "version": "1.0.0",
             "training_date": None,

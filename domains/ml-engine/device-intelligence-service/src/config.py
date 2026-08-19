@@ -41,6 +41,26 @@ def _determine_default_path() -> Path:
 
 DEFAULT_CONFIG_PATH = _determine_default_path()
 
+MODELS_DIR_ENV = "MODELS_DIR"
+
+
+def _determine_models_dir() -> Path:
+    """Resolve where trained model artifacts are written.
+
+    Anchored to the service root, not the process working directory. The path
+    used to be a bare relative "models", so it landed wherever a process
+    happened to be launched from — running the test suite from the repo root
+    left a second, untracked models directory there.
+    """
+    env_override = os.getenv(MODELS_DIR_ENV)
+    if env_override:
+        return Path(env_override)
+
+    return Path(__file__).resolve().parents[1] / "models"
+
+
+DEFAULT_MODELS_DIR = _determine_models_dir()
+
 
 class Settings(BaseServiceSettings):
     """Application settings loaded from environment variables.
