@@ -51,7 +51,7 @@ class TestPolicyValidator:
         assert is_allowed is True
         assert reason is None
 
-    @patch("services.api-automation-edge.src.validation.policy_validator.datetime")
+    @patch("src.validation.policy_validator.datetime")
     def test_validate_quiet_hours_in_range(self, mock_datetime, validator):
         """Test quiet hours when current time is in quiet hours"""
         mock_datetime.now.return_value.time.return_value = time(23, 0, 0)  # 11 PM
@@ -60,7 +60,7 @@ class TestPolicyValidator:
         assert is_allowed is False
         assert "Quiet hours" in reason
 
-    @patch("services.api-automation-edge.src.validation.policy_validator.datetime")
+    @patch("src.validation.policy_validator.datetime")
     def test_validate_quiet_hours_outside_range(self, mock_datetime, validator):
         """Test quiet hours when current time is outside quiet hours"""
         mock_datetime.now.return_value.time.return_value = time(14, 0, 0)  # 2 PM
@@ -68,7 +68,7 @@ class TestPolicyValidator:
         is_allowed, reason = validator.validate_quiet_hours(conditions)
         assert is_allowed is True
 
-    @patch("services.api-automation-edge.src.validation.policy_validator.datetime")
+    @patch("src.validation.policy_validator.datetime")
     def test_validate_in_time_range(self, mock_datetime, validator):
         """Test in_time_range condition"""
         mock_datetime.now.return_value.time.return_value = time(10, 0, 0)  # 10 AM
@@ -76,7 +76,7 @@ class TestPolicyValidator:
         is_allowed, reason = validator.validate_quiet_hours(conditions)
         assert is_allowed is True
 
-    @patch("services.api-automation-edge.src.validation.policy_validator.datetime")
+    @patch("src.validation.policy_validator.datetime")
     def test_validate_in_time_range_outside(self, mock_datetime, validator):
         """Test in_time_range when outside allowed time"""
         mock_datetime.now.return_value.time.return_value = time(20, 0, 0)  # 8 PM
