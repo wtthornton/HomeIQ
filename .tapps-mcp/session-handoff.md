@@ -9,7 +9,7 @@
 - PR #119: deleted 302 lines of unrunnable CI (agentic-pr-review.yml, tapps-quality*.yml, the quality-gate JOB). Kept the passing regression-checks job in that file.
 - PR #120: two defects the never-green CI hid — /home/wtthornton/code/HomeIQ/.github/workflows/integration-tests.yml imported `AutomationLintEngine`, which never existed (real: `LintEngine` in `homeiq_ha.ha_automation_lint`); and /home/wtthornton/code/HomeIQ/tests/integration/cross_group/test_agent_chains.py passed a `context_type=` kwarg score_action() rejects. Fixed the TEST — prod caller .../proactive-agent-service/src/services/agent_loop.py:306 omits it.
 - PR #121: tapps-mcp upgrade 3.12.65 -> 3.12.72. Doctor 83 passed / 0 failed.
-- Housekeeping: 4 stashes dropped, 8 merged branches deleted, 34 stale refs pruned.
+- Housekeeping: 4 stashes dropped, 8 merged branches deleted, 34 stale refs pruned; removed the empty root-owned /home/wtthornton/code/HomeIQ/domains/ml-engine/ai-training-service tree (owner ran sudo rmdir) that was breaking `git rebase`.
 
 ## Open
 - 3 red checks, all /home/wtthornton/code/HomeIQ/.github/workflows/test.yml, pre-existing on master: E2E (compose .env heredoc omits INFLUXDB_PASSWORD/POSTGRES_PASSWORD), Integration Tests (29 tests hit live HTTP in a job starting no services; 2 need influxdb_client_3), Test Summary (aggregates).
@@ -21,7 +21,7 @@
 - Remove the `|| true` masking in /home/wtthornton/code/HomeIQ/.github/workflows/integration-tests.yml: 7 of 9 jobs structurally cannot fail, so it reports success while proving nothing. Strip it from the 7 pytest calls (:105,190,235,276,323,364,405) and 4 installs (:88,166,173,311), then triage what surfaces. Do this BEFORE the test.yml compose-var fix.
 
 ## Blockers
-- Needs sudo: `sudo rmdir /home/wtthornton/code/HomeIQ/domains/ml-engine/ai-training-service/scripts /home/wtthornton/code/HomeIQ/domains/ml-engine/ai-training-service` — empty root-owned dirs from Aug 18, untracked, in no compose file. They break `git -C /home/wtthornton/code/HomeIQ rebase` with Permission denied.
+- none
 
 ## Verify
 - USER RULE: no full local suites; targeted files only, CI runs the suite.
