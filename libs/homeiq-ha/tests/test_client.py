@@ -185,15 +185,17 @@ async def test_registry_list_uses_the_websocket_command_names(call, expected_typ
 
 @pytest.mark.asyncio
 async def test_update_device_sends_device_id_and_changes():
-    client = make_client(lambda m: ok(m, {"id": "dev1", "name_by_user": "Bar Light"}))
+    # name_by_user/area_id are gateway-owned (TAP-6232) and refused here;
+    # the pass-through contract is exercised with fields this helper still owns.
+    client = make_client(lambda m: ok(m, {"id": "dev1", "labels": ["bar"]}))
     ws = await connect_fake(client)
     try:
-        await client.update_device("dev1", name_by_user="Bar Light", area_id="kitchen")
+        await client.update_device("dev1", labels=["bar"], disabled_by=None)
         sent = ws.sent[-1]
         assert sent["type"] == "config/device_registry/update"
         assert sent["device_id"] == "dev1"
-        assert sent["name_by_user"] == "Bar Light"
-        assert sent["area_id"] == "kitchen"
+        assert sent["labels"] == ["bar"]
+        assert sent["disabled_by"] is None
     finally:
         await client.close()
 

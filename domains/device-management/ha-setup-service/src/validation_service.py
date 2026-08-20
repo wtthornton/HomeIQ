@@ -115,12 +115,12 @@ class ValidationService:
             logger.info("Starting HA configuration validation...")
 
             # Fetch entities and areas from HA
-            entities, areas, ha_version = await self._fetch_ha_data()
+            entities, areas, device_areas, ha_version = await self._fetch_ha_data()
 
             logger.info(f"Fetched {len(entities)} entities and {len(areas)} areas")
 
             # Detect issues
-            issues = await self._detect_issues(entities, areas)
+            issues = await self._detect_issues(entities, areas, device_areas)
 
             # Filter by category if specified
             if category:
@@ -203,6 +203,14 @@ class ValidationService:
         connection = await self._connection()
         entities = await connection.list_entities()
         areas = await connection.list_areas()
+        # Most HA entities carry no area override of their own — their area is
+        # inherited from the device. Detection that reads only the entity-level
+        # area_id is blind to exactly the swapped-dimmer shape this service
+        # exists to report (TAP-6228), so the device map rides along.
+        devices = await connection.list_devices()
+        device_areas = {
+            d["id"]: d["area_id"] for d in devices if d.get("id") and d.get("area_id")
+        }
 
         # Get HA version
         ha_version = None
@@ -216,22 +224,32 @@ class ValidationService:
         except Exception as e:
             logger.warning(f"Could not fetch HA version: {e}")
 
-        return entities, areas, ha_version
+        return entities, areas, device_areas, ha_version
 
     async def _detect_issues(
-        self, entities: list[dict], areas: list[dict]
+        self,
+        entities: list[dict],
+        areas: list[dict],
+        device_areas: dict[str, str] | None = None,
     ) -> list[ValidationIssue]:
-        """Detect validation issues in entities"""
+        """Detect validation issues in entities.
+
+        ``device_areas`` maps device_id -> area_id so the check runs against the
+        entity's EFFECTIVE area: its own override, else its device's. Without it
+        a device-inherited area reads as "missing" and the mismatch report never
+        fires for the majority of entities (TAP-6228).
+        """
         issues = []
+        device_areas = device_areas or {}
 
         for entity in entities:
             entity_id = entity.get("entity_id")
             if not entity_id:
                 continue
 
-            current_area_id = entity.get("area_id")
             entity_name = entity.get("name") or entity_id
             device_id = entity.get("device_id")
+            current_area_id = entity.get("area_id") or device_areas.get(device_id)
 
             # Check for missing area assignment
             if not current_area_id:

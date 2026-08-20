@@ -282,3 +282,22 @@ async def test_loss_without_reconnect_then_close_counts_one_disconnect(monkeypat
 
     await client.close()
     assert client.get_metrics()["disconnect_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_generic_update_helpers_refuse_gateway_owned_fields():
+    """name/name_by_user/area_id writes belong to HARegistryWriter (TAP-6232).
+
+    These helpers had zero production callers for those fields; the guard makes
+    the single-write-path property structural instead of conventional.
+    """
+    client = HAWebSocketClient("ws://ha.test", "token")
+
+    with pytest.raises(ValueError, match="gateway-owned"):
+        await client.update_entity("light.wled_0", name="Desk Lamp")
+    with pytest.raises(ValueError, match="gateway-owned"):
+        await client.update_entity("light.wled_0", area_id="office")
+    with pytest.raises(ValueError, match="gateway-owned"):
+        await client.update_device("dev0", name_by_user="Office Ceiling")
+    with pytest.raises(ValueError, match="gateway-owned"):
+        await client.update_device("dev0", area_id="office")

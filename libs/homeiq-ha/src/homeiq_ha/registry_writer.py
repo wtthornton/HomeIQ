@@ -185,9 +185,9 @@ class HARegistryWriter:
                 "config/entity_registry/get", fields={"entity_id": entity_id}
             )
         except HACommandError as exc:
-            raise UnknownTarget(f"no entity {entity_id!r} in the registry") from exc
+            raise self._refuse(f"no entity {entity_id!r} in the registry") from exc
         if not entry:
-            raise UnknownTarget(f"no entity {entity_id!r} in the registry")
+            raise self._refuse(f"no entity {entity_id!r} in the registry")
         return dict(entry)
 
     async def _device(self, device_id: str) -> dict[str, Any]:
@@ -196,7 +196,12 @@ class HARegistryWriter:
         for entry in devices:
             if entry.get("id") == device_id:
                 return dict(entry)
-        raise UnknownTarget(f"no device {device_id!r} in the registry")
+        raise self._refuse(f"no device {device_id!r} in the registry")
+
+    def _refuse(self, reason: str) -> UnknownTarget:
+        """Log who asked before refusing — a refusal with no caller is untraceable."""
+        logger.warning("write refused: %s (caller=%s)", reason, self._caller)
+        return UnknownTarget(reason)
 
     async def _require_area(self, area_id: str | None) -> None:
         """Refuse a dangling area_id.
@@ -209,7 +214,7 @@ class HARegistryWriter:
             return
         areas = await self._ws.send_command("config/area_registry/list") or []
         if area_id not in {a.get("area_id") for a in areas}:
-            raise UnknownTarget(f"no area {area_id!r} in the registry")
+            raise self._refuse(f"no area {area_id!r} in the registry")
 
 
 __all__ = [
