@@ -51,6 +51,16 @@ class AsyncEventProcessor:
         self.processing_times: deque = deque(maxlen=1000)  # Keep last 1000 processing times
         self.memory_usage_samples: deque = deque(maxlen=100)  # Keep last 100 memory samples
 
+        # Events rejected before they ever reach a worker, keyed by reason.
+        # Distinct from failed_events, which counts events that a worker took
+        # and could not process. Callers of process_event discard the False
+        # return, so without this a drop leaves no trace but a log line.
+        self.dropped_events: dict[str, int] = {
+            "rate_limit": 0,
+            "queue_full": 0,
+            "error": 0,
+        }
+
     @property
     def is_running(self) -> bool:
         """Check if the processor is currently running"""
@@ -123,6 +133,7 @@ class AsyncEventProcessor:
         try:
             # Apply rate limiting
             if not await self.rate_limiter.acquire():
+                self.dropped_events["rate_limit"] += 1
                 logger.warning("Rate limit exceeded, dropping event")
                 return False
 
@@ -131,9 +142,11 @@ class AsyncEventProcessor:
             return True
 
         except asyncio.QueueFull:
+            self.dropped_events["queue_full"] += 1
             logger.warning("Event queue is full, dropping event")
             return False
         except Exception as e:
+            self.dropped_events["error"] += 1
             logger.error(f"Error queuing event: {e}")
             return False
 
@@ -253,6 +266,7 @@ class AsyncEventProcessor:
             "average_processing_time_ms": round(avg_processing_time * 1000, 2),
             "queue_size": self.event_queue.qsize(),
             "queue_maxsize": self.event_queue.maxsize,
+            "dropped_events": dict(self.dropped_events),
             "uptime_seconds": round(uptime, 2),
             "last_processing_time": self.last_processing_time.isoformat()
             if self.last_processing_time

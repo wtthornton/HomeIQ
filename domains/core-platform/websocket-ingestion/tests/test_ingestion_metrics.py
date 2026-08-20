@@ -44,7 +44,15 @@ def _healthy_service(**status_overrides):
     status.update(status_overrides)
     return _FakeService(
         connection_manager=_FakeConnectionManager(_FakeSubscription(status)),
-        processor=_FakeProcessor({"processed_events": 8210, "failed_events": 3}),
+        processor=_FakeProcessor(
+            {
+                "processed_events": 8210,
+                "failed_events": 3,
+                "queue_size": 12,
+                "queue_maxsize": 10000,
+                "dropped_events": {"rate_limit": 4, "queue_full": 9, "error": 0},
+            }
+        ),
     )
 
 
@@ -114,3 +122,27 @@ def test_unparseable_last_event_time_does_not_break_the_scrape():
 
     assert "ha_connection_up 1.0" in output
     assert "\nha_last_event_timestamp_seconds " not in output
+
+
+def test_exports_drops_by_reason():
+    """Drops never reach processed or failed, so this is their only signal."""
+    output = _scrape(_healthy_service())
+
+    assert 'ha_events_dropped_total{reason="rate_limit"} 4.0' in output
+    assert 'ha_events_dropped_total{reason="queue_full"} 9.0' in output
+    assert 'ha_events_dropped_total{reason="error"} 0.0' in output
+
+
+def test_exports_queue_depth_and_capacity():
+    output = _scrape(_healthy_service())
+
+    assert "ha_event_queue_size 12.0" in output
+    assert "ha_event_queue_max_size 10000.0" in output
+
+
+def test_queue_gauges_omit_samples_when_service_not_started():
+    """A missing queue must not read as an empty one."""
+    output = _scrape(None)
+
+    assert "# TYPE ha_event_queue_size gauge" in output
+    assert "\nha_event_queue_size " not in output

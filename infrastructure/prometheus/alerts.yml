@@ -230,14 +230,17 @@ groups:
           summary: "CRITICAL: Tier 1 service {{ $labels.service }} is down"
           description: "{{ $labels.service }} is a Tier 1 critical service. All downstream services depend on it. Immediate investigation required."
 
+      # Was rate(http_requests_total{status=~"429|503"}) -- that measures the
+      # service's own REST API, which stays healthy while the HA event pipeline
+      # sheds load. Keyed on queue depth now, the actual backpressure signal.
       - alert: WebsocketIngestionBackpressure
-        expr: rate(http_requests_total{service="websocket-ingestion", status=~"429|503"}[5m]) > 0
+        expr: ha_event_queue_size / ha_event_queue_max_size > 0.7
         for: 2m
         labels:
           severity: warning
         annotations:
           summary: "Websocket ingestion experiencing backpressure"
-          description: "The websocket-ingestion service is returning 429/503 responses, indicating it cannot keep up with incoming events."
+          description: "The Home Assistant event queue is {{ $value | humanizePercentage }} full. Workers are not draining it fast enough; events are dropped once it reaches capacity."
 
   # --- Home Assistant Ingestion ---
   # The pipeline that feeds every downstream service. These fire on the
@@ -293,6 +296,16 @@ groups:
         annotations:
           summary: "websocket-ingestion is failing to process Home Assistant events"
           description: "Events are being dropped during processing at {{ $value | printf \"%.3f\" }} events/sec. They are received off the wire but never reach InfluxDB."
+
+      - alert: HAEventsDropped
+        expr: sum by (instance) (rate(ha_events_dropped_total[5m])) > 0
+        for: 5m
+        labels:
+          severity: critical
+          page: "true"
+        annotations:
+          summary: "CRITICAL: Home Assistant events are being dropped before processing"
+          description: "websocket-ingestion is discarding {{ $value | printf \"%.3f\" }} events/sec before they reach a worker. This is unrecoverable data loss -- Home Assistant does not replay state changes. Check ha_events_dropped_total by reason: rate_limit means the configured cap is too low, queue_full means workers cannot keep up."
 
       - alert: HAEventProcessingBacklog
         expr: sum without(event_type)(ha_events_received_total) - on(instance) ha_events_processed_total > 500

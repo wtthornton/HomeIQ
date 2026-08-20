@@ -62,3 +62,11 @@ jobs:
         run: |
           python -m pip install --quiet pyyaml
           python scripts/check-container-budget.py
+
+      # Alert rules are only parsed when Prometheus loads them, so a broken
+      # expression silently stops every alert in the file from evaluating. The
+      # unit tests also assert each alert fires on the condition it names.
+      # promtool comes from the pinned Prometheus image, so no TappsMCP is
+      # involved and this runs on a hosted runner.
+      - name: prometheus alert rules valid and unit-tested
+        run: bash scripts/check-prometheus-rules.sh

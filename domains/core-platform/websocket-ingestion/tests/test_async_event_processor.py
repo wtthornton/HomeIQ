@@ -219,3 +219,55 @@ class TestRateLimiter:
 
         # Should acquire most tokens
         assert acquired_count >= 90
+
+
+class TestDroppedEventAccounting:
+    """Events rejected before a worker sees them must be counted.
+
+    Callers discard process_event's False return, so an uncounted drop is
+    silent data loss: the event is received off the websocket, never written
+    to InfluxDB, and appears in neither processed_events nor failed_events.
+    """
+
+    @pytest.mark.asyncio
+    async def test_rate_limited_event_is_counted_as_dropped(self):
+        processor = AsyncEventProcessor(max_workers=1, processing_rate_limit=1)
+        processor.rate_limiter.acquire = AsyncMock(return_value=False)
+
+        assert await processor.process_event({"event_type": "state_changed"}) is False
+
+        stats = processor.get_processing_statistics()
+        assert stats["dropped_events"]["rate_limit"] == 1
+        assert stats["processed_events"] == 0
+        assert stats["failed_events"] == 0
+
+    @pytest.mark.asyncio
+    async def test_full_queue_event_is_counted_as_dropped(self):
+        processor = AsyncEventProcessor(max_workers=1, processing_rate_limit=1000)
+        processor.event_queue = asyncio.Queue(maxsize=1)
+        processor.event_queue.put_nowait({"filler": True})
+
+        assert await processor.process_event({"event_type": "state_changed"}) is False
+
+        assert processor.get_processing_statistics()["dropped_events"]["queue_full"] == 1
+
+    @pytest.mark.asyncio
+    async def test_queueing_error_is_counted_as_dropped(self):
+        processor = AsyncEventProcessor(max_workers=1, processing_rate_limit=1000)
+        processor.rate_limiter.acquire = AsyncMock(side_effect=RuntimeError("boom"))
+
+        assert await processor.process_event({"event_type": "state_changed"}) is False
+
+        assert processor.get_processing_statistics()["dropped_events"]["error"] == 1
+
+    @pytest.mark.asyncio
+    async def test_successful_queueing_drops_nothing(self):
+        processor = AsyncEventProcessor(max_workers=1, processing_rate_limit=1000)
+
+        assert await processor.process_event({"event_type": "state_changed"}) is True
+
+        assert processor.get_processing_statistics()["dropped_events"] == {
+            "rate_limit": 0,
+            "queue_full": 0,
+            "error": 0,
+        }

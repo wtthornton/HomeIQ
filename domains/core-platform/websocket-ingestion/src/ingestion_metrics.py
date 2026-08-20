@@ -67,6 +67,17 @@ class IngestionMetricsCollector:
             "Total Home Assistant events that failed processing",
             processing_stats.get("failed_events"),
         )
+        yield self._dropped_counter(processing_stats)
+        yield self._gauge(
+            "ha_event_queue_size",
+            "Events waiting in the processing queue",
+            processing_stats.get("queue_size"),
+        )
+        yield self._gauge(
+            "ha_event_queue_max_size",
+            "Capacity of the processing queue; events are dropped when it fills",
+            processing_stats.get("queue_maxsize"),
+        )
 
     def _read_service_state(self) -> tuple[dict, dict]:
         """Pull subscription and processing stats off the running service.
@@ -125,3 +136,27 @@ class IngestionMetricsCollector:
         counter = CounterMetricFamily(name, documentation)
         counter.add_metric([], value or 0)
         return counter
+
+    @staticmethod
+    def _dropped_counter(processing_stats: dict) -> CounterMetricFamily:
+        """Events rejected before reaching a worker, by reason.
+
+        These never appear in processed or failed -- the caller discards
+        process_event's False return -- so this is the only signal that the
+        rate limiter or a full queue is shedding load.
+        """
+        counter = CounterMetricFamily(
+            "ha_events_dropped",
+            "Total Home Assistant events dropped before processing",
+            labels=["reason"],
+        )
+        for reason, count in sorted(processing_stats.get("dropped_events", {}).items()):
+            counter.add_metric([reason], count)
+        return counter
+
+    @staticmethod
+    def _gauge(name: str, documentation: str, value) -> GaugeMetricFamily:
+        gauge = GaugeMetricFamily(name, documentation)
+        if value is not None:
+            gauge.add_metric([], value)
+        return gauge

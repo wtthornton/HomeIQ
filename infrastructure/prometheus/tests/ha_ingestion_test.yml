@@ -164,3 +164,64 @@ tests:
             exp_annotations:
               summary: "websocket-ingestion is failing to process Home Assistant events"
               description: "Events are being dropped during processing at 0.100 events/sec. They are received off the wire but never reach InfluxDB."
+
+  # --- HAEventsDropped ------------------------------------------------------
+  # The silent-loss path: dropped events appear in neither processed nor
+  # failed, because the caller discards process_event's False return.
+  - interval: 1m
+    input_series:
+      - series: 'ha_events_dropped_total{reason="queue_full",instance="homeiq-websocket:8001"}'
+        values: '0+30x20'
+      - series: 'ha_events_dropped_total{reason="rate_limit",instance="homeiq-websocket:8001"}'
+        values: '0+0x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: HAEventsDropped
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              page: "true"
+              instance: homeiq-websocket:8001
+            exp_annotations:
+              summary: "CRITICAL: Home Assistant events are being dropped before processing"
+              description: "websocket-ingestion is discarding 0.500 events/sec before they reach a worker. This is unrecoverable data loss -- Home Assistant does not replay state changes. Check ha_events_dropped_total by reason: rate_limit means the configured cap is too low, queue_full means workers cannot keep up."
+
+  # Flat drop counters must stay quiet.
+  - interval: 1m
+    input_series:
+      - series: 'ha_events_dropped_total{reason="queue_full",instance="homeiq-websocket:8001"}'
+        values: '17+0x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: HAEventsDropped
+        exp_alerts: []
+
+  # --- WebsocketIngestionBackpressure --------------------------------------
+  - interval: 1m
+    input_series:
+      - series: 'ha_event_queue_size{service="websocket-ingestion"}'
+        values: '8000+0x20'
+      - series: 'ha_event_queue_max_size{service="websocket-ingestion"}'
+        values: '10000+0x20'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: WebsocketIngestionBackpressure
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service: websocket-ingestion
+            exp_annotations:
+              summary: "Websocket ingestion experiencing backpressure"
+              description: "The Home Assistant event queue is 80% full. Workers are not draining it fast enough; events are dropped once it reaches capacity."
+
+  # A shallow queue is the normal case and must not alert.
+  - interval: 1m
+    input_series:
+      - series: 'ha_event_queue_size{service="websocket-ingestion"}'
+        values: '12+0x20'
+      - series: 'ha_event_queue_max_size{service="websocket-ingestion"}'
+        values: '10000+0x20'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: WebsocketIngestionBackpressure
+        exp_alerts: []
