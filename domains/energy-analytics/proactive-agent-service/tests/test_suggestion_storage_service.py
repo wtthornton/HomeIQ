@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import pytest
+import pytest_asyncio
 from src.services.suggestion_storage_service import SuggestionStorageService
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def storage_service(mock_db_session):
     """Create SuggestionStorageService instance with mock DB"""
     service = SuggestionStorageService()

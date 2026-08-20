@@ -116,7 +116,6 @@ class SchedulerService:
             logger.info(
                 f"Daily suggestion generation complete: "
                 f"{results['suggestions_created']} created, "
-                f"{results['suggestions_sent']} sent, "
                 f"{results['suggestions_failed']} failed"
             )
 
@@ -130,7 +129,6 @@ class SchedulerService:
             return {
                 "success": False,
                 "suggestions_created": 0,
-                "suggestions_sent": 0,
                 "suggestions_failed": 0,
                 "details": [{"step": "pipeline", "error": str(e)}],
             }
