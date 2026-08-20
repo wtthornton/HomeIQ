@@ -8,7 +8,6 @@ required and the guarantee is provable in isolation.
 from datetime import UTC, datetime, timedelta
 
 import pytest
-
 from src.models.device_knowledge import (
     EVIDENCE_ORDER,
     EVIDENCE_RANK,
