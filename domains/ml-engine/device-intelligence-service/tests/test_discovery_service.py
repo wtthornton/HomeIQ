@@ -313,3 +313,26 @@ async def test_an_empty_snapshot_does_not_mark_the_fleet_unavailable(mock_settin
         await service._reconcile_absent_devices()
 
     assert called is False
+
+
+def test_auto_generate_flag_on_constructs_the_name_pipeline(mock_settings):
+    """TAP-6235: the pipeline must actually light up when the flag is set —
+    'implemented behind a flag' is only true if flag=True builds the machinery.
+    The default stays False; flipping it is a product decision, not a bug fix."""
+    mock_settings.AUTO_GENERATE_NAME_SUGGESTIONS = True
+
+    service = DiscoveryService(mock_settings)
+
+    assert service.auto_generate_name_suggestions is True
+    assert service.name_generator is not None
+    assert service.name_validator is not None
+    assert service.batch_processor is not None
+    assert service.preference_learner is not None
+
+
+def test_auto_generate_flag_off_keeps_the_pipeline_dark(mock_settings):
+    service = DiscoveryService(mock_settings)
+
+    assert service.auto_generate_name_suggestions is False
+    assert service.name_generator is None
+    assert service.batch_processor is None

@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from ...models.database import Device, DeviceEntity
+from ..naming_convention.name_builder import compose_name
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +129,11 @@ class DeviceNameGenerator:
         Strategies:
         - Location + Device Type: "Office Light"
         - Extract position from entity_id: "hue_1_6" → "Back Left"
-        - Manufacturer + Location: "Philips Office Light"
+
+        Manufacturer never appears in a generated name: the rubric that scores
+        every name docks brand words (`convention_rules._BRAND_NAMES`), so the
+        old "Philips Office Light" strategy generated names its own scorer
+        penalized (TAP-6234). One policy, one direction.
 
         Performance: <10ms per device
         """
@@ -141,7 +146,7 @@ class DeviceNameGenerator:
         if device.area_name:
             device_type = self._extract_device_type(device, entity)
             if device_type:
-                name = f"{device.area_name} {device_type}"
+                name = compose_name(device.area_name, device_type)
                 reasoning = (
                     f"Based on location ({device.area_name}) and device type ({device_type})"
                 )
@@ -156,10 +161,7 @@ class DeviceNameGenerator:
             position = self._extract_position_from_entity_id(entity.entity_id)
             if position:
                 device_type = self._extract_device_type(device, entity) or "Device"
-                if device.area_name:
-                    name = f"{device.area_name} {position} {device_type}"
-                else:
-                    name = f"{position} {device_type}"
+                name = compose_name(device.area_name, device_type, position=position)
                 reasoning = f"Extracted position '{position}' from entity ID pattern"
                 suggestion = NameSuggestion(
                     name=name, confidence=0.85, source="pattern", reasoning=reasoning
@@ -167,16 +169,15 @@ class DeviceNameGenerator:
                 self._cache_put(cache_key, suggestion)
                 return suggestion
 
-        # Strategy 3: Manufacturer + Location
-        if device.manufacturer and device.manufacturer != "Unknown":
-            device_type = self._extract_device_type(device, entity) or "Device"
-            if device.area_name:
-                name = f"{device.area_name} {device.manufacturer} {device_type}"
-            else:
-                name = f"{device.manufacturer} {device_type}"
-            reasoning = f"Based on manufacturer ({device.manufacturer}) and device type"
+        # Strategy 3: Device type alone (no area known). Manufacturer is
+        # deliberately absent — see the docstring (TAP-6234).
+        device_type = self._extract_device_type(device, entity)
+        if device_type:
             suggestion = NameSuggestion(
-                name=name, confidence=0.7, source="pattern", reasoning=reasoning
+                name=device_type,
+                confidence=0.5,
+                source="pattern",
+                reasoning="Device type only; no area known and brands are never used",
             )
             self._cache_put(cache_key, suggestion)
             return suggestion
