@@ -631,6 +631,12 @@ class HomeAssistantClient:
             raise ValueError("device_id is required")
         if not fields:
             raise ValueError("At least one field must be provided for update")
+        gated = {"name", "name_by_user", "area_id"} & fields.keys()
+        if gated:
+            raise ValueError(
+                f"{sorted(gated)} are gateway-owned fields -- route name and "
+                f"area writes through HARegistryWriter (TAP-6232)"
+            )
 
         payload = {
             "type": "config/device_registry/update",
@@ -653,6 +659,12 @@ class HomeAssistantClient:
             raise ValueError("entity_id is required")
         if not fields:
             raise ValueError("At least one field must be provided for update")
+        gated = {"name", "name_by_user", "area_id"} & fields.keys()
+        if gated:
+            raise ValueError(
+                f"{sorted(gated)} are gateway-owned fields -- route name and "
+                f"area writes through HARegistryWriter (TAP-6232)"
+            )
 
         payload = {
             "type": "config/entity_registry/update",

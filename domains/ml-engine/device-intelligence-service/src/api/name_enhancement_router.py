@@ -13,17 +13,14 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from homeiq_ha.client import HAClient
-from homeiq_ha.client.errors import HAClientError
-from homeiq_ha.registry_writer import HARegistryWriter
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..config import settings
 from ..core.database import get_db_session
 from ..models.database import Device, DeviceEntity
 from ..models.name_enhancement import NameSuggestion
+from ..services.name_enhancement.ha_sync import sync_name_to_ha
 
 logger = logging.getLogger(__name__)
 
@@ -71,10 +68,10 @@ class AcceptNameResponse(BaseModel):
     device_id: str
     old_name: str
     new_name: str
-    synced_to_ha: bool | None = Field(
-        default=None,
+    synced_to_ha: bool = Field(
         description="Whether the rename was verified in the HA registry. "
-        "None when sync_to_ha was not requested.",
+        "Always True on a success response: the accept commits only after the "
+        "registry write is read back (a failed write is a 502, not a response).",
     )
 
 
@@ -97,36 +94,6 @@ class BatchEnhanceResponse(BaseModel):
     job_id: str
     status: str
     estimated_duration: str
-
-
-async def sync_name_to_ha(device_id: str, new_name: str) -> bool:
-    """Rename a device in the Home Assistant registry.
-
-    ``device_id`` is the HA device registry id — ``Device.id`` is populated
-    straight from ``config/device_registry/list``, so it can be passed through.
-
-    Until TAP-6230 this posted to the ``homeassistant.update_entity`` service
-    with a ``name`` field. That service only forces a state refresh: it has no
-    ``name`` field, it cannot write the registry, and a device id is not an
-    entity id. It answered 200 to every call, so the rename was logged as
-    "Synced" and never happened. The gateway reads the value back, which is the
-    only check that would have caught it.
-
-    Returns:
-        True if the registry now holds ``new_name``.
-    """
-    if settings.HA_TOKEN is None:
-        logger.warning("Cannot sync name to HA: HA_TOKEN is not configured")
-        return False
-
-    try:
-        async with HAClient(settings.HA_URL, settings.HA_TOKEN) as ha:
-            await HARegistryWriter(ha.ws).set_device_name(device_id, new_name)
-    except HAClientError:
-        logger.exception("Failed to rename device %s to '%s' in HA", device_id, new_name)
-        return False
-    logger.info("Renamed device %s to '%s' in HA", device_id, new_name)
-    return True
 
 
 @router.get("/devices/{device_id}/suggestions", response_model=NameSuggestionsResponse)

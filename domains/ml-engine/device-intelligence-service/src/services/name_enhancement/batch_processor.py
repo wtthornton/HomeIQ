@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...core.database import get_db_session
 from ...models.database import Device, DeviceEntity
 from ...models.name_enhancement import NameSuggestion
+from .ha_sync import sync_name_to_ha
 from .name_generator import DeviceNameGenerator
 
 logger = logging.getLogger(__name__)
@@ -209,12 +210,25 @@ class NameEnhancementBatchProcessor:
                 session.add(name_suggestion)
                 suggestions_created.append(suggestion)
 
-                # Auto-accept if high confidence and enabled
+                # Auto-accept if high confidence and enabled. HA-first, like the
+                # accept endpoint: a suggestion is only marked accepted once the
+                # registry has been written and read back (TAP-6233) -- this
+                # branch used to commit "accepted" with no HA contact at all.
                 if auto_accept and suggestion.confidence >= 0.9:
-                    device.name_by_user = suggestion.name
-                    name_suggestion.status = "accepted"
-                    name_suggestion.reviewed_at = datetime.now(UTC)
-                    logger.info(f"Auto-accepted high-confidence suggestion: {suggestion.name}")
+                    if await sync_name_to_ha(device.id, suggestion.name):
+                        device.name_by_user = suggestion.name
+                        name_suggestion.status = "accepted"
+                        name_suggestion.reviewed_at = datetime.now(UTC)
+                        logger.info(
+                            f"Auto-accepted high-confidence suggestion: {suggestion.name}"
+                        )
+                    else:
+                        logger.warning(
+                            "HA did not confirm rename of %s to '%s'; suggestion "
+                            "left pending",
+                            device.id,
+                            suggestion.name,
+                        )
 
         if suggestions_created:
             await session.commit()

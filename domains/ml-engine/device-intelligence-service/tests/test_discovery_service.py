@@ -250,3 +250,66 @@ async def test_get_devices_by_integration(mock_settings):
     devices = service.get_devices_by_integration("zigbee2mqtt")
     assert len(devices) == 1
     assert devices[0] == mock_device1
+
+
+@pytest.mark.asyncio
+async def test_absent_devices_are_marked_unavailable_never_deleted(mock_settings):
+    """TAP-6249: a device missing from the snapshot keeps its row.
+
+    The reconciliation issues one UPDATE (availability only, last_seen
+    untouched) and never a DELETE; an empty snapshot is skipped entirely
+    because it means discovery failed, not that the home is empty.
+    """
+    service = DiscoveryService(mock_settings)
+
+    device = MagicMock()
+    device.id = "dev_present"
+    device.zigbee_device = None
+    device.ha_device = None
+    service.unified_devices = {"dev_present": device}
+
+    executed: list[tuple[str, dict]] = []
+
+    class FakeResult:
+        def fetchall(self):
+            return [("dev_gone", None)]
+
+    class FakeSession:
+        async def execute(self, query, params=None):
+            executed.append((str(query), params or {}))
+            return FakeResult()
+
+        async def commit(self):
+            pass
+
+    async def fake_get_db_session():
+        yield FakeSession()
+
+    with patch("src.core.discovery_service.get_db_session", fake_get_db_session):
+        await service._reconcile_absent_devices()
+
+    assert len(executed) == 1
+    sql, params = executed[0]
+    assert "UPDATE devices" in sql
+    assert "availability_status" in sql
+    assert "DELETE" not in sql.upper()
+    assert "last_seen" not in sql  # retained, not rewritten
+    assert params["current_ids"] == ["dev_present"]
+
+
+@pytest.mark.asyncio
+async def test_an_empty_snapshot_does_not_mark_the_fleet_unavailable(mock_settings):
+    service = DiscoveryService(mock_settings)
+    service.unified_devices = {}
+
+    called = False
+
+    async def fake_get_db_session():
+        nonlocal called
+        called = True
+        yield None
+
+    with patch("src.core.discovery_service.get_db_session", fake_get_db_session):
+        await service._reconcile_absent_devices()
+
+    assert called is False

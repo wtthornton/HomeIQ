@@ -483,10 +483,15 @@ class HAWebSocketClient:
     async def update_entity(self, entity_id: str, **changes: Any) -> dict[str, Any]:
         """Update one entity registry entry.
 
-        Accepts Home Assistant's own field names: ``name``, ``icon``,
-        ``area_id``, ``labels``, ``new_entity_id``, ``hidden_by``,
-        ``disabled_by``, ``aliases``.
+        Accepts Home Assistant's own field names: ``icon``, ``labels``,
+        ``new_entity_id``, ``hidden_by``, ``disabled_by``, ``aliases``.
+
+        ``name`` and ``area_id`` are refused: name and area writes go through
+        :class:`homeiq_ha.registry_writer.HARegistryWriter` (TAP-6232), which
+        reads the value back and logs the caller. Accepting them here would be
+        an unlogged, unverified bypass one keyword away.
         """
+        self._refuse_gateway_fields(changes)
         return await self.send_command(
             "config/entity_registry/update", entity_id=entity_id, **changes
         )
@@ -509,12 +514,23 @@ class HAWebSocketClient:
         ``new_entity_id``. Verified against HA core 2026.8.2
         (``components/config/device_registry.py``).
 
-        Prefer :class:`homeiq_ha.registry_writer.HARegistryWriter` for name and
-        area writes — it reads the value back and refuses to report a write that
-        did not land."""
+        ``name_by_user`` and ``area_id`` are refused here: name and area writes
+        go through :class:`homeiq_ha.registry_writer.HARegistryWriter`
+        (TAP-6232) — it reads the value back, logs the caller, and refuses to
+        report a write that did not land."""
+        self._refuse_gateway_fields(changes)
         return await self.send_command(
             "config/device_registry/update", device_id=device_id, **changes
         )
+
+    @staticmethod
+    def _refuse_gateway_fields(changes: dict[str, Any]) -> None:
+        gated = {"name", "name_by_user", "area_id"} & changes.keys()
+        if gated:
+            raise ValueError(
+                f"{sorted(gated)} are gateway-owned fields — route name and "
+                f"area writes through HARegistryWriter (TAP-6232)"
+            )
 
     async def list_areas(self) -> list[dict[str, Any]]:
         return await self._registry_list("area_registry")

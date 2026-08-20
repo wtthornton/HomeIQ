@@ -116,7 +116,7 @@ class ManifestDeviceAreasRecipe(Recipe):
                     # The one path that writes an area (TAP-6230). verify() below
                     # still re-reads the whole manifest; this catches a single
                     # assignment that did not land, at the point it happened.
-                    await HARegistryWriter(ha.ws).set_device_area(row.device_id, row.area_id)
+                    await HARegistryWriter(ha.ws, caller="homeiq-ha.device_areas_recipe").set_device_area(row.device_id, row.area_id)
                     applied.append(change)
         return ApplyResult(tuple(applied), f"{len(applied)} area/device change(s)")
 

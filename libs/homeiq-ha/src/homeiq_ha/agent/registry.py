@@ -100,7 +100,10 @@ class DevicesHaveAreasRecipe(Recipe):
 
     Assignment is intentionally not automated: guessing which room a device is
     in from its name is exactly the kind of plausible-but-wrong change that is
-    expensive to unpick later. The recipe surfaces the list and stops.
+    expensive to unpick later. The recipe surfaces the list and stops. This is
+    the standing policy in `.claude/rules/friendly-names.md` — the same one
+    `suggestion_engine.py` (ha-setup-service) caps its name-derived confidence
+    under, so the two sites agree by construction (TAP-6228).
     """
 
     name = "organization.device_areas"

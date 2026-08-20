@@ -129,9 +129,21 @@ export const ValidationTab: React.FC<TabProps> = ({ darkMode }) => {
   }, [filters.category, filters.minConfidence]);
 
   const handleApplyFix = async (entityId: string, areaId: string) => {
+    // Overwriting an already-assigned area needs explicit per-item opt-in
+    // (TAP-6228): the confirm below is that opt-in, and the server refuses
+    // the write without the allow_reassign flag it sets.
+    const issue = validationResult?.issues.find(i => i.entity_id === entityId);
+    const isReassign = Boolean(issue?.current_area && issue.current_area !== areaId);
+    if (isReassign) {
+      const ok = window.confirm(
+        `${entityId} is already assigned to "${issue?.current_area}". ` +
+        `The suggestion "${areaId}" is name-derived and may be wrong. Overwrite?`
+      );
+      if (!ok) return;
+    }
     try {
       setApplyingFixes(prev => new Set(prev).add(entityId));
-      await setupApi.applyValidationFix(entityId, areaId);
+      await setupApi.applyValidationFix(entityId, areaId, isReassign);
       // Reload validation results
       await loadValidation();
     } catch (err) {
@@ -149,21 +161,38 @@ export const ValidationTab: React.FC<TabProps> = ({ darkMode }) => {
   const handleBulkApply = async () => {
     if (selectedIssues.size === 0) return;
     
+    // Bulk apply never overwrites an already-assigned area (TAP-6228):
+    // reassignments need the per-row Apply Fix button, whose confirm dialog
+    // is the explicit per-item opt-in. The server refuses them anyway; we
+    // filter here so the count in the alert is honest.
+    let skippedReassigns = 0;
     const fixes = Array.from(selectedIssues).map(entityId => {
       const issue = validationResult?.issues.find(i => i.entity_id === entityId);
       if (!issue || !issue.suggestions.length) return null;
+      if (issue.current_area && issue.current_area !== issue.suggestions[0].area_id) {
+        skippedReassigns += 1;
+        return null;
+      }
       return {
         entity_id: entityId,
         area_id: issue.suggestions[0].area_id,
       };
     }).filter((f): f is { entity_id: string; area_id: string } => f !== null);
 
-    if (fixes.length === 0) return;
+    if (fixes.length === 0) {
+      if (skippedReassigns > 0) {
+        alert(`Nothing applied: ${skippedReassigns} selected item(s) would overwrite an existing area. Use the per-row Apply Fix button to reassign one at a time.`);
+      }
+      return;
+    }
 
     try {
       setLoading(true);
       const result = await setupApi.applyBulkFixes(fixes);
-      alert(`Applied ${result.applied} fixes${result.failed > 0 ? `, ${result.failed} failed` : ''}`);
+      const skippedNote = skippedReassigns > 0
+        ? `; skipped ${skippedReassigns} already-assigned (use per-row Apply Fix)`
+        : '';
+      alert(`Applied ${result.applied} fixes${result.failed > 0 ? `, ${result.failed} failed` : ''}${skippedNote}`);
       setSelectedIssues(new Set());
       await loadValidation();
     } catch (err) {

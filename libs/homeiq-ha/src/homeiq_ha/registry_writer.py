@@ -76,10 +76,15 @@ class HARegistryWriter:
     Takes anything exposing ``send_command`` -- pass ``client.ws``. Commands go
     out through that one method rather than the typed helpers so the gateway
     composes with the read-only proxy and the test simulator unchanged.
+
+    ``caller`` names the component asking for the write. Every write is logged
+    with the caller and the before/after values, so an unexpected rename can be
+    traced to its origin (TAP-6232). Pass a stable ``service.component`` string.
     """
 
-    def __init__(self, ws: Any) -> None:
+    def __init__(self, ws: Any, caller: str = "unattributed") -> None:
         self._ws = ws
+        self._caller = caller
 
     # -- entities ----------------------------------------------------------
 
@@ -113,7 +118,12 @@ class HARegistryWriter:
         self, entity_id: str, field: str, value: str | None
     ) -> WriteResult:
         before = await self._entity(entity_id)
-        if before.get(field) == value:
+        previous = before.get(field)
+        if previous == value:
+            logger.info(
+                "%s: %s=%r already in the registry (caller=%s, no write)",
+                entity_id, field, value, self._caller,
+            )
             return WriteResult(entity_id, field, value, value, wrote=False)
 
         await self._ws.send_command(
@@ -121,14 +131,19 @@ class HARegistryWriter:
             fields={"entity_id": entity_id, field: value},
         )
         after = await self._entity(entity_id)
-        self._assert_landed(entity_id, field, value, after)
-        return WriteResult(entity_id, field, value, before.get(field), wrote=True)
+        self._assert_landed(entity_id, field, value, previous, after)
+        return WriteResult(entity_id, field, value, previous, wrote=True)
 
     async def _write_device(
         self, device_id: str, field: str, value: str | None
     ) -> WriteResult:
         before = await self._device(device_id)
-        if before.get(field) == value:
+        previous = before.get(field)
+        if previous == value:
+            logger.info(
+                "%s: %s=%r already in the registry (caller=%s, no write)",
+                device_id, field, value, self._caller,
+            )
             return WriteResult(device_id, field, value, value, wrote=False)
 
         await self._ws.send_command(
@@ -136,21 +151,33 @@ class HARegistryWriter:
             fields={"device_id": device_id, field: value},
         )
         after = await self._device(device_id)
-        self._assert_landed(device_id, field, value, after)
-        return WriteResult(device_id, field, value, before.get(field), wrote=True)
+        self._assert_landed(device_id, field, value, previous, after)
+        return WriteResult(device_id, field, value, previous, wrote=True)
 
-    @staticmethod
     def _assert_landed(
-        target: str, field: str, requested: str | None, after: dict[str, Any]
+        self,
+        target: str,
+        field: str,
+        requested: str | None,
+        previous: str | None,
+        after: dict[str, Any],
     ) -> None:
         observed = after.get(field)
         if observed != requested:
+            logger.warning(
+                "%s: %s=%r -> %r NOT verified -- registry still reports %r "
+                "(caller=%s)",
+                target, field, previous, requested, observed, self._caller,
+            )
             raise WriteNotVerified(
                 f"{target}: asked for {field}={requested!r} but the registry "
                 f"still reports {observed!r} -- the command was accepted and "
                 f"changed nothing"
             )
-        logger.info("%s: %s=%r verified in the registry", target, field, requested)
+        logger.info(
+            "%s: %s=%r -> %r verified in the registry (caller=%s)",
+            target, field, previous, requested, self._caller,
+        )
 
     async def _entity(self, entity_id: str) -> dict[str, Any]:
         try:
@@ -158,9 +185,9 @@ class HARegistryWriter:
                 "config/entity_registry/get", fields={"entity_id": entity_id}
             )
         except HACommandError as exc:
-            raise UnknownTarget(f"no entity {entity_id!r} in the registry") from exc
+            raise self._refuse(f"no entity {entity_id!r} in the registry") from exc
         if not entry:
-            raise UnknownTarget(f"no entity {entity_id!r} in the registry")
+            raise self._refuse(f"no entity {entity_id!r} in the registry")
         return dict(entry)
 
     async def _device(self, device_id: str) -> dict[str, Any]:
@@ -169,7 +196,12 @@ class HARegistryWriter:
         for entry in devices:
             if entry.get("id") == device_id:
                 return dict(entry)
-        raise UnknownTarget(f"no device {device_id!r} in the registry")
+        raise self._refuse(f"no device {device_id!r} in the registry")
+
+    def _refuse(self, reason: str) -> UnknownTarget:
+        """Log who asked before refusing — a refusal with no caller is untraceable."""
+        logger.warning("write refused: %s (caller=%s)", reason, self._caller)
+        return UnknownTarget(reason)
 
     async def _require_area(self, area_id: str | None) -> None:
         """Refuse a dangling area_id.
@@ -182,7 +214,7 @@ class HARegistryWriter:
             return
         areas = await self._ws.send_command("config/area_registry/list") or []
         if area_id not in {a.get("area_id") for a in areas}:
-            raise UnknownTarget(f"no area {area_id!r} in the registry")
+            raise self._refuse(f"no area {area_id!r} in the registry")
 
 
 __all__ = [
