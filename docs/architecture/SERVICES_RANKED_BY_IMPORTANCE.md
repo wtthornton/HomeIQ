@@ -204,7 +204,7 @@ Home Assistant (192.168.1.86:8123)
 | Rank | Service | Role |
 |------|---------|------|
 | **30** | **device-health-monitor** | Device health tracking and battery monitoring |
-| **31** | **device-context-classifier** | Room/location inference |
+| **31** | **device-context-classifier** | Device *type* classification from entity capability signatures (archetypes such as fridge, car, 3D printer). No HomeIQ service infers a room or area — nothing reads a state-change event to propose one (TAP-6229) |
 | **32** | **device-recommender** | Device recommendations and upgrades |
 | **33** | **device-setup-assistant** | Guided device onboarding |
 | **34** | **device-database-client** | Device data access layer |

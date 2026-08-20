@@ -110,9 +110,7 @@ class DevicesHaveAreasRecipe(Recipe):
     phase = PHASE_ORGANIZATION
     description = "Every device is assigned to an area"
 
-    async def _split_unassigned(
-        self, ha: Any
-    ) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    async def _split_unassigned(self, ha: Any) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
         """Unassigned devices as ``(assignable, excluded)`` lists of ``{id, name}``.
 
         The id is what ``/answers`` and the manifest consume (registry ids,

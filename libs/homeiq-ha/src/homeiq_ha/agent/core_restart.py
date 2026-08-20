@@ -81,6 +81,14 @@ async def restart_core(
             raise HAClientError(f"HA did not reach state RUNNING within {timeout}s of the restart")
         await asyncio.sleep(poll_interval)
 
+    # The restart killed the WebSocket; reconnect it for the reads that follow
+    # (the client has no auto-reconnect on this path). This used to sit after a
+    # return statement inside the helper below — dead code, so every caller got
+    # a dead socket back (found while verifying TAP-6236).
+    with contextlib.suppress(HAClientError, OSError, aiohttp.ClientError):
+        await ha.ws.close()
+        await ha.ws.connect()
+
     failed = await _automations_that_failed_to_load(ha)
     if failed:
         raise HAClientError(
@@ -114,11 +122,6 @@ async def _automations_that_failed_to_load(ha: Any) -> list[str]:
         if str(entry.get("entity_id", "")).startswith("automation.")
         and entry.get("state") == "unavailable"
     )
-
-    # The restart killed the WebSocket; reconnect it for the reads that follow
-    # (the client has no auto-reconnect on this path).
-    await ha.ws.close()
-    await ha.ws.connect()
 
 
 __all__ = [
