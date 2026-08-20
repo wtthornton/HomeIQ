@@ -68,8 +68,11 @@ LIMIT 50;
 CREATE OR REPLACE VIEW monitoring.index_usage AS
 SELECT
     schemaname,
-    tablename,
-    indexname,
+    -- pg_stat_user_indexes names these relname/indexrelname; tablename and
+    -- indexname belong to pg_indexes. Aliased so the view's own columns keep
+    -- the names callers already expect.
+    relname AS tablename,
+    indexrelname AS indexname,
     idx_scan,
     idx_tup_read,
     idx_tup_fetch

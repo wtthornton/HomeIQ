@@ -103,6 +103,11 @@ jobs:
           HA_HTTP_URL=http://ha-simulator:8123
           HA_WS_URL=ws://ha-simulator:8123/api/websocket
           HA_TOKEN=test_token
+          # data-api's Settings validator refuses to construct without one of
+          # DATA_API_API_KEY / DATA_API_KEY / API_KEY, so an unset value is a
+          # startup crash rather than an anonymous-access fallback.
+          API_KEY=test_api_key_ci
+          DATA_API_API_KEY=test_api_key_ci
           EOF
 
           # core-platform declares homeiq-network `external: true`, so compose
