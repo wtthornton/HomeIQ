@@ -30,8 +30,7 @@ def _pricing(forecast_hours: int = 0) -> dict:
         "peak_period": True,
         "timestamp": now,
         "forecast_24h": [
-            {"hour": i, "price": 0.20 + (i * 0.01), "timestamp": now}
-            for i in range(forecast_hours)
+            {"hour": i, "price": 0.20 + (i * 0.01), "timestamp": now} for i in range(forecast_hours)
         ],
     }
 
