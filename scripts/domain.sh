@@ -115,13 +115,48 @@ if [[ "$COMMAND" == "verify" && -z "$DOMAIN" ]]; then
       ERRORS=$((ERRORS + 1))
     fi
   done < <(docker ps -a --filter "name=homeiq-" --format "{{.Names}}\t{{.Label \"com.docker.compose.project\"}}" 2>/dev/null)
+
+  # Check for containers whose service no longer exists in its domain's compose
+  # file. These survive a normal 'up' (Compose only prunes orphans when asked)
+  # and keep reporting healthy long after the service was retired, so a plain
+  # 'docker ps' overstates what the repo actually deploys.
+  VERIFY_ENV_FLAG=""
+  if [[ -f "$PROJECT_ROOT/.env" ]]; then
+    VERIFY_ENV_FLAG="--env-file $PROJECT_ROOT/.env"
+  fi
+  for compose_file in "$PROJECT_ROOT"/domains/*/compose.yml; do
+    project="$(awk '/^name:/{print $2; exit}' "$compose_file")"
+    if [[ -z "$project" ]]; then
+      continue
+    fi
+    if ! declared="$(docker compose -f "$compose_file" $VERIFY_ENV_FLAG \
+      --profile development --profile production --profile test \
+      config --services 2>/dev/null | sort)"; then
+      echo -e "${YELLOW}[SKIP]${NC} $project — compose config failed (missing env?); orphan check skipped"
+      continue
+    fi
+    running="$(docker ps -a --filter "label=com.docker.compose.project=$project" \
+      --format '{{.Label "com.docker.compose.service"}}' 2>/dev/null | sort)"
+    while IFS= read -r svc; do
+      if [[ -z "$svc" ]]; then
+        continue
+      fi
+      echo -e "${RED}[ORPHAN]${NC} $project/$svc is running but declared nowhere in ${compose_file#$PROJECT_ROOT/}"
+      echo "  Fix: docker rm -f \$(docker ps -aq --filter label=com.docker.compose.project=$project --filter label=com.docker.compose.service=$svc)"
+      ERRORS=$((ERRORS + 1))
+    done < <(comm -13 <(echo "$declared") <(echo "$running"))
+  done
+
   if [[ $ERRORS -eq 0 ]]; then
     echo -e "${GREEN}[OK]${NC} All containers are in the correct Docker project groups."
   else
     echo ""
-    echo -e "${RED}[FAIL]${NC} $ERRORS container(s) in wrong project group."
-    echo "This usually happens when services are started via the root docker-compose.yml."
-    echo "Always use './scripts/start-stack.sh' or './scripts/domain.sh start <domain>' instead."
+    echo -e "${RED}[FAIL]${NC} $ERRORS container(s) failed verification."
+    echo "[MISMATCH] means the container is in the wrong project group — usually from"
+    echo "starting via the root docker-compose.yml; use './scripts/start-stack.sh' or"
+    echo "'./scripts/domain.sh start <domain>' instead."
+    echo "[ORPHAN] means the service was retired from compose but its container still"
+    echo "runs; remove it with the Fix line above."
     exit 1
   fi
   exit 0
