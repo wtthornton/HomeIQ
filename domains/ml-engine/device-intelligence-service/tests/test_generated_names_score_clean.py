@@ -83,14 +83,14 @@ def test_hygiene_suggester_never_emits_a_brand():
     device = SimpleNamespace(
         area_id="office",
         suggested_area=None,
-        model="FP1E Presence",
+        model="Presence Sensor FP1E",
         integration="zha",
         manufacturer="Aqara",
     )
 
     name = analyzer._suggest_device_name(device, areas)
 
-    assert name == "Office FP1E"
+    assert name == "Office Presence"
     result = score_friendly_name({"friendly_name": name, "area_id": "office"})
     assert result.issues == []
 
