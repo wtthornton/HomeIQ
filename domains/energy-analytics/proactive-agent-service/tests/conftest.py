@@ -8,7 +8,7 @@ import os
 import sys
 from pathlib import Path
 
-import pytest
+import pytest_asyncio
 
 # Add service root and src/ directory to sys.path for imports
 _service_root = str(Path(__file__).resolve().parent.parent)
@@ -20,8 +20,10 @@ if _service_src not in sys.path:
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from src.database import Base
+from homeiq_data import create_pg_engine
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from src.database import Base, _schema
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -29,25 +31,26 @@ if TYPE_CHECKING:
 # Phase 2: event_loop fixture removed — pytest-asyncio 1.3.0 manages event loops internally
 
 
-@pytest.fixture(scope="function")
+@pytest_asyncio.fixture(scope="function")
 async def mock_db_session() -> AsyncGenerator[AsyncSession, None]:
     """
-    Create a mock database session using PostgreSQL.
+    Real PostgreSQL session, pinned to the service schema like production.
 
-    Each test gets a fresh database.
+    The models' foreign keys are unqualified (``REFERENCES suggestions``), so
+    the engine must carry the same search_path DatabaseManager sets in prod;
+    a bare engine resolves ``suggestions`` through the database default
+    search_path to ``automation.suggestions`` (integer id) and create_all
+    fails on the FK type. Tables are dropped after each test so runs that
+    share one database do not leak rows into each other.
     """
-    # Use PostgreSQL for tests
     test_url = os.environ.get(
         "TEST_DATABASE_URL",
         "postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq_test",
     )
-    engine = create_async_engine(
-        test_url,
-        echo=False,
-    )
+    engine = create_pg_engine(test_url, schema=_schema, pool_size=1, max_overflow=0)
 
-    # Create tables using SQLAlchemy models
     async with engine.begin() as conn:
+        await conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {_schema}"))
         await conn.run_sync(Base.metadata.create_all)
 
     # Create session factory
@@ -57,9 +60,9 @@ async def mock_db_session() -> AsyncGenerator[AsyncSession, None]:
         expire_on_commit=False,
     )
 
-    # Create session for test
     async with async_session_maker() as session:
         yield session
 
-    # Cleanup
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
     await engine.dispose()

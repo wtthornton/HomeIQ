@@ -107,7 +107,7 @@ async def test_analyze_weather_high_temperature(context_service, mock_weather_cl
 async def test_analyze_weather_low_temperature(context_service, mock_weather_client):
     """Test weather analysis with low temperature insight"""
     mock_weather_client.get_current_weather.return_value = {
-        "temperature": 40,
+        "temperature": 5,  # Celsius; the low-temperature branch is < 10
         "condition": "cloudy",
         "humidity": 50,
     }
@@ -261,9 +261,11 @@ async def test_analyze_historical_patterns_empty(context_service, mock_data_api_
 
     result = await context_service.analyze_historical_patterns()
 
-    assert result["available"] is False
+    # The source answered; it just had no events. Only a failed query is unavailable.
+    assert result["available"] is True
     assert result["events"] == []
     assert result["patterns"] == []
+    assert any("No events found" in insight for insight in result["insights"])
 
 
 @pytest.mark.asyncio
@@ -277,6 +279,8 @@ async def test_analyze_all_context(context_service):
     context_service.sports_client.get_upcoming_games = AsyncMock(return_value=[])
     context_service.carbon_client.get_current_intensity = AsyncMock(return_value=None)
     context_service.data_api_client.get_events = AsyncMock(return_value=[])
+    context_service.data_api_client.get_activity = AsyncMock(return_value=None)
+    context_service.data_api_client.get_activity_history = AsyncMock(return_value=[])
 
     result = await context_service.analyze_all_context()
 
@@ -284,9 +288,10 @@ async def test_analyze_all_context(context_service):
     assert "sports" in result
     assert "energy" in result
     assert "historical_patterns" in result
+    assert "activity" in result
     assert "summary" in result
     assert "timestamp" in result
-    assert result["summary"]["total_sources"] == 4
+    assert result["summary"]["total_sources"] == 5
 
 
 @pytest.mark.asyncio

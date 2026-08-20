@@ -134,16 +134,17 @@ async def test_generate_suggestions_handles_storage_failure(
 
 
 @pytest.mark.asyncio
-async def test_generate_suggestions_handles_agent_communication_failure(
+async def test_generate_suggestions_stores_pending_without_sending(
     mock_context_service,
     mock_prompt_service,
+    mock_agent_client,
     mock_storage_service,
 ):
-    """Test that generate_suggestions handles agent communication failure gracefully"""
-    # Create an agent client that raises an exception
-    mock_agent_client = MagicMock()
-    mock_agent_client.send_message = AsyncMock(side_effect=Exception("Agent communication failed"))
+    """Generation stores suggestions pending and never talks to the agent.
 
+    Sending happens later via POST /suggestions/{id}/send, so the result
+    carries no send count; callers (the scheduler) must not read one.
+    """
     pipeline = SuggestionPipelineService(
         context_service=mock_context_service,
         prompt_service=mock_prompt_service,
@@ -153,11 +154,12 @@ async def test_generate_suggestions_handles_agent_communication_failure(
 
     result = await pipeline.generate_suggestions()
 
-    # Suggestion should be created, but not sent
-    assert result["suggestions_created"] > 0
-    assert result["suggestions_sent"] == 0
-    assert result["suggestions_failed"] > 0
-    assert any(detail.get("step") == "agent_communication" for detail in result["details"])
+    assert result["success"] is True
+    assert result["suggestions_created"] == 1
+    assert result["suggestions_failed"] == 0
+    assert {"success", "suggestions_created", "suggestions_failed", "details"} <= set(result)
+    assert "suggestions_sent" not in result
+    mock_agent_client.send_message.assert_not_called()
 
 
 @pytest.mark.asyncio

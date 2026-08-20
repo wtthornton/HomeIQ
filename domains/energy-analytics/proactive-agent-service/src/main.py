@@ -270,12 +270,16 @@ app = create_app(
     version="1.0.0",
     description="Context-aware proactive automation suggestions",
     lifespan=lifespan.handler,
-    health_check=health,
     cors_origins=settings.get_cors_origins_list(),
 )
 
-# Register routers
+# Register routers. The service-local /health (scheduler-aware, group-health
+# aware) must be registered before StandardHealthCheck's router: Starlette
+# serves the first matching route, and passing health_check= to create_app
+# registered the generic /health ahead of it, leaving the scheduler handler
+# dead (TAP-6320). StandardHealthCheck still provides /ready.
 app.include_router(health_router)
+app.include_router(health.router)
 app.include_router(suggestions_router)
 app.include_router(task_router)
 app.include_router(proactive_router)  # Epic 68
