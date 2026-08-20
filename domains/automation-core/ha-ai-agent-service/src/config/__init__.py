@@ -57,7 +57,7 @@ class Settings(BaseServiceSettings):
 
     # Device Control Service Configuration (Epic 25)
     ha_device_control_url: str = Field(
-        default="http://ha-device-control:8040",
+        default="http://ha-device-control:8046",
         description="HA Device Control Service URL for direct device control",
     )
 

@@ -1,7 +1,7 @@
 """Device Control Tool Handler.
 
 Epic 25 Story 25.7: Routes device control tool calls from the AI agent
-to the ha-device-control service (port 8040) via HTTP.
+to the ha-device-control service (port 8046) via HTTP.
 
 This handler is a thin proxy — all logic lives in ha-device-control.
 """
