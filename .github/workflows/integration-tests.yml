@@ -437,14 +437,14 @@ jobs:
           from homeiq_resilience import CircuitBreaker, GroupHealthCheck
           from homeiq_observability.logging_config import setup_logging
           from homeiq_data import create_pg_engine
-          from homeiq_ha import AutomationLintEngine
+          from homeiq_ha.ha_automation_lint import LintEngine
 
           print('All shared libraries imported successfully')
           print(f'  homeiq_patterns: RAGContextService, UnifiedValidationRouter')
           print(f'  homeiq_resilience: CircuitBreaker, GroupHealthCheck')
           print(f'  homeiq_observability: setup_logging')
           print(f'  homeiq_data: create_pg_engine')
-          print(f'  homeiq_ha: AutomationLintEngine')
+          print(f'  homeiq_ha: LintEngine')
           "
 
       - name: Check for version conflicts

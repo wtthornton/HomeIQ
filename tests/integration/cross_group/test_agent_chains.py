@@ -125,7 +125,6 @@ class TestAgentChains:
         score = scorer.score_action(
             action_type="turn_off",
             entity_domain="light",
-            context_type="historical_pattern",
             llm_confidence=0.9,
             acceptance_rate=0.85,
             context_match_strength=0.8,
@@ -208,7 +207,6 @@ class TestAgentChains:
             score = scorer.score_action(
                 action_type="turn_on",
                 entity_domain=domain,
-                context_type="test",
                 llm_confidence=1.0,
                 acceptance_rate=1.0,
                 context_match_strength=1.0,
