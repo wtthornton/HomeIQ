@@ -5,7 +5,12 @@
 integration. Changing a shape here is a contract change: bump `catalogue_version`
 and update the contract tests (TAP-5297) in the same commit.
 
-**catalogue_version:** 1.2.3
+**catalogue_version:** 1.2.4
+
+**v1.2.4 changes (2026-08-20, TAP-6107):** websocket-ingestion now writes
+`context_parent_id`, so `trace_automation` resolves real chains for events
+ingested from 2026-08-20 onward; the honesty caveat is replaced by a data-age
+note (older events carry no parent and terminate the walk).
 
 **v1.2.3 changes (2026-08-18):** `trace_automation` carries an honesty caveat —
 ingestion stores `context_id` but not `context_parent_id`, so chains resolve
