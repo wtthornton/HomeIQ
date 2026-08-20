@@ -186,9 +186,11 @@ async def test_apply_fix_refuses_a_device_inherited_area_without_opt_in(
         areas=["office", "living_room"],
         devices=[{"id": "dev1", "area_id": "living_room"}],
     )
-    with patch.object(validation_service, "_connection", new=AsyncMock(return_value=conn)):
-        with pytest.raises(AreaReassignRefused, match="living_room"):
-            await validation_service.apply_fix("light.office_desk", "office")
+    with (
+        patch.object(validation_service, "_connection", new=AsyncMock(return_value=conn)),
+        pytest.raises(AreaReassignRefused, match="living_room"),
+    ):
+        await validation_service.apply_fix("light.office_desk", "office")
 
     assert conn.update_calls == []
 
@@ -206,9 +208,11 @@ async def test_apply_fix_refuses_to_overwrite_an_assigned_area(validation_servic
         },
         areas=["office", "living_room"],
     )
-    with patch.object(validation_service, "_connection", new=AsyncMock(return_value=conn)):
-        with pytest.raises(AreaReassignRefused, match="allow_reassign"):
-            await validation_service.apply_fix("light.office_desk", "office")
+    with (
+        patch.object(validation_service, "_connection", new=AsyncMock(return_value=conn)),
+        pytest.raises(AreaReassignRefused, match="allow_reassign"),
+    ):
+        await validation_service.apply_fix("light.office_desk", "office")
 
     assert conn.update_calls == []  # refused before any write reached HA
 
