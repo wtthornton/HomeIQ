@@ -4,8 +4,22 @@ Unit tests for Automation Service Suggestion Router
 Epic 39, Story 39.12: Query & Automation Service Testing
 """
 
+import importlib
+
 import pytest
 from httpx import AsyncClient
+
+
+@pytest.fixture(autouse=True)
+def _reset_refresh_state():
+    """_refresh_state is module-level mutable state; restore it after each test."""
+    # src.api re-exports the APIRouter under the module's name; get the module.
+    module = importlib.import_module("src.api.suggestion_router")
+
+    saved = dict(module._refresh_state)
+    yield
+    module._refresh_state.clear()
+    module._refresh_state.update(saved)
 
 
 class TestSuggestionRouter:
@@ -81,5 +95,6 @@ class TestSuggestionRouter:
         response = await client.get("/api/suggestions/refresh/status", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
-        assert "status" in data
-        assert "message" in data
+        assert set(data) == {"status", "last_refresh", "items_refreshed", "error"}
+        assert data["status"] == "idle"
+        assert data["error"] is None

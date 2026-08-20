@@ -5,10 +5,27 @@ Epic 39, Story 39.10: Automation Service Foundation
 Tests for main.py application initialization, lifespan, and configuration.
 """
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import AsyncClient
+
+
+@pytest.fixture
+def fast_startup():
+    """Keep lifespan tests in-process.
+
+    _startup probes data-api with wait_for_dependency (10 retries, ~3 minutes
+    of real sleeps when unreachable), opens HTTP and memory clients, and may
+    start the scheduler. None of that is what these tests assert.
+    """
+    with (
+        patch("homeiq_resilience.wait_for_dependency", new_callable=AsyncMock, return_value=False),
+        patch("src.main.init_clients", new_callable=MagicMock),
+        patch("src.main.init_memory_client", new_callable=AsyncMock),
+        patch("src.main._start_scheduler", new_callable=MagicMock),
+    ):
+        yield
 
 
 class TestMainApplication:
@@ -21,10 +38,8 @@ class TestMainApplication:
         response = await client.get("/")
         assert response.status_code == 200
         data = response.json()
-        assert data["service"] == "ai-automation-service"
-        assert data["version"] == "1.0.0"
-        assert data["status"] == "operational"
-        assert "note" in data
+        # Served by homeiq_resilience.create_app: service is the app title.
+        assert data == {"service": "AI Automation Service", "version": "1.0.0", "status": "running"}
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -53,6 +68,7 @@ class TestMainApplication:
         assert response.status_code in [200, 401, 404]
 
 
+@pytest.mark.usefixtures("fast_startup")
 class TestLifespanManagement:
     """Test suite for application lifespan (startup/shutdown) management."""
 
@@ -89,10 +105,11 @@ class TestLifespanManagement:
 
         mock_init_db.side_effect = Exception("Database connection failed")
 
-        # Should raise exception during startup
-        with pytest.raises(Exception, match="Database connection failed"):
-            async with lifespan.handler(app):
-                pass
+        # ServiceLifespan is graceful: the failing "services" hook is logged and
+        # the app comes up degraded. The rest of that hook (rate limiting) is
+        # skipped, which is the observable consequence.
+        async with lifespan.handler(app):
+            _mock_start_cleanup.assert_not_called()
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -160,6 +177,7 @@ class TestErrorHandling:
         assert "application/json" in response.headers.get("content-type", "")
 
 
+@pytest.mark.usefixtures("fast_startup")
 class TestObservability:
     """Test suite for observability configuration."""
 

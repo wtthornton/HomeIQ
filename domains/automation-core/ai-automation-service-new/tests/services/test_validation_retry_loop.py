@@ -151,7 +151,8 @@ async def test_pass_on_second_try():
 
     assert result.passed is True
     assert result.attempts == 2
-    assert result.yaml_content == corrected_yaml
+    # _retry_with_error_feedback strips LLM output (fence remnants, blank lines).
+    assert result.yaml_content == corrected_yaml.strip()
 
 
 # ---------------------------------------------------------------------------

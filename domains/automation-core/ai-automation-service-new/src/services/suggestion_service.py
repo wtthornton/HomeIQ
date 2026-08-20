@@ -79,7 +79,7 @@ class SuggestionService:
         self.memory_search = memory_search
 
     async def generate_suggestions(
-        self, _pattern_ids: list[str] | None = None, days: int = 30, limit: int = 10
+        self, pattern_ids: list[str] | None = None, days: int = 30, limit: int = 10
     ) -> list[dict[str, Any]]:
         """
         Generate automation suggestions from detected patterns.
@@ -100,6 +100,9 @@ class SuggestionService:
                 return []
 
             patterns = await self._fetch_patterns_safely(limit)
+            if pattern_ids:
+                wanted = set(pattern_ids)
+                patterns = [p for p in patterns if str(p.get("id")) in wanted]
             suggestions = await self._generate_candidates(patterns, events, limit)
 
             if self.memory_search and MEMORY_AVAILABLE:
