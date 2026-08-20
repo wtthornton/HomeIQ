@@ -58,8 +58,11 @@ WORKDIR /app
 # Copy application source (changes frequently, so copy late)
 COPY domains/ml-engine/device-intelligence-service/src/ ./src/
 
-# Copy models directory (only if needed, exclude backups)
-COPY domains/ml-engine/device-intelligence-service/models/ ./models/
+# Models are NOT baked into the image: *.pkl is gitignored, so a local build
+# would ship whatever the developer had trained while a clean-clone build
+# shipped nothing (TAP-6242). Artifacts live on the mounted /app/models volume;
+# a fresh volume retrains on schedule.
+RUN mkdir -p /app/models
 
 # Set ownership (combine with env setup)
 RUN chown -R appuser:appgroup /app /home/appuser/.local

@@ -760,6 +760,19 @@ class PredictiveAnalyticsEngine:
         else:
             return "minimal"
 
+    #: How many timestamped ``.backup_*`` copies to keep per artifact (TAP-6242).
+    BACKUP_RETAIN = 3
+
+    def _prune_backups(self, artifact_path: Path) -> None:
+        """Keep only the newest ``BACKUP_RETAIN`` backups of one artifact."""
+        backups = sorted(artifact_path.parent.glob(f"{artifact_path.name}.backup_*"))
+        for stale in backups[: -self.BACKUP_RETAIN]:
+            try:
+                stale.unlink()
+                logger.info(f"Pruned stale model backup {stale}")
+            except OSError as e:
+                logger.warning(f"Could not prune backup {stale}: {e}")
+
     def _calculate_confidence(self, failure_probability: float, anomaly_score: float) -> float:
         """Calculate prediction confidence."""
         # Higher confidence for extreme values and consistent signals
@@ -1026,6 +1039,10 @@ class PredictiveAnalyticsEngine:
                         backup_metadata_path = f"{metadata_path}.backup_{backup_suffix}"
                         shutil.copy2(metadata_path, backup_metadata_path)
                         logger.info(f"Backed up model metadata to {backup_metadata_path}")
+                    # Bounded rotation (TAP-6242): three copies accumulated in
+                    # one three-second training window before this pruned.
+                    self._prune_backups(failure_model_path)
+                    self._prune_backups(metadata_path)
                 except Exception as e:
                     logger.warning(f"Could not backup existing model: {e}")
 
