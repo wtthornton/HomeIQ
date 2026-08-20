@@ -133,7 +133,9 @@ class ElectricityPricingService:
 
             data = await self.provider.fetch_pricing(self.session)
 
-            if data is None:
+            if not data:
+                # None or an empty payload: nothing to cache. Caching first and
+                # validating later left a timestamp-only dict as "pricing data".
                 logger.warning("Provider returned no data")
                 return self.cached_data
 

@@ -3,7 +3,7 @@ Unit tests for electricity pricing service core logic
 Tests fetching, caching, InfluxDB storage, and API endpoints
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -116,8 +116,9 @@ class TestDataFetching:
         WHEN: Fetch pricing
         THEN: Should return cached data
         """
-        # Set up cached data
+        # Set up cached data (a cache entry always carries its fetch time)
         service_instance.cached_data = sample_pricing_data.copy()
+        service_instance.last_fetch_time = datetime.now(UTC)
 
         with patch.object(
             service_instance.provider, "fetch_pricing", new_callable=AsyncMock
@@ -189,9 +190,9 @@ class TestDataCaching:
             mock_fetch.return_value = sample_pricing_data.copy()
             service_instance.session = AsyncMock()
 
-            before_fetch = datetime.now()
+            before_fetch = datetime.now(UTC)
             await service_instance.fetch_pricing()
-            after_fetch = datetime.now()
+            after_fetch = datetime.now(UTC)
 
             assert service_instance.last_fetch_time is not None
             assert before_fetch <= service_instance.last_fetch_time <= after_fetch
@@ -251,7 +252,9 @@ class TestAPIEndpoints:
     """Test HTTP API endpoints"""
 
     @pytest.mark.asyncio
-    async def test_get_cheapest_hours_with_cached_data(self, service_instance, sample_pricing_data):
+    async def test_get_cheapest_hours_with_cached_data(
+        self, api_client, service_instance, sample_pricing_data
+    ):
         """
         GIVEN: Service with cached pricing data
         WHEN: Request cheapest hours
@@ -260,17 +263,15 @@ class TestAPIEndpoints:
         service_instance.cached_data = sample_pricing_data
         service_instance.last_fetch_time = datetime.now()
 
-        # Mock request
-        request = MagicMock()
-        request.query = {"hours": "4"}
+        response = await api_client.get("/cheapest-hours", params={"hours": "4"})
 
-        response = await service_instance.get_cheapest_hours(request)
-
-        assert response.status == 200
-        # Response should contain cheapest_hours
+        assert response.status_code == 200
+        assert response.json()["cheapest_hours"] == sample_pricing_data["cheapest_hours"][:4]
 
     @pytest.mark.asyncio
-    async def test_get_cheapest_hours_default_count(self, service_instance, sample_pricing_data):
+    async def test_get_cheapest_hours_default_count(
+        self, api_client, service_instance, sample_pricing_data
+    ):
         """
         GIVEN: Service with cached data
         WHEN: Request cheapest hours without count parameter
@@ -279,15 +280,15 @@ class TestAPIEndpoints:
         service_instance.cached_data = sample_pricing_data
         service_instance.last_fetch_time = datetime.now()
 
-        request = MagicMock()
-        request.query = {}
+        response = await api_client.get("/cheapest-hours")
 
-        response = await service_instance.get_cheapest_hours(request)
-
-        assert response.status == 200
+        assert response.status_code == 200
+        assert len(response.json()["cheapest_hours"]) == min(
+            4, len(sample_pricing_data["cheapest_hours"])
+        )
 
     @pytest.mark.asyncio
-    async def test_get_cheapest_hours_no_cached_data(self, service_instance):
+    async def test_get_cheapest_hours_no_cached_data(self, api_client, service_instance):
         """
         GIVEN: Service without cached data
         WHEN: Request cheapest hours
@@ -295,15 +296,14 @@ class TestAPIEndpoints:
         """
         service_instance.cached_data = None
 
-        request = MagicMock()
-        request.query = {"hours": "4"}
+        response = await api_client.get("/cheapest-hours", params={"hours": "4"})
 
-        response = await service_instance.get_cheapest_hours(request)
-
-        assert response.status == 503
+        assert response.status_code == 503
 
     @pytest.mark.asyncio
-    async def test_get_cheapest_hours_custom_count(self, service_instance, sample_pricing_data):
+    async def test_get_cheapest_hours_custom_count(
+        self, api_client, service_instance, sample_pricing_data
+    ):
         """
         GIVEN: Service with cached data
         WHEN: Request specific number of cheapest hours
@@ -312,12 +312,10 @@ class TestAPIEndpoints:
         service_instance.cached_data = sample_pricing_data
         service_instance.last_fetch_time = datetime.now()
 
-        request = MagicMock()
-        request.query = {"hours": "2"}
+        response = await api_client.get("/cheapest-hours", params={"hours": "2"})
 
-        response = await service_instance.get_cheapest_hours(request)
-
-        assert response.status == 200
+        assert response.status_code == 200
+        assert len(response.json()["cheapest_hours"]) == 2
 
 
 class TestServiceLifecycle:

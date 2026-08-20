@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from aiohttp import web
+from fastapi import HTTPException
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent / "../.."))
@@ -66,100 +66,76 @@ class TestHoursParameterValidation:
 
 
 class TestInternalRequestValidation:
-    """Tests for internal request validation"""
+    """Tests for internal request validation (reads request.client.host)"""
+
+    @staticmethod
+    def _request(host):
+        request = MagicMock()
+        request.client.host = host
+        return request
 
     def test_no_allowed_networks_allows_all(self):
         """Test that no allowed networks means all requests allowed"""
-        request = MagicMock()
-        request.remote = "192.168.1.100"
+        request = self._request("192.168.1.100")
 
         assert validate_internal_request(request, None) is True
         assert validate_internal_request(request, []) is True
 
     def test_allowed_network_match(self):
         """Test request from allowed network"""
-        request = MagicMock()
-        request.remote = "192.168.1.100"
-
-        allowed = ["192.168.0.0/16"]
-        assert validate_internal_request(request, allowed) is True
+        assert validate_internal_request(self._request("192.168.1.100"), ["192.168.0.0/16"]) is True
 
     def test_allowed_network_no_match(self):
         """Test request from non-allowed network"""
-        request = MagicMock()
-        request.remote = "10.0.0.100"
-
-        allowed = ["192.168.0.0/16"]
-        assert validate_internal_request(request, allowed) is False
+        assert validate_internal_request(self._request("10.0.0.100"), ["192.168.0.0/16"]) is False
 
     def test_multiple_allowed_networks(self):
         """Test with multiple allowed networks"""
-        request = MagicMock()
-        request.remote = "172.16.1.100"
-
         allowed = ["192.168.0.0/16", "172.16.0.0/12"]
-        assert validate_internal_request(request, allowed) is True
+
+        assert validate_internal_request(self._request("172.16.1.100"), allowed) is True
 
     def test_no_remote_address(self):
         """Test when remote address cannot be determined"""
         request = MagicMock()
-        request.remote = None
+        request.client = None
 
-        allowed = ["192.168.0.0/16"]
-        assert validate_internal_request(request, allowed) is False
+        assert validate_internal_request(request, ["192.168.0.0/16"]) is False
 
     def test_invalid_ip_address(self):
         """Test with invalid IP address"""
-        request = MagicMock()
-        request.remote = "invalid-ip"
-
-        allowed = ["192.168.0.0/16"]
-        # Should handle gracefully
-        result = validate_internal_request(request, allowed)
-        assert result is False
+        assert validate_internal_request(self._request("invalid-ip"), ["192.168.0.0/16"]) is False
 
     def test_invalid_network_config(self):
         """Test with invalid network configuration"""
-        request = MagicMock()
-        request.remote = "192.168.1.100"
-
-        allowed = ["invalid-network"]
-        # Should handle gracefully
-        result = validate_internal_request(request, allowed)
-        assert result is False
+        assert (
+            validate_internal_request(self._request("192.168.1.100"), ["invalid-network"]) is False
+        )
 
 
 class TestRequireInternalNetwork:
-    """Tests for require_internal_network middleware"""
+    """Tests for the require_internal_network guard (sync, raises HTTPException)"""
 
-    @pytest.mark.asyncio
-    async def test_allowed_network_passes(self):
+    @staticmethod
+    def _request(host):
+        request = MagicMock()
+        request.client.host = host
+        return request
+
+    def test_allowed_network_passes(self):
         """Test that allowed network passes validation"""
-        request = MagicMock()
-        request.remote = "192.168.1.100"
+        require_internal_network(self._request("192.168.1.100"), ["192.168.0.0/16"])
 
-        allowed = ["192.168.0.0/16"]
-
-        # Should not raise exception
-        await require_internal_network(request, allowed)
-
-    @pytest.mark.asyncio
-    async def test_no_allowed_networks_passes(self):
+    def test_no_allowed_networks_passes(self):
         """Test that no allowed networks means all requests pass"""
-        request = MagicMock()
-        request.remote = "10.0.0.100"
+        request = self._request("10.0.0.100")
 
-        # Should not raise exception
-        await require_internal_network(request, None)
-        await require_internal_network(request, [])
+        require_internal_network(request, None)
+        require_internal_network(request, [])
 
-    @pytest.mark.asyncio
-    async def test_non_allowed_network_raises_forbidden(self):
-        """Test that non-allowed network raises HTTPForbidden"""
-        request = MagicMock()
-        request.remote = "10.0.0.100"
+    def test_non_allowed_network_raises_forbidden(self):
+        """Test that non-allowed network raises a 403"""
+        with pytest.raises(HTTPException) as exc_info:
+            require_internal_network(self._request("10.0.0.100"), ["192.168.0.0/16"])
 
-        allowed = ["192.168.0.0/16"]
-
-        with pytest.raises(web.HTTPForbidden):
-            await require_internal_network(request, allowed)
+        assert exc_info.value.status_code == 403
