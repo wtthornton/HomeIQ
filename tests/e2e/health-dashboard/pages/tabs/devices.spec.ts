@@ -46,8 +46,10 @@ test.describe('Devices — Smart Home Inventory', () => {
     const subtitle = page.getByText('Manage and monitor your Home Assistant devices');
     await expect(subtitle).toBeVisible({ timeout: 5000 });
 
-    // Refresh button should be available (scoped to main content, not the header Auto Refresh)
-    const refreshButton = page.locator('main').getByRole('button', { name: /^Refresh$/i });
+    // The page-level Refresh must be present. Target it by test id: the empty
+    // state ("No Devices Found") renders its own Refresh, so matching on the
+    // accessible name alone is ambiguous whenever the device list comes back empty.
+    const refreshButton = page.getByTestId('devices-refresh');
     await expect(refreshButton).toBeVisible({ timeout: 5000 });
   });
 

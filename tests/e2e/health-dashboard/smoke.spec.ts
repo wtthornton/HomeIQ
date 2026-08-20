@@ -36,7 +36,7 @@ test.describe('Health Dashboard Smoke Tests @smoke', () => {
     // System status region must be visible with a clear state
     const statusText = page.getByRole('status');
     await expect(statusText).toBeVisible({ timeout: 15000 });
-    await expect(statusText).toContainText(/operational|degraded|critical|down/i);
+    await expect(statusText).toContainText(/operational|degraded|error/i);
   });
 
   test('overview page renders key metric sections', async ({ page }) => {

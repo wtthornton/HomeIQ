@@ -49,18 +49,20 @@ test.describe('Overview — Operator Mission Control', () => {
   test('@smoke system status banner shows clear operational state', async ({ page }) => {
     // The status region exists with aria-label "System status overview" (SystemStatusHero)
     const statusRegion = page.getByRole('region', { name: /system status/i }).or(
-      page.locator('[data-testid="dashboard-content"]').filter({ has: page.getByText(/operational|degraded|critical/i) })
+      page.locator('[data-testid="dashboard-content"]').filter({ has: page.getByText(/operational|degraded|error/i) })
     );
     await expect(statusRegion.first()).toBeVisible({ timeout: 15000 });
 
-    // Status must say OPERATIONAL, DEGRADED, or CRITICAL — not blank or "loading"
+    // calculateOverallStatus() returns exactly 'operational' | 'degraded' | 'error',
+    // which SystemStatusHero renders as ALL SYSTEMS OPERATIONAL / DEGRADED PERFORMANCE
+    // / SYSTEM ERROR. Anything else means the banner is blank, loading, or UNKNOWN.
     const statusText = page.getByRole('status');
     await expect(statusText).toBeVisible();
-    await expect(statusText).toContainText(/operational|degraded|critical|down/i);
+    await expect(statusText).toContainText(/operational|degraded|error/i);
 
     // "Updated Xs ago" or status label — the operator needs to know data is fresh
     const region = page.getByRole('region', { name: /system status/i }).first();
-    await expect(region.getByText(/updated|operational|degraded|critical/i).first()).toBeVisible({ timeout: 5000 });
+    await expect(region.getByText(/updated|operational|degraded|error/i).first()).toBeVisible({ timeout: 5000 });
   });
 
   // ─── KEY PERFORMANCE INDICATORS ───────────────────────────────────
