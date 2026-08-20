@@ -15,6 +15,12 @@ dependencies = [
     # this library at all.
     "websockets>=13.0",
     "pyyaml>=6.0",
+    # homeiq_automation/spec_validator.py imports jsonschema unconditionally
+    # (present in the dev venv only by coincidence — not even in uv.lock);
+    # homeiq_automation/{validator,schema}.py import pydantic unconditionally
+    # (TAP-6066).
+    "jsonschema>=4.17",
+    "pydantic>=2.0",
 ]
 
 [tool.setuptools.packages.find]

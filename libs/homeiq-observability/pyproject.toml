@@ -21,6 +21,12 @@ dependencies = [
     # the second live libs-ci run caught it (TAP-6037).
     "homeiq-data[auth]>=1.0.0",
     "fastapi>=0.110",
+    # metrics_api.py imports influxdb_client directly; endpoints use pydantic
+    # BaseModel directly; observability/correlation.py imports starlette directly.
+    # All three were resolving only via other libs' own deps (TAP-6066).
+    "influxdb-client>=1.36",
+    "pydantic>=2.0",
+    "starlette>=0.37",
 ]
 
 [project.optional-dependencies]
