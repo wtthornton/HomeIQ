@@ -20,11 +20,10 @@ defaults to a self-hosted runner (also free).
 | `quality-gate` | push to `master`/`main` + PR |
 | `test` | push to `master`/`main` + PR |
 | `integration-tests` | push to `master`/`main` + PR |
-| `codeql-analysis` | push + PR + weekly (Mon 06:00 UTC) |
+| `codeql-analysis` | PR |
 | `docker-build`, `docker-test` | PR touching a Dockerfile or compose file |
 | `compose-parse` | every PR (deliberately unfiltered — it detects compose files under names the path filters would miss) |
 | `docker-security-scan` | PR touching a Dockerfile + weekly (Mon 06:00 UTC) |
-| `agentic-pr-review` | PR |
 | `dependabot-auto-merge` | Dependabot PRs |
 
 ### Path filters
@@ -46,9 +45,9 @@ need an input only a human can supply:
 - `publish-shared-libs` — publishes packages
 - `af-agent-gate` — requires a reachable AgentForge URL
 - `update-documentation` — doc-generation bot
-- `embedding-regression`, `tapps-quality` — run on demand
-- `copilot-setup-steps`, `deployment-notify`, `reusable-group-ci`,
-  `tapps-quality-reusable` — helper/reusable workflows, not directly triggered
+- `embedding-regression` — runs on demand
+- `copilot-setup-steps`, `deployment-notify`, `reusable-group-ci` — helper/reusable
+  workflows, not directly triggered
 
 ## What would actually cost money
 

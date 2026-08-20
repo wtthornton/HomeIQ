@@ -81,28 +81,57 @@ To protect customized files from upgrade, add them to `upgrade_skip_files` in `.
 
 ## CI Integration
 
-TappsMCP can run in CI without an MCP host, but **there is currently no working
-pip install for it**. Do not add one to a workflow expecting it to succeed:
+**TappsMCP does not run in GitHub-hosted CI, and no workflow should try.** It is
+not distributed through a package index — it is installed *globally on the
+developer machine* from a local checkout, and agents reach it over loopback:
 
-1. `pip install tapps-mcp` — the name is not on PyPI (404).
-2. `pip install "git+https://github.com/wtthornton/TappsMCP.git@<tag>"` — the
-   repo root is a uv workspace with no `[project]` table, so setuptools refuses
-   with "Multiple top-level packages discovered in a flat-layout".
+- Source: `/home/wtthornton/code/tapps-mcp` (remote `wtthornton/TappsMCP.git`)
+- Installed to `~/.tapps-mcp/releases/<version>-<sha>/`, selected by the
+  `~/.tapps-mcp/current` symlink, fronted by `~/.local/bin/tapps-mcp`
+- Agent surface: the six `nlt-*` MCP servers in `.mcp.json`, all HTTP to
+  `127.0.0.1:8760-8765` (`nlt-build`, `nlt-memory`, `nlt-setup`,
+  `nlt-linear-issues`, `nlt-project-docs`, `nlt-release-ship`). One fleet serves
+  several projects; scope comes from the `X-Tapps-Project-Root` header.
+- Upgrades go through the `tapps-upgrade` skill, never `pip`.
+
+A GitHub-hosted runner has none of that — no checkout, no global install, no
+loopback fleet. All three install attempts fail by construction:
+
+1. `pip install tapps-mcp` — not on PyPI (404), and not intended to be. Same for
+   `tapps-core`.
+2. `pip install "git+https://github.com/wtthornton/TappsMCP.git@<tag>"` — the repo
+   root is a uv workspace with no `[project]` table, so setuptools refuses with
+   "Multiple top-level packages discovered in a flat-layout".
 3. Adding `#subdirectory=packages/tapps-mcp` gets past the build, then fails on
-   `tapps-core>=1.0.0`, which is also unpublished. It resolves in-workspace via
-   `[tool.uv.sources] tapps-core = { workspace = true }`, and that key is
-   uv-only — plain pip ignores it.
+   `tapps-core`, which resolves only via `[tool.uv.sources] tapps-core =
+   { workspace = true }` — a uv-only key that plain pip ignores.
 
-`.github/workflows/quality-gate.yml` and `agentic-pr-review.yml` are the source
-of truth for what CI actually runs; both are red on this and the fix is upstream
-in TappsMCP (publish the dists, or have CI use `uv` rather than pip).
+This is a **distribution-model mismatch, not a packaging bug**. Publishing to
+PyPI is not the fix. (If it were ever reconsidered: the name `docs-mcp` on PyPI
+already belongs to an unrelated project, so a bare `pip install docs-mcp` pulls a
+stranger's package.)
 
-Once an install path exists, the validate step itself is:
+The workflows that tried anyway never once passed — `agentic-pr-review` 0-for-117
+runs and the `quality-gate` job 0-for-176, both since 2026-03-06 — and were
+removed in `bfcf5379`. See `docs/TAPPSMCP_INSTALL_MODEL.md`.
+
+**Where the gate is actually enforced:** locally, before code reaches CI, which is
+the design rather than a fallback — `tapps_quick_check` per edit,
+`tapps_validate_changed` before done, `tapps_checklist` last, the Stop hook, and
+`/tapps-finish-task`. CI keeps what needs no TappsMCP: `ruff check` and
+`ruff format --check` per service in `reusable-group-ci.yml`, plus the
+`regression-checks` job retained in `quality-gate.yml`.
+
+Reintroducing the gate in CI requires a **self-hosted runner** carrying the global
+install. The step would then be:
 
 ```bash
 TAPPS_MCP_PROJECT_ROOT=/workspace \
   tapps-mcp validate-changed --preset staging
 ```
+
+Never reintroduce it behind `|| true` or `continue-on-error`. A gate that cannot
+fail reads as coverage while providing none.
 
 ### Claude Code headless mode
 
