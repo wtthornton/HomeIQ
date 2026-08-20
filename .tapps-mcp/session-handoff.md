@@ -1,34 +1,39 @@
 # Session handoff
-**Updated:** 2026-08-20T14:25:00Z
-**Git:** a9cb9fb8 on master
-**Repo root:** /home/wtthornton/code/HomeIQ (paths below absolute)
-**Linear P0:** none open
+**Updated:** 2026-08-20T16:25:00Z
+**Git:** aa8ef7cd on master
+**Repo root:** /home/wtthornton/code/HomeIQ
+**Linear:** filed TAP-6383 (Backlog/Medium). No P0 open.
 
 ## Done
-- TAP-6310 CLOSED: PR #118. electricity-pricing InfluxDB tests: payloads lacked `provider`/`peak_period` so store_in_influxdb fail-closed and never wrote; the local fixture wrote raw os.environ (leaking INFLUXDB_ORG into test_main) and called startup() after assigning the mock, replacing it with a real client. 137 passed.
-- PR #119: deleted 302 lines of unrunnable CI (agentic-pr-review.yml, tapps-quality*.yml, the quality-gate JOB). Kept the passing regression-checks job in that file.
-- PR #120: two defects the never-green CI hid — /home/wtthornton/code/HomeIQ/.github/workflows/integration-tests.yml imported `AutomationLintEngine`, which never existed (real: `LintEngine` in `homeiq_ha.ha_automation_lint`); and /home/wtthornton/code/HomeIQ/tests/integration/cross_group/test_agent_chains.py passed a `context_type=` kwarg score_action() rejects. Fixed the TEST — prod caller .../proactive-agent-service/src/services/agent_loop.py:306 omits it.
-- PR #121: tapps-mcp upgrade 3.12.65 -> 3.12.72. Doctor 83 passed / 0 failed.
-- Housekeeping: 4 stashes dropped, 8 merged branches deleted, 34 stale refs pruned; removed the empty root-owned /home/wtthornton/code/HomeIQ/domains/ml-engine/ai-training-service tree (owner ran sudo rmdir) that was breaking `git rebase`.
+- PR #122: stripped `|| true` from .github/workflows/integration-tests.yml (7 pytest, 4 pip installs) + fixed unreachable block after `exit "$FAILED"`. Masking hid NOTHING — all 9 jobs pass honestly, 0 new reds.
+- PR #123: E2E was 0-for-40, structurally impossible (bare `up -d` = 45 services, 38 source builds, 180s wait; docker-build.yml `push: false` so no images to pull). Scoped to 7 services = transitive depends_on closure: influxdb postgres ha-simulator data-api websocket-ingestion admin-api health-dashboard. Now all 7 healthy, **18 passed / 8 failed / 1 flaky**.
+- Four stacked blockers, each hidden by the prior: 7 `${VAR:?required}` names w/ 1 supplied (compose aborts at the first, so only GF_SECURITY_ADMIN_PASSWORD ever showed); homeiq_logs include-merge conflict; homeiq-network not created; data-api crash-on-boot (needs API_KEY).
+- REAL DEFECT FIXED: infrastructure/postgres/init-monitoring.sql:71-72 used `tablename`/`indexname` from pg_stat_user_indexes (actual: `relname`/`indexrelname`). Script aborted there — of 8 views only 3 existed on the LIVE db, neither GRANT ran. Verified fixed on PG17 under ON_ERROR_STOP=1 in a rolled-back txn.
+- Also fixed: health wait accepted `HEALTHY -gt 0`; pass-rate used `stats.expected` (the PASSED count) as its own denominator and read a path Playwright never wrote.
 
 ## Open
-- 3 red checks, all /home/wtthornton/code/HomeIQ/.github/workflows/test.yml, pre-existing on master: E2E (compose .env heredoc omits INFLUXDB_PASSWORD/POSTGRES_PASSWORD), Integration Tests (29 tests hit live HTTP in a job starting no services; 2 need influxdb_client_3), Test Summary (aggregates).
-- Doctor WARN: alwaysApply rules 26491 bytes vs 16384 ceiling. Worst /home/wtthornton/code/HomeIQ/.cursor/rules/tapps-pipeline.md=7196; af-integration.mdc duplicated at 3441 in .claude/rules/ and .cursor/rules/.
-- tapps upgrade shortened CLAUDE.md's generated Memory System block, dropping tapps_memory action/tier/scope detail. Upstream wording, managed region.
-- CI backlog, all under /home/wtthornton/code/HomeIQ/.github/workflows/: docker-security-scan.yml duplicates 11 of docker-build.yml's 21 Trivy legs; Trivy `fs scan-ref: .` runs 21x in one matrix; scripts/validate-dockerfile-libs.py up to 78x; no top-level concurrency on test/docker-build/docker-test/docker-security-scan; deploy-production.yml.example is 225 dead lines.
+- **8 E2E failures + 1 flaky** — deferred by owner decision. Real UI assertions (heading /Anomaly Detection/i missing, alerts.spec.ts:48). UNVERIFIED hypothesis: data-dependent, CI has no HA data so dashboards render empty.
+- `Integration Tests` (test.yml) — only confirmed red on master. 29 tests hit live HTTP with no services started; 2 need influxdb_client_3. Needs a service-container decision. UNTOUCHED. `Test Summary` aggregates it + E2E.
+- Not in E2E scope (see workflows README): ai-automation-ui (:3001, needs domains/frontends/compose.yml) and full-suite run (needs published images). Do NOT widen back to bare `up -d`.
+- Doctor WARN: alwaysApply rules 26491 vs 16384 ceiling; af-integration.mdc duplicated in .claude/rules/ and .cursor/rules/.
+- CI backlog: docker-security-scan dupes 11 of docker-build's 21 Trivy legs; no top-level concurrency on 4 workflows.
 
 ## Next (P0)
-- Remove the `|| true` masking in /home/wtthornton/code/HomeIQ/.github/workflows/integration-tests.yml: 7 of 9 jobs structurally cannot fail, so it reports success while proving nothing. Strip it from the 7 pytest calls (:105,190,235,276,323,364,405) and 4 installs (:88,166,173,311), then triage what surfaces. Do this BEFORE the test.yml compose-var fix.
+- Triage the 8 E2E failures. Test the empty-state hypothesis first: `sh scripts/ensure-network.sh`, then `docker compose -p homeiq-e2e --env-file .env -f domains/core-platform/compose.yml up -d --build <the 7>`, open the dashboard. If sections are genuinely empty, the call is seed-data vs empty-tolerant specs — a test-design decision, ask the owner. The `playwright-report` artifact has e2e-results.json + traces.
 
 ## Blockers
 - none
 
 ## Verify
-- USER RULE: no full local suites; targeted files only, CI runs the suite.
-- `gh pr checks --json` unsupported here; `gh run view --log` empty. Use `gh api repos/wtthornton/HomeIQ/actions/jobs/<id>/logs`.
-- Diff PR reds against master head first: `gh api repos/wtthornton/HomeIQ/commits/$(git -C /home/wtthornton/code/HomeIQ rev-parse origin/master)/check-runs?per_page=100 --jq '.check_runs[]|select(.conclusion=="failure")|.name'`
-- TappsMCP is a LOCAL GLOBAL install, never PyPI: /home/wtthornton/code/tapps-mcp -> ~/.tapps-mcp/releases/<ver>-<sha>; agents via the nlt-* fleet on 127.0.0.1:8760-8765. Cannot run on a hosted runner. See /home/wtthornton/code/HomeIQ/docs/TAPPSMCP_INSTALL_MODEL.md.
-- /home/wtthornton/code/HomeIQ/.github/workflows/README.md is load-bearing: /home/wtthornton/code/HomeIQ/scripts/check-workflow-enablement.sh derives its set from it (floor 15).
+- USER RULE: no full local suites; targeted files only.
+- **Local Compose 5.1.1 is MORE LENIENT than the runner** — a passing local `docker compose config` does NOT predict CI. Cost two round-trips. See TAP-6383.
+- `gh run view --log` empty here; use `gh api repos/wtthornton/HomeIQ/actions/jobs/<id>/logs`. `gh pr checks --json` unsupported.
+- Diff PR reds vs master head before triaging.
+- E2E takes ~9 min (builds 5 images) — a fast fail means a NEW bug, not the old one.
+- 7 required compose vars: INFLUXDB_TOKEN, INFLUXDB_PASSWORD, POSTGRES_PASSWORD, JWT_SECRET_KEY, ADMIN_PASSWORD, HOMEIQ_MCP_READ_TOKENS, GF_SECURITY_ADMIN_PASSWORD. Reference = infrastructure/env.example (NOT .env.example, a stub missing all 7).
+- Do NOT add `--project-directory` to the E2E compose call: `env_file: ../../.env` resolves relative to the compose FILE, so it would repoint outside the repo.
+- A real .env exists at repo root (gitignored) — do not overwrite it locally.
+- workflows README is load-bearing: check-workflow-enablement.sh derives its set from it (floor 15, now 20).
 
 ## Success criterion
 - CI carries only checks that can actually pass; every remaining red is a real defect with an owner.
