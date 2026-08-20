@@ -335,4 +335,6 @@ def test_auto_generate_flag_off_keeps_the_pipeline_dark(mock_settings):
 
     assert service.auto_generate_name_suggestions is False
     assert service.name_generator is None
+    assert service.name_validator is None
+    assert service.preference_learner is None
     assert service.batch_processor is None

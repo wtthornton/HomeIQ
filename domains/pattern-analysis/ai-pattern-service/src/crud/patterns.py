@@ -168,7 +168,7 @@ async def _store_patterns_raw_sql(db: AsyncSession, patterns: list[dict]) -> int
                 # Update
                 update_query = text("""
                     UPDATE patterns
-                    SET confidence = MAX(confidence, :confidence),
+                    SET confidence = GREATEST(confidence, :confidence),
                         occurrences = :occurrences,
                         pattern_metadata = :metadata,
                         updated_at = :updated_at

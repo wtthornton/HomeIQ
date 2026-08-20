@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...models.database import Device, DeviceEntity
 from ...models.name_enhancement import NamePreference
+from ..naming_convention.name_builder import compose_name
 from .name_generator import NameSuggestion
 
 logger = logging.getLogger(__name__)
@@ -152,7 +153,7 @@ class PreferenceLearner:
                 ):
                     device_type = self._get_device_type(device, entity)
                     if device_type:
-                        name = f"{device.area_name} {device_type}"
+                        name = compose_name(device.area_name, device_type)
                         return NameSuggestion(
                             name=name,
                             confidence=pattern["confidence"],
@@ -168,10 +169,7 @@ class PreferenceLearner:
                 if pattern_data.get("entity_pattern") in entity_id:
                     position = pattern_data.get("position")
                     device_type = self._get_device_type(device, entity) or "Device"
-                    if device.area_name:
-                        name = f"{device.area_name} {position} {device_type}"
-                    else:
-                        name = f"{position} {device_type}"
+                    name = compose_name(device.area_name, device_type, position=position)
                     return NameSuggestion(
                         name=name,
                         confidence=pattern["confidence"],

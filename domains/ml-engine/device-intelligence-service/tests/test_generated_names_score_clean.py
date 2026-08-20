@@ -60,3 +60,37 @@ def test_every_composer_produces_the_same_name_for_the_same_device(generator):
     generator_name = generator._pattern_based_generation(_device(), None).name
 
     assert router_name == generator_name == "Office Sensor"
+
+
+def test_compose_name_strips_brand_tokens_structurally():
+    """The no-brand rule is code, not a docstring (TAP-6234 round 2): the
+    hygiene suggester emitted 'Office Hue' from a brand-first model token —
+    30 of 93 live devices have one."""
+    from src.services.naming_convention.name_builder import compose_name
+
+    assert compose_name("Office", "Hue") == "Office"
+    assert compose_name("Office", "Hue Bridge") == "Office Bridge"
+    assert compose_name(None, "Aqara") == "Device"
+
+
+def test_hygiene_suggester_never_emits_a_brand():
+    from types import SimpleNamespace
+
+    from src.services.hygiene_analyzer import DeviceHygieneAnalyzer
+
+    analyzer = DeviceHygieneAnalyzer.__new__(DeviceHygieneAnalyzer)
+    areas = {"office": SimpleNamespace(name="Office")}
+    device = SimpleNamespace(
+        area_id="office",
+        suggested_area=None,
+        model="Hue Bridge",
+        integration="hue",
+        manufacturer="Signify Netherlands B.V.",
+    )
+
+    name = analyzer._suggest_device_name(device, areas)
+
+    assert name is not None
+    assert "hue" not in name.lower()
+    result = score_friendly_name({"friendly_name": name, "area_id": "office"})
+    assert result.issues == []

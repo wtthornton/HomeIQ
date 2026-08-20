@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
     from ..clients.ha_client import HAArea, HADevice, HAEntity
 
-from .naming_convention.name_builder import compose_name
+from .naming_convention.name_builder import compose_name, strip_brands
 
 logger = logging.getLogger(__name__)
 
@@ -320,9 +320,12 @@ class DeviceHygieneAnalyzer:
             area_name = areas[device.area_id].name
         elif device.suggested_area and device.suggested_area in areas:
             area_name = areas[device.suggested_area].name
-        if device.model:
-            descriptor = device.model.split()[0]
+        model_token = device.model.split()[0] if device.model else ""
+        if model_token and strip_brands(model_token):
+            descriptor = model_token
         elif device.integration:
+            # A brand-first model ('Hue Bridge' -> 'Hue') would be stripped to
+            # nothing by compose_name; the integration is the honest fallback.
             descriptor = device.integration.title()
         else:
             descriptor = None

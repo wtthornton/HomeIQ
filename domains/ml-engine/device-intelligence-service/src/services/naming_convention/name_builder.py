@@ -14,6 +14,8 @@ that scores it (`convention_rules`):
 
 from __future__ import annotations
 
+from .convention_rules import _BRAND_NAMES
+
 #: Domain -> customer-facing device type label. Shared by every composer so
 #: "binary_sensor" never renders three different ways.
 DEVICE_TYPE_LABELS = {
@@ -44,6 +46,19 @@ def device_type_label(domain: str | None, device_class: str | None = None) -> st
     return label
 
 
+def strip_brands(text: str | None) -> str:
+    """Drop every token the rubric's brand list would dock points for.
+
+    The no-brand rule is enforced here, not documented and hoped for: a
+    composer that lets 'Hue' through generates a name the system's own
+    scorer flags (TAP-6234 — 30 of 93 live devices have a brand-first model).
+    """
+    if not text:
+        return ""
+    kept = [token for token in text.split() if token.lower() not in _BRAND_NAMES]
+    return " ".join(kept)
+
+
 def compose_name(
     area_name: str | None,
     descriptor: str,
@@ -51,8 +66,9 @@ def compose_name(
 ) -> str:
     """Compose a convention-compliant friendly name.
 
-    ``descriptor`` is a device type or model token — callers must never pass a
-    manufacturer (TAP-6234).
+    Brand tokens are stripped from every part (TAP-6234) — the contract is
+    code, not a docstring.
     """
-    parts = [part for part in (area_name, position, descriptor) if part]
+    parts = [strip_brands(part) for part in (area_name, position, descriptor)]
+    parts = [part for part in parts if part]
     return " ".join(parts) if parts else "Device"

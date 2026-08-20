@@ -68,6 +68,7 @@ class DiscoveryService:
         )
         self.name_generator = None
         self.name_validator = None
+        self.preference_learner = None
         self.batch_processor = None
         if self.auto_generate_name_suggestions:
             from ..services.name_enhancement import PreferenceLearner

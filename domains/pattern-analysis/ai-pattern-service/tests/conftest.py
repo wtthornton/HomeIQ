@@ -54,8 +54,10 @@ async def test_db() -> AsyncGenerator[AsyncSession, None]:
                 pattern_metadata JSONB,
                 confidence REAL NOT NULL,
                 occurrences INTEGER NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                -- TIMESTAMPTZ mirrors the live automation.patterns table; the
+                -- writers bind aware datetimes (TAP-6171)
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
             )
             """)
         )

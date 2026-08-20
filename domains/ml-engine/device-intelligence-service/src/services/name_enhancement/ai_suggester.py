@@ -209,7 +209,8 @@ REQUIREMENTS:
 2. Include location if helpful for uniqueness
 3. Be descriptive but concise (2-4 words ideal)
 4. Avoid technical terms and model numbers
-5. Make it easy for AI to understand device purpose
+5. NEVER include a brand or manufacturer word (Hue, Aqara, IKEA, Sonoff, ...) — the naming rubric penalizes them
+6. Make it easy for AI to understand device purpose
 
 EXAMPLES:
 - "Hue Color Downlight 1 7" → "Office Back Left Light"

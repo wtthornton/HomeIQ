@@ -219,13 +219,10 @@ class NameEnhancementBatchProcessor:
                         device.name_by_user = suggestion.name
                         name_suggestion.status = "accepted"
                         name_suggestion.reviewed_at = datetime.now(UTC)
-                        logger.info(
-                            f"Auto-accepted high-confidence suggestion: {suggestion.name}"
-                        )
+                        logger.info(f"Auto-accepted high-confidence suggestion: {suggestion.name}")
                     else:
                         logger.warning(
-                            "HA did not confirm rename of %s to '%s'; suggestion "
-                            "left pending",
+                            "HA did not confirm rename of %s to '%s'; suggestion left pending",
                             device.id,
                             suggestion.name,
                         )

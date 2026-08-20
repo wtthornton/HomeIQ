@@ -108,3 +108,26 @@ class TestPatternCRUD:
         assert all(
             (p.confidence if hasattr(p, "confidence") else p["confidence"]) >= 0.8 for p in patterns
         )
+
+
+@pytest.mark.asyncio
+async def test_updating_an_existing_pattern_lands(test_db: AsyncSession, sample_pattern_data):
+    """Re-storing a known pattern must UPDATE, not silently fail (TAP-6171).
+
+    The raw-SQL path used SQLite's two-argument MAX() — Postgres has no such
+    function, so every update of an already-known pattern raised
+    UndefinedFunctionError and was swallowed into a warning; only first
+    inserts ever landed. GREATEST() is the Postgres spelling.
+    """
+    first = dict(sample_pattern_data)
+    first["confidence"] = 0.4
+    assert await store_patterns(test_db, [first]) == 1
+
+    second = dict(sample_pattern_data)
+    second["confidence"] = 0.9
+    assert await store_patterns(test_db, [second]) == 1  # update counts as stored
+
+    rows = await get_patterns(test_db)
+    matching = [r for r in rows if r["device_id"] == sample_pattern_data["device_id"]]
+    assert len(matching) == 1  # updated in place, not duplicated
+    assert matching[0]["confidence"] == pytest.approx(0.9)  # GREATEST kept the max

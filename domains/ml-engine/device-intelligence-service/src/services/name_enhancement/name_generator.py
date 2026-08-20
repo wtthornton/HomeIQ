@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from ...models.database import Device, DeviceEntity
-from ..naming_convention.name_builder import compose_name
+from ..naming_convention.name_builder import compose_name, strip_brands
 
 logger = logging.getLogger(__name__)
 
@@ -257,10 +257,9 @@ class DeviceNameGenerator:
         # Remove version numbers
         cleaned = re.sub(r"\bv?\d+\.\d+\.\d+\b", "", cleaned)
 
-        # Remove manufacturer if it's redundant
-        cleaned = re.sub(
-            r"\b(Philips|Hue|IKEA|TRADFRI|Xiaomi)\s+", "", cleaned, flags=re.IGNORECASE
-        )
+        # Remove brand words — the shared rubric list, not a private subset
+        # that drifts (TAP-6234 verifier find: this regex knew 5 of 21 brands).
+        cleaned = strip_brands(cleaned)
 
         # Clean up multiple spaces
         cleaned = re.sub(r"\s+", " ", cleaned)
