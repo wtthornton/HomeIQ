@@ -2,13 +2,18 @@
 # Repository regression guards (TAP-5291). Each step asserts an invariant that
 # regressed once and must not regress again.
 #
-# The TAPPS quality-gate job that used to live here was removed: it installed
-# TappsMCP with `pip install git+.../TappsMCP.git@v3.12.65`, which cannot
-# succeed — the repo root is a uv workspace with no [project] table, so
-# setuptools refuses with "Multiple top-level packages discovered in a
-# flat-layout". The job had never passed in 176 runs since 2026-03-06. Restore
-# it once TappsMCP publishes installable dists (or CI moves to uv); see
-# CLAUDE.md "CI Integration".
+# The TAPPS quality-gate job that used to live here was removed. TappsMCP is not
+# distributed through any package index: it is installed globally on a developer
+# machine from a local checkout (~/code/tapps-mcp -> ~/.tapps-mcp/releases/
+# <version>-<sha>, fronted by ~/.local/bin/tapps-mcp). A GitHub-hosted runner has
+# neither that checkout nor that install, so `pip install tapps-mcp` 404s and the
+# git URL cannot build — the repo root is a uv workspace with no [project] table.
+# The job had never passed in 176 runs since 2026-03-06.
+#
+# This is a distribution-model mismatch, not a packaging bug: the gate is a local
+# developer tool, and the local hooks + /tapps-finish-task already enforce it
+# before code reaches CI. Reintroducing it here needs a self-hosted runner that
+# carries the global install. See CLAUDE.md "CI Integration".
 name: Quality Gate
 
 on:
