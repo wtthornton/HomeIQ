@@ -197,13 +197,17 @@ class TestInfluxDBStorage:
     async def test_store_circuit_data(
         self, service_instance, sample_meter_data, mock_influxdb_client
     ):
-        """GIVEN: Circuit data | WHEN: Store | THEN: Write circuit points"""
+        """GIVEN: Circuit data | WHEN: Store | THEN: One batched write of all points"""
         service_instance.influxdb_client = mock_influxdb_client
 
         await service_instance.store_in_influxdb(sample_meter_data)
 
-        # Called for whole-home + 3 circuits = 4 times
-        assert mock_influxdb_client.write.call_count >= 4
+        assert mock_influxdb_client.write.call_count == 1
+        (points,), _ = mock_influxdb_client.write.call_args
+        measurements = [p.to_line_protocol().split(",")[0] for p in points]
+        assert measurements == ["smart_meter"] + ["smart_meter_circuit"] * len(
+            sample_meter_data["circuits"]
+        )
 
     @pytest.mark.asyncio
     async def test_store_skips_empty_data(self, service_instance, mock_influxdb_client):
