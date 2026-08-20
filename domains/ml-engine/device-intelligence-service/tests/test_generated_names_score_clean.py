@@ -83,14 +83,42 @@ def test_hygiene_suggester_never_emits_a_brand():
     device = SimpleNamespace(
         area_id="office",
         suggested_area=None,
+        model="FP1E Presence",
+        integration="zha",
+        manufacturer="Aqara",
+    )
+
+    name = analyzer._suggest_device_name(device, areas)
+
+    assert name == "Office FP1E"
+    result = score_friendly_name({"friendly_name": name, "area_id": "office"})
+    assert result.issues == []
+
+
+def test_strip_brands_matches_the_rubric_substring_semantics():
+    """The scorer checks `brand in name_lower` — the composer must drop the
+    same tokens it would dock ('Hue-Bridge', 'HueSync', 'Zigbee2MQTT')."""
+    from src.services.naming_convention.name_builder import compose_name
+
+    assert compose_name("Office", "Hue-Bridge") == "Office"
+    assert compose_name("Office", "HueSync Box") == "Office Box"
+    assert compose_name("Office", "Zigbee2MQTT Bridge") == "Office Bridge"
+
+
+def test_hygiene_suggests_nothing_when_only_brands_are_available():
+    """'Device' is not a name — a Hue Bridge on the hue integration with no
+    area gets NO rename suggestion rather than a useless one."""
+    from types import SimpleNamespace
+
+    from src.services.hygiene_analyzer import DeviceHygieneAnalyzer
+
+    analyzer = DeviceHygieneAnalyzer.__new__(DeviceHygieneAnalyzer)
+    device = SimpleNamespace(
+        area_id=None,
+        suggested_area=None,
         model="Hue Bridge",
         integration="hue",
         manufacturer="Signify Netherlands B.V.",
     )
 
-    name = analyzer._suggest_device_name(device, areas)
-
-    assert name is not None
-    assert "hue" not in name.lower()
-    result = score_friendly_name({"friendly_name": name, "area_id": "office"})
-    assert result.issues == []
+    assert analyzer._suggest_device_name(device, {}) is None

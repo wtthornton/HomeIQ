@@ -321,14 +321,16 @@ class DeviceHygieneAnalyzer:
         elif device.suggested_area and device.suggested_area in areas:
             area_name = areas[device.suggested_area].name
         model_token = device.model.split()[0] if device.model else ""
-        if model_token and strip_brands(model_token):
+        integration_token = device.integration.title() if device.integration else ""
+        if strip_brands(model_token):
             descriptor = model_token
-        elif device.integration:
-            # A brand-first model ('Hue Bridge' -> 'Hue') would be stripped to
-            # nothing by compose_name; the integration is the honest fallback.
-            descriptor = device.integration.title()
+        elif strip_brands(integration_token):
+            descriptor = integration_token
         else:
-            descriptor = None
+            # Both candidates are brand words ('Hue Bridge' on the 'hue'
+            # integration). Suggesting 'Device' or a bare area is noise, not a
+            # name — no suggestion beats a useless one (TAP-6234 round 3).
+            return None
         if not area_name and not descriptor:
             return None
-        return compose_name(area_name, descriptor or "Device")
+        return compose_name(area_name, descriptor)

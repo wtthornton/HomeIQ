@@ -55,7 +55,13 @@ def strip_brands(text: str | None) -> str:
     """
     if not text:
         return ""
-    kept = [token for token in text.split() if token.lower() not in _BRAND_NAMES]
+    # Substring, not token equality — mirroring the scorer exactly
+    # (convention_rules checks `brand in name_lower`), so 'Hue-Bridge',
+    # 'HueSync' and 'Zigbee2MQTT' are dropped the same way they would be
+    # docked. The composer and the rubric must share one definition of brand.
+    kept = [
+        token for token in text.split() if not any(brand in token.lower() for brand in _BRAND_NAMES)
+    ]
     return " ".join(kept)
 
 

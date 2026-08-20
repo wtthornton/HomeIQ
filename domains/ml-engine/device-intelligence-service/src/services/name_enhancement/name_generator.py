@@ -11,7 +11,11 @@ from dataclasses import dataclass
 from typing import Any
 
 from ...models.database import Device, DeviceEntity
-from ..naming_convention.name_builder import compose_name, strip_brands
+from ..naming_convention.name_builder import (
+    DEVICE_TYPE_LABELS,
+    compose_name,
+    strip_brands,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -49,19 +53,9 @@ class DeviceNameGenerator:
             except Exception as e:
                 logger.warning(f"Failed to initialize AI suggester: {e}")
 
-        # Common device type mappings
-        self.device_type_map = {
-            "light": "Light",
-            "switch": "Switch",
-            "sensor": "Sensor",
-            "binary_sensor": "Sensor",
-            "climate": "Thermostat",
-            "cover": "Cover",
-            "lock": "Lock",
-            "fan": "Fan",
-            "camera": "Camera",
-            "media_player": "Media Player",
-        }
+        # One descriptor vocabulary for the whole service (TAP-6231): three
+        # private maps used to disagree on vacuum/automation/scene.
+        self.device_type_map = DEVICE_TYPE_LABELS
 
         # Position patterns from entity IDs
         self.position_patterns = {
@@ -185,7 +179,7 @@ class DeviceNameGenerator:
         # Strategy 4: Clean up existing name
         if device.name:
             cleaned_name = self._clean_device_name(device.name)
-            if cleaned_name != device.name:
+            if cleaned_name and cleaned_name != device.name:
                 suggestion = NameSuggestion(
                     name=cleaned_name,
                     confidence=0.6,

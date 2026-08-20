@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...models.database import Device, DeviceEntity
 from ...models.name_enhancement import NamePreference
-from ..naming_convention.name_builder import compose_name
+from ..naming_convention.name_builder import compose_name, device_type_label
 from .name_generator import NameSuggestion
 
 logger = logging.getLogger(__name__)
@@ -246,13 +246,7 @@ class PreferenceLearner:
     def _get_device_type(self, device: Device, entity: DeviceEntity | None = None) -> str | None:
         """Get device type string"""
         if entity:
-            domain_map = {
-                "light": "Light",
-                "switch": "Switch",
-                "sensor": "Sensor",
-                "binary_sensor": "Sensor",
-            }
-            return domain_map.get(entity.domain)
+            return device_type_label(entity.domain, device.device_class)
 
         if device.device_class:
             return device.device_class.replace("_", " ").title()
