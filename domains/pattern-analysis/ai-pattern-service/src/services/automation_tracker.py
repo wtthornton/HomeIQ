@@ -190,7 +190,7 @@ class AutomationTracker:
                 UPDATE synergy_opportunities
                 SET confidence = :confidence,
                     impact_score = :impact_score,
-                    updated_at = NOW()
+                    last_validated_at = NOW()
                 WHERE synergy_id = :synergy_id
             """)
             await db.execute(

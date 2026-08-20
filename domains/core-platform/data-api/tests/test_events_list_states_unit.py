@@ -254,3 +254,58 @@ async def test_event_types_aggregator_503s_when_every_backend_is_dead():
         await endpoints._get_all_event_types(limit=10)
 
     assert excinfo.value.status_code == 503
+
+
+def _route_client():
+    """The full route stack against one unroutable backend (TAP-6151)."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    endpoints = EventsEndpoints()
+    endpoints.service_urls = {"websocket-ingestion": "http://127.0.0.1:1"}
+    app = FastAPI()
+    app.include_router(endpoints.router, prefix="/api/v1")
+    return TestClient(app, raise_server_exceptions=False)
+
+
+def test_routes_answer_503_not_empty_200_when_every_backend_is_dead():
+    """Pins the route-level `except HTTPException: raise` blocks: deleting
+    them would relabel the helpers' 503 as a generic 500 (or worse, the old
+    empty 200)."""
+    client = _route_client()
+
+    for path in (
+        "/api/v1/events?service=websocket-ingestion",
+        "/api/v1/events/entities",
+        "/api/v1/events/types",
+        "/api/v1/events/stats",
+    ):
+        response = client.get(path)
+        assert response.status_code == 503, path
+        assert "unavailable" in response.json()["detail"], path
+
+
+def test_categories_route_503s_when_the_store_query_fails(monkeypatch):
+    def _boom():
+        raise RuntimeError("influx down")
+
+    monkeypatch.setattr(ee, "_get_shared_influxdb_client", _boom)
+    client = _route_client()
+
+    response = client.get("/api/v1/events/categories")
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Event categories query failed"
+
+
+def test_trace_route_503s_when_the_store_query_fails(monkeypatch):
+    def _boom():
+        raise RuntimeError("influx down")
+
+    monkeypatch.setattr(ee, "_get_shared_influxdb_client", _boom)
+    client = _route_client()
+
+    response = client.get("/api/v1/events/automation-trace/01CTX")
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Automation trace query failed"

@@ -43,7 +43,7 @@ async def test_capture_is_read_only(sim):
 async def test_capture_records_the_fixture_shape(sim):
     snap = await capture(sim)
     assert len(snap.areas) == 3
-    assert len(snap.devices) == 19
+    assert len(snap.devices) == 21  # 19 WLED + 2 service-type (TAP-6227 fixtures)
     assert len(snap.entities) == 164
     assert snap.labels == {}
     assert snap.core_config["currency"] == "USD"

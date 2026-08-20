@@ -110,31 +110,53 @@ class DevicesHaveAreasRecipe(Recipe):
     phase = PHASE_ORGANIZATION
     description = "Every device is assigned to an area"
 
-    async def _unassigned(self, ha: Any) -> list[dict[str, str]]:
-        """Unassigned devices as ``{id, name}`` pairs.
+    async def _split_unassigned(
+        self, ha: Any
+    ) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+        """Unassigned devices as ``(assignable, excluded)`` lists of ``{id, name}``.
 
         The id is what ``/answers`` and the manifest consume (registry ids,
         never display names — a name posted as a device_id can never
         converge); the name is what the wizard shows the person.
+
+        ``excluded`` holds devices that structurally cannot live in a room:
+        HA marks virtual/service devices, add-ons, AND Hue zone/room group
+        devices with ``entry_type == "service"`` — measured on the live
+        instance 2026-08-19, where that one predicate covered all 23
+        unassignable devices (TAP-6227). The ticket's suggested fallback
+        (no serial_number and no connections) was measured and REJECTED: it
+        would also exclude genuinely physical devices (both Raspberry Pis and
+        a phone tracker carry neither). Never a name list — a rename must not
+        change what this check counts.
         """
         devices = await ha.ws.send_command("config/device_registry/list")
-        return [
-            {
+        assignable: list[dict[str, str]] = []
+        excluded: list[dict[str, str]] = []
+        for device in devices or []:
+            if device.get("area_id") or device.get("disabled_by"):
+                continue
+            entry = {
                 "id": device["id"],
                 "name": device.get("name_by_user") or device.get("name") or device["id"],
             }
-            for device in devices or []
-            if not device.get("area_id") and not device.get("disabled_by")
-        ]
+            if device.get("entry_type") == "service":
+                excluded.append(entry)
+            else:
+                assignable.append(entry)
+        return assignable, excluded
 
     async def check(self, ha: HAClient) -> CheckResult:
-        unassigned = await self._unassigned(ha)
+        unassigned, excluded = await self._split_unassigned(ha)
         if not unassigned:
-            return CheckResult(CheckStatus.SATISFIED, "every device has an area")
+            return CheckResult(
+                CheckStatus.SATISFIED,
+                "every assignable device has an area",
+                {"excluded": excluded} if excluded else None,
+            )
         return CheckResult(
             CheckStatus.BLOCKED_ON_HUMAN,
             f"{len(unassigned)} device(s) have no area",
-            {"unassigned": unassigned},
+            {"unassigned": unassigned, "excluded": excluded},
             human_action=(
                 "Assign an area to each listed device. Which room a device is "
                 "in cannot be inferred safely from its name."
@@ -148,5 +170,5 @@ class DevicesHaveAreasRecipe(Recipe):
         return ApplyResult((), "device-to-area assignment is a human decision")
 
     async def verify(self, ha: HAClient) -> VerifyResult:
-        unassigned = await self._unassigned(ha)
+        unassigned, _excluded = await self._split_unassigned(ha)
         return VerifyResult(not unassigned, f"{len(unassigned)} device(s) still unassigned")

@@ -37,5 +37,12 @@ async def test_unassigned_devices_are_a_human_decision_not_a_guess(sim):
     # {id, name} pairs: the id is what /answers consumes (a display name
     # posted as a device_id could never converge), the name is displayed.
     assert result.details["unassigned"][0] == {"id": "dev0", "name": "WLED 0"}
+    # Structurally unassignable devices (entry_type == "service": virtual
+    # devices AND Hue zones) never count as a gap, but stay visible under
+    # their own key so nothing is silently dropped (TAP-6227).
+    assert {e["id"] for e in result.details["excluded"]} == {
+        "svc_sun",
+        "hue_zone_downstairs",
+    }
     # Nothing is inferred from device names.
     assert (await DevicesHaveAreasRecipe().apply(sim)).change_count == 0

@@ -135,7 +135,10 @@ async def _store_patterns_raw_sql(db: AsyncSession, patterns: list[dict]) -> int
     from sqlalchemy import text
 
     stored_count = 0
-    now = datetime.now(UTC).isoformat()
+    # A datetime, not .isoformat(): asyncpg binds TIMESTAMP params from
+    # datetime objects and rejects strings (TAP-6171 class — every raw-SQL
+    # pattern store failed and was swallowed into a warning).
+    now = datetime.now(UTC)
 
     for pattern_data in patterns:
         try:

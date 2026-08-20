@@ -521,7 +521,7 @@ async def submit_synergy_feedback(
             insert_feedback_query = text("""
                 INSERT INTO synergy_feedback
                 (synergy_id, feedback_type, feedback_data, created_at)
-                VALUES (:synergy_id, :feedback_type, :feedback_data, datetime('now'))
+                VALUES (:synergy_id, :feedback_type, :feedback_data, NOW())
             """)
 
             feedback_type = "accept" if feedback.accepted else "reject"

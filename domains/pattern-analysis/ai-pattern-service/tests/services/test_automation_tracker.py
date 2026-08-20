@@ -58,7 +58,10 @@ class TestAutomationTracker:
                     synergy_id TEXT UNIQUE NOT NULL,
                     confidence REAL NOT NULL,
                     impact_score REAL NOT NULL,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    -- mirrors init-schemas.sql: the real column is
+                    -- last_validated_at; the old fixture invented updated_at
+                    -- and hid that the code wrote a nonexistent column
+                    last_validated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
                 )
             """)
             )

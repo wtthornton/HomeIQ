@@ -173,8 +173,10 @@ class DeviceIntelligenceClient:
             return data
 
         except CircuitOpenError:
+            # Re-raise: [] means "this device has no capabilities", not
+            # "upstream unavailable" (TAP-6184, same class as get_device_by_id).
             logger.warning("Device Intelligence circuit open for capabilities %s", device_id)
-            return []
+            raise
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 logger.warning("Device %s not found for capabilities", device_id)

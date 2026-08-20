@@ -38,7 +38,18 @@ FRESH_INSTANCE: dict[str, Any] = {
     ],
     "floors": [],
     "labels": [],
-    "devices": [{"id": f"dev{i}", "name": f"WLED {i}", "area_id": None} for i in range(19)],
+    "devices": [{"id": f"dev{i}", "name": f"WLED {i}", "area_id": None} for i in range(19)]
+    + [
+        # Structurally unassignable (TAP-6227): HA marks virtual/service
+        # devices AND Hue zone/room group devices entry_type == "service".
+        {"id": "svc_sun", "name": "Sun", "area_id": None, "entry_type": "service"},
+        {
+            "id": "hue_zone_downstairs",
+            "name": "Downstairs",
+            "area_id": None,
+            "entry_type": "service",
+        },
+    ],
     "entities": [{"entity_id": f"light.wled_{i}"} for i in range(164)],
     "addons": [],
     "config_entries": [],
