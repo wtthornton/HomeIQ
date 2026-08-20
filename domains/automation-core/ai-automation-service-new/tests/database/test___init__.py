@@ -2,11 +2,15 @@
 Tests for __init__.py
 """
 
-from src.database import async_session_maker, get_db, init_db
+import src.database as database
 
 
 def test_database_module_exports():
-    """Test that database module exports session maker, get_db, and init_db."""
-    assert async_session_maker is not None
-    assert get_db is not None
-    assert init_db is not None
+    """The module exposes get_db, init_db, and the session-maker alias.
+
+    ``async_session_maker`` is a lazily bound alias: it stays None until
+    ``init_db()`` runs, so only its presence is asserted here.
+    """
+    assert callable(database.get_db)
+    assert callable(database.init_db)
+    assert "async_session_maker" in vars(database)

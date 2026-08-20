@@ -6,7 +6,7 @@ Tests for database initialization, migrations, and schema sync.
 Updated for PostgreSQL.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -18,69 +18,46 @@ class TestRunMigrations:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch("src.database.command.upgrade")
-    @patch("src.database.Config")
+    @patch("src.database._run_alembic_upgrade")
     @patch("pathlib.Path.exists")
-    async def test_run_migrations_success(self, mock_exists, mock_config_class, mock_upgrade):
-        """Test successful migration execution."""
+    async def test_run_migrations_success(self, mock_exists, mock_upgrade):
+        """With an alembic.ini present, the upgrade runs once against it."""
         from src.database import run_migrations
 
-        # Mock Alembic config file exists
         mock_exists.return_value = True
 
-        # Mock Config class
-        mock_config = MagicMock()
-        mock_config_class.return_value = mock_config
-
-        # Run migrations
         await run_migrations()
 
-        # Verify Config was called with correct path
-        mock_config_class.assert_called_once()
-        # Verify upgrade was called
-        mock_upgrade.assert_called_once_with(mock_config, "head")
+        mock_upgrade.assert_called_once()
+        assert mock_upgrade.call_args.args[0].endswith("alembic.ini")
 
     @pytest.mark.asyncio
     @pytest.mark.unit
+    @patch("src.database._run_alembic_upgrade")
     @patch("pathlib.Path.exists")
-    async def test_run_migrations_no_config_file(self, mock_exists):
-        """Test migration execution when Alembic config doesn't exist."""
+    async def test_run_migrations_no_config_file(self, mock_exists, mock_upgrade):
+        """Without an alembic.ini nothing runs."""
         from src.database import run_migrations
 
-        # Mock Alembic config file doesn't exist
         mock_exists.return_value = False
 
-        # Run migrations - should return without error
         await run_migrations()
 
-        # Should have checked for file existence
-        mock_exists.assert_called()
+        mock_upgrade.assert_not_called()
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch("src.database.command.upgrade")
-    @patch("src.database.Config")
+    @patch("src.database._run_alembic_upgrade")
     @patch("pathlib.Path.exists")
-    async def test_run_migrations_handles_errors(
-        self, mock_exists, mock_config_class, mock_upgrade
-    ):
-        """Test migration execution handles errors gracefully."""
+    async def test_run_migrations_handles_errors(self, mock_exists, mock_upgrade):
+        """A failing upgrade is logged, not raised: startup continues degraded."""
         from src.database import run_migrations
 
-        # Mock Alembic config file exists
         mock_exists.return_value = True
-
-        # Mock Config class
-        mock_config = MagicMock()
-        mock_config_class.return_value = mock_config
-
-        # Mock upgrade raises exception
         mock_upgrade.side_effect = Exception("Migration failed")
 
-        # Run migrations - should not raise, should handle error
         await run_migrations()
 
-        # Verify upgrade was attempted
         mock_upgrade.assert_called_once()
 
 
@@ -89,47 +66,29 @@ class TestInitDb:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch("src.database.run_migrations")
-    @patch("src.database.engine")
-    @patch("src.database._is_postgres", True)
-    async def test_init_db_success(self, mock_engine, mock_run_migrations):
-        """Test successful database initialization (PostgreSQL path)."""
+    @patch("src.database.db.initialize", new_callable=AsyncMock, return_value=True)
+    @patch("src.database.run_migrations", new_callable=AsyncMock)
+    async def test_init_db_success(self, mock_run_migrations, mock_initialize):
+        """Migrations run, then the shared DatabaseManager initialises."""
         from src.database import init_db
 
-        # Mock engine context manager
-        mock_conn = AsyncMock()
-        mock_result = MagicMock()
-        mock_result.scalar.return_value = 1  # SELECT 1 result
-        mock_conn.execute.return_value = mock_result
+        assert await init_db() is True
 
-        mock_engine.begin.return_value.__aenter__.return_value = mock_conn
-
-        # Run initialization
-        await init_db()
-
-        # Verify migrations were called
-        mock_run_migrations.assert_called_once()
-        # Verify connection was tested (SELECT 1)
-        assert mock_conn.execute.called
+        mock_run_migrations.assert_awaited_once()
+        mock_initialize.assert_awaited_once()
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    @patch("src.database.run_migrations")
-    @patch("src.database.engine")
-    @patch("src.database._is_postgres", True)
-    async def test_init_db_handles_connection_failure(self, mock_engine, mock_run_migrations):
-        """Test that init_db handles database connection failures."""
+    @patch("src.database.db.initialize", new_callable=AsyncMock, return_value=False)
+    @patch("src.database.run_migrations", new_callable=AsyncMock)
+    async def test_init_db_handles_connection_failure(self, mock_run_migrations, mock_initialize):
+        """init_db never raises: an unreachable database reports False (degraded mode)."""
         from src.database import init_db
 
-        # Mock engine.begin raises exception
-        mock_engine.begin.side_effect = Exception("Connection failed")
+        assert await init_db() is False
 
-        # Should raise exception
-        with pytest.raises(Exception, match="Connection failed"):
-            await init_db()
-
-        # Migrations should have been attempted
-        mock_run_migrations.assert_called_once()
+        mock_run_migrations.assert_awaited_once()
+        mock_initialize.assert_awaited_once()
 
 
 class TestSchemaSync:
@@ -155,18 +114,25 @@ class TestDatabaseConnection:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_get_db_yields_session(self, test_db):
-        """Test that get_db dependency yields a database session."""
-        from src.database import get_db
+    async def test_get_db_yields_session(self):
+        """get_db yields a session from the module-level DatabaseManager once initialised.
 
-        # Test the generator
-        async for session in get_db():
-            assert session is not None
-            # Should be an AsyncSession
-            from sqlalchemy.ext.asyncio import AsyncSession
+        The manager is only initialised by the lifespan, which ASGI tests never
+        run, so initialise it here explicitly instead of through a side engine.
+        """
+        from sqlalchemy.ext.asyncio import AsyncSession
+        from src.database import db, get_db, init_db
 
-            assert isinstance(session, AsyncSession)
-            break  # Only test first yield
+        if not await init_db():
+            pytest.fail(
+                "DatabaseManager could not initialise; set POSTGRES_URL to a reachable PostgreSQL"
+            )
+        try:
+            async for session in get_db():
+                assert isinstance(session, AsyncSession)
+                break  # Only test first yield
+        finally:
+            await db.close()
 
     @pytest.mark.asyncio
     @pytest.mark.unit

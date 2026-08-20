@@ -668,8 +668,10 @@ Requirements:
             return (len(invalid_entities) == 0, invalid_entities)
 
         except Exception as e:
+            # Fail closed: an unreachable Data API means the entities are
+            # unverified, and unverified must never read as valid.
             logger.error(f"Failed to validate entities: {e}")
-            return (True, [])
+            return (False, [])
 
     def _extract_entity_ids(self, data: Any, entity_ids: list[str] | None = None) -> list[str]:
         """
