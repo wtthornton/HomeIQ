@@ -189,8 +189,10 @@ class ValidationService:
             finally:
                 self._ws = None
 
-    async def _fetch_ha_data(self) -> tuple[list[dict], list[dict], str]:
-        """Fetch entities and areas from Home Assistant"""
+    async def _fetch_ha_data(
+        self,
+    ) -> tuple[list[dict], list[dict], dict[str, str], str | None]:
+        """Fetch entities, areas, and the device->area map from Home Assistant"""
         session = await get_http_session()
         headers = {"Authorization": f"Bearer {self.ha_token}", "Content-Type": "application/json"}
 
@@ -249,7 +251,7 @@ class ValidationService:
 
             entity_name = entity.get("name") or entity_id
             device_id = entity.get("device_id")
-            current_area_id = entity.get("area_id") or device_areas.get(device_id)
+            current_area_id = entity.get("area_id") or device_areas.get(device_id or "")
 
             # Check for missing area assignment
             if not current_area_id:

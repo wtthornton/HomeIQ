@@ -122,6 +122,29 @@ async def test_detect_name_area_mismatches(validation_service, mock_areas):
 
 
 @pytest.mark.asyncio
+async def test_fetch_ha_data_returns_the_device_area_map(validation_service):
+    """The wiring itself: entities, areas, device->area map, version."""
+    conn = FakeHAConnection(
+        entities={},
+        areas=["office"],
+        devices=[
+            {"id": "dev1", "area_id": "office"},
+            {"id": "dev2", "area_id": None},  # no area -> excluded from the map
+        ],
+    )
+    conn.list_entities = AsyncMock(return_value=[])
+    conn.list_areas = AsyncMock(return_value=[{"area_id": "office"}])
+    conn.list_devices = AsyncMock(return_value=conn.devices)
+
+    with patch.object(validation_service, "_connection", new=AsyncMock(return_value=conn)):
+        entities, areas, device_areas, _version = await validation_service._fetch_ha_data()
+
+    assert entities == []
+    assert areas == [{"area_id": "office"}]
+    assert device_areas == {"dev1": "office"}
+
+
+@pytest.mark.asyncio
 async def test_detect_name_area_mismatch_for_device_inherited_area(
     validation_service, mock_areas
 ):
