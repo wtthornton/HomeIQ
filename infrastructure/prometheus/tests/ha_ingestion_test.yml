@@ -1,0 +1,166 @@
+# Unit tests for the ha_ingestion alert group.
+#
+# Run: promtool test rules infrastructure/prometheus/tests/ha_ingestion_test.yml
+#
+# promtool's synthetic clock starts at epoch 0, so time() at eval_time 20m is
+# 1200. A last-event timestamp pinned at 0 therefore reads as 1200s stale.
+
+rule_files:
+  - ../alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  # --- HAIngestionStalled ---------------------------------------------------
+  - interval: 1m
+    input_series:
+      - series: 'ha_last_event_timestamp_seconds{service="websocket-ingestion",instance="homeiq-websocket:8001"}'
+        values: '0+0x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: HAIngestionStalled
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              page: "true"
+              service: websocket-ingestion
+              instance: homeiq-websocket:8001
+            exp_annotations:
+              summary: "CRITICAL: No Home Assistant events for 20m 0s"
+              description: "websocket-ingestion has not received an event from Home Assistant in over 5 minutes. All downstream analytics are running on stale data. Check ha_connection_up and ha_subscription_up to tell a dropped socket from a lost subscription."
+
+  # A timestamp that keeps pace with the clock must NOT alert.
+  - interval: 1m
+    input_series:
+      - series: 'ha_last_event_timestamp_seconds{service="websocket-ingestion"}'
+        values: '0+60x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: HAIngestionStalled
+        exp_alerts: []
+
+  # --- HAWebsocketDisconnected ---------------------------------------------
+  - interval: 1m
+    input_series:
+      - series: 'ha_connection_up{service="websocket-ingestion"}'
+        values: '1 1 0 0 0 0 0'
+    alert_rule_test:
+      # Down at 2m, but "for: 2m" is not yet satisfied.
+      - eval_time: 3m
+        alertname: HAWebsocketDisconnected
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: HAWebsocketDisconnected
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              page: "true"
+              service: websocket-ingestion
+            exp_annotations:
+              summary: "CRITICAL: Home Assistant websocket is disconnected"
+              description: "websocket-ingestion has had no connection to Home Assistant for more than 2 minutes. Event capture is stopped and the gap is unrecoverable -- HA does not replay missed state changes."
+
+  # --- HASubscriptionInactive ----------------------------------------------
+  # Connected but unsubscribed: the failure every other health check misses.
+  - interval: 1m
+    input_series:
+      - series: 'ha_connection_up{service="websocket-ingestion"}'
+        values: '1+0x10'
+      - series: 'ha_subscription_up{service="websocket-ingestion"}'
+        values: '1 1 0 0 0 0 0 0 0 0 0'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: HASubscriptionInactive
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              page: "true"
+              service: websocket-ingestion
+            exp_annotations:
+              summary: "CRITICAL: Connected to Home Assistant but not subscribed to events"
+              description: "The websocket is up but the event subscription is not active, so no events are arriving. This is silent data loss: the connection looks healthy to every other check."
+
+  # --- HAIngestionNeverStarted ---------------------------------------------
+  # Connected, zero processed: the cold-start hole HAIngestionStalled cannot
+  # cover, because no last-event timestamp series exists yet.
+  - interval: 1m
+    input_series:
+      - series: 'ha_connection_up{service="websocket-ingestion"}'
+        values: '1+0x20'
+      - series: 'ha_events_processed_total{service="websocket-ingestion"}'
+        values: '0+0x20'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: HAIngestionNeverStarted
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: HAIngestionNeverStarted
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              page: "true"
+              service: websocket-ingestion
+            exp_annotations:
+              summary: "CRITICAL: websocket-ingestion connected but has processed zero events"
+              description: "The Home Assistant connection is up but no event has been processed since the service started 10 minutes ago. HAIngestionStalled cannot fire here because no last-event timestamp was ever recorded."
+
+  # Events flowing must clear it.
+  - interval: 1m
+    input_series:
+      - series: 'ha_connection_up{service="websocket-ingestion"}'
+        values: '1+0x20'
+      - series: 'ha_events_processed_total{service="websocket-ingestion"}'
+        values: '0+10x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: HAIngestionNeverStarted
+        exp_alerts: []
+
+  # --- HAEventProcessingBacklog --------------------------------------------
+  # A small steady gap (event types that bypass the processor) must not alert;
+  # a queue backing up past 500 must.
+  - interval: 1m
+    input_series:
+      - series: 'ha_events_received_total{event_type="state_changed",instance="homeiq-websocket:8001"}'
+        values: '0+100x20'
+      - series: 'ha_events_received_total{event_type="entity_registry_updated",instance="homeiq-websocket:8001"}'
+        values: '5+0x20'
+      - series: 'ha_events_processed_total{instance="homeiq-websocket:8001"}'
+        values: '0+100x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: HAEventProcessingBacklog
+        exp_alerts: []
+
+  - interval: 1m
+    input_series:
+      - series: 'ha_events_received_total{event_type="state_changed",instance="homeiq-websocket:8001"}'
+        values: '0+100x30'
+      - series: 'ha_events_processed_total{instance="homeiq-websocket:8001"}'
+        values: '0+10x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: HAEventProcessingBacklog
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              instance: homeiq-websocket:8001
+            exp_annotations:
+              summary: "websocket-ingestion processing is falling behind"
+              description: "1800 events received from Home Assistant have not been processed. A small steady gap is normal (event types that bypass the processor); a growing one means the queue is backing up."
+
+  # --- HAEventProcessingFailures -------------------------------------------
+  - interval: 1m
+    input_series:
+      - series: 'ha_events_failed_total{service="websocket-ingestion"}'
+        values: '0+6x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: HAEventProcessingFailures
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service: websocket-ingestion
+            exp_annotations:
+              summary: "websocket-ingestion is failing to process Home Assistant events"
+              description: "Events are being dropped during processing at 0.100 events/sec. They are received off the wire but never reach InfluxDB."

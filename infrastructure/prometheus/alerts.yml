@@ -239,6 +239,70 @@ groups:
           summary: "Websocket ingestion experiencing backpressure"
           description: "The websocket-ingestion service is returning 429/503 responses, indicating it cannot keep up with incoming events."
 
+  # --- Home Assistant Ingestion ---
+  # The pipeline that feeds every downstream service. These fire on the
+  # ingestion path itself, not on the service's REST API -- websocket-ingestion
+  # answers HTTP fine while its HA connection is dead.
+  - name: ha_ingestion
+    rules:
+      - alert: HAIngestionStalled
+        expr: time() - ha_last_event_timestamp_seconds > 300
+        for: 2m
+        labels:
+          severity: critical
+          page: "true"
+        annotations:
+          summary: "CRITICAL: No Home Assistant events for {{ $value | humanizeDuration }}"
+          description: "websocket-ingestion has not received an event from Home Assistant in over 5 minutes. All downstream analytics are running on stale data. Check ha_connection_up and ha_subscription_up to tell a dropped socket from a lost subscription."
+
+      - alert: HAIngestionNeverStarted
+        expr: ha_connection_up == 1 and ha_events_processed_total == 0
+        for: 10m
+        labels:
+          severity: critical
+          page: "true"
+        annotations:
+          summary: "CRITICAL: websocket-ingestion connected but has processed zero events"
+          description: "The Home Assistant connection is up but no event has been processed since the service started 10 minutes ago. HAIngestionStalled cannot fire here because no last-event timestamp was ever recorded."
+
+      - alert: HAWebsocketDisconnected
+        expr: ha_connection_up == 0
+        for: 2m
+        labels:
+          severity: critical
+          page: "true"
+        annotations:
+          summary: "CRITICAL: Home Assistant websocket is disconnected"
+          description: "websocket-ingestion has had no connection to Home Assistant for more than 2 minutes. Event capture is stopped and the gap is unrecoverable -- HA does not replay missed state changes."
+
+      - alert: HASubscriptionInactive
+        expr: ha_connection_up == 1 and ha_subscription_up == 0
+        for: 2m
+        labels:
+          severity: critical
+          page: "true"
+        annotations:
+          summary: "CRITICAL: Connected to Home Assistant but not subscribed to events"
+          description: "The websocket is up but the event subscription is not active, so no events are arriving. This is silent data loss: the connection looks healthy to every other check."
+
+      - alert: HAEventProcessingFailures
+        expr: rate(ha_events_failed_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "websocket-ingestion is failing to process Home Assistant events"
+          description: "Events are being dropped during processing at {{ $value | printf \"%.3f\" }} events/sec. They are received off the wire but never reach InfluxDB."
+
+      - alert: HAEventProcessingBacklog
+        expr: sum without(event_type)(ha_events_received_total) - on(instance) ha_events_processed_total > 500
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "websocket-ingestion processing is falling behind"
+          description: "{{ $value }} events received from Home Assistant have not been processed. A small steady gap is normal (event types that bypass the processor); a growing one means the queue is backing up."
+
   # --- Application Pool Metrics (Story 56.4) ---
   - name: app_pool_metrics
     rules:
