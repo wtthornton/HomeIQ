@@ -35,7 +35,9 @@ def test_generated_name_never_contains_the_manufacturer(generator):
     suggestion = generator._pattern_based_generation(_device(), None)
 
     assert "aqara" not in suggestion.name.lower()
-    result = score_friendly_name({"friendly_name": suggestion.name, "area_name": "Office"})
+    # area_id is the key the rubric actually reads (area_name is ignored) —
+    # passing the wrong key silently skips the area-prefix check.
+    result = score_friendly_name({"friendly_name": suggestion.name, "area_id": "office"})
     assert result.issues == []
     assert result.earned_points == result.max_points
 
