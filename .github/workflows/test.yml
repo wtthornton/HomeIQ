@@ -167,7 +167,12 @@ jobs:
           # A CLI --reporter overrides the config's reporter array, so the
           # outputFile set in health-dashboard/playwright.config.ts does not
           # apply and the json reporter would otherwise go to stdout.
-          PLAYWRIGHT_JSON_OUTPUT_NAME: results.json
+          #
+          # Absolute: a relative value here resolves against the config's
+          # rootDir (tests/e2e/health-dashboard), not the working directory,
+          # which is what left the pass-rate check reporting "No JSON results
+          # found" even after it was pointed at the right filename.
+          PLAYWRIGHT_JSON_OUTPUT_NAME: ${{ github.workspace }}/e2e-results.json
         run: |
           # Only the health-dashboard suite runs here. The ai-automation-ui
           # suite targets :3001 and the full-suite run reaches services this
@@ -179,15 +184,16 @@ jobs:
         if: always() && steps.check-e2e.outputs.has_tests == 'true'
         working-directory: tests/e2e
         run: |
-          if [ -f "results.json" ]; then
+          RESULTS="${{ github.workspace }}/e2e-results.json"
+          if [ -f "$RESULTS" ]; then
             # `expected` is the count that passed, not the total. Using it as
             # the denominator made the rate self-referential: 10 passed and 5
             # failed reported 50% rather than 67%. Total is the sum of the
             # outcome buckets, and skipped tests are excluded from the rate.
-            PASSED=$(jq '.stats.expected // 0' results.json)
-            FAILED=$(jq '.stats.unexpected // 0' results.json)
-            FLAKY=$(jq '.stats.flaky // 0' results.json)
-            SKIPPED=$(jq '.stats.skipped // 0' results.json)
+            PASSED=$(jq ".stats.expected // 0" "$RESULTS")
+            FAILED=$(jq ".stats.unexpected // 0" "$RESULTS")
+            FLAKY=$(jq ".stats.flaky // 0" "$RESULTS")
+            SKIPPED=$(jq ".stats.skipped // 0" "$RESULTS")
             TOTAL=$(( PASSED + FAILED + FLAKY ))
             if [ "$TOTAL" -gt 0 ]; then
               PASS_RATE=$(( PASSED * 100 / TOTAL ))
@@ -207,7 +213,7 @@ jobs:
         with:
           name: playwright-report
           path: |
-            tests/e2e/results.json
+            e2e-results.json
             test-results/
           retention-days: 7
 
