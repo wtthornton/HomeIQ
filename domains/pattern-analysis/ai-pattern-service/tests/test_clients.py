@@ -21,7 +21,8 @@ class TestDataAPIClient:
     async def test_fetch_events_success(self):
         """Test successful event fetching."""
         # Mock response
-        mock_response = AsyncMock()
+        # httpx.Response: json() and raise_for_status() are synchronous.
+        mock_response = MagicMock()
         mock_response.json.return_value = [
             {
                 "timestamp": datetime.now(UTC).isoformat(),
@@ -30,38 +31,31 @@ class TestDataAPIClient:
                 "event_type": "state_changed",
             }
         ]
-        mock_response.raise_for_status = AsyncMock()
-
-        # Mock httpx.AsyncClient
-        mock_client = AsyncMock()
-        mock_client.get = AsyncMock(return_value=mock_response)
 
         client = DataAPIClient(base_url="http://test:8006")
-        # Replace the client with our mock
-        client.client = mock_client
+        # Requests go through the shared CrossGroupClient, not an httpx client attribute.
+        client._cross_client = MagicMock()
+        client._cross_client.call = AsyncMock(return_value=mock_response)
         df = await client.fetch_events()
 
         assert isinstance(df, pd.DataFrame)
-        mock_client.get.assert_called_once()
+        client._cross_client.call.assert_awaited_once()
 
     @pytest.mark.asyncio
     @pytest.mark.unit
     async def test_fetch_devices_success(self):
         """Test successful device fetching."""
         # Mock response
-        mock_response = AsyncMock()
+        # httpx.Response: json() and raise_for_status() are synchronous.
+        mock_response = MagicMock()
         mock_response.json.return_value = [
             {"device_id": "light.office", "name": "Office Light", "area_id": "office"}
         ]
-        mock_response.raise_for_status = AsyncMock()
-
-        # Mock httpx.AsyncClient
-        mock_client = AsyncMock()
-        mock_client.get = AsyncMock(return_value=mock_response)
 
         client = DataAPIClient(base_url="http://test:8006")
-        # Replace the client with our mock
-        client.client = mock_client
+        # Requests go through the shared CrossGroupClient, not an httpx client attribute.
+        client._cross_client = MagicMock()
+        client._cross_client.call = AsyncMock(return_value=mock_response)
         devices = await client.fetch_devices()
 
         assert isinstance(devices, list)
@@ -73,19 +67,16 @@ class TestDataAPIClient:
     async def test_fetch_entities_success(self):
         """Test successful entity fetching."""
         # Mock response
-        mock_response = AsyncMock()
+        # httpx.Response: json() and raise_for_status() are synchronous.
+        mock_response = MagicMock()
         mock_response.json.return_value = [
             {"entity_id": "light.office", "device_id": "light.office", "domain": "light"}
         ]
-        mock_response.raise_for_status = AsyncMock()
-
-        # Mock httpx.AsyncClient
-        mock_client = AsyncMock()
-        mock_client.get = AsyncMock(return_value=mock_response)
 
         client = DataAPIClient(base_url="http://test:8006")
-        # Replace the client with our mock
-        client.client = mock_client
+        # Requests go through the shared CrossGroupClient, not an httpx client attribute.
+        client._cross_client = MagicMock()
+        client._cross_client.call = AsyncMock(return_value=mock_response)
         entities = await client.fetch_entities()
 
         assert isinstance(entities, list)

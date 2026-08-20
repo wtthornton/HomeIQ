@@ -229,14 +229,14 @@ class TestPatternDetection:
         )
         job_result = {"errors": []}
 
-        with (
-            patch(
-                "src.scheduler.pattern_analysis.CoOccurrencePatternDetector",
-                return_value=MagicMock(),
-            ),
-            patch("asyncio.to_thread", new_callable=AsyncMock) as mock_thread,
+        # The co-occurrence detector is async and awaited directly (no to_thread).
+        mock_detector = MagicMock()
+        mock_detector.detect_patterns = AsyncMock(return_value=[{"pattern_type": "co_occurrence"}])
+
+        with patch(
+            "src.scheduler.pattern_analysis.CoOccurrencePatternDetector",
+            return_value=mock_detector,
         ):
-            mock_thread.return_value = [{"pattern_type": "co_occurrence"}]
             patterns = await scheduler._detect_co_occurrence_patterns(events_df, job_result)
 
         assert len(patterns) == 1
@@ -308,8 +308,8 @@ class TestSynergyDetection:
         ):
             synergies = await scheduler._detect_synergies(mock_client, events_df, job_result)
 
+        # synergies_detected is recorded by the job runner, not by this phase.
         assert len(synergies) == 1
-        assert job_result["synergies_detected"] == 1
         assert len(job_result["errors"]) == 0
 
     @pytest.mark.asyncio
@@ -366,7 +366,7 @@ class TestResultStorage:
             ) as mock_store_synergies,
         ):
             mock_store_patterns.return_value = 2
-            mock_store_synergies.return_value = 1
+            mock_store_synergies.return_value = (1, 0)  # (stored, filtered)
 
             await scheduler._store_results(patterns, synergies, job_result)
 

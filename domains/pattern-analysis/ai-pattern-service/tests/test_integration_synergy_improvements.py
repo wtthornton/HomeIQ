@@ -16,24 +16,40 @@ from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
-from src.api.synergy_router import router
+from httpx import ASGITransport, AsyncClient
+from src.api.synergy_router import router, specific_router
 from src.crud.synergies import get_synergy_opportunities, store_synergy_opportunities
+from src.database import get_db
 from src.synergy_detection.synergy_detector import DeviceSynergyDetector
 
 
 @pytest.fixture
-def app_with_router():
-    """Create FastAPI app with synergy router."""
+def app_with_router(test_db):
+    """Create FastAPI app with synergy router, bound to the test database."""
     app = FastAPI()
-    app.include_router(router, prefix="/api/synergies", tags=["synergies"])
+
+    async def override_get_db():
+        yield test_db
+
+    app.dependency_overrides[get_db] = override_get_db
+    # Both routers carry their own /api/v1/synergies prefix; specific_router
+    # (/list, /stats) must be registered before the /{synergy_id} routes.
+    app.include_router(specific_router, tags=["synergies"])
+    app.include_router(router, tags=["synergies"])
     return app
 
 
 @pytest.fixture
-def client(app_with_router):
-    """Create test client."""
-    return TestClient(app_with_router)
+async def client(app_with_router):
+    """ASGI client on the test's own event loop.
+
+    The sync TestClient drives the app from a separate loop, and the asyncpg
+    session behind test_db cannot be shared across loops.
+    """
+    async with AsyncClient(
+        transport=ASGITransport(app=app_with_router), base_url="http://test"
+    ) as ac:
+        yield ac
 
 
 @pytest.fixture
@@ -79,17 +95,23 @@ def mock_data_api_client():
 
 @pytest.fixture
 def mock_enrichment_fetcher():
-    """Mock enrichment context fetcher for multi-modal context."""
-    fetcher = AsyncMock()
-    fetcher.fetch_context = AsyncMock(
-        return_value={
-            "weather": {"temperature": 72, "condition": "sunny"},
-            "energy": {"current_usage": 1500, "peak_hours": False},
-            "time_of_day": "afternoon",
-            "day_type": "weekday",
-        }
-    )
-    return fetcher
+    """Enrichment fetcher exposing the three methods MultiModalContextEnhancer probes.
+
+    A plain object rather than an AsyncMock: the enhancer uses hasattr() to
+    pick methods, and an AsyncMock answers every hasattr with a mock.
+    """
+
+    class _Fetcher:
+        async def get_current_weather(self):
+            return {"condition": "sunny", "temperature": 22}
+
+        async def get_electricity_pricing(self):
+            return {"current_rate": 0.18, "is_peak_hour": False}
+
+        async def get_carbon_intensity(self):
+            return {"intensity": 180}
+
+    return _Fetcher()
 
 
 @pytest.fixture
@@ -115,11 +137,7 @@ class TestIntegrationSynergyImprovements:
     ):
         """Test end-to-end synergy detection with all improvements enabled."""
         # Test that synergy detection works with multi-modal context, XAI, and RL
-        synergies = await synergy_detector.detect_synergies(
-            devices=None,  # Will use mock_data_api_client
-            min_confidence=0.5,
-            same_area_required=False,
-        )
+        synergies = await synergy_detector.detect_synergies()
 
         # Verify synergies were detected
         assert len(synergies) > 0, "Should detect at least one synergy"
@@ -141,10 +159,10 @@ class TestIntegrationSynergyImprovements:
                 # Explanation may be in metadata or separate field
                 assert "explanation" in synergy or "rationale" in synergy
 
-            # Context breakdown should be present (if context enhancer is available)
-            if synergy_detector.context_enhancer:
-                # Context breakdown may be in metadata
-                assert "context_breakdown" in synergy or "metadata" in synergy
+            # Context breakdown is written by the advanced ranker, which only
+            # runs when a DevicePairAnalyzer (InfluxDB) is configured.
+            if synergy_detector.pair_analyzer and synergy_detector.context_enhancer:
+                assert "context_breakdown" in synergy
 
     @pytest.mark.asyncio
     @pytest.mark.integration
@@ -163,8 +181,8 @@ class TestIntegrationSynergyImprovements:
             "area": "living_room",
         }
 
-        # Get context
-        context = await mock_enrichment_fetcher.fetch_context()
+        # Get context through the enhancer, which probes the fetcher's methods
+        context = await synergy_detector.context_enhancer._fetch_context()
 
         # Enhance with context
         enhanced = await synergy_detector.context_enhancer.enhance_synergy_score(
@@ -198,10 +216,10 @@ class TestIntegrationSynergyImprovements:
         # Generate explanation
         explanation = synergy_detector.explainer.generate_explanation(synergy, {})
 
-        # Verify explanation
-        assert explanation is not None
-        assert isinstance(explanation, str)
-        assert len(explanation) > 0
+        # Verify explanation: a structured dict with a human-readable summary
+        assert isinstance(explanation, dict)
+        assert isinstance(explanation["summary"], str)
+        assert explanation["summary"]
 
     @pytest.mark.asyncio
     @pytest.mark.integration
@@ -232,10 +250,10 @@ class TestIntegrationSynergyImprovements:
             "feedback_text": "Great suggestion!",
         }
 
-        synergy_detector.rl_optimizer.update_from_feedback(synergy_id, feedback)
+        await synergy_detector.rl_optimizer.update_from_feedback(synergy_id, feedback)
 
         # Get updated optimized score (should be higher after positive feedback)
-        updated_score = synergy_detector.rl_optimizer.get_optimized_score(opportunity)
+        updated_score = await synergy_detector.rl_optimizer.get_optimized_score(opportunity)
 
         # Verify score improved (or at least changed)
         assert updated_score >= 0.0
@@ -248,19 +266,16 @@ class TestIntegrationSynergyImprovements:
         if not synergy_detector.sequence_transformer:
             pytest.skip("DeviceSequenceTransformer not available")
 
-        # Create a sample device pair
-        device_pair = ("binary_sensor.motion_sensor", "light.living_room")
+        # predict_next_action takes the current event sequence and falls back to
+        # heuristics when no trained checkpoint exists.
+        sequence = [
+            {"entity_id": "binary_sensor.motion_sensor", "state": "on"},
+            {"entity_id": "light.living_room", "state": "on"},
+        ]
 
-        # Predict next action (if model is trained)
-        try:
-            prediction = await synergy_detector.sequence_transformer.predict_next_action(
-                device_pair
-            )
-            # If prediction succeeds, verify it's valid
-            assert prediction is not None
-        except Exception as e:
-            # If model not trained, that's okay (framework ready)
-            assert "not trained" in str(e).lower() or "not available" in str(e).lower()
+        prediction = await synergy_detector.sequence_transformer.predict_next_action(sequence)
+
+        assert isinstance(prediction, list)
 
     @pytest.mark.asyncio
     @pytest.mark.integration
@@ -300,9 +315,7 @@ class TestIntegrationSynergyImprovements:
     ):
         """Test API endpoints return XAI explanations."""
         # First, detect synergies and store them
-        synergies = await synergy_detector.detect_synergies(
-            devices=None, min_confidence=0.5, same_area_required=False
-        )
+        synergies = await synergy_detector.detect_synergies()
 
         if not synergies:
             pytest.skip("No synergies detected for API testing")
@@ -311,33 +324,28 @@ class TestIntegrationSynergyImprovements:
         await store_synergy_opportunities(test_db, synergies)
 
         # Test GET /api/synergies endpoint
-        response = client.get("/api/synergies?limit=10")
+        response = await client.get("/api/v1/synergies/list?limit=10")
         assert response.status_code == 200
 
-        data = response.json()
-        assert "synergies" in data or isinstance(data, list)
+        # Routes answer with the {success, data, message} envelope.
+        body = response.json()
+        assert body["success"] is True
+        synergies_list = body["data"]["synergies"]
+        assert body["data"]["count"] == len(synergies_list)
+        assert synergies_list
 
-        synergies_list = data.get("synergies", data) if isinstance(data, dict) else data
-        if synergies_list:
-            # Check first synergy has explanation if XAI is available
-            first_synergy = synergies_list[0]
-            if synergy_detector.explainer:
-                # Explanation may be in the synergy data or metadata
-                assert "explanation" in first_synergy or "metadata" in first_synergy
+        first_synergy = synergies_list[0]
+        if synergy_detector.explainer:
+            assert "explanation" in first_synergy
 
-        # Test GET /api/synergies/{id} endpoint
-        if synergies_list:
-            synergy_id = synergies_list[0].get("synergy_id")
-            if synergy_id:
-                response = client.get(f"/api/synergies/{synergy_id}")
-                assert response.status_code == 200
+        # Test GET /api/v1/synergies/{id} endpoint
+        response = await client.get(f"/api/v1/synergies/{first_synergy['synergy_id']}")
+        assert response.status_code == 200
 
-                synergy_data = response.json()
-                assert "synergy_id" in synergy_data
-
-                # Verify XAI explanation is present if available
-                if synergy_detector.explainer:
-                    assert "explanation" in synergy_data or "metadata" in synergy_data
+        synergy_data = response.json()["data"]
+        assert synergy_data["synergy_id"] == first_synergy["synergy_id"]
+        if synergy_detector.explainer:
+            assert "explanation" in synergy_data
 
     @pytest.mark.asyncio
     @pytest.mark.integration
@@ -349,9 +357,7 @@ class TestIntegrationSynergyImprovements:
             pytest.skip("RLSynergyOptimizer not available")
 
         # First, detect and store a synergy
-        synergies = await synergy_detector.detect_synergies(
-            devices=None, min_confidence=0.5, same_area_required=False
-        )
+        synergies = await synergy_detector.detect_synergies()
 
         if not synergies:
             pytest.skip("No synergies detected for feedback testing")
@@ -363,12 +369,12 @@ class TestIntegrationSynergyImprovements:
         if not stored_synergies:
             pytest.skip("No synergies stored for feedback testing")
 
-        synergy_id = stored_synergies[0].synergy_id
+        synergy_id = stored_synergies[0]["synergy_id"]  # raw-SQL read returns row dicts
 
         # Submit feedback
         feedback_data = {"accepted": True, "rating": 5, "feedback_text": "Great suggestion!"}
 
-        response = client.post(f"/api/synergies/{synergy_id}/feedback", json=feedback_data)
+        response = await client.post(f"/api/v1/synergies/{synergy_id}/feedback", json=feedback_data)
 
         # Verify feedback was accepted
         assert response.status_code in [200, 201]
@@ -381,29 +387,21 @@ class TestIntegrationSynergyImprovements:
     async def test_error_handling_edge_cases(self, synergy_detector, mock_data_api_client):
         """Test error handling and edge cases."""
         # Test with empty device list
-        synergies = await synergy_detector.detect_synergies(
-            devices=[], min_confidence=0.5, same_area_required=False
-        )
+        synergies = await synergy_detector.detect_synergies()
 
         # Should handle gracefully (return empty list or use data-api)
         assert isinstance(synergies, list)
 
         # Test with very high confidence threshold
-        synergies = await synergy_detector.detect_synergies(
-            devices=None,
-            min_confidence=0.99,  # Very high threshold
-            same_area_required=False,
-        )
+        synergy_detector.min_confidence = 0.99  # Very high threshold
+        synergies = await synergy_detector.detect_synergies()
 
         # Should return filtered results or empty list
         assert isinstance(synergies, list)
 
         # Test with invalid area requirement
-        synergies = await synergy_detector.detect_synergies(
-            devices=None,
-            min_confidence=0.5,
-            same_area_required=True,  # May filter out cross-area synergies
-        )
+        synergy_detector.same_area_required = True  # May filter out cross-area synergies
+        synergies = await synergy_detector.detect_synergies()
 
         # Should handle gracefully
         assert isinstance(synergies, list)
@@ -434,9 +432,7 @@ class TestIntegrationSynergyImprovements:
 
         start_time = time.time()
 
-        synergies = await synergy_detector.detect_synergies(
-            devices=None, min_confidence=0.5, same_area_required=False
-        )
+        synergies = await synergy_detector.detect_synergies()
 
         elapsed_time = time.time() - start_time
 

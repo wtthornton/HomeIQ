@@ -480,8 +480,9 @@ class TestPatternSummaryProperties:
 
     @given(events=event_dataframe_strategy())
     @settings(max_examples=30, deadline=5000)
-    def test_empty_patterns_summary(self, _events):
-        """Property: Empty patterns produce valid summary."""
+    def test_empty_patterns_summary(self, events):
+        """Property: whatever events were seen, an empty pattern list summarises validly."""
+        assert events is not None
         detector = TimeOfDayPatternDetector()
         summary = detector.get_pattern_summary([])
 

@@ -29,27 +29,28 @@ class TestHealthRouter:
     @pytest.mark.unit
     def test_health_check(self, client: TestClient):
         """Test health check endpoint."""
-        response = client.get("/health/health")
+        # /health is StandardHealthCheck's liveness route (registered by create_app).
+        response = client.get("/health")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "ok"
-        assert "database" in data
+        assert data["status"] in {"healthy", "degraded"}
+        assert data["service"] == "ai-pattern-service"
 
     @pytest.mark.unit
     def test_readiness_check(self, client: TestClient):
         """Test readiness check endpoint."""
-        response = client.get("/health/ready")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "ready"
+        # StandardHealthCheck's /ready is registered first and is strict: with no
+        # dependency checks registered it reports 503 rather than a green it
+        # cannot justify (TAP-5903).
+        response = client.get("/ready")
+        assert response.status_code == 503
 
     @pytest.mark.unit
     def test_liveness_check(self, client: TestClient):
         """Test liveness check endpoint."""
-        response = client.get("/health/live")
+        response = client.get("/live")
         assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "live"
+        assert response.json() == {"status": "live"}
 
     @pytest.mark.unit
     def test_root_endpoint(self, client: TestClient):
@@ -57,6 +58,5 @@ class TestHealthRouter:
         response = client.get("/")
         assert response.status_code == 200
         data = response.json()
-        assert data["service"] == "ai-pattern-service"
-        assert data["version"] == "1.0.0"
-        assert data["status"] == "operational"
+        # Served by homeiq_resilience.create_app: service is the app title.
+        assert data == {"service": "AI Pattern Service", "version": "1.0.0", "status": "running"}

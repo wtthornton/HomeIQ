@@ -872,7 +872,6 @@ class PatternAnalysisScheduler:
             job_result: Job result dictionary to update with errors
         """
         logger.info("Phase 4: Storing results in database...")
-        from ..database import AsyncSessionLocal
 
         # Initialize automation validator if HA client available
         automation_validator = None

@@ -65,17 +65,19 @@ class TestCoOccurrencePatternDetector:
     """Test suite for CoOccurrencePatternDetector."""
 
     @pytest.mark.unit
-    def test_detect_patterns_empty_dataframe(self):
+    @pytest.mark.asyncio
+    async def test_detect_patterns_empty_dataframe(self):
         """Test pattern detection with empty DataFrame."""
         detector = CoOccurrencePatternDetector()
         df = pd.DataFrame()
 
-        patterns = detector.detect_patterns(df)
+        patterns = await detector.detect_patterns(df)
         assert isinstance(patterns, list)
         assert len(patterns) == 0
 
     @pytest.mark.unit
-    def test_detect_patterns_co_occurring_devices(self):
+    @pytest.mark.asyncio
+    async def test_detect_patterns_co_occurring_devices(self):
         """Test pattern detection with co-occurring devices."""
         detector = CoOccurrencePatternDetector(
             min_support=0.1, min_confidence=0.5, window_minutes=5
@@ -112,7 +114,7 @@ class TestCoOccurrencePatternDetector:
             )
 
         df = pd.DataFrame(events)
-        patterns = detector.detect_patterns(df)
+        patterns = await detector.detect_patterns(df)
 
         assert isinstance(patterns, list)
         # Should detect co-occurrence pattern if devices change together

@@ -25,9 +25,12 @@ class TestMainApplication:
             response = await client.get("/")
             assert response.status_code == 200
             data = response.json()
-            assert data["service"] == "ai-pattern-service"
-            assert data["version"] == "1.0.0"
-            assert data["status"] == "operational"
+            # Served by homeiq_resilience.create_app: service is the app title.
+            assert data == {
+                "service": "AI Pattern Service",
+                "version": "1.0.0",
+                "status": "running",
+            }
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -61,9 +64,10 @@ class TestMainApplication:
         mock_settings.enable_incremental = True
         mock_init_db.side_effect = Exception("Database connection failed")
 
-        with pytest.raises(Exception, match="Database connection failed"):
-            async with lifespan.handler(app):
-                pass
+        # ServiceLifespan is graceful: a failing startup hook is logged and the
+        # app comes up degraded instead of refusing to start.
+        async with lifespan.handler(app):
+            mock_init_db.assert_called_once()
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -375,11 +379,9 @@ class TestMainApplication:
         """Test health router is included in app."""
         from src.main import app
 
-        # Check that health router routes exist
-        route_paths = []
-        for route in app.routes:
-            if hasattr(route, "path"):
-                route_paths.append(route.path)
+        # FastAPI >= 0.140 keeps included routers as opaque entries in
+        # app.routes; the OpenAPI document is the public view of the paths.
+        paths = app.openapi()["paths"]
 
-        # Health router should add /health endpoint
-        assert any("/health" in path for path in route_paths)
+        assert "/health" in paths  # StandardHealthCheck, via create_app
+        assert "/live" in paths  # service health_router

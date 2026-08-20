@@ -46,22 +46,20 @@ class MockVerificationStore:
         self._successes = successes or []
         self._failures = failures or []
 
-    async def query_successes(
-        self, _entity_ids: list[str], _lookback_hours: int = 168
-    ) -> list[dict]:
+    async def query_successes(self, entity_ids: list[str], lookback_hours: int = 168) -> list[dict]:
         return self._successes
 
-    async def query_failures(self, _entity_id: str, _lookback_hours: int = 24) -> list[dict]:
+    async def query_failures(self, entity_id: str, lookback_hours: int = 24) -> list[dict]:
         return self._failures
 
 
 class FailingStore:
     """Store that always raises errors."""
 
-    async def query_successes(self, _entity_ids, _lookback_hours=168):
+    async def query_successes(self, entity_ids, lookback_hours=168):
         raise ConnectionError("InfluxDB down")
 
-    async def query_failures(self, _entity_id, _lookback_hours=24):
+    async def query_failures(self, entity_id, lookback_hours=24):
         raise ConnectionError("InfluxDB down")
 
 
@@ -94,7 +92,9 @@ async def _apply_feedback(synergies, store):
                     synergy["confidence"] = max(0.0, synergy.get("confidence", 0.7) - 0.2)
                     synergy["recent_failures"] = True
                     break
-        except Exception:
+        except ConnectionError:
+            # Store outage degrades to the unboosted synergy; a contract error
+            # (wrong signature, bad data) must surface, not be absorbed here.
             pass
 
     return synergies
