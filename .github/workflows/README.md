@@ -26,6 +26,31 @@ defaults to a self-hosted runner (also free).
 | `docker-security-scan` | PR touching a Dockerfile + weekly (Mon 06:00 UTC) |
 | `dependabot-auto-merge` | Dependabot PRs |
 
+### E2E scope in `test.yml`
+
+The `E2E Tests (Playwright)` job starts **seven** services, not the full stack:
+`influxdb`, `postgres`, `ha-simulator`, `data-api`, `websocket-ingestion`,
+`admin-api`, `health-dashboard`. It runs the `health-dashboard` `@smoke` suite
+against them.
+
+It used to run a bare `docker compose up -d`, which brings up 45 services — 38
+of them built from source — behind a 180-second health wait. That job never
+passed once: it was 0-for-40 when the scope was narrowed, failing first on
+missing `:?required` variables and then, had those been supplied, on build time.
+Because `docker-build.yml` sets `push: false`, no prebuilt images exist to pull
+instead, so building is unavoidable and the only lever is how many services get
+built.
+
+Two suites are **not** covered as a result, and want a follow-up:
+
+1. `ai-automation-ui` `@smoke`/`@integration` — targets `:3001`, which needs
+   `domains/frontends/compose.yml` added to the scope.
+2. The full-suite run — reaches services across most domains; it needs either
+   published images or a self-hosted runner to be viable.
+
+Do not restore either by widening the stack back to a bare `up -d`. Add the
+specific services a suite needs, or publish images first.
+
 ### Path filters
 
 Domain CI is path-filtered so a change to one domain runs one workflow rather than
