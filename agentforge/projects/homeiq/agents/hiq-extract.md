@@ -20,6 +20,7 @@ schema_version: '2.1'
 role: producer
 category: general
 risk_level: low
+timeout_seconds: 120
 memory_profile: readonly
 brain_profile: agent_brain
 share_scope: domain

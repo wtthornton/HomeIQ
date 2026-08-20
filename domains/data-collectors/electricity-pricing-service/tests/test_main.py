@@ -33,7 +33,7 @@ class TestElectricityPricingServiceInit:
     def test_influxdb_config(self, service):
         """InfluxDB config should be loaded from environment."""
         assert service.influxdb_token == "test-token"
-        assert service.influxdb_org == "home_assistant"
+        assert service.influxdb_org == "homeiq"  # BaseServiceSettings default
 
     def test_missing_influxdb_token_raises(self, monkeypatch):
         """Should raise ValueError when INFLUXDB_TOKEN is not set."""

@@ -298,6 +298,9 @@ phase2_results_*.json
 # an unignored copy elsewhere.
 *.pkl.backup_[0-9]*
 model_metadata.json.backup_[0-9]*
+# Generated at train time (TAP-6242): tracking it made every test run dirty
+# the working tree with fresh timestamps.
+domains/ml-engine/device-intelligence-service/models/model_metadata.json
 .tapps-mcp/backups/
 .tapps-mcp/hook-backups/
 .tapps-mcp/.lookup-docs-events.jsonl

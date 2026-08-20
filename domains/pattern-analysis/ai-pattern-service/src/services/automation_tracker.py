@@ -102,7 +102,7 @@ class AutomationTracker:
             # Create execution record table if it doesn't exist
             create_table_query = text("""
                 CREATE TABLE IF NOT EXISTS automation_executions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id SERIAL PRIMARY KEY,
                     automation_id TEXT NOT NULL,
                     synergy_id TEXT NOT NULL,
                     success BOOLEAN NOT NULL,
@@ -120,7 +120,7 @@ class AutomationTracker:
             insert_query = text("""
                 INSERT INTO automation_executions
                 (automation_id, synergy_id, success, error, execution_time_ms, triggered_count, created_at)
-                VALUES (:automation_id, :synergy_id, :success, :error, :execution_time_ms, :triggered_count, datetime('now'))
+                VALUES (:automation_id, :synergy_id, :success, :error, :execution_time_ms, :triggered_count, NOW())
             """)
             await db.execute(
                 insert_query,
@@ -190,7 +190,7 @@ class AutomationTracker:
                 UPDATE synergy_opportunities
                 SET confidence = :confidence,
                     impact_score = :impact_score,
-                    updated_at = datetime('now')
+                    last_validated_at = NOW()
                 WHERE synergy_id = :synergy_id
             """)
             await db.execute(
@@ -246,8 +246,8 @@ class AutomationTracker:
             stats_query = text("""
                 SELECT
                     COUNT(*) as total_executions,
-                    SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful_executions,
-                    SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as failed_executions,
+                    SUM(CASE WHEN success THEN 1 ELSE 0 END) as successful_executions,
+                    SUM(CASE WHEN NOT success THEN 1 ELSE 0 END) as failed_executions,
                     SUM(triggered_count) as total_triggered,
                     AVG(execution_time_ms) as avg_execution_time_ms
                 FROM automation_executions

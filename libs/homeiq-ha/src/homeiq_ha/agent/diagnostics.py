@@ -168,7 +168,9 @@ class ZigbeeMeshHealthRecipe(Recipe):
             "devices": rows,
         }
         if offline:
-            names = ", ".join(f"{r['name']} ({r['ieee']}, last seen {r['last_seen']})" for r in offline)
+            names = ", ".join(
+                f"{r['name']} ({r['ieee']}, last seen {r['last_seen']})" for r in offline
+            )
             return CheckResult(
                 CheckStatus.BLOCKED_ON_HUMAN,
                 summary,

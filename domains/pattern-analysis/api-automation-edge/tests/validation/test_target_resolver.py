@@ -11,6 +11,7 @@ import pytest
 # Fix import path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from src.capability.capability_graph import CapabilityGraph
 from src.validation.target_resolver import TargetResolver
 
 
@@ -19,8 +20,13 @@ class TestTargetResolver:
 
     @pytest.fixture
     def mock_capability_graph(self):
-        """Mock capability graph"""
-        graph = MagicMock()
+        """Mock capability graph.
+
+        spec= so the mock passes TargetResolver's deliberate isinstance guard
+        (TAP-6181): a bare MagicMock is rejected exactly like any other wrong
+        object, which is the guard doing its job.
+        """
+        graph = MagicMock(spec=CapabilityGraph)
 
         # Mock entities by area
         graph.get_entities_by_area.return_value = [

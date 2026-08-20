@@ -144,6 +144,9 @@ class EventsEndpoints:
             try:
                 categories = await self._get_event_categories(home_type, hours)
                 return categories
+            except HTTPException:
+                # The helper already chose 503 for a failed query (TAP-6151).
+                raise
             except Exception as e:
                 logger.error(f"Error getting event categories: {e}")
                 raise HTTPException(
@@ -165,6 +168,9 @@ class EventsEndpoints:
 
                 return stats
 
+            except HTTPException:
+                # The helpers already chose 503 for a dead backend (TAP-6151).
+                raise
             except Exception as e:
                 logger.error(f"Error getting events stats: {e}")
                 raise HTTPException(
@@ -223,6 +229,10 @@ class EventsEndpoints:
 
                 return entities
 
+            except HTTPException:
+                # The helpers already chose 503 for a dead backend (TAP-6151);
+                # re-wrapping would relabel it as a generic 500.
+                raise
             except Exception as e:
                 logger.error(f"Error getting active entities: {e}")
                 raise HTTPException(
@@ -246,6 +256,9 @@ class EventsEndpoints:
 
                 return event_types
 
+            except HTTPException:
+                # The helpers already chose 503 for a dead backend (TAP-6151).
+                raise
             except Exception as e:
                 logger.error(f"Error getting event types: {e}")
                 raise HTTPException(
@@ -282,6 +295,9 @@ class EventsEndpoints:
                 chain = await self._trace_automation_chain(context_id, max_depth, include_details)
                 return chain
 
+            except HTTPException:
+                # The helper already chose 503 for a failed query (TAP-6151).
+                raise
             except Exception as e:
                 logger.error(f"Error tracing automation chain: {e}")
                 raise HTTPException(
@@ -424,8 +440,14 @@ class EventsEndpoints:
                     else:
                         raise Exception(f"HTTP {response.status}")
         except Exception as e:
+            # A backend failure must look like a failure — HTTP 200 with []
+            # is indistinguishable from "no events in this window" (TAP-6151;
+            # this branch was the surviving twin of the fixed _get_all_events).
             logger.error(f"Error getting events from {service}: {e}")
-            return []
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Events backend '{service}' is unavailable",
+            ) from e
 
     async def _get_event_by_id(self, event_id: str) -> EventData | None:
         """Get a specific event by ID"""
@@ -714,6 +736,7 @@ from(bucket: "{bucket}")
             "event_types": {},
             "services": {},
         }
+        failed_services = []
 
         for service_name, _service_url in self.service_urls.items():
             try:
@@ -731,6 +754,15 @@ from(bucket: "{bucket}")
             except Exception as e:
                 logger.warning(f"Failed to get stats from {service_name}: {e}")
                 all_stats["services"][service_name] = {"error": str(e)}
+                failed_services.append(service_name)
+
+        # Partial degradation keeps the per-service error entries; EVERY
+        # backend failing must not read as "0 events" (TAP-6151).
+        if failed_services and len(failed_services) == len(self.service_urls):
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"All events backends unavailable: {failed_services}",
+            )
 
         return all_stats
 
@@ -747,12 +779,18 @@ from(bucket: "{bucket}")
                     else:
                         raise Exception(f"HTTP {response.status}")
         except Exception as e:
+            # Raise instead of {"error": ...} — the aggregator must be able to
+            # tell a dead backend from a quiet one (TAP-6151).
             logger.error(f"Error getting events stats from {service}: {e}")
-            return {"error": str(e)}
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Events backend '{service}' is unavailable",
+            ) from e
 
     async def _get_all_active_entities(self, limit: int) -> list[dict[str, Any]]:
         """Get active entities from all services"""
         all_entities = []
+        failed_services = []
 
         for service_name, _service_url in self.service_urls.items():
             try:
@@ -762,6 +800,15 @@ from(bucket: "{bucket}")
                 all_entities.extend(entities)
             except Exception as e:
                 logger.warning(f"Failed to get active entities from {service_name}: {e}")
+                failed_services.append(service_name)
+
+        # Partial degradation is aggregation working as designed; EVERY backend
+        # failing is not — reporting it as an empty success recreates TAP-6151.
+        if failed_services and len(failed_services) == len(self.service_urls):
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"All events backends unavailable: {failed_services}",
+            )
 
         # Remove duplicates and sort by activity
         unique_entities = {}
@@ -793,12 +840,19 @@ from(bucket: "{bucket}")
                     else:
                         raise Exception(f"HTTP {response.status}")
         except Exception as e:
+            # Raise instead of returning [] so the aggregator can tell a dead
+            # backend from an idle one (TAP-6151); the old swallow made the
+            # aggregator's per-service handler dead code.
             logger.error(f"Error getting active entities from {service}: {e}")
-            return []
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Events backend '{service}' is unavailable",
+            ) from e
 
     async def _get_all_event_types(self, limit: int) -> list[dict[str, Any]]:
         """Get event types from all services"""
         all_event_types = {}
+        failed_services = []
 
         for service_name, _service_url in self.service_urls.items():
             try:
@@ -815,6 +869,14 @@ from(bucket: "{bucket}")
                     all_event_types[event_type_name]["services"].append(service_name)
             except Exception as e:
                 logger.warning(f"Failed to get event types from {service_name}: {e}")
+                failed_services.append(service_name)
+
+        # See _get_all_active_entities: total failure must not read as "no data".
+        if failed_services and len(failed_services) == len(self.service_urls):
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"All events backends unavailable: {failed_services}",
+            )
 
         # Sort by count (most frequent first)
         sorted_event_types = sorted(
@@ -836,8 +898,12 @@ from(bucket: "{bucket}")
                     else:
                         raise Exception(f"HTTP {response.status}")
         except Exception as e:
+            # Raise instead of returning [] — same failure shape as TAP-6151.
             logger.error(f"Error getting event types from {service}: {e}")
-            return []
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Events backend '{service}' is unavailable",
+            ) from e
 
     async def _get_events_stream(self, duration: int, entity_id: str | None) -> dict[str, Any]:
         """Get real-time event stream"""
@@ -919,17 +985,16 @@ from(bucket: "{bucket}")
                 "category_count": len(categories),
             }
 
+        except HTTPException:
+            raise
         except Exception as e:
+            # A zeroed "default structure" is indistinguishable from a quiet
+            # home — a store failure must look like a failure (TAP-6151).
             logger.error(f"Error getting event categories: {e}", exc_info=True)
-            # Return default structure on error
-            return {
-                "home_type": home_type or "unknown",
-                "period_hours": hours,
-                "total_events": 0,
-                "categories": {},
-                "category_count": 0,
-                "error": str(e),
-            }
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Event categories query failed",
+            ) from e
 
     def _format_flux_time(self, value: datetime) -> str:
         """Format datetime for Flux queries in UTC."""
@@ -1355,9 +1420,13 @@ from(bucket: "{bucket}")
             )
             return chain
 
+        except HTTPException:
+            raise
         except Exception as e:
-            logger.error(f"Error tracing automation chain: {e}")
-            import traceback
-
-            logger.error(traceback.format_exc())
-            return []
+            # An empty chain means "this context triggered nothing" — a query
+            # failure must not impersonate it (TAP-6151).
+            logger.error(f"Error tracing automation chain: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Automation trace query failed",
+            ) from e

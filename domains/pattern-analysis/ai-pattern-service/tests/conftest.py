@@ -54,8 +54,10 @@ async def test_db() -> AsyncGenerator[AsyncSession, None]:
                 pattern_metadata JSONB,
                 confidence REAL NOT NULL,
                 occurrences INTEGER NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                -- TIMESTAMPTZ mirrors the live automation.patterns table; the
+                -- writers bind aware datetimes (TAP-6171)
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
             )
             """)
         )
@@ -74,7 +76,14 @@ async def test_db() -> AsyncGenerator[AsyncSession, None]:
                 area TEXT,
                 explanation JSONB,
                 context_breakdown JSONB,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                -- Columns the CRUD layer writes; the fixture DDL had drifted
+                -- behind init-schemas.sql, so every insert failed on
+                -- UndefinedColumnError and reads asserted against nothing.
+                pattern_support_score DOUBLE PRECISION NOT NULL DEFAULT 0,
+                validated_by_patterns BOOLEAN NOT NULL DEFAULT FALSE,
+                synergy_depth INTEGER NOT NULL DEFAULT 2,
+                chain_devices TEXT
             )
             """)
         )

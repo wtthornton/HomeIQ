@@ -248,7 +248,9 @@ CREATE TABLE IF NOT EXISTS synergy_opportunities (
     complexity VARCHAR(20) NOT NULL,
     confidence DOUBLE PRECISION NOT NULL,
     area VARCHAR(100),
-    created_at TIMESTAMP NOT NULL,
+    -- TIMESTAMPTZ: the CRUD writes aware datetimes; a naive column made
+    -- asyncpg refuse every raw-SQL store (TAP-6171 batch).
+    created_at TIMESTAMPTZ NOT NULL,
     pattern_support_score DOUBLE PRECISION NOT NULL,
     validated_by_patterns BOOLEAN NOT NULL,
     supporting_pattern_ids TEXT,
@@ -261,7 +263,7 @@ CREATE TABLE IF NOT EXISTS synergy_opportunities (
     context_breakdown JSON,
     quality_score DOUBLE PRECISION,
     quality_tier VARCHAR(20),
-    last_validated_at TIMESTAMP,
+    last_validated_at TIMESTAMPTZ,
     filter_reason VARCHAR(200)
 );
 
@@ -329,15 +331,18 @@ CREATE TABLE IF NOT EXISTS indexed_blueprints (
     name VARCHAR(255) NOT NULL,
     description TEXT,
     domain VARCHAR(50),
-    required_domains JSON,
-    required_device_classes JSON,
-    optional_domains JSON,
-    optional_device_classes JSON,
-    inputs JSON,
-    trigger_platforms JSON,
-    action_services JSON,
+    -- JSONB, not JSON: search filters use containment (@>), which plain
+    -- json lacks -- .contains() compiled to `json ~~ text` and every
+    -- domain/device-class search failed at runtime (TAP-6170 batch).
+    required_domains JSONB,
+    required_device_classes JSONB,
+    optional_domains JSONB,
+    optional_device_classes JSONB,
+    inputs JSONB,
+    trigger_platforms JSONB,
+    action_services JSONB,
     use_case VARCHAR(50),
-    tags JSON,
+    tags JSONB,
     stars INTEGER,
     downloads INTEGER,
     installs INTEGER,
@@ -351,10 +356,12 @@ CREATE TABLE IF NOT EXISTS indexed_blueprints (
     ha_min_version VARCHAR(20),
     ha_max_version VARCHAR(20),
     blueprint_version VARCHAR(20),
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP,
-    indexed_at TIMESTAMP,
-    last_checked_at TIMESTAMP,
+    -- TIMESTAMPTZ: the writers send aware datetimes; naive columns made
+    -- asyncpg refuse every insert (TAP-6170).
+    created_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ,
+    indexed_at TIMESTAMPTZ,
+    last_checked_at TIMESTAMPTZ,
     yaml_content TEXT
 );
 

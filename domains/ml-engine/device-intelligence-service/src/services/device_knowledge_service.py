@@ -57,9 +57,7 @@ class ProvenanceRequired(ValueError):
         self.code = "provenance_required"
         self.evidence_class = evidence_class
         self.missing = missing
-        super().__init__(
-            f"evidence_class '{evidence_class}' requires {', '.join(missing)}"
-        )
+        super().__init__(f"evidence_class '{evidence_class}' requires {', '.join(missing)}")
 
 
 @dataclass(frozen=True)
@@ -167,9 +165,7 @@ def decide_precedence(
     if new_claim_type == ClaimType.NOT_CLAIMED.value:
         stronger = [c for c in refusals if _rank(c.evidence_class) < new_rank]
         if stronger:
-            return PrecedenceDecision(
-                outranked_by=sort_claims(stronger)[0], to_supersede=[]
-            )
+            return PrecedenceDecision(outranked_by=sort_claims(stronger)[0], to_supersede=[])
         weaker = [c for c in refusals if _rank(c.evidence_class) > new_rank]
         return PrecedenceDecision(outranked_by=None, to_supersede=weaker)
 
@@ -238,9 +234,7 @@ class DeviceKnowledgeService:
         # lock is transaction-scoped, so the commit below releases it.
         bind = self.session.get_bind()
         if bind is not None and bind.dialect.name == "postgresql":
-            lock_key = ":".join(
-                (fields["subject_kind"], fields["subject_key"], fields["fact_key"])
-            )
+            lock_key = ":".join((fields["subject_kind"], fields["subject_key"], fields["fact_key"]))
             await self.session.execute(
                 text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
                 {"key": lock_key},
@@ -290,9 +284,7 @@ class DeviceKnowledgeService:
                     f"evidence: {evidence_class}"
                 )
             else:
-                incumbent.superseded_reason = (
-                    f"superseded by stronger evidence: {evidence_class}"
-                )
+                incumbent.superseded_reason = f"superseded by stronger evidence: {evidence_class}"
         await self.session.commit()
 
         superseded = [c.id for c in decision.to_supersede]
@@ -301,9 +293,7 @@ class DeviceKnowledgeService:
             accepted=True,
             outranked_by=None,
             superseded_ids=superseded,
-            reason=(
-                f"superseded {len(superseded)} weaker claim(s)" if superseded else "recorded"
-            ),
+            reason=(f"superseded {len(superseded)} weaker claim(s)" if superseded else "recorded"),
         )
 
     async def claims_for_subject(

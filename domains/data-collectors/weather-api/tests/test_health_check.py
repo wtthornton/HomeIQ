@@ -14,7 +14,7 @@ def _healthy_service_stub():
     now = datetime.now(UTC).replace(tzinfo=UTC)
     task = SimpleNamespace(done=lambda: False, cancelled=lambda: False)
     return SimpleNamespace(
-        session=object(),
+        session=SimpleNamespace(closed=False),
         cached_weather={"temperature": 20},
         cache_time=now,
         cache_ttl=900,
@@ -25,6 +25,7 @@ def _healthy_service_stub():
         background_task=task,
         last_successful_fetch=now,
         last_influx_write=now,
+        last_influx_write_error=None,
         last_background_error=None,
     )
 

@@ -14,8 +14,11 @@ services:
       - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-}}
       - MQTT_BROKER=${MQTT_BROKER:-}
       - ZIGBEE2MQTT_BASE_TOPIC=zigbee2mqtt
+      - MODELS_DIR=/app/models
     volumes:
       - ./data:/app/data
+      # Models persist across restarts (TAP-6242)
+      - ./models:/app/models
     networks:
       - homeiq_homeiq-network
     healthcheck:

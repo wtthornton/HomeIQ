@@ -7,6 +7,9 @@ import pytest
 
 pytest.importorskip("influxdb_client_3", reason="influxdb_client_3 required by src.main")
 
+from datetime import UTC, datetime
+from types import SimpleNamespace
+
 from fastapi.testclient import TestClient
 from src.main import SERVICE_NAME, SERVICE_VERSION, app
 
@@ -14,37 +17,49 @@ client = TestClient(app)
 
 
 def test_root_endpoint():
-    """Test root endpoint returns service information"""
+    """The root is create_app()'s: the service's own `/` handler was dead code,
+    registered after (and shadowed by) the factory's (TAP-6183)."""
     response = client.get("/")
 
     assert response.status_code == 200
     data = response.json()
-    assert data["service"] == SERVICE_NAME
+    assert data["service"] == "Weather API Service"
     assert data["version"] == SERVICE_VERSION
     assert data["status"] == "running"
-    assert "endpoints" in data
 
 
 def test_health_endpoint():
-    """Test health endpoint returns health status"""
-    response = client.get("/health")
+    """Test health endpoint returns health status.
+
+    weather_service is stubbed rather than lifespan-started: startup needs a
+    real INFLUXDB_TOKEN and kicks off network fetches, which unit tests must
+    not do. The recent_fetch readiness check reads the stub (TAP-6183).
+    """
+    import src.main as main_module
+
+    stub = SimpleNamespace(last_successful_fetch=datetime.now(UTC))
+    original = main_module.weather_service
+    main_module.weather_service = stub
+    try:
+        response = client.get("/health")
+    finally:
+        main_module.weather_service = original
 
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "healthy"
     assert data["service"] == SERVICE_NAME
-    assert "uptime" in data
+    assert "uptime_seconds" in data
 
 
 def test_metrics_endpoint():
-    """Test metrics endpoint returns monitoring data"""
+    """Metrics is create_app()'s Prometheus text endpoint; the JSON handler
+    the service defined after it was unreachable (TAP-6183)."""
     response = client.get("/metrics")
 
     assert response.status_code == 200
-    data = response.json()
-    assert data["service"] == SERVICE_NAME
-    assert "uptime_seconds" in data
-    assert data["status"] == "healthy"
+    assert "text/plain" in response.headers["content-type"]
+    assert "# HELP" in response.text
 
 
 def test_cors_headers():

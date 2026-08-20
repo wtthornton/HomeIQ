@@ -47,10 +47,24 @@ class FakeRest:
             return self.states
         raise AssertionError(f"unexpected request {method} {path}")
 
+    # -- ws ------------------------------------------------------------
+    # The restart kills the WebSocket; restart_core reconnects it before
+    # the post-restart reads. This used to be dead code after a return, so
+    # every caller got a dead socket back (TAP-6236 verification find).
+
+    async def close(self) -> None:
+        self.calls.append("ws.close")
+
+    async def connect(self) -> None:
+        self.calls.append("ws.connect")
+
 
 class FakeHA:
     def __init__(self, rest: FakeRest) -> None:
         self.rest = rest
+        # Same recorder serves as the ws double: restart_core reconnects the
+        # WebSocket after the core is back (ws.close / ws.connect land in calls).
+        self.ws = rest
 
 
 def _automation(entity_id: str, state: str) -> dict[str, str]:
@@ -74,6 +88,11 @@ async def test_restart_succeeds_when_every_automation_loaded():
 
     assert "homeassistant.restart" in rest.calls
     assert "GET /api/states" in rest.calls, "post-restart health was never checked"
+    # The reconnect used to sit after a return statement — dead code, dead
+    # socket for every caller. Pin that it actually runs, and runs after the
+    # core is back.
+    assert "ws.connect" in rest.calls
+    assert rest.calls.index("ws.connect") > rest.calls.index("homeassistant.restart")
 
 
 @pytest.mark.asyncio

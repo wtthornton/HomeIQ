@@ -18,6 +18,11 @@ model: haiku
 schema_version: '2.1'
 role: producer
 risk_level: low
+# Sync-invoke cap (TAP-6167): at or below AF's 180s steering threshold so a
+# turn answers 200-with-result instead of 202-plus-polling. 120s clears the
+# measured worst case (26.9s three-tool turn, 2026-08-18) with >4x margin and
+# still kills a runaway gene well before the 600s default.
+timeout_seconds: 120
 max_budget_usd: 0.3
 failure_mode: best_effort
 memory_profile: none

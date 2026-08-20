@@ -181,8 +181,12 @@ services:
       - ML_USE_INCREMENTAL=${ML_USE_INCREMENTAL:-false}
       - ML_INCREMENTAL_UPDATE_THRESHOLD=${ML_INCREMENTAL_UPDATE_THRESHOLD:-100}
       - GNN_USE_COMPILE=${GNN_USE_COMPILE:-true}
+      - MODELS_DIR=/app/models
     volumes:
       - device_intelligence_data:/app/data
+      # Trained model artifacts must survive restart/redeploy (TAP-6242);
+      # without this they lived in the container's writable layer.
+      - device_intelligence_models:/app/models
       - ../../infrastructure:/app/infrastructure:rw
     # Cross-group depends_on removed (influxdb is in core-platform)
     networks:
@@ -243,6 +247,7 @@ volumes:
   ai_automation_data:
   ai_automation_models:
   device_intelligence_data:
+  device_intelligence_models:
 
 networks:
   homeiq-network:

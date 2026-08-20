@@ -1,9 +1,11 @@
 """Tests for automation-linter FastAPI endpoints."""
 
+from datetime import datetime
+
 import pytest
 from fastapi.testclient import TestClient
 
-from src.main import app
+from src.main import ENGINE_VERSION, app
 
 
 @pytest.fixture
@@ -16,18 +18,21 @@ class TestHealthEndpoint:
     """Tests for the /health endpoint."""
 
     def test_health_returns_200(self, client: TestClient) -> None:
+        # /health carries the shared StandardHealthCheck contract: the engine
+        # version rides in `version` (TAP-6177); ruleset_version lives on
+        # /rules, which has its own test below.
         response = client.get("/health")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "healthy"
-        assert "engine_version" in data
-        assert "ruleset_version" in data
+        assert data["version"] == ENGINE_VERSION
 
     def test_health_includes_timestamp(self, client: TestClient) -> None:
+        # StandardHealthCheck emits an ISO-8601 string, not an epoch float.
         response = client.get("/health")
         data = response.json()
         assert "timestamp" in data
-        assert isinstance(data["timestamp"], float)
+        datetime.fromisoformat(data["timestamp"])  # raises if not ISO-8601
 
 
 class TestRulesEndpoint:

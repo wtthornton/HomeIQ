@@ -30,8 +30,13 @@ class TestAutomationTracker:
 
         async_session = async_sessionmaker(engine, expire_on_commit=False)
 
-        # Create tables
+        # Create tables. DROP first: this file's synergy_opportunities shape
+        # differs from tests/conftest.py's, and CREATE IF NOT EXISTS silently
+        # keeps whichever file ran first (TAP-6171 -- the same cross-file
+        # coupling that broke teardown).
         async with engine.begin() as conn:
+            await conn.execute(text("DROP TABLE IF EXISTS automation_executions CASCADE"))
+            await conn.execute(text("DROP TABLE IF EXISTS synergy_opportunities CASCADE"))
             await conn.execute(
                 text("""
                 CREATE TABLE IF NOT EXISTS automation_executions (
@@ -53,7 +58,10 @@ class TestAutomationTracker:
                     synergy_id TEXT UNIQUE NOT NULL,
                     confidence REAL NOT NULL,
                     impact_score REAL NOT NULL,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    -- mirrors init-schemas.sql: the real column is
+                    -- last_validated_at; the old fixture invented updated_at
+                    -- and hid that the code wrote a nonexistent column
+                    last_validated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
                 )
             """)
             )
@@ -61,10 +69,12 @@ class TestAutomationTracker:
         async with async_session() as session:
             yield session
 
-        # Cleanup
+        # Cleanup. CASCADE because tests/conftest.py seeds a synergy_feedback
+        # row whose FK references synergy_opportunities and outlives this
+        # fixture -- a plain DROP fails on the dependent constraint (TAP-6171).
         async with engine.begin() as conn:
-            await conn.execute(text("DROP TABLE IF EXISTS automation_executions"))
-            await conn.execute(text("DROP TABLE IF EXISTS synergy_opportunities"))
+            await conn.execute(text("DROP TABLE IF EXISTS automation_executions CASCADE"))
+            await conn.execute(text("DROP TABLE IF EXISTS synergy_opportunities CASCADE"))
         await engine.dispose()
 
     @pytest.fixture
@@ -124,7 +134,7 @@ class TestAutomationTracker:
         row = result.fetchone()
         assert row is not None
         assert row[2] == synergy_id  # synergy_id column
-        assert row[3] == 1  # success = True (stored as 1)
+        assert row[3] is True  # success column is a real boolean on Postgres
         assert row[6] == 5  # triggered_count
 
         # Verify confidence was updated
@@ -184,7 +194,7 @@ class TestAutomationTracker:
         )
         row = result.fetchone()
         assert row is not None
-        assert row[3] == 0  # success = False (stored as 0)
+        assert row[3] is False  # success column is a real boolean on Postgres
         assert row[4] == "Entity not found"  # error message
 
         # Verify confidence was decreased
@@ -224,9 +234,9 @@ class TestAutomationTracker:
                 INSERT INTO automation_executions
                 (automation_id, synergy_id, success, error, execution_time_ms, triggered_count)
                 VALUES
-                ('automation.test1', :synergy_id, 1, NULL, 100, 3),
-                ('automation.test1', :synergy_id, 1, NULL, 150, 5),
-                ('automation.test1', :synergy_id, 0, 'Error', 50, 0)
+                ('automation.test1', :synergy_id, TRUE, NULL, 100, 3),
+                ('automation.test1', :synergy_id, TRUE, NULL, 150, 5),
+                ('automation.test1', :synergy_id, FALSE, 'Error', 50, 0)
             """),
             {"synergy_id": synergy_id},
         )

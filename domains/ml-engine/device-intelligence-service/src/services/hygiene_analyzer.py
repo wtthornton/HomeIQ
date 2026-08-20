@@ -19,6 +19,8 @@ if TYPE_CHECKING:
 
     from ..clients.ha_client import HAArea, HADevice, HAEntity
 
+from .naming_convention.name_builder import compose_name, strip_brands
+
 logger = logging.getLogger(__name__)
 
 
@@ -310,15 +312,25 @@ class DeviceHygieneAnalyzer:
         return simplified or None
 
     def _suggest_device_name(self, device: HADevice, areas: dict[str, HAArea]) -> str | None:
-        parts: list[str] = []
+        # Manufacturer never appears in a suggested name: the naming rubric
+        # docks brand words, so suggesting one generates a name the system's
+        # own scorer penalizes (TAP-6234).
+        area_name = None
         if device.area_id and device.area_id in areas:
-            parts.append(areas[device.area_id].name)
+            area_name = areas[device.area_id].name
         elif device.suggested_area and device.suggested_area in areas:
-            parts.append(areas[device.suggested_area].name)
-        if device.manufacturer:
-            parts.append(device.manufacturer.split()[0])
-        if device.model:
-            parts.append(device.model.split()[0])
-        elif device.integration:
-            parts.append(device.integration.title())
-        return " ".join(parts) if parts else None
+            area_name = areas[device.suggested_area].name
+        model_token = device.model.split()[0] if device.model else ""
+        integration_token = device.integration.title() if device.integration else ""
+        if strip_brands(model_token):
+            descriptor = model_token
+        elif strip_brands(integration_token):
+            descriptor = integration_token
+        else:
+            # Both candidates are brand words ('Hue Bridge' on the 'hue'
+            # integration). Suggesting 'Device' or a bare area is noise, not a
+            # name — no suggestion beats a useless one (TAP-6234 round 3).
+            return None
+        if not area_name and not descriptor:
+            return None
+        return compose_name(area_name, descriptor)

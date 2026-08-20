@@ -22,6 +22,7 @@ from sqlalchemy.orm import joinedload
 from ..core.database import get_db_session
 from ..models.database import DeviceEntity
 from ..services.naming_convention.alias_generator import AliasGenerator
+from ..services.naming_convention.name_builder import compose_name, device_type_label
 from ..services.naming_convention.score_engine import ScoreEngine
 
 if TYPE_CHECKING:
@@ -42,6 +43,7 @@ _score_engine = ScoreEngine()
 # collecting the data first — scoring harder against data that was never fetched
 # would just be a confident wrong number.
 UNCOLLECTED_RUBRIC_FIELDS = ("aliases", "device_class")
+
 
 def compose_friendly_name(
     entity_name: str | None,
@@ -68,6 +70,7 @@ def compose_friendly_name(
     if has_entity_name and device_name:
         return f"{device_name} {original_name}".strip() if original_name else device_name
     return original_name or ""
+
 
 _alias_generator = AliasGenerator()
 
@@ -285,8 +288,7 @@ async def score_entities(request: ScoreBatchRequest):
     second copy of the rubric (TAP-6230).
     """
     scores = [
-        _score_engine.score_entity(entity.model_dump()).to_dict()
-        for entity in request.entities
+        _score_engine.score_entity(entity.model_dump()).to_dict() for entity in request.entities
     ]
     return {"entities": scores}
 
@@ -376,40 +378,17 @@ def _build_convention_name(
 
     Returns: (suggested_name, confidence, reasoning)
     """
-    # Device type label
-    type_map = {
-        "light": "Light",
-        "switch": "Switch",
-        "sensor": "Sensor",
-        "binary_sensor": "Sensor",
-        "climate": "Thermostat",
-        "cover": "Cover",
-        "lock": "Lock",
-        "fan": "Fan",
-        "camera": "Camera",
-        "media_player": "Media Player",
-        "vacuum": "Vacuum",
-        "automation": "Automation",
-        "script": "Script",
-        "scene": "Scene",
-    }
-
-    device_type = type_map.get(domain, "")
-    if not device_type and device_class:
-        device_type = device_class.replace("_", " ").title()
-    if not device_type:
-        device_type = domain.replace("_", " ").title() if domain else "Device"
-
+    # One composer for the whole service (TAP-6231) — see name_builder.
+    device_type = device_type_label(domain, device_class)
     area_name = area_id.replace("_", " ").title() if area_id else ""
+    suggested = compose_name(area_name or None, device_type)
 
     if area_name:
-        suggested = f"{area_name} {device_type}"
         confidence = 0.9
         reasoning = (
             f"Convention: area prefix ({area_name}) + device type ({device_type}), Title Case"
         )
     else:
-        suggested = f"{device_type}"
         confidence = 0.6
         reasoning = (
             f"Convention: device type ({device_type}), Title Case. Consider assigning an area."

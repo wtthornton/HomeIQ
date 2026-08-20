@@ -11,6 +11,7 @@ from typing import Any
 from openai import AsyncOpenAI
 
 from ...models.database import Device, DeviceEntity
+from ..naming_convention.name_builder import strip_brands
 from .name_generator import NameSuggestion
 
 logger = logging.getLogger(__name__)
@@ -117,11 +118,14 @@ class AINameSuggester:
             try:
                 parsed = json.loads(content)
                 # The response may be a single object or an array of suggestions
+                # strip_brands on every AI-produced name: the prompt forbids
+                # brands, but a prompt is a request, not a guarantee — the
+                # no-brand rule is enforced in code (TAP-6234 round 3).
                 if isinstance(parsed, list):
                     for suggestion_data in parsed[:3]:
                         suggestions.append(
                             NameSuggestion(
-                                name=suggestion_data.get("name", ""),
+                                name=strip_brands(suggestion_data.get("name", "")),
                                 confidence=float(suggestion_data.get("confidence", 0.8)),
                                 source="ai",
                                 reasoning=suggestion_data.get("reasoning", ""),
@@ -130,7 +134,7 @@ class AINameSuggester:
                 elif isinstance(parsed, dict):
                     suggestions.append(
                         NameSuggestion(
-                            name=parsed.get("name", ""),
+                            name=strip_brands(parsed.get("name", "")),
                             confidence=float(parsed.get("confidence", 0.8)),
                             source="ai",
                             reasoning=parsed.get("reasoning", ""),
@@ -142,8 +146,12 @@ class AINameSuggester:
                 if content:
                     suggestions.append(
                         NameSuggestion(
-                            name=content[:50],  # Limit length
-                            confidence=0.7,
+                            # Unparseable model output is not a suggestion:
+                            # strip brands and keep it below the 0.7 storage
+                            # gate so raw text never lands as a name
+                            # (TAP-6234 round 3).
+                            name=strip_brands(content[:50]) or "Device",
+                            confidence=0.3,
                             source="ai",
                             reasoning="AI-generated name",
                         )
@@ -209,7 +217,8 @@ REQUIREMENTS:
 2. Include location if helpful for uniqueness
 3. Be descriptive but concise (2-4 words ideal)
 4. Avoid technical terms and model numbers
-5. Make it easy for AI to understand device purpose
+5. NEVER include a brand or manufacturer word (Hue, Aqara, IKEA, Sonoff, ...) — the naming rubric penalizes them
+6. Make it easy for AI to understand device purpose
 
 EXAMPLES:
 - "Hue Color Downlight 1 7" → "Office Back Left Light"

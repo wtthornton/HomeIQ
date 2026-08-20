@@ -83,25 +83,25 @@ class TestServiceConfiguration:
         """
         GIVEN: No INFLUXDB_ORG set
         WHEN: Initialize service
-        THEN: Should default to 'home_assistant'
+        THEN: Should default to 'homeiq' (the BaseServiceSettings standard)
         """
         from src.main import ElectricityPricingService
 
         with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
             service = ElectricityPricingService()
-            assert service.influxdb_org == "home_assistant"
+            assert service.influxdb_org == "homeiq"
 
     def test_default_influxdb_bucket(self):
         """
         GIVEN: No INFLUXDB_BUCKET set
         WHEN: Initialize service
-        THEN: Should default to 'events'
+        THEN: Should default to 'home_assistant_events' (BaseServiceSettings)
         """
         from src.main import ElectricityPricingService
 
         with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
             service = ElectricityPricingService()
-            assert service.influxdb_bucket == "events"
+            assert service.influxdb_bucket == "home_assistant_events"
 
     def test_fetch_interval_default(self):
         """
@@ -204,7 +204,8 @@ class TestCompleteConfiguration:
             assert service.influxdb_org == "production-org"
             assert service.influxdb_bucket == "production-events"
             assert service.provider_name == "awattar"
-            assert service.api_key == "api-key-12345"
+            # No api_key assertion: the service has no API-key plumbing --
+            # awattar needs none, and PRICING_API_KEY is read nowhere in src/.
 
     def test_minimal_configuration(self):
         """
@@ -219,7 +220,6 @@ class TestCompleteConfiguration:
 
             assert service.influxdb_token == "test-token"
             assert service.influxdb_url == "http://influxdb:8086"
-            assert service.influxdb_org == "home_assistant"
-            assert service.influxdb_bucket == "events"
+            assert service.influxdb_org == "homeiq"
+            assert service.influxdb_bucket == "home_assistant_events"
             assert service.provider_name == "awattar"
-            assert service.api_key == ""

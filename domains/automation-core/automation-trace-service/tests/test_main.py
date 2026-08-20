@@ -91,53 +91,29 @@ class TestHealthEndpoint:
 
 
 class TestMetricsEndpoint:
-    """Tests for the /metrics endpoint."""
+    """Tests for the /metrics endpoint.
 
-    def test_metrics_returns_503_when_not_initialized(self, client: TestClient) -> None:
-        """Metrics returns 503 when services are not initialized."""
+    /metrics is the Prometheus text endpoint registered by create_app(). The
+    service used to define a second, JSON /metrics after it — dead code, since
+    Starlette matches the first-registered route — and these tests asserted
+    that unreachable contract (TAP-6178: the real defect behind the failures;
+    the ticket's health-503 premise did not reproduce).
+    """
+
+    def test_metrics_serves_prometheus_text(self, client: TestClient) -> None:
+        response = client.get("/metrics")
+        assert response.status_code == 200
+        assert "text/plain" in response.headers["content-type"]
+        assert "# HELP" in response.text
+
+    def test_metrics_never_requires_service_initialization(self, client: TestClient) -> None:
+        """Prometheus scrapes must work even before the poller starts."""
         import src.main as main_module
 
         original = main_module.trace_poller
         main_module.trace_poller = None
         try:
             response = client.get("/metrics")
-            assert response.status_code == 503
+            assert response.status_code == 200
         finally:
             main_module.trace_poller = original
-
-    def test_metrics_returns_data_when_initialized(self, client: TestClient) -> None:
-        """Metrics returns poller and writer stats."""
-        import src.main as main_module
-
-        mock_poller = MagicMock()
-        mock_poller.poll_count = 5
-        mock_poller.traces_captured = 3
-        mock_poller.automations_found = 2
-        mock_poller.errors = 0
-
-        mock_influx = MagicMock()
-        mock_influx.write_success_count = 10
-        mock_influx.write_failure_count = 1
-
-        mock_dedup = MagicMock()
-        mock_dedup.tracked_automation_count = 1
-        mock_dedup.total_tracked_runs = 5
-
-        orig_poller = main_module.trace_poller
-        orig_influx = main_module.influxdb_writer
-        orig_dedup = main_module.dedup
-
-        main_module.trace_poller = mock_poller
-        main_module.influxdb_writer = mock_influx
-        main_module.dedup = mock_dedup
-        try:
-            response = client.get("/metrics")
-            assert response.status_code == 200
-            data = response.json()
-            assert data["poll_count"] == 5
-            assert data["traces_captured"] == 3
-            assert data["influx_write_success"] == 10
-        finally:
-            main_module.trace_poller = orig_poller
-            main_module.influxdb_writer = orig_influx
-            main_module.dedup = orig_dedup

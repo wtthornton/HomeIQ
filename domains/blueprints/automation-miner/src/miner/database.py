@@ -65,9 +65,11 @@ class CommunityAutomation(Base):
     vote_count = Column(Integer, nullable=False, default=0)
 
     # Timestamps
-    created_at = Column(DateTime, nullable=False)  # Original creation
-    updated_at = Column(DateTime, nullable=False)  # Last update
-    last_crawled = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC))  # Last crawl
+    created_at = Column(DateTime(timezone=True), nullable=False)  # Original creation
+    updated_at = Column(DateTime(timezone=True), nullable=False)  # Last update
+    last_crawled = Column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )  # Last crawl
 
     # Additional metadata (JSON) - renamed to avoid SQLAlchemy reserved name
     extra_metadata = Column(JSON, nullable=True)
@@ -94,7 +96,7 @@ class MinerState(Base):
 
     key = Column(String(100), primary_key=True)
     value = Column(Text, nullable=False)
-    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
 
     def __repr__(self):
         return f"<MinerState(key='{self.key}', value='{self.value}')>"

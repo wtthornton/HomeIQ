@@ -276,7 +276,9 @@ async def _store_synergies_raw_sql(db: AsyncSession, synergies: list[dict]) -> i
     from sqlalchemy import text
 
     stored_count = 0
-    now = datetime.now(UTC).isoformat()
+    # A datetime, not .isoformat(): asyncpg binds TIMESTAMP params from
+    # datetime objects and rejects strings, so every raw-SQL store failed.
+    now = datetime.now(UTC)
 
     for synergy_data in synergies:
         try:

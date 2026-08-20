@@ -184,24 +184,6 @@ async def health_details():
     return JSONResponse(content=result, status_code=status_code)
 
 
-@app.get("/metrics")
-async def metrics():
-    """Service metrics endpoint."""
-    if not trace_poller or not influxdb_writer:
-        raise HTTPException(status_code=503, detail="Service not initialized")
-
-    return {
-        "poll_count": trace_poller.poll_count,
-        "traces_captured": trace_poller.traces_captured,
-        "automations_found": trace_poller.automations_found,
-        "poller_errors": trace_poller.errors,
-        "influx_write_success": influxdb_writer.write_success_count,
-        "influx_write_failure": influxdb_writer.write_failure_count,
-        "dedup_tracked_automations": dedup.tracked_automation_count if dedup else 0,
-        "dedup_total_runs": dedup.total_tracked_runs if dedup else 0,
-    }
-
-
 if __name__ == "__main__":
     import uvicorn
 

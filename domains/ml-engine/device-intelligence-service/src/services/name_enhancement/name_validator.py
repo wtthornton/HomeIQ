@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...models.database import Device, DeviceEntity
+from ..naming_convention.name_builder import compose_name
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +125,7 @@ class NameUniquenessValidator:
 
         # Strategy 1: Add location
         if device.area_name:
-            location_name = f"{device.area_name} {base_name}"
+            location_name = compose_name(device.area_name, base_name)
             normalized = self._normalize_name(location_name)
             if normalized not in existing_names:
                 # Also check in database if session provided
@@ -140,7 +141,7 @@ class NameUniquenessValidator:
         # Strategy 2: Add descriptive modifier
         modifiers = ["Main", "Primary", "Secondary", "Back", "Front", "Left", "Right"]
         for modifier in modifiers:
-            modified_name = f"{modifier} {base_name}"
+            modified_name = compose_name(None, base_name, position=modifier)
             normalized = self._normalize_name(modified_name)
             if normalized not in existing_names:
                 return modified_name

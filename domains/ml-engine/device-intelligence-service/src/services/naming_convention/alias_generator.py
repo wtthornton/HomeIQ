@@ -13,6 +13,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from .name_builder import compose_name
+
 logger = logging.getLogger(__name__)
 
 
@@ -180,7 +182,7 @@ class AliasGenerator:
                     area_name = area_id.replace("_", " ").title()
                     candidates.append(
                         AliasSuggestion(
-                            alias=f"{area_name} {variant.title()}",
+                            alias=compose_name(area_name, variant.title()),
                             source="casual",
                             confidence=0.65,
                         )

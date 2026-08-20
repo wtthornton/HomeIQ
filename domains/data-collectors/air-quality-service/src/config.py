@@ -34,5 +34,3 @@ class Settings(BaseServiceSettings):
     fetch_interval: int = Field(default=3600, description="Fetch interval in seconds")
     cache_duration: int = Field(default=60, description="Cache duration in minutes")
 
-
-settings = Settings()

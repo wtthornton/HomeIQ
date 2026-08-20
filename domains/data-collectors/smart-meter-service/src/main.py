@@ -18,7 +18,7 @@ from homeiq_observability.logging_config import log_error_with_context, setup_lo
 from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 from influxdb_client_3 import InfluxDBClient3, Point
 
-from config import settings
+from config import Settings
 
 logger = setup_logging("smart-meter-service")
 
@@ -28,6 +28,10 @@ class SmartMeterService:
 
     def __init__(self) -> None:
         """Initialize the smart meter service with adapter and InfluxDB configuration."""
+        # Read the environment the service actually starts with; a module
+        # singleton snapshots first-import state, which is neither what CI
+        # exports at run time nor what tests patch (TAP-6180/TAP-6185).
+        settings = Settings()
         self.meter_type = settings.meter_type
         self.api_token = settings.meter_api_token
         self.device_id = settings.meter_device_id
@@ -376,6 +380,6 @@ if __name__ == "__main__":
     uvicorn.run(
         app,
         host="0.0.0.0",  # noqa: S104 — Docker requires binding all interfaces
-        port=settings.service_port,
+        port=Settings().service_port,
         log_level="info",
     )
