@@ -24,7 +24,7 @@ from src.miner.repository import CorpusRepository
 @pytest.fixture
 async def sample_automation(test_db):
     """Create sample automation in database"""
-    async with test_db.get_session() as session:
+    async with test_db.get_db() as session:
         repo = CorpusRepository(session)
 
         metadata = AutomationMetadata(
@@ -49,15 +49,16 @@ async def sample_automation(test_db):
 
 
 @pytest.mark.asyncio
-async def test_health_endpoint():
-    """Test health check endpoint"""
+async def test_health_endpoint(test_db):
+    """With the database initialised, /health reports healthy with corpus stats."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/health")
 
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] in ["healthy", "unhealthy"]
+        assert data["status"] == "healthy"
         assert data["service"] == "automation-miner"
+        assert data["corpus"]["total_automations"] == 0
 
 
 @pytest.mark.asyncio

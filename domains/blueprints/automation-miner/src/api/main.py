@@ -53,7 +53,7 @@ async def _check_and_initialize_corpus(app_instance: FastAPI, db) -> None:
         from ..jobs.weekly_refresh import WeeklyRefreshJob
         from ..miner.repository import CorpusRepository
 
-        async with db.get_session() as session:
+        async with db.get_db() as session:
             repo = CorpusRepository(session)
             stats = await repo.get_stats()
             last_crawl = await repo.get_last_crawl_timestamp()
@@ -249,8 +249,10 @@ async def health_check() -> dict[str, Any]:
     from ..miner.database import get_db_session
     from ..miner.repository import CorpusRepository
 
-    async for db in get_db_session():
-        try:
+    # Acquiring the session is inside the try: in degraded mode get_db_session
+    # raises before yielding, and that must read as 503, not a 500.
+    try:
+        async for db in get_db_session():
             repo = CorpusRepository(db)
             stats = await repo.get_stats()
             last_crawl = await repo.get_last_crawl_timestamp()
@@ -281,13 +283,13 @@ async def health_check() -> dict[str, Any]:
                 "enabled": settings.enable_automation_miner,
             }
 
-        except Exception as e:
-            logger.error(f"Health check failed: {e}", exc_info=True)
-            from fastapi.responses import JSONResponse
+    except Exception as e:
+        logger.error(f"Health check failed: {e}", exc_info=True)
+        from fastapi.responses import JSONResponse
 
-            return JSONResponse(
-                status_code=503, content={"status": "unhealthy", "service": "automation-miner"}
-            )
+        return JSONResponse(
+            status_code=503, content={"status": "unhealthy", "service": "automation-miner"}
+        )
 
 
 @app.get("/")

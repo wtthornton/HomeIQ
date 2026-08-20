@@ -8,7 +8,6 @@ Following Context7 KB best practices from /pytest-dev/pytest
 """
 
 import os
-from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
 import pytest
@@ -19,49 +18,6 @@ needs_external = pytest.mark.skipif(
     not os.getenv("AUTOMATION_MINER_TESTS"),
     reason="Requires external services (set AUTOMATION_MINER_TESTS=1 to enable)",
 )
-
-
-class MinerTestDatabase:
-    """The shape the fixtures were written against.
-
-    The old ``Database`` class was replaced by the shared ``DatabaseManager``
-    (which has no create_tables/drop_tables/get_session), so the fixtures'
-    ``from src.miner.database import Database`` raised ImportError at
-    collection time (TAP-6175). This helper owns the test lifecycle directly
-    over the models' metadata.
-    """
-
-    def __init__(self, url: str):
-        from sqlalchemy.ext.asyncio import (
-            AsyncSession,
-            async_sessionmaker,
-            create_async_engine,
-        )
-
-        self.engine = create_async_engine(url, echo=False)
-        self.async_session = async_sessionmaker(
-            self.engine, class_=AsyncSession, expire_on_commit=False
-        )
-
-    async def create_tables(self) -> None:
-        from src.miner.database import Base
-
-        async with self.engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
-    async def drop_tables(self) -> None:
-        from src.miner.database import Base
-
-        async with self.engine.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
-
-    @asynccontextmanager
-    async def get_session(self):
-        async with self.async_session() as session:
-            yield session
-
-    async def close(self) -> None:
-        await self.engine.dispose()
 
 
 @pytest.fixture
@@ -75,20 +31,27 @@ async def client():
 
 @pytest.fixture
 async def test_db():
-    """
-    Test database with automatic setup and teardown.
+    """The app's own DatabaseManager, initialised and emptied for this test.
 
-    Uses PostgreSQL for test isolation.
+    ``init_db`` normally runs only from the lifespan, and ``httpx.ASGITransport``
+    emits no lifespan events, so ASGI-driven tests otherwise reach endpoints in
+    degraded mode. Initialising the real manager (schema, search_path, tables)
+    is the only way the app and the test see the same tables; a side engine
+    with its own search_path writes rows the app cannot read. Function-scoped
+    because each test gets its own event loop.
     """
-    test_url = os.environ.get(
-        "TEST_DATABASE_URL",
-        "postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq_test",
-    )
-    db = MinerTestDatabase(test_url)
-    await db.create_tables()
-    yield db
-    await db.drop_tables()
-    await db.close()
+    from src.miner.database import Base, db_manager, init_db
+
+    if not await init_db():
+        pytest.fail(
+            "DatabaseManager could not initialise; set POSTGRES_URL (or DATABASE_URL) "
+            "to a reachable PostgreSQL for the blueprints schema"
+        )
+    async with db_manager.engine.begin() as conn:
+        for table in reversed(Base.metadata.sorted_tables):
+            await conn.execute(table.delete())
+    yield db_manager
+    await db_manager.close()
 
 
 @pytest.fixture
@@ -96,7 +59,7 @@ async def test_repository(test_db):
     """Test repository with database session"""
     from src.miner.repository import CorpusRepository
 
-    async with test_db.get_session() as session:
+    async with test_db.get_db() as session:
         repo = CorpusRepository(session)
         yield repo
 
