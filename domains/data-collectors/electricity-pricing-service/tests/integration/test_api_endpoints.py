@@ -1,162 +1,106 @@
 """
 API Endpoint Integration Tests
-Epic 49 Story 49.3: Integration Test Suite
 
-Tests for all API endpoints including health checks and cheapest hours.
+Epic 49 Story 49.3: Integration Test Suite
+Exercises the FastAPI app (/health, /cheapest-hours) through an ASGI client.
 """
 
-import os
-import sys
 from datetime import UTC, datetime
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from aiohttp import web
-from aiohttp.test_utils import AioHTTPTestCase, unittest_run_loop
+from src.main import ElectricityPricingService
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent / "../.."))
+CHEAPEST = [
+    {"hour": 2, "price": 0.15},
+    {"hour": 3, "price": 0.16},
+    {"hour": 4, "price": 0.17},
+    {"hour": 5, "price": 0.18},
+]
 
-import contextlib
 
-from src.main import ElectricityPricingService, create_app
-
-
-class TestAPIEndpoints(AioHTTPTestCase):
-    """Integration tests for API endpoints"""
-
-    async def get_application(self):
-        """Create test application"""
-        # Set test environment
-        os.environ["INFLUXDB_TOKEN"] = "test-token"
-        os.environ["INFLUXDB_URL"] = "http://test-influxdb:8086"
-        os.environ["INFLUXDB_ORG"] = "test-org"
-        os.environ["INFLUXDB_BUCKET"] = "test-bucket"
-
-        # Create service with mocked dependencies
-        service = ElectricityPricingService()
-
-        # Mock InfluxDB client
-        service.influxdb_client = MagicMock()
-        service.influxdb_client.write = MagicMock()
-
-        # Mock HTTP session
-        service.session = AsyncMock()
-
-        # Set cached data for testing
-        service.cached_data = {
-            "cheapest_hours": [
-                {"hour": 2, "price": 0.15},
-                {"hour": 3, "price": 0.16},
-                {"hour": 4, "price": 0.17},
-                {"hour": 5, "price": 0.18},
-            ]
-        }
-        service.last_fetch_time = datetime.now(UTC)
-
-        return create_app(service)
-
-    @unittest_run_loop
-    async def test_health_endpoint(self):
-        """Test health check endpoint returns 200"""
-        resp = await self.client.request("GET", "/health")
-
-        assert resp.status == 200
-        data = await resp.json()
-        assert "status" in data
-        assert data["status"] in ["healthy", "degraded", "unhealthy"]
-
-    @unittest_run_loop
-    async def test_cheapest_hours_endpoint_default(self):
-        """Test cheapest hours endpoint with default hours"""
-        # Test with internal network (should succeed)
-        with patch("src.security.require_internal_network", new_callable=AsyncMock):
-            resp = await self.client.request("GET", "/cheapest-hours")
-
-            assert resp.status == 200
-            data = await resp.json()
-            assert "cheapest_hours" in data
-            assert len(data["cheapest_hours"]) == 4  # Default hours
-
-    @unittest_run_loop
-    async def test_cheapest_hours_endpoint_with_hours_param(self):
-        """Test cheapest hours endpoint with hours parameter"""
-        with patch("src.security.require_internal_network", new_callable=AsyncMock):
-            resp = await self.client.request("GET", "/cheapest-hours?hours=2")
-
-            assert resp.status == 200
-            data = await resp.json()
-            assert "cheapest_hours" in data
-            assert len(data["cheapest_hours"]) == 2
-
-    @unittest_run_loop
-    async def test_cheapest_hours_endpoint_invalid_hours(self):
-        """Test cheapest hours endpoint with invalid hours parameter"""
-        with patch("src.security.require_internal_network", new_callable=AsyncMock):
-            # Test with hours > 24
-            resp = await self.client.request("GET", "/cheapest-hours?hours=25")
-
-            assert resp.status == 400
-            data = await resp.json()
-            assert "error" in data
-
-            # Test with hours < 1
-            resp = await self.client.request("GET", "/cheapest-hours?hours=0")
-
-            assert resp.status == 400
-            data = await resp.json()
-            assert "error" in data
-
-    @unittest_run_loop
-    async def test_cheapest_hours_endpoint_non_integer(self):
-        """Test cheapest hours endpoint with non-integer hours"""
-        with patch("src.security.require_internal_network", new_callable=AsyncMock):
-            resp = await self.client.request("GET", "/cheapest-hours?hours=abc")
-
-            assert resp.status == 400
-            data = await resp.json()
-            assert "error" in data
-
-    @unittest_run_loop
-    async def test_cheapest_hours_endpoint_no_data(self):
-        """Test cheapest hours endpoint when no data available"""
-        # Create new service without cached data
-        os.environ["INFLUXDB_TOKEN"] = "test-token"
-        service = ElectricityPricingService()
-        service.influxdb_client = MagicMock()
-        service.session = AsyncMock()
-        service.cached_data = None  # No cached data
-
-        app = create_app(service)
-
-        # Create new test client
-        from aiohttp.test_utils import TestClient
-
-        async with TestClient(app) as client:
-            with patch("src.security.require_internal_network", new_callable=AsyncMock):
-                resp = await client.request("GET", "/cheapest-hours")
-
-                assert resp.status == 503
-                data = await resp.json()
-                assert "error" in data
-
-    @unittest_run_loop
-    async def test_cheapest_hours_endpoint_internal_network_required(self):
-        """Test cheapest hours endpoint requires internal network"""
-        # Test with external network (should fail)
-        with patch("src.security.require_internal_network", side_effect=web.HTTPForbidden()):
-            resp = await self.client.request("GET", "/cheapest-hours")
-
-            assert resp.status == 403
+@pytest.fixture
+def primed(service_instance):
+    service_instance.cached_data = {"cheapest_hours": CHEAPEST}
+    service_instance.last_fetch_time = datetime.now(UTC)
+    return service_instance
 
 
 @pytest.mark.asyncio
-async def test_service_startup_with_missing_token():
+async def test_health_endpoint(api_client):
+    """Liveness is served by StandardHealthCheck and is always 200."""
+    resp = await api_client.get("/health")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] in ["healthy", "degraded", "unhealthy"]
+    assert data["service"] == "electricity-pricing-service"
+
+
+@pytest.mark.asyncio
+async def test_cheapest_hours_endpoint_default(api_client, primed):
+    resp = await api_client.get("/cheapest-hours")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["cheapest_hours"]) == 4
+    assert data["provider"] == primed.provider_name
+    assert data["timestamp"] == primed.last_fetch_time.isoformat()
+
+
+@pytest.mark.asyncio
+async def test_cheapest_hours_endpoint_with_hours_param(api_client, primed):
+    resp = await api_client.get("/cheapest-hours", params={"hours": "2"})
+
+    assert resp.status_code == 200
+    assert resp.json()["cheapest_hours"] == CHEAPEST[:2]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("hours", ["25", "0", "abc"])
+async def test_cheapest_hours_endpoint_rejects_bad_hours(api_client, primed, hours):
+    resp = await api_client.get("/cheapest-hours", params={"hours": hours})
+
+    assert resp.status_code == 400
+    assert "error" in resp.json()
+
+
+@pytest.mark.asyncio
+async def test_cheapest_hours_endpoint_no_data(api_client, service_instance):
+    service_instance.cached_data = None
+
+    resp = await api_client.get("/cheapest-hours")
+
+    assert resp.status_code == 503
+    assert resp.json() == {"error": "No pricing data available"}
+
+
+@pytest.mark.asyncio
+async def test_cheapest_hours_endpoint_service_not_started(monkeypatch):
+    """Without a lifespan the module-level service is None and the route says so."""
+    from httpx import ASGITransport, AsyncClient
+    from src import main
+
+    monkeypatch.setattr(main, "service", None)
+    async with AsyncClient(transport=ASGITransport(app=main.app), base_url="http://test") as client:
+        resp = await client.get("/cheapest-hours")
+
+    assert resp.status_code == 503
+    assert resp.json() == {"error": "Service not initialized"}
+
+
+@pytest.mark.asyncio
+async def test_cheapest_hours_endpoint_internal_network_required(external_api_client, primed):
+    primed.allowed_networks = ["192.168.0.0/16", "172.16.0.0/12", "10.0.0.0/8"]
+
+    resp = await external_api_client.get("/cheapest-hours")
+
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_service_startup_with_missing_token(monkeypatch):
     """Test service fails fast on missing InfluxDB token"""
-    # Remove token from environment
-    if "INFLUXDB_TOKEN" in os.environ:
-        del os.environ["INFLUXDB_TOKEN"]
+    monkeypatch.delenv("INFLUXDB_TOKEN", raising=False)
 
     with pytest.raises(ValueError) as exc_info:
         ElectricityPricingService()
@@ -165,16 +109,13 @@ async def test_service_startup_with_missing_token():
 
 
 @pytest.mark.asyncio
-async def test_service_startup_with_valid_config():
+async def test_service_startup_with_valid_config(monkeypatch):
     """Test service starts successfully with valid configuration"""
-    os.environ["INFLUXDB_TOKEN"] = "test-token"
-    os.environ["INFLUXDB_URL"] = "http://test-influxdb:8086"
-    os.environ["INFLUXDB_ORG"] = "test-org"
-    os.environ["INFLUXDB_BUCKET"] = "test-bucket"
+    monkeypatch.setenv("INFLUXDB_TOKEN", "test-token")
+    monkeypatch.setenv("INFLUXDB_URL", "http://test-influxdb:8086")
+    monkeypatch.setenv("INFLUXDB_ORG", "test-org")
+    monkeypatch.setenv("INFLUXDB_BUCKET", "test-bucket")
 
     service = ElectricityPricingService()
-    assert service.influxdb_bucket == "test-bucket"
 
-    # Cleanup
-    with contextlib.suppress(BaseException):
-        await service.shutdown()
+    assert service.influxdb_bucket == "test-bucket"

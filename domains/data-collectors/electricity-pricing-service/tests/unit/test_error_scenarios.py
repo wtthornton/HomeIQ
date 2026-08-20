@@ -12,7 +12,6 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from aiohttp import web
 
 
 class TestProviderAPIFailures:
@@ -218,15 +217,16 @@ class TestCacheExpiration:
     """Test cache expiration scenarios"""
 
     @pytest.mark.asyncio
-    async def test_cache_expiration_returns_stale_data(self, service_instance, sample_pricing_data):
+    async def test_cache_expiration_returns_nothing(self, service_instance, sample_pricing_data):
         """
-        GIVEN: Cache has expired data
+        GIVEN: Cache is older than cache_duration
         WHEN: Provider API fails
-        THEN: Should still return stale cached data
+        THEN: Expired prices are not served; the call yields None and the failure is counted
         """
-        # Set up expired cache (older than cache_duration)
         service_instance.cached_data = sample_pricing_data.copy()
-        service_instance.last_fetch_time = datetime.now(UTC) - timedelta(minutes=61)
+        service_instance.last_fetch_time = datetime.now(UTC) - timedelta(
+            minutes=service_instance.cache_duration + 1
+        )
         service_instance.session = AsyncMock()
 
         with patch.object(
@@ -234,10 +234,10 @@ class TestCacheExpiration:
         ) as mock_fetch:
             mock_fetch.side_effect = Exception("API error")
 
-            # Should still return cached data even if expired
             result = await service_instance.fetch_pricing()
-            assert result is not None
-            assert result == service_instance.cached_data
+
+        assert result is None
+        assert service_instance.health_handler.failed_fetches == 1
 
     @pytest.mark.asyncio
     async def test_no_cache_on_first_fetch_failure(self, service_instance):
@@ -262,7 +262,7 @@ class TestAPIEndpointErrors:
     """Test API endpoint error scenarios"""
 
     @pytest.mark.asyncio
-    async def test_cheapest_hours_invalid_parameter(self, service_instance):
+    async def test_cheapest_hours_invalid_parameter(self, api_client, service_instance):
         """
         GIVEN: Invalid hours parameter
         WHEN: Request cheapest hours
@@ -270,15 +270,12 @@ class TestAPIEndpointErrors:
         """
         service_instance.cached_data = {"cheapest_hours": [1, 2, 3, 4]}
 
-        request = MagicMock()
-        request.query = {"hours": "invalid"}
+        response = await api_client.get("/cheapest-hours", params={"hours": "invalid"})
 
-        response = await service_instance.get_cheapest_hours(request)
-
-        assert response.status == 400
+        assert response.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_cheapest_hours_out_of_bounds(self, service_instance):
+    async def test_cheapest_hours_out_of_bounds(self, api_client, service_instance):
         """
         GIVEN: Hours parameter out of bounds
         WHEN: Request cheapest hours
@@ -286,33 +283,26 @@ class TestAPIEndpointErrors:
         """
         service_instance.cached_data = {"cheapest_hours": [1, 2, 3, 4]}
 
-        request = MagicMock()
-        request.query = {"hours": "25"}  # Out of bounds (max 24)
+        response = await api_client.get("/cheapest-hours", params={"hours": "25"})
 
-        response = await service_instance.get_cheapest_hours(request)
-
-        assert response.status == 400
+        assert response.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_cheapest_hours_network_restriction(self, service_instance, sample_pricing_data):
+    async def test_cheapest_hours_network_restriction(
+        self, external_api_client, service_instance, sample_pricing_data
+    ):
         """
-        GIVEN: Request from external network (if restrictions configured)
+        GIVEN: Request from outside the allowed networks
         WHEN: Request cheapest hours
         THEN: Should return 403 error
         """
         service_instance.cached_data = sample_pricing_data
         service_instance.allowed_networks = ["192.168.1.0/24"]
 
-        request = MagicMock()
-        request.query = {"hours": "4"}
-        request.remote = "10.0.0.1"  # External IP
+        response = await external_api_client.get("/cheapest-hours", params={"hours": "4"})
 
-        # Mock require_internal_network to raise HTTPForbidden
-        with patch("src.main.require_internal_network", new_callable=AsyncMock) as mock_require:
-            mock_require.side_effect = web.HTTPForbidden(text="Access denied")
-
-            with pytest.raises(web.HTTPForbidden):
-                await service_instance.get_cheapest_hours(request)
+        assert response.status_code == 403
+        assert "internal networks" in response.json()["detail"]
 
 
 class TestContinuousLoopErrors:

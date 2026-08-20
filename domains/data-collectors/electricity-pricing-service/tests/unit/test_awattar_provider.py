@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from providers.exceptions import ProviderParseError
 from src.providers.awattar import AwattarProvider
 
 
@@ -85,22 +86,18 @@ class TestAwattarProviderParsing:
         """
         GIVEN: Empty Awattar API response
         WHEN: Parse response
-        THEN: Should return empty dict
+        THEN: Should return None (no data to price against)
         """
-        result = awattar_provider._parse_response(mock_empty_response)
-
-        assert result == {}
+        assert awattar_provider._parse_response(mock_empty_response) is None
 
     @pytest.mark.asyncio
     async def test_parse_invalid_response(self, awattar_provider, mock_invalid_response):
         """
         GIVEN: Invalid Awattar API response (missing 'data' key)
         WHEN: Parse response
-        THEN: Should return empty dict
+        THEN: Should return None
         """
-        result = awattar_provider._parse_response(mock_invalid_response)
-
-        assert result == {}
+        assert awattar_provider._parse_response(mock_invalid_response) is None
 
 
 class TestPriceCalculation:
@@ -378,10 +375,11 @@ class TestAPIIntegration:
         WHEN: Fetch pricing
         THEN: Should return parsed data
         """
-        mock_session = AsyncMock()
         mock_response = MagicMock()
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value=mock_awattar_response)
+        # session.get(...) is used as an async context manager
+        mock_session = MagicMock()
         mock_session.get.return_value.__aenter__.return_value = mock_response
 
         result = await awattar_provider.fetch_pricing(mock_session)
@@ -397,9 +395,9 @@ class TestAPIIntegration:
         WHEN: Fetch pricing
         THEN: Should raise exception
         """
-        mock_session = AsyncMock()
         mock_response = MagicMock()
         mock_response.status = 500
+        mock_session = MagicMock()
         mock_session.get.return_value.__aenter__.return_value = mock_response
 
         with pytest.raises(Exception) as exc_info:
@@ -414,7 +412,7 @@ class TestAPIIntegration:
         WHEN: Fetch pricing
         THEN: Should propagate exception
         """
-        mock_session = AsyncMock()
+        mock_session = MagicMock()
         mock_session.get.side_effect = Exception("Network error")
 
         with pytest.raises(Exception) as exc_info:
@@ -431,11 +429,10 @@ class TestEdgeCases:
         """
         GIVEN: Market data entry missing marketprice
         WHEN: Parse response
-        THEN: Should handle gracefully (KeyError expected)
+        THEN: Should raise ProviderParseError
         """
         now = datetime.now(UTC)
         base_timestamp = int(now.timestamp() * 1000)
-
         market_data = [
             {
                 "start_timestamp": base_timestamp,
@@ -444,10 +441,8 @@ class TestEdgeCases:
             }
         ]
 
-        mock_data = {"data": market_data}
-
-        with pytest.raises(KeyError):
-            awattar_provider._parse_response(mock_data)
+        with pytest.raises(ProviderParseError):
+            awattar_provider._parse_response({"data": market_data})
 
     @pytest.mark.asyncio
     async def test_invalid_timestamp_format(self, awattar_provider):
