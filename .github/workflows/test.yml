@@ -105,6 +105,11 @@ jobs:
           HA_TOKEN=test_token
           EOF
 
+          # core-platform declares homeiq-network `external: true`, so compose
+          # will not create it — that is scripts/ensure-network.sh's job on a
+          # developer machine, and nothing had run it on a runner.
+          sh scripts/ensure-network.sh
+
           docker compose $COMPOSE up -d --build $E2E_SERVICES
 
       - name: Wait for services to be healthy
