@@ -156,7 +156,4 @@ class DeviceKnowledgeClaim(Base):
         return self.superseded_by is None
 
     def __repr__(self) -> str:
-        return (
-            f"<DeviceKnowledgeClaim {self.subject_key} {self.fact_key} "
-            f"[{self.evidence_class}]>"
-        )
+        return f"<DeviceKnowledgeClaim {self.subject_key} {self.fact_key} [{self.evidence_class}]>"

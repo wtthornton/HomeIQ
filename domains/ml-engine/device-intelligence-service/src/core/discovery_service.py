@@ -246,9 +246,7 @@ class DiscoveryService:
             return
         try:
             async for session in get_db_session():
-                known = set(
-                    (await session.execute(text("SELECT id FROM devices"))).scalars().all()
-                )
+                known = set((await session.execute(text("SELECT id FROM devices"))).scalars().all())
                 rows = [
                     {
                         "entity_id": e.entity_id,
@@ -256,7 +254,8 @@ class DiscoveryService:
                         "name": e.name,
                         "original_name": e.original_name,
                         "platform": e.platform or "unknown",
-                        "domain": e.domain or e.entity_id.split(".", 1)[0],  # client derives; split is the floor
+                        "domain": e.domain
+                        or e.entity_id.split(".", 1)[0],  # client derives; split is the floor
                         "disabled_by": e.disabled_by,
                         "entity_category": e.entity_category,
                         "hidden_by": e.hidden_by,

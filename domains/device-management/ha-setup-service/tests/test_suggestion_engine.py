@@ -186,9 +186,7 @@ async def test_no_name_match_can_ever_reach_a_system_action_threshold(
 
 
 @pytest.mark.asyncio
-async def test_ranking_is_preserved_so_the_engine_stays_useful(
-    suggestion_engine, mock_areas
-):
+async def test_ranking_is_preserved_so_the_engine_stays_useful(suggestion_engine, mock_areas):
     """Capping confidence must not flatten the ordering — that is the product."""
     exact = await suggestion_engine.suggest_area(
         entity_id="light.office_ceiling", entity_name="Office Ceiling", areas=mock_areas

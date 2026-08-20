@@ -161,7 +161,9 @@ async def _sync_to_ha(entity_id: str, ha_patch: dict[str, Any]) -> dict[str, Any
                     fields={"entity_id": entity_id, **patch},
                 )
             if name_given:
-                await HARegistryWriter(ha.ws, caller="admin-api.entity_management").set_entity_name(entity_id, name)
+                await HARegistryWriter(ha.ws, caller="admin-api.entity_management").set_entity_name(
+                    entity_id, name
+                )
     except (HAClientError, OSError, TimeoutError) as exc:
         logger.warning("HA sync failed for %s: %s", entity_id, exc)
         return {"synced": False, "detail": f"HA sync failed: {exc}"}

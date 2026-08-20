@@ -210,9 +210,7 @@ class ValidationService:
         # area_id is blind to exactly the swapped-dimmer shape this service
         # exists to report (TAP-6228), so the device map rides along.
         devices = await connection.list_devices()
-        device_areas = {
-            d["id"]: d["area_id"] for d in devices if d.get("id") and d.get("area_id")
-        }
+        device_areas = {d["id"]: d["area_id"] for d in devices if d.get("id") and d.get("area_id")}
 
         # Get HA version
         ha_version = None
@@ -377,7 +375,9 @@ class ValidationService:
                     f"per item -- name-derived suggestions never overwrite an "
                     f"existing assignment silently"
                 )
-            result = await HARegistryWriter(connection, caller="ha-setup.validation_service").set_entity_area(entity_id, area_id)
+            result = await HARegistryWriter(
+                connection, caller="ha-setup.validation_service"
+            ).set_entity_area(entity_id, area_id)
             logger.info(f"Successfully updated {entity_id} to area {area_id}")
             return {
                 "success": True,

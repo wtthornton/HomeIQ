@@ -145,9 +145,7 @@ async def test_fetch_ha_data_returns_the_device_area_map(validation_service):
 
 
 @pytest.mark.asyncio
-async def test_detect_name_area_mismatch_for_device_inherited_area(
-    validation_service, mock_areas
-):
+async def test_detect_name_area_mismatch_for_device_inherited_area(validation_service, mock_areas):
     """Most entities carry no area override — their area comes from the device.
 
     The swapped-dimmer defect that motivated TAP-6228 was exactly this shape:
