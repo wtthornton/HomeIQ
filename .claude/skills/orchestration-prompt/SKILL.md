@@ -1,4 +1,3 @@
-<!-- BEGIN: tapps-skill orchestration-prompt v3.12.65 -->
 ---
 name: orchestration-prompt
 user-invocable: true
@@ -15,7 +14,7 @@ description: >-
   backlog", "loop until X" — even if they don't say "orchestrate".
 argument-hint: "[free-form objective]"
 ---
-
+<!-- BEGIN: tapps-skill orchestration-prompt v3.12.72 -->
 # orchestration-prompt
 
 You produce **prompts, not actions**. The output is a self-contained orchestration
@@ -154,44 +153,14 @@ Give every chunk a **model tier**, not just a mechanism — this is how you get
 "frontier results from a cheaper model": run the harness cheap, spend the strong
 model only where judgement is load-bearing.
 
-| The chunk is… | Mechanism | agentType | model | effort |
-|---|---|---|---|---|
-| "Look across all repos and tell me X" | Workflow / 3–5 subagents | `Explore` | `haiku` | `low` |
-| Multi-file research needing synthesis | subagent | `Explore` | `sonnet` | `medium` |
-| Mechanical edit, rename, codemod | per-repo dispatch | `general-purpose` | `sonnet` | `low` |
-| Hard reasoning, design, ambiguous fix | `/goal` drive | `general-purpose` | `opus` | `high` |
-| **Independent verify / judge (step 5)** | verifier subagent | `general-purpose` | **`opus`** | **`high`–`xhigh`** |
-| Refute an irreversible step | N verifiers + majority | `general-purpose` | `opus` | `xhigh`–`max` |
-| "Re-check Z every N minutes" | `/loop` → Routine | `Explore` | `haiku` | `low` |
-| "Remember/recall across sessions" | brain (`tapps_memory`) | n/a | n/a | n/a |
-
-**Dispatch contract — every subagent in an emitted prompt names all three.** A prompt
-that says "spawn a research agent" forces the runner to re-decide and it will default
-to the session model at session effort, which is the expensive wrong answer for
-mechanical work and the cheap wrong answer for verification. Write the literal call:
-
-```
-Agent(subagent_type: "Explore", model: "haiku", prompt: "<narrow question + return schema>")
-```
-
-Three constraints that change the design, not just the wording:
-
-1. **`effort` is Workflow-only.** The Agent tool accepts `model` but **not** `effort`;
-   an Agent subagent inherits the session's effort. If a step's effort is
-   load-bearing — verification especially — put that step in a Workflow and set
-   `opts.effort`, or accept the session default. Writing "use high effort" in an
-   Agent prompt does nothing.
-2. **`agentType` is a permission boundary.** `general-purpose` holds Edit/Write even
-   when the prompt says read-only; `Explore` cannot write at all. Choose `Explore`
-   for read-only work so the tool boundary enforces it, and check `git status` after
-   any `general-purpose` fan-out.
-3. **Tier by question shape, not output size.** A cheap model is reliable on closed,
-   evidence-checkable questions ("does step X report success?") and unreliable on
-   open-ended judgement that gates an action ("is CI OK?" → observed returning a
-   confident wrong verdict while skipping the evidence-gathering it was told to do).
-   Narrow the question until cheap is safe, or pay for `opus`. **Never let a cheap
-   model's verdict gate an irreversible step**; if its answer is load-bearing, the
-   orchestrator re-derives the conclusion from the returned evidence.
+| The chunk is… | Mechanism | Model tier |
+|---|---|---|
+| "Look across all repos and tell me X" | Workflow / 3–5 subagents | cheap/low-effort (mechanical fan-out) |
+| Mechanical edit, rename, codemod | per-repo dispatch | cheap/low-effort |
+| Hard reasoning, design, ambiguous fix | `/goal` drive | frontier/high-effort |
+| **Independent verify / judge (step 5)** | verifier subagent | **frontier/high-effort** |
+| "Re-check Z every N minutes" | `/loop` → Routine | cheap |
+| "Remember/recall across sessions" | brain (`tapps_memory`) | n/a |
 
 **Commit to the mechanism — don't hedge.** "You *may* dispatch subagents" forces the
 runner to re-decide and usually defaults to the weakest option. Name exactly one
@@ -280,19 +249,8 @@ The point is a prompt a **brand-new session** can run with zero hand-holding.
 - **Caps must not fire on *correct* behavior** — for every required-fail cap, ask "is
   there a legitimate correct run where this still fires?" Separate *broken* from
   *correct-empty* (the gate rightly held everything) or a correct negative scores red.
-- **Every subagent dispatch names `agentType` + `model`** (and `effort` when it runs
-  in a Workflow) — never "spawn an agent to…". Read-only work uses `Explore` so the
-  tool boundary, not the prose, enforces it. No cheap-model verdict gates an
-  irreversible step; load-bearing answers are re-derived from returned evidence.
 - **No fan-out of coupled coding** — parallel agents editing related code cascade
   errors; keep code edits sequential, per repo.
-- **Research grant** — every emitted prompt states that the loop has web access,
-  `tapps_research` and `tapps_lookup_docs` (Context7-backed, local-cache-first, so
-  effectively free to repeat), and **names the specific lookups required before the
-  first line of code touching an external API**. A loop that writes against a
-  versioned external surface from recalled syntax will hallucinate a schema that
-  lints clean and fails at runtime. Research-to-*execute* is in scope; research-to-
-  *decide* still goes to `/tapps-wayfind`.
 - **Context hygiene** — prune stale reads each iteration; targeted grep over full
   re-Read (method §4).
 - **Autonomy, not checkpoints** — act on every reversible in-scope step; for an
@@ -376,10 +334,7 @@ no silent scope creep.
 5. Save the prompt to `prompts/<short-slug>.md`.
 6. **Completeness self-check** — fog preflight passed (or explicit redirect; no Goal
    invent under fog); every **execute** chunk names a concrete mechanism *and* model
-   tier (no "may"); **every subagent dispatch spells out `agentType` + `model`, and
-   `effort` wherever the step runs in a Workflow — with read-only steps on `Explore`
-   and no cheap-model verdict gating an irreversible step**; decide chunks stayed on
-   `/tapps-wayfind`; the loop has *both* an
+   tier (no "may"); decide chunks stayed on `/tapps-wayfind`; the loop has *both* an
    iteration cap and a budget; there's an **independent verification** step (not
    self-report); any fan-out has a schema'd return + per-agent contract; a memory
    recall+record step with **structured handoff** fields on fail (incl. wayfind

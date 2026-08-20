@@ -1,4 +1,4 @@
-<!-- tapps-generated: v3.12.65 -->
+<!-- tapps-generated: v3.12.72 -->
 # Security Policy
 
 ## Supported Versions
