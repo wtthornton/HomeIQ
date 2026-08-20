@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tapps-mcp-hook-version: 3.12.65
+# tapps-mcp-hook-version: 3.12.72
 # tapps-mcp-hook-content-sha: 697a6642
 # TappsMCP PreToolUse hook — Linear write gate (TAP-981)
 # Blocks mcp__plugin_linear_linear__save_issue if no recent

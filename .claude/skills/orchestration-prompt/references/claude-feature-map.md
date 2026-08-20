@@ -24,63 +24,19 @@ load-bearing (hard reasoning, and the independent verify/judge step).
 | **Workflow tool** | Deterministic JS orchestration (`phase/agent/parallel/pipeline`), budget-capped, resumable, per-stage `model`/`effort` | Bounded parallel multi-repo sweeps; fan-out verify | Per-invocation, not a persistent loop |
 | **Subagents** | Focused workers in isolated context, report back | 3–5 parallel research/review/**verify** tasks | Don't fan out coupled coding; declare minimal tools |
 | **Verifier subagent** | A fresh-context agent prompted to *refute* a claim, re-running the check | Confirming a sub-goal's proof independently of the executor | The whole point is a *different* context — don't reuse the executor |
-| **AgentForge agent / workflow** | Durable, versioned, published cognition running on the AF platform — survives the session, is Git-authored and independently invocable | Domain reasoning a project needs repeatedly: authoring, judging, analysis. **Where a project's agents should live**, rather than as LLM calls inside its own services | AF cannot see your repo or network — collect source locally and pass it as a declared workflow input. Side effects stay in the consumer |
-| **AgentForge `expert-*` agents** | Pre-published platform experts (architecture, testing, security, performance, database, api-design, observability, …) | A second opinion during planning or review, at no authoring cost | They return analysis, not actions. Record where you *rejected* the advice and why |
 | **brain / `tapps_memory`** | Shared episodic+semantic memory (per-repo `project_id`) | Recall prior attempts; avoid rediscovery | Cross-project recall needs an explicit `project_id` |
 
-## Model-tier selector — concrete parameters, not adjectives
+## Model-tier selector
 
-"cheap tier" is not a dispatchable instruction. Emit the literal parameter values.
-
-**Where each parameter is accepted (check before writing a dispatch line):**
-
-| Caller | `agentType` | `model` | `effort` |
-|---|---|---|---|
-| **Agent tool** | `subagent_type:` | `model:` — `haiku` \| `sonnet` \| `opus` \| `fable` | **not accepted** — inherits the session's effort |
-| **Workflow `agent()`** | `opts.agentType` | `opts.model` | `opts.effort` — `low` \| `medium` \| `high` \| `xhigh` \| `max` |
-
-Consequence worth designing around: **if per-step effort matters, the chunk belongs
-in a Workflow**, because the Agent tool cannot set it. Reaching for the Agent tool and
-writing "use high effort" in the prose does nothing.
-
-| The chunk is… | agentType | model | effort | Why |
-|---|---|---|---|---|
-| Poll a status, fetch a file, run a fixed command | `Explore` | `haiku` | `low` | Deterministic; no judgement |
-| Mechanical fan-out, read/summarize, inventory | `Explore` | `haiku` | `low` | Read-only by construction |
-| Codemod / rename / mechanical edit | `general-purpose` | `sonnet` | `low` | Needs write tools; low judgement |
-| Multi-file research needing synthesis | `Explore` | `sonnet` | `medium` | Judgement in what matters, not what exists |
-| Hard reasoning, ambiguous fix, architecture | `general-purpose` | `opus` | `high` | Load-bearing judgement |
-| **Independent verify / judge** | `general-purpose` | `opus` | `high`–`xhigh` | A weak verifier defeats the whole pattern |
-| Adversarial refute on an irreversible step | `general-purpose` | `opus` | `xhigh`–`max` | Cost of a wrong pass is unrecoverable |
+| The chunk is… | Tier |
+|---|---|
+| Mechanical fan-out, read/summarize, codemod, rename | cheap / low-effort |
+| Hard reasoning, ambiguous fix, architecture, design | frontier / high-effort |
+| **Independent verify / judge** | **frontier / high-effort** (a weak verifier defeats the pattern) |
+| Recurring poll, status check | cheap |
 
 Running the harness cheap and spending the strong model only on reasoning + verify is
 exactly how a modest base model reaches frontier-level reliability.
-
-## What a cheap model may decide (measured, not assumed)
-
-Model tier must track **the shape of the question**, not the size of the output.
-
-- **Safe on `haiku`:** closed questions with a mechanical answer — "does step X report
-  success?", "which files match?", "is this value present?". A wrong answer is
-  visible immediately because the evidence is right there.
-- **Not safe on `haiku`:** open-ended judgement that *gates* an action — "is CI OK?",
-  "is this change safe to merge?", "did anything regress?". Observed failure mode:
-  a cheap verifier returned "NO NEW FAILURES FROM THIS PR" while a check on the exact
-  changed path was failing *because of that PR*, having skipped the log-fetch step it
-  was told to run. It reasoned backwards from the desired conclusion.
-
-**Rule:** narrow the question until a cheap model can answer it from evidence, or pay
-for a strong one. Never let a cheap model render a verdict that gates an irreversible
-step. If a cheap agent's answer *is* load-bearing, the orchestrator re-derives the
-conclusion from the evidence the agent returned, rather than accepting its verdict.
-
-## Agent type is a permission boundary, not a label
-
-`general-purpose` carries Edit/Write **even when the prompt says "read-only"** — a
-research agent once silently modified a source file during a prompt-writing turn.
-`Explore` has no write tools at all. For genuinely read-only work, pick `Explore` and
-let the tool boundary enforce it; prose does not. After any fan-out that used
-`general-purpose`, check `git status` before trusting the tree.
 
 ## `/goal` vs `/loop`
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# tapps-mcp-hook-version: 3.12.65
-# tapps-mcp-hook-content-sha: 39f5ebd0
+# tapps-mcp-hook-version: 3.12.72
+# tapps-mcp-hook-content-sha: 24d4b24f
 # TappsMCP PostToolUse hook — Linear list_issues auto-populate (TAP-1412)
 # After a successful mcp__plugin_linear_linear__list_issues call, write the
 # response into .tapps-mcp-cache/linear-snapshots/<key>.json so the next
@@ -19,7 +19,7 @@ try:
 except Exception:
     sys.exit(0)
 name = d.get('tool_name') or d.get('toolName') or ''
-if name not in {'list_issues', 'mcp__claude_ai_Linear__list_issues', 'mcp__plugin_linear_linear__list_issues'}:
+if name not in {'mcp__claude_ai_Linear__list_issues', 'list_issues', 'mcp__plugin_linear_linear__list_issues'}:
     sys.exit(0)
 inp = d.get('tool_input') or d.get('toolInput') or {}
 team = (inp.get('team') or '').strip()
@@ -30,8 +30,11 @@ try:
     limit = int(inp.get('limit') or 50)
 except Exception:
     limit = 50
-if not team or not project:
-    sys.exit(0)
+# Historically this hook required BOTH team and project and exited otherwise,
+# so a team-only or project-only list_issues cached nothing — the cache stayed
+# empty while the gate logged misses. The reader's _cache_key falls back to '_'
+# for an empty segment exactly as this writer does, so every combination
+# (including neither) produces a key the reader reproduces. No guard needed.
 # TAP-4588: canonicalize the open-bucket alias and drop limit from the hash so
 # this writer's key matches server _resolve_cache_key / the reader.
 OPEN_BUCKET = ('backlog', 'unstarted', 'started', 'triage')
@@ -58,7 +61,22 @@ if isinstance(resp, str):
         resp = json.loads(resp)
     except Exception:
         resp = {}
+def _as_json(s):
+    # TAP-5901: MCP hosts deliver the payload as
+    # {'content': [{'type': 'text', 'text': '{"issues": [...]}'}]} — the issue
+    # list lives inside a nested JSON *string*. Walking dicts and lists alone
+    # returns nothing there, and the empty result used to be cached.
+    t = s.strip()
+    if not t or t[0] not in '[{':
+        return None
+    try:
+        return json.loads(t)
+    except Exception:
+        return None
 def _find_issues(o):
+    if isinstance(o, str):
+        parsed = _as_json(o)
+        return None if parsed is None else _find_issues(parsed)
     if isinstance(o, list):
         if o and isinstance(o[0], dict) and any(
             k in o[0] for k in ('identifier', 'id', 'title')
@@ -77,19 +95,42 @@ def _find_issues(o):
             if r is not None:
                 return r
     return None
-issues = _find_issues(resp) or []
-# TAP-4588 poisoning guard: list_issues(state='open') (a tapps-mcp alias, not a
-# real Linear state) returns [] — caching that empty list under the canonical
-# 'open' key would make a later get falsely report 0 issues. Skip the write
-# when the raw request state was an alias/invalid AND the result is empty.
-VALID_LINEAR_STATES = (
-    'backlog', 'unstarted', 'started', 'triage', 'completed', 'canceled'
+# Store the COMPACT projection, mirroring server_linear_tools_keys._compact_issue.
+# The raw plugin payload carries description/comments/attachments/history; a
+# 50-issue backlog of that shape blows past the Read tool's 25 k-token ceiling,
+# which is what forced agents into the fallback parse. Keep the fields triage
+# actually reads and synthesize statusType so compact consumers see one shape.
+COMPACT_FIELDS = (
+    'id', 'identifier', 'title', 'state', 'status', 'statusType',
+    'priority', 'estimate', 'assignee', 'parent',
 )
+def _compact(it):
+    out = {k: v for k, v in it.items() if k in COMPACT_FIELDS}
+    if 'statusType' not in out:
+        st = out.get('state')
+        if isinstance(st, dict) and st.get('type'):
+            out['statusType'] = st['type']
+        elif isinstance(out.get('status'), dict) and out['status'].get('type'):
+            out['statusType'] = out['status']['type']
+    return out
+issues = [
+    _compact(i) if isinstance(i, dict) else i for i in (_find_issues(resp) or [])
+]
+# Poisoning guard: never write an empty issue list. TAP-4588 only skipped the
+# write when the raw request state was an alias/invalid, which required a
+# truthy state — but the linear-read skill tells agents to OMIT state and
+# filter in memory, so state was '' and an unparseable response cached zero
+# issues under the canonical 'open' key for 30 minutes (TAP-5901). A miss costs
+# one API call; a poisoned hit makes the agent report an empty backlog. Fail
+# open: no write, and the next read repopulates.
 state_lc = state.lower()
-if not issues and state_lc and state_lc not in VALID_LINEAR_STATES:
+if not issues:
     sys.exit(0)
-# TTL aligned with server-side _ttl_for_state defaults (5 min open, 1 h closed).
-ttl = 3600 if state_lc in ('completed', 'canceled') else 300
+# TTL aligned with server-side _ttl_for_state defaults (30 min open, 1 h closed).
+# Keep in lockstep with Settings.linear_cache_ttl_open_seconds /
+# linear_cache_ttl_closed_seconds — a writer that expires sooner than the reader
+# expects silently reintroduces the empty-cache symptom.
+ttl = 3600 if state_lc in ('completed', 'canceled') else 1800
 now = time.time()
 out = {
     'issues': issues,

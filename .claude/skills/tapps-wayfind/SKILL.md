@@ -1,4 +1,3 @@
-<!-- BEGIN: tapps-skill tapps-wayfind v3.12.65 -->
 ---
 name: tapps-wayfind
 user-invocable: true
@@ -10,7 +9,7 @@ description: >-
   orchestration-prompt refuses to invent a Goal because decisions are missing.
 argument-hint: "[chart <idea> | work <map-id> [ticket-id]]"
 ---
-
+<!-- BEGIN: tapps-skill tapps-wayfind v3.12.72 -->
 # tapps-wayfind
 
 A loose idea arrived — too big for one agent session, and wrapped in **fog**: the

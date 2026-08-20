@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tapps-mcp-hook-version: 3.12.65
+# tapps-mcp-hook-version: 3.12.72
 # tapps-mcp-hook-content-sha: ddbcee36
 # TappsMCP PostToolUse hook (Edit/Write) — TAP-1326 / TAP-1330
 # Detects new external imports requiring tapps_lookup_docs. Advisory only;
