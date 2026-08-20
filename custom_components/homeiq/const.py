@@ -58,8 +58,11 @@ AGENTFORGE_TIMEOUT_SECONDS: Final = 120
 # the agent's *effective timeout* exceeds sync_invoke_steering_threshold_seconds
 # (180): backend/workflows/kickoff_steering.py resolve_effective_task_invoke_mode,
 # fed by resolve_timeout, which falls back to settings.default_timeout_seconds
-# (600) for any gene that declares no timeout_seconds. No homeiq gene declares
-# one, so all 24 steer — trimming a gene body cannot buy a synchronous turn.
+# (600) for any gene that declares no timeout_seconds. As of TAP-6167 the two
+# interactive genes (hiq-assistant, hiq-extract) declare timeout_seconds: 120
+# and answer synchronously; the other 22 genes run inside workflows where the
+# async queue is the correct transport, so they still steer. The polling
+# machinery below is the fallback for those, and for any future steer.
 #
 # Measured end to end against the live instance 2026-08-18, POST to terminal
 # result: one-tool turn 14.6 s, three-tool turn 26.9 s. The POST itself returns
