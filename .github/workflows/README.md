@@ -26,6 +26,44 @@ defaults to a self-hosted runner (also free).
 | `docker-security-scan` | PR touching a Dockerfile + weekly (Mon 06:00 UTC) |
 | `dependabot-auto-merge` | Dependabot PRs |
 
+### E2E scope in `test.yml`
+
+The `E2E Tests (Playwright)` job starts **seven** services, not the full stack:
+`influxdb`, `postgres`, `ha-simulator`, `data-api`, `websocket-ingestion`,
+`admin-api`, `health-dashboard`. It runs the `health-dashboard` `@smoke` suite
+against them.
+
+It used to run a bare `docker compose up -d`, which brings up 45 services — 38
+of them built from source — behind a 180-second health wait. That job never
+passed once: it was 0-for-40 when the scope was narrowed, failing first on
+missing `:?required` variables and then, had those been supplied, on build time.
+Because `docker-build.yml` sets `push: false`, no prebuilt images exist to pull
+instead, so building is unavoidable and the only lever is how many services get
+built.
+
+Two suites are **not** covered as a result, and want a follow-up:
+
+1. `ai-automation-ui` `@smoke`/`@integration` — targets `:3001`, which needs
+   `domains/frontends/compose.yml` added to the scope.
+2. The full-suite run — reaches services across most domains; it needs either
+   published images or a self-hosted runner to be viable.
+
+Do not restore either by widening the stack back to a bare `up -d`. Add the
+specific services a suite needs, or publish images first.
+
+The job targets `domains/core-platform/compose.yml` directly rather than the
+root orchestrator. The root file's `include:` merges all nine domains, and they
+disagree about the `homeiq_logs` volume — core-platform declares it managed
+(`domains/core-platform/compose.yml:772`) while data-collectors
+(`:439`) and device-management (`:292`) declare the same name `external: true`.
+Compose rejects the merge with `volumes.homeiq_logs conflicts with imported
+resource`. Compose 5.1.1 tolerates it; the runner's version does not.
+
+**This is not only a CI issue.** The same merge backs the full-stack command the
+root `docker-compose.yml` header documents (`docker compose --profile production
+up -d`), so that path is version-dependent today. Reconciling the three
+`homeiq_logs` declarations is worth doing on its own.
+
 ### Path filters
 
 Domain CI is path-filtered so a change to one domain runs one workflow rather than
