@@ -29,7 +29,9 @@ jobs:
 
       - name: Install quality checkers
         run: |
-          pip install tapps-mcp ruff mypy bandit radon vulture pip-audit
+          # tapps-mcp is deliberately absent: it is not on PyPI, so installing it
+          # here resolves to nothing and the step fails. See CLAUDE.md "CI Integration".
+          pip install ruff mypy bandit radon vulture pip-audit
 
       - name: Verify tools
         run: |
