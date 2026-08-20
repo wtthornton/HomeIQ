@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from .auth import verify_api_key
+from .validation_service import AreaReassignRefused
 
 logger = logging.getLogger(__name__)
 
@@ -27,12 +28,19 @@ class ApplyFixRequest(BaseModel):
 
     entity_id: str
     area_id: str
+    # Explicit opt-in to overwrite an area the entity already resolves to
+    # (TAP-6228). Defaults to refusing the overwrite.
+    allow_reassign: bool = False
 
 
 class BulkFixRequest(BaseModel):
-    """Request to apply multiple area assignment fixes."""
+    """Request to apply multiple area assignment fixes.
 
-    fixes: list[dict[str, str]]
+    Each fix dict carries entity_id, area_id and optionally a per-item
+    ``allow_reassign`` -- there is no bulk-level reassign override.
+    """
+
+    fixes: list[dict[str, Any]]
 
 
 # ---------------------------------------------------------------------------
@@ -111,12 +119,16 @@ async def apply_validation_fix(req: Request, request: ApplyFixRequest) -> dict[s
         validation_service = getattr(req.app.state, "validation_service", None)
         if not validation_service:
             raise HTTPException(status_code=503, detail="Validation service not initialized")
-        result = await validation_service.apply_fix(request.entity_id, request.area_id)
+        result = await validation_service.apply_fix(
+            request.entity_id, request.area_id, allow_reassign=request.allow_reassign
+        )
         validation_service.clear_cache()
         logger.info("Applied area fix: %s -> %s", request.entity_id, request.area_id)
         return result
     except HTTPException:
         raise
+    except AreaReassignRefused as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
     except Exception as e:
         logger.exception("Apply fix endpoint failed")
         raise HTTPException(status_code=500, detail="Internal server error") from e

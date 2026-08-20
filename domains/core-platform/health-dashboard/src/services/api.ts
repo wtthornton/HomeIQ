@@ -988,7 +988,7 @@ class SetupServiceClient extends BaseApiClient {
     return this.fetchWithErrorHandling(url);
   }
 
-  async applyValidationFix(entityId: string, areaId: string): Promise<{
+  async applyValidationFix(entityId: string, areaId: string, allowReassign = false): Promise<{
     success: boolean;
     entity_id: string;
     area_id: string;
@@ -1000,20 +1000,24 @@ class SetupServiceClient extends BaseApiClient {
       headers: {
         'Content-Type': 'application/json',
       },
+      // allow_reassign is the explicit per-item opt-in the server requires
+      // before overwriting an already-assigned area (TAP-6228).
       body: JSON.stringify({
         entity_id: entityId,
         area_id: areaId,
+        allow_reassign: allowReassign,
       }),
     });
   }
 
-  async applyBulkFixes(fixes: Array<{ entity_id: string; area_id: string }>): Promise<{
+  async applyBulkFixes(fixes: Array<{ entity_id: string; area_id: string; allow_reassign?: boolean }>): Promise<{
     success: boolean;
     applied: number;
     failed: number;
     results: Array<{
       entity_id: string;
       success: boolean;
+      refused?: boolean;
       error?: string;
     }>;
   }> {

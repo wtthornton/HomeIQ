@@ -3,10 +3,39 @@ Unit tests for Validation Service
 Epic 32: Home Assistant Configuration Validation & Suggestions
 """
 
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from src.validation_service import ValidationIssue, ValidationService
+from src.validation_service import (
+    AreaReassignRefused,
+    ValidationIssue,
+    ValidationService,
+)
+
+
+class FakeHAConnection:
+    """Just enough of the WS command surface for apply_fix and the gateway."""
+
+    def __init__(self, entities: dict[str, dict], areas: list[str]):
+        self.entities = entities
+        self.areas = areas
+        self.update_calls: list[dict] = []
+
+    async def send_command(self, command_type: str, fields: dict | None = None) -> Any:
+        fields = fields or {}
+        if command_type == "config/entity_registry/get":
+            return dict(self.entities.get(fields["entity_id"], {}))
+        if command_type == "config/entity_registry/update":
+            self.update_calls.append(fields)
+            entry = self.entities[fields["entity_id"]]
+            entry.update({k: v for k, v in fields.items() if k != "entity_id"})
+            return dict(entry)
+        if command_type == "config/device_registry/list":
+            return []
+        if command_type == "config/area_registry/list":
+            return [{"area_id": a} for a in self.areas]
+        raise AssertionError(f"unexpected command {command_type}")
 
 
 @pytest.fixture
@@ -78,10 +107,84 @@ async def test_detect_name_area_mismatches(validation_service, mock_areas):
     issues = await validation_service._detect_issues(entities_with_incorrect, mock_areas)
 
     incorrect_issues = [i for i in issues if i.category == "name_area_mismatch"]
-    # Should detect if confidence is high enough
-    if incorrect_issues:
-        assert incorrect_issues[0].current_area == "living_room"
-        assert len(incorrect_issues[0].suggestions) > 0
+    # A human-assigned area that disagrees with the top name-derived suggestion
+    # MUST surface as a report (and only as a report) -- a silent zero here
+    # would mean the mismatch detector regressed.
+    assert len(incorrect_issues) == 1
+    assert incorrect_issues[0].current_area == "living_room"
+    assert len(incorrect_issues[0].suggestions) > 0
+
+
+@pytest.mark.asyncio
+async def test_apply_fix_refuses_to_overwrite_an_assigned_area(validation_service):
+    """An already-assigned area is never changed without explicit opt-in (TAP-6228)."""
+    conn = FakeHAConnection(
+        entities={
+            "light.office_desk": {
+                "entity_id": "light.office_desk",
+                "area_id": "living_room",
+                "device_id": "dev1",
+            }
+        },
+        areas=["office", "living_room"],
+    )
+    with patch.object(validation_service, "_connection", new=AsyncMock(return_value=conn)):
+        with pytest.raises(AreaReassignRefused, match="allow_reassign"):
+            await validation_service.apply_fix("light.office_desk", "office")
+
+    assert conn.update_calls == []  # refused before any write reached HA
+
+
+@pytest.mark.asyncio
+async def test_apply_fix_reassigns_only_with_explicit_opt_in(validation_service):
+    conn = FakeHAConnection(
+        entities={
+            "light.office_desk": {
+                "entity_id": "light.office_desk",
+                "area_id": "living_room",
+                "device_id": "dev1",
+            }
+        },
+        areas=["office", "living_room"],
+    )
+    with patch.object(validation_service, "_connection", new=AsyncMock(return_value=conn)):
+        result = await validation_service.apply_fix(
+            "light.office_desk", "office", allow_reassign=True
+        )
+
+    assert result["success"] is True
+    assert result["previous_area_id"] == "living_room"
+    assert conn.entities["light.office_desk"]["area_id"] == "office"
+
+
+@pytest.mark.asyncio
+async def test_bulk_apply_has_no_bulk_level_reassign_override(validation_service):
+    """Each bulk item needs its own allow_reassign; one item's flag frees only itself."""
+    conn = FakeHAConnection(
+        entities={
+            "light.a": {"entity_id": "light.a", "area_id": "living_room", "device_id": "d1"},
+            "light.b": {"entity_id": "light.b", "area_id": "living_room", "device_id": "d2"},
+            "light.c": {"entity_id": "light.c", "area_id": None, "device_id": None},
+        },
+        areas=["office", "living_room"],
+    )
+    with patch.object(validation_service, "_connection", new=AsyncMock(return_value=conn)):
+        result = await validation_service.apply_bulk_fixes(
+            [
+                {"entity_id": "light.a", "area_id": "office"},
+                {"entity_id": "light.b", "area_id": "office", "allow_reassign": True},
+                {"entity_id": "light.c", "area_id": "office"},  # first-time fill: allowed
+            ]
+        )
+
+    by_id = {r["entity_id"]: r for r in result["results"]}
+    assert by_id["light.a"]["success"] is False
+    assert by_id["light.a"]["refused"] is True
+    assert by_id["light.b"]["success"] is True
+    assert by_id["light.c"]["success"] is True
+    assert conn.entities["light.a"]["area_id"] == "living_room"  # untouched
+    assert conn.entities["light.b"]["area_id"] == "office"
+    assert conn.entities["light.c"]["area_id"] == "office"
 
 
 @pytest.mark.asyncio

@@ -24,6 +24,16 @@ settings = get_settings()
 logger = logging.getLogger(__name__)
 
 
+class AreaReassignRefused(Exception):
+    """Refusal to overwrite an already-assigned area without explicit opt-in.
+
+    Filling an empty area and overwriting a deliberate assignment are different
+    risks (`.claude/rules/friendly-names.md`): the suggestions feeding this path
+    are name-derived, so silently changing a room a person chose is the
+    "expensive to unpick" case. Callers opt in per item via ``allow_reassign``.
+    """
+
+
 class ValidationIssue(BaseModel):
     """A single validation issue with suggestions"""
 
@@ -289,16 +299,46 @@ class ValidationService:
             ha_version=ha_version,
         )
 
-    async def apply_fix(self, entity_id: str, area_id: str) -> dict[str, Any]:
+    async def _effective_area(self, connection: Any, entity_id: str) -> str | None:
+        """The area the entity currently resolves to: its own, else its device's."""
+        entry = (
+            await connection.send_command(
+                "config/entity_registry/get", fields={"entity_id": entity_id}
+            )
+            or {}
+        )
+        if entry.get("area_id"):
+            return str(entry["area_id"])
+        device_id = entry.get("device_id")
+        if not device_id:
+            return None
+        devices = await connection.send_command("config/device_registry/list") or []
+        for device in devices:
+            if device.get("id") == device_id:
+                return device.get("area_id")
+        return None
+
+    async def apply_fix(
+        self, entity_id: str, area_id: str, allow_reassign: bool = False
+    ) -> dict[str, Any]:
         """
         Apply area assignment fix to Home Assistant
 
         Args:
             entity_id: Entity ID to update
             area_id: Area ID to assign
+            allow_reassign: Explicit per-item opt-in to overwrite an area the
+                entity (or its device) already resolves to. Without it, a fix
+                against an already-assigned area is refused (TAP-6228): the
+                suggestions feeding this path are name-derived and must not
+                silently override a human decision.
 
         Returns:
             Success response with details
+
+        Raises:
+            AreaReassignRefused: the entity already has a different area and
+                ``allow_reassign`` was not passed.
         """
         try:
             # config/entity_registry/update is a WebSocket command; the REST path
@@ -309,7 +349,15 @@ class ValidationService:
             # dangling one. Clearing the cache afterwards re-derives the view; it
             # was never a check that the write landed.
             connection = await self._connection()
-            result = await HARegistryWriter(connection).set_entity_area(entity_id, area_id)
+            current = await self._effective_area(connection, entity_id)
+            if current and current != area_id and not allow_reassign:
+                raise AreaReassignRefused(
+                    f"{entity_id} already resolves to area {current!r}; "
+                    f"changing it to {area_id!r} needs allow_reassign=true "
+                    f"per item -- name-derived suggestions never overwrite an "
+                    f"existing assignment silently"
+                )
+            result = await HARegistryWriter(connection, caller="ha-setup.validation_service").set_entity_area(entity_id, area_id)
             logger.info(f"Successfully updated {entity_id} to area {area_id}")
             return {
                 "success": True,
@@ -325,12 +373,14 @@ class ValidationService:
             await self._close_ws()
             raise
 
-    async def apply_bulk_fixes(self, fixes: list[dict[str, str]]) -> dict[str, Any]:
+    async def apply_bulk_fixes(self, fixes: list[dict[str, Any]]) -> dict[str, Any]:
         """
         Apply multiple area assignment fixes
 
         Args:
-            fixes: List of dicts with entity_id and area_id
+            fixes: List of dicts with entity_id and area_id. Overwriting an
+                already-assigned area requires ``allow_reassign: true`` on that
+                item -- there is deliberately no bulk-level override (TAP-6228).
 
         Returns:
             Summary of applied fixes
@@ -355,9 +405,22 @@ class ValidationService:
                 continue
 
             try:
-                await self.apply_fix(entity_id, area_id)
+                await self.apply_fix(
+                    entity_id, area_id, allow_reassign=bool(fix.get("allow_reassign"))
+                )
                 results.append({"entity_id": entity_id, "success": True})
                 applied += 1
+            except AreaReassignRefused as e:
+                logger.warning(f"Refused reassign for {entity_id}: {e}")
+                results.append(
+                    {
+                        "entity_id": entity_id,
+                        "success": False,
+                        "refused": True,
+                        "error": str(e),
+                    }
+                )
+                failed += 1
             except Exception as e:
                 logger.error(f"Failed to apply fix for {entity_id}: {e}")
                 results.append({"entity_id": entity_id, "success": False, "error": str(e)})

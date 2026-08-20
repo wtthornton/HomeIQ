@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..clients.ha_client import HAArea, HADevice, HAEntity
@@ -213,6 +213,7 @@ class DiscoveryService:
             # a foreign key to device_entities, so an empty table makes every
             # entity-scoped finding unpersistable.
             await self._persist_entities()
+            await self._reconcile_absent_devices()
             await self._run_hygiene_analysis()
 
             # Update last discovery timestamp
@@ -312,6 +313,74 @@ class DiscoveryService:
         except Exception as e:
             logger.error("Error persisting entities: %s", e)
             self.errors.append(f"Entity persistence error: {str(e)}")
+
+    async def _reconcile_absent_devices(self):
+        """Mark devices absent from the current snapshot unavailable — never delete.
+
+        A device in a real home is unplugged for weeks and comes back (TAP-6249).
+        Its row must survive with ``last_seen`` retained so findings and history
+        stay attached; deletion happens only on explicit registry removal. A
+        device present again is restored by the snapshot upsert itself, which
+        overwrites ``availability_status`` with the freshly observed value.
+
+        An empty snapshot is a failed discovery, not an empty home — marking
+        everything unavailable on it would turn one HA outage into a fleet-wide
+        false negative, so it is skipped.
+        """
+        if not self.unified_devices:
+            return
+        current_ids = [d.id for d in self.unified_devices.values()]
+        try:
+            async for session in get_db_session():
+                result = await session.execute(
+                    text(
+                        """
+                        UPDATE devices
+                        SET availability_status = 'unavailable',
+                            availability_updated_at = NOW(),
+                            updated_at = NOW()
+                        WHERE id NOT IN :current_ids
+                          AND availability_status IS DISTINCT FROM 'unavailable'
+                        RETURNING id, zigbee_ieee
+                        """
+                    ).bindparams(bindparam("current_ids", expanding=True)),
+                    {"current_ids": current_ids},
+                )
+                marked = result.fetchall()
+                await session.commit()
+                if marked:
+                    logger.info(
+                        "Marked %d device(s) unavailable (absent from snapshot): %s",
+                        len(marked),
+                        [row[0] for row in marked[:10]],
+                    )
+                    # Same hardware re-registered under a new HA id is a re-pair,
+                    # not a disappearance — surface it. Identity is the ieee,
+                    # never the name (.claude/rules/friendly-names.md).
+                    current_ieees = {
+                        d.zigbee_device.ieee_address
+                        for d in self.unified_devices.values()
+                        if d.zigbee_device and d.zigbee_device.ieee_address
+                    } | {
+                        identifier[1]
+                        for d in self.unified_devices.values()
+                        if d.ha_device and d.ha_device.identifiers
+                        for identifier in d.ha_device.identifiers
+                        if len(identifier) >= 2 and identifier[0] == "zha"
+                    }
+                    for row in marked:
+                        if row[1] and row[1] in current_ieees:
+                            logger.warning(
+                                "Device %s is absent but its ieee %s is present "
+                                "under a new HA id — a re-pair minted a new "
+                                "registry entry",
+                                row[0],
+                                row[1],
+                            )
+                break
+        except Exception as e:
+            logger.error("Error reconciling absent devices: %s", e)
+            self.errors.append(f"Device reconciliation error: {str(e)}")
 
     async def _run_hygiene_analysis(self):
         """Analyze device hygiene and persist findings."""

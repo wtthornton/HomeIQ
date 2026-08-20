@@ -21,7 +21,7 @@ class DeviceHygieneRemediationService:
     def __init__(self, ha_client: HomeAssistantClient, session: AsyncSession):
         self._ha_client = ha_client
         self._session = session
-        self._writer = HARegistryWriter(ha_client)
+        self._writer = HARegistryWriter(ha_client, caller="device-intelligence.remediation_service")
 
     async def apply_action(
         self,

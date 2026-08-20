@@ -12,6 +12,7 @@ from typing import Any
 
 import pytest
 from src.api import name_enhancement_router as router
+from src.services.name_enhancement import ha_sync
 
 
 class FakeWs:
@@ -53,9 +54,9 @@ def ha(monkeypatch: pytest.MonkeyPatch):
             async def __aexit__(self, *_exc: Any) -> None:
                 return None
 
-        monkeypatch.setattr(router, "HAClient", FakeHAClient)
-        monkeypatch.setattr(router.settings, "HA_TOKEN", "token")
-        monkeypatch.setattr(router.settings, "HA_URL", "http://ha.test")
+        monkeypatch.setattr(ha_sync, "HAClient", FakeHAClient)
+        monkeypatch.setattr(ha_sync.settings, "HA_TOKEN", "token")
+        monkeypatch.setattr(ha_sync.settings, "HA_URL", "http://ha.test")
         return ws
 
     return install
@@ -86,6 +87,61 @@ async def test_a_device_missing_from_the_registry_is_not_reported_as_synced(ha):
 
 @pytest.mark.asyncio
 async def test_no_token_is_not_reported_as_synced(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setattr(router.settings, "HA_TOKEN", None)
+    monkeypatch.setattr(ha_sync.settings, "HA_TOKEN", None)
 
     assert await router.sync_name_to_ha("dev0", "Office Ceiling") is False
+
+
+class FakeSession:
+    """Session double for the accept endpoint: tracks mutations and commits."""
+
+    def __init__(self, device: Any) -> None:
+        self.device = device
+        self.commits = 0
+
+    async def execute(self, _query: Any) -> Any:
+        device = self.device
+
+        class Result:
+            def scalar_one_or_none(self) -> Any:
+                return device
+
+            def scalars(self) -> Any:
+                class Scalars:
+                    def all(self) -> list:
+                        return []
+
+                return Scalars()
+
+        return Result()
+
+    async def commit(self) -> None:
+        self.commits += 1
+
+    async def rollback(self) -> None:
+        pass
+
+
+@pytest.mark.asyncio
+async def test_accept_endpoint_leaves_the_suggestion_unaccepted_on_a_dropped_write(ha):
+    """The full endpoint, not just the helper: a write HA accepts-but-ignores
+    must 502 with the device row unmutated and nothing committed."""
+    from fastapi import HTTPException
+
+    ha([{"id": "dev0", "name": "WLED 0", "name_by_user": None}], drop_writes=True)
+
+    class Device:
+        id = "dev0"
+        name = "WLED 0"
+        name_by_user = None
+        updated_at = None
+
+    session = FakeSession(Device())
+    request = router.AcceptNameRequest(suggested_name="Office Ceiling")
+
+    with pytest.raises(HTTPException) as excinfo:
+        await router.accept_suggested_name("dev0", request, session=session)
+
+    assert excinfo.value.status_code == 502
+    assert session.device.name_by_user is None  # local rename never happened
+    assert session.commits == 0  # nothing was committed

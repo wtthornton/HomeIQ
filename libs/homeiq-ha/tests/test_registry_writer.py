@@ -120,6 +120,42 @@ async def test_unknown_device_and_entity_are_distinguished_from_a_failed_write(w
 
 
 @pytest.mark.asyncio
+async def test_every_write_is_logged_with_caller_before_and_after(sim, caplog):
+    """An unexpected rename must be traceable to its origin (TAP-6232)."""
+    writer = HARegistryWriter(sim.ws, caller="test-suite.audit")
+
+    with caplog.at_level("INFO", logger="homeiq_ha.registry_writer"):
+        await writer.set_entity_name("light.wled_0", "Desk Lamp")
+
+    record = caplog.records[-1].getMessage()
+    assert "caller=test-suite.audit" in record
+    assert "None -> 'Desk Lamp'" in record  # before -> after
+    assert "light.wled_0" in record
+
+
+@pytest.mark.asyncio
+async def test_a_refused_write_is_logged_before_it_raises(sim, caplog):
+    async def accepts_and_ignores(command_type: str, **kwargs: Any) -> Any:
+        if command_type == "config/entity_registry/update":
+            return {}
+        return await original(command_type, **kwargs)
+
+    original = sim.ws.send_command
+    sim.ws.send_command = accepts_and_ignores
+    writer = HARegistryWriter(sim.ws, caller="test-suite.audit")
+
+    with (
+        caplog.at_level("WARNING", logger="homeiq_ha.registry_writer"),
+        pytest.raises(WriteNotVerified),
+    ):
+        await writer.set_entity_name("light.wled_0", "Desk Lamp")
+
+    record = caplog.records[-1].getMessage()
+    assert "NOT verified" in record
+    assert "caller=test-suite.audit" in record
+
+
+@pytest.mark.asyncio
 async def test_clearing_a_name_restores_the_integration_default(sim, writer):
     await writer.set_device_name("dev0", "Office Ceiling")
 
