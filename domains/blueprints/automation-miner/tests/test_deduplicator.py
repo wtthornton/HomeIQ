@@ -104,7 +104,7 @@ class TestDeduplicator:
     def test_select_best_by_quality(self, dedup):
         """Test selecting best automation by quality score"""
         auto1 = AutomationMetadata(
-            title="Test",
+            title="Test automation",
             description="Test",
             devices=[],
             integrations=[],
@@ -121,7 +121,7 @@ class TestDeduplicator:
             updated_at=datetime.now(UTC),
         )
         auto2 = AutomationMetadata(
-            title="Test",
+            title="Test automation 2",
             description="Test",
             devices=[],
             integrations=[],

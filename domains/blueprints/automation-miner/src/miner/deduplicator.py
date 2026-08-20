@@ -7,7 +7,7 @@ Uses rapidfuzz for fuzzy string matching to detect duplicate automations.
 import hashlib
 import logging
 
-from rapidfuzz import fuzz
+from rapidfuzz import fuzz, utils
 
 from ..config import settings
 from .models import AutomationMetadata
@@ -62,8 +62,11 @@ class Deduplicator:
         Returns:
             Similarity score (0.0-1.0)
         """
-        # Use token sort ratio for better matching with word order variations
-        score = fuzz.token_sort_ratio(title1.lower(), title2.lower())
+        # Token sort ratio tolerates word-order variation. rapidfuzz 3.x no
+        # longer preprocesses by default, so pass default_process explicitly:
+        # it lowercases and strips non-alphanumerics, so "Motion-activated"
+        # tokenizes as two words instead of one.
+        score = fuzz.token_sort_ratio(title1, title2, processor=utils.default_process)
 
         # Convert to 0.0-1.0 scale
         return score / 100.0

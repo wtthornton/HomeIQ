@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import and_, func, select
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .database import CommunityAutomation, MinerState
@@ -193,16 +194,17 @@ class CorpusRepository:
         # Apply filters
         conditions = []
 
-        # Device filter (JSON contains check)
+        # Device filter. The columns are plain JSON; contains() on JSON renders
+        # LIKE (operator json ~~ text fails on PostgreSQL), so cast to JSONB for @>.
         if "device" in filters and filters["device"]:
             device = filters["device"]
             # JSON array containment check
-            conditions.append(CommunityAutomation.devices.contains([device]))
+            conditions.append(CommunityAutomation.devices.cast(JSONB).contains([device]))
 
         # Integration filter
         if "integration" in filters and filters["integration"]:
             integration = filters["integration"]
-            conditions.append(CommunityAutomation.integrations.contains([integration]))
+            conditions.append(CommunityAutomation.integrations.cast(JSONB).contains([integration]))
 
         # Use case filter
         if "use_case" in filters and filters["use_case"]:
@@ -287,11 +289,13 @@ class CorpusRepository:
                 conditions.append(CommunityAutomation.quality_score >= min_quality)
 
             if filters.get("device"):
-                conditions.append(CommunityAutomation.devices.contains([filters["device"]]))
+                conditions.append(
+                    CommunityAutomation.devices.cast(JSONB).contains([filters["device"]])
+                )
 
             if filters.get("integration"):
                 conditions.append(
-                    CommunityAutomation.integrations.contains([filters["integration"]])
+                    CommunityAutomation.integrations.cast(JSONB).contains([filters["integration"]])
                 )
 
             if filters.get("use_case"):

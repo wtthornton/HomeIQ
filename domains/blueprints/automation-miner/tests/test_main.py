@@ -5,14 +5,29 @@ Tests for main.py application initialization, lifespan, and configuration.
 """
 
 from datetime import UTC
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 
+def _mock_database() -> MagicMock:
+    """A DatabaseManager stand-in with the awaitable surface lifespan uses."""
+    db = MagicMock()
+    db.close = AsyncMock()
+    db.engine.begin.return_value.__aenter__.return_value = AsyncMock()
+    db.get_db.return_value.__aenter__.return_value = AsyncMock()
+    return db
+
+
 class TestMainApplication:
     """Test suite for main application initialization and configuration."""
+
+    @pytest.fixture(autouse=True)
+    def mock_init_db(self):
+        """Lifespan tests never initialise the real module-level DatabaseManager."""
+        with patch("src.api.main.init_db", new_callable=AsyncMock, return_value=True) as m:
+            yield m
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -60,34 +75,40 @@ class TestMainApplication:
     @pytest.mark.unit
     @patch("src.api.main.get_database")
     @patch("src.api.main.settings")
-    async def test_lifespan_startup_success(self, mock_settings, mock_get_database):
-        """Test lifespan startup with successful initialization."""
+    async def test_lifespan_startup_success(self, mock_settings, mock_get_database, mock_init_db):
+        """Startup initialises the DatabaseManager, then runs the column migration on its engine."""
         from src.api.main import app, lifespan
 
         mock_settings.enable_automation_miner = False
-        mock_db = AsyncMock()
-        mock_db.create_tables = AsyncMock()
+        mock_db = _mock_database()
         mock_get_database.return_value = mock_db
 
         async with lifespan(app):
-            mock_db.create_tables.assert_called_once()
+            mock_init_db.assert_awaited_once()
+            mock_db.engine.begin.assert_called_once()
+
+        mock_db.close.assert_awaited_once()
 
     @pytest.mark.asyncio
     @pytest.mark.unit
     @patch("src.api.main.get_database")
     @patch("src.api.main.settings")
-    async def test_lifespan_startup_database_failure(self, mock_settings, mock_get_database):
-        """Test lifespan startup handles database initialization failure."""
+    async def test_lifespan_startup_database_failure(
+        self, mock_settings, mock_get_database, mock_init_db
+    ):
+        """A failed init_db starts the service degraded: no raise, no migration on a dead engine."""
         from src.api.main import app, lifespan
 
+        mock_init_db.return_value = False
         mock_settings.enable_automation_miner = False
-        mock_db = AsyncMock()
-        mock_db.create_tables = AsyncMock(side_effect=Exception("Database connection failed"))
+        mock_db = _mock_database()
         mock_get_database.return_value = mock_db
 
-        with pytest.raises(Exception, match="Database connection failed"):
-            async with lifespan(app):
-                pass
+        async with lifespan(app):
+            mock_init_db.assert_awaited_once()
+            mock_db.engine.begin.assert_not_called()
+
+        mock_db.close.assert_awaited_once()
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -102,15 +123,7 @@ class TestMainApplication:
         from src.api.main import app, lifespan
 
         mock_settings.enable_automation_miner = True
-        mock_db = AsyncMock()
-        mock_db.create_tables = AsyncMock()
-        mock_db.get_session = AsyncMock()
-
-        async def mock_session():
-            mock_session_obj = AsyncMock()
-            yield mock_session_obj
-
-        mock_db.get_session.return_value = mock_session()
+        mock_db = _mock_database()
         mock_get_database.return_value = mock_db
 
         mock_repo = AsyncMock()
@@ -139,8 +152,7 @@ class TestMainApplication:
         from src.api.main import app, lifespan
 
         mock_settings.enable_automation_miner = True
-        mock_db = AsyncMock()
-        mock_db.create_tables = AsyncMock()
+        mock_db = _mock_database()
         mock_get_database.return_value = mock_db
 
         mock_scheduler = AsyncMock()
@@ -165,9 +177,7 @@ class TestMainApplication:
         from src.api.main import app, lifespan
 
         mock_settings.enable_automation_miner = False
-        mock_db = AsyncMock()
-        mock_db.create_tables = AsyncMock()
-        mock_db.close = AsyncMock()
+        mock_db = _mock_database()
         mock_get_database.return_value = mock_db
 
         async with lifespan(app):
@@ -187,9 +197,7 @@ class TestMainApplication:
         from src.api.main import app, lifespan
 
         mock_settings.enable_automation_miner = True
-        mock_db = AsyncMock()
-        mock_db.create_tables = AsyncMock()
-        mock_db.close = AsyncMock()
+        mock_db = _mock_database()
         mock_get_database.return_value = mock_db
 
         mock_scheduler = AsyncMock()
@@ -236,14 +244,29 @@ class TestMainApplication:
         """Test routers are included in app."""
         from src.api.main import app
 
-        # Check that routers are included
-        route_paths = []
-        for route in app.routes:
-            if hasattr(route, "path"):
-                route_paths.append(route.path)
+        # FastAPI >= 0.140 keeps included routers as opaque _IncludedRouter
+        # entries in app.routes; the OpenAPI document is the public view of
+        # the fully-prefixed paths.
+        route_paths = app.openapi()["paths"]
 
-        # Should have routes with /api/automation-miner prefix
-        assert any("/api/automation-miner" in path for path in route_paths)
+        assert any(path.startswith("/api/automation-miner") for path in route_paths)
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_health_check_degraded_database_is_503(self):
+        """Degraded mode raises before a session is yielded; that must be a 503, not a 500."""
+        from src.api.main import app
+
+        async def unavailable():
+            raise RuntimeError("Database not available for automation-miner")
+            yield  # pragma: no cover - makes this an async generator
+
+        with patch("src.miner.database.get_db_session", side_effect=unavailable):
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                response = await client.get("/health")
+                assert response.status_code == 503
+                assert response.json() == {"status": "unhealthy", "service": "automation-miner"}
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -264,10 +287,8 @@ class TestMainApplication:
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
                 response = await client.get("/health")
-                assert response.status_code == 200
-                data = response.json()
-                assert data["status"] == "unhealthy"
-                assert "error" in data
+                assert response.status_code == 503
+                assert response.json() == {"status": "unhealthy", "service": "automation-miner"}
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -284,15 +305,7 @@ class TestMainApplication:
         from src.api.main import app, lifespan
 
         mock_settings.enable_automation_miner = True
-        mock_db = AsyncMock()
-        mock_db.create_tables = AsyncMock()
-        mock_db.get_session = AsyncMock()
-
-        async def mock_session():
-            mock_session_obj = AsyncMock()
-            yield mock_session_obj
-
-        mock_db.get_session.return_value = mock_session()
+        mock_db = _mock_database()
         mock_get_database.return_value = mock_db
 
         mock_repo = AsyncMock()
@@ -323,8 +336,7 @@ class TestMainApplication:
         from src.api.main import app, lifespan
 
         mock_settings.enable_automation_miner = True
-        mock_db = AsyncMock()
-        mock_db.create_tables = AsyncMock()
+        mock_db = _mock_database()
         mock_get_database.return_value = mock_db
 
         mock_setup_job.side_effect = Exception("Scheduler setup failed")
@@ -346,15 +358,7 @@ class TestMainApplication:
         from src.api.main import app, lifespan
 
         mock_settings.enable_automation_miner = True
-        mock_db = AsyncMock()
-        mock_db.create_tables = AsyncMock()
-        mock_db.get_session = AsyncMock()
-
-        async def mock_session():
-            mock_session_obj = AsyncMock()
-            yield mock_session_obj
-
-        mock_db.get_session.return_value = mock_session()
+        mock_db = _mock_database()
         mock_get_database.return_value = mock_db
 
         mock_repo = AsyncMock()
@@ -385,15 +389,7 @@ class TestMainApplication:
         from src.api.main import app, lifespan
 
         mock_settings.enable_automation_miner = True
-        mock_db = AsyncMock()
-        mock_db.create_tables = AsyncMock()
-        mock_db.get_session = AsyncMock()
-
-        async def mock_session():
-            mock_session_obj = AsyncMock()
-            yield mock_session_obj
-
-        mock_db.get_session.return_value = mock_session()
+        mock_db = _mock_database()
         mock_get_database.return_value = mock_db
 
         mock_repo = AsyncMock()
