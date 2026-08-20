@@ -22,6 +22,7 @@ from src.services.device_knowledge_service import (
     ProvenanceRequired,
     _validate_provenance,
     decide_precedence,
+    firmware_ranges_overlap,
     normalize_model_key,
     sort_claims,
 )
@@ -34,6 +35,9 @@ def make_claim(
     claim_id: int = 1,
     fact_key: str = "param.52.effect",
     age_minutes: int = 0,
+    claim_type: ClaimType = ClaimType.KNOWN,
+    firmware_min: str | None = None,
+    firmware_max: str | None = None,
 ) -> DeviceKnowledgeClaim:
     """Build an unpersisted claim for precedence tests."""
     return DeviceKnowledgeClaim(
@@ -42,8 +46,10 @@ def make_claim(
         subject_key="inovelli/vzm31-sn",
         fact_key=fact_key,
         fact_value="value",
-        claim_type=ClaimType.KNOWN.value,
+        claim_type=claim_type.value,
         evidence_class=evidence_class.value,
+        firmware_min=firmware_min,
+        firmware_max=firmware_max,
         recorded_by="test",
         recorded_at=BASE_TIME - timedelta(minutes=age_minutes),
     )
@@ -157,6 +163,89 @@ class TestProvenanceEnforcement:
 
     def test_every_evidence_class_declares_its_requirements(self):
         assert set(REQUIRED_PROVENANCE) == {member.value for member in EvidenceClass}
+
+
+class TestRefusalPrecedence:
+    """`not_claimed` is a first-class refusal — never displaced by a guess,
+    never displacing knowledge (ADR section 3)."""
+
+    def test_a_refusal_never_supersedes_a_known_claim(self):
+        # The erasure bug: a measured "we could not determine this" used to
+        # supersede a cited vendor_doc statement of the fact.
+        documented = make_claim(EvidenceClass.VENDOR_DOC, 1)
+        decision = decide_precedence(
+            [documented],
+            EvidenceClass.MEASURED.value,
+            ClaimType.NOT_CLAIMED.value,
+        )
+        assert decision.to_supersede == []
+        assert decision.outranked_by is None  # orthogonal, so also not outranked
+
+    def test_a_known_claim_at_equal_evidence_resolves_a_refusal(self):
+        refusal = make_claim(
+            EvidenceClass.MEASURED, 1, claim_type=ClaimType.NOT_CLAIMED
+        )
+        decision = decide_precedence([refusal], EvidenceClass.MEASURED.value)
+        assert decision.to_supersede == [refusal]
+
+    def test_a_weaker_known_claim_is_blocked_by_a_stronger_refusal(self):
+        # Filling the gap with less evidence than it took to declare the gap
+        # is exactly the invention the store exists to prevent.
+        refusal = make_claim(
+            EvidenceClass.MEASURED, 1, claim_type=ClaimType.NOT_CLAIMED
+        )
+        decision = decide_precedence([refusal], EvidenceClass.INFERRED.value)
+        assert decision.outranked_by is refusal
+        assert decision.to_supersede == []
+
+    def test_refusals_compete_with_each_other_on_evidence(self):
+        weak_refusal = make_claim(
+            EvidenceClass.INFERRED, 1, claim_type=ClaimType.NOT_CLAIMED
+        )
+        decision = decide_precedence(
+            [weak_refusal],
+            EvidenceClass.MEASURED.value,
+            ClaimType.NOT_CLAIMED.value,
+        )
+        assert decision.to_supersede == [weak_refusal]
+
+
+class TestFirmwareBoundaries:
+    """Precedence never crosses a provably disjoint firmware range."""
+
+    def test_disjoint_ranges_do_not_overlap(self):
+        assert not firmware_ranges_overlap("3.00", None, None, "1.9")
+        assert not firmware_ranges_overlap(None, "1.9", "3.00", None)
+
+    def test_adjacent_and_intersecting_ranges_overlap(self):
+        assert firmware_ranges_overlap("1.0", "2.0", "2.0", "3.0")
+        assert firmware_ranges_overlap("1.0", "2.5", "2.0", "3.0")
+
+    def test_unbounded_ranges_overlap_everything(self):
+        assert firmware_ranges_overlap(None, None, "1.0", "1.5")
+        assert firmware_ranges_overlap(None, None, None, None)
+
+    def test_versions_compare_numerically_not_lexically(self):
+        # "10.0" < "2.0" as strings; must not be treated as disjoint that way.
+        assert firmware_ranges_overlap("10.0", None, None, "9.0") is False
+        assert firmware_ranges_overlap("2.0", None, None, "10.0") is True
+
+    def test_unparseable_versions_cannot_prove_disjointness(self):
+        assert firmware_ranges_overlap("beta", None, None, "1.0")
+
+    def test_record_scenario_measurement_on_new_firmware_spares_old_claim(self):
+        """The cross-firmware supersession bug, as decide_precedence sees it
+        after record() filters to overlapping ranges: the pre-3.00 vendor_doc
+        claim is not comparable with a 3.00+ measurement, so it survives."""
+        old_fw_doc = make_claim(EvidenceClass.VENDOR_DOC, 1, firmware_max="1.9")
+        comparable = [
+            c
+            for c in [old_fw_doc]
+            if firmware_ranges_overlap("3.00", None, c.firmware_min, c.firmware_max)
+        ]
+        assert comparable == []
+        decision = decide_precedence(comparable, EvidenceClass.MEASURED.value)
+        assert decision.to_supersede == []
 
 
 class TestModelKeyNormalization:

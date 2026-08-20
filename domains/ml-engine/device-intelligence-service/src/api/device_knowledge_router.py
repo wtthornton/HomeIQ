@@ -167,7 +167,10 @@ async def record_claim(
     )
 
 
-@router.get("/models/{manufacturer}/{model}", response_model=SubjectClaimsResponse)
+# `model:path` because real model strings contain slashes (e.g. IKEA
+# "TRADFRI bulb E14 W op/ch 400lm") and normalize_model_key stores them
+# verbatim; a plain segment param would 404 every such model on read-back.
+@router.get("/models/{manufacturer}/{model:path}", response_model=SubjectClaimsResponse)
 async def get_model_claims(
     manufacturer: str,
     model: str,
