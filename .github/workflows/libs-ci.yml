@@ -52,6 +52,12 @@ jobs:
       - name: Check formatting with ruff
         run: ruff format --check libs/
 
+      - name: Check lib dependencies are declared
+        # TAP-6066: a module-level import that no pyproject declares only
+        # resolves by venv coincidence — the first two live libs-ci runs each
+        # failed on exactly this class. AST-level check, stdlib only.
+        run: python3 scripts/check_lib_deps.py
+
       - name: Install shared libraries
         run: |
           # One invocation, no suppression. These libs depend on each other
