@@ -1,0 +1,58 @@
+name: "HA Integration CI"
+
+# TAP-6168: the 113-test suite covering custom_components/homeiq (conversation
+# entity, AI Task entity, AgentForge client, MCP client, config flow, tool
+# catalogue) plus tests/automations ran only by hand — TAP-6153 shipped every
+# AI Task broken because nothing guarded it. Sibling of libs-ci.yml (TAP-6037),
+# in its own job because Home Assistant 2026.8 needs Python 3.14, which the
+# rest of the repository does not use. The local recipe this mirrors lives in
+# the header of requirements-homeiq-integration.txt.
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - "custom_components/**"
+      - "tests/custom_components/**"
+      - "tests/automations/**"
+      - "pytest-homeiq.ini"
+      - "requirements-homeiq-integration.txt"
+      - ".github/workflows/ha-integration-ci.yml"
+  pull_request:
+    paths:
+      - "custom_components/**"
+      - "tests/custom_components/**"
+      - "tests/automations/**"
+      - "pytest-homeiq.ini"
+      - "requirements-homeiq-integration.txt"
+      - ".github/workflows/ha-integration-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ha-integration-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ha-integration-tests:
+    name: HA custom integration suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: "pip"
+
+      - name: Install integration test environment
+        # pytest-homeassistant-custom-component pins the exact homeassistant
+        # release the live instance runs, so a result here is a result for
+        # production. No extra pytest plugins: the pin brings its own.
+        run: pip install -r requirements-homeiq-integration.txt
+
+      - name: Run HA integration suite
+        run: python -m pytest -c pytest-homeiq.ini -q --timeout=300
