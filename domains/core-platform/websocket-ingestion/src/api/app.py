@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 
 from ..config import settings
+from ..ingestion_metrics import IngestionMetricsCollector
 from .routers import discovery, event_rate, filter, health, status, websocket
 
 logger = logging.getLogger(__name__)
@@ -78,6 +79,14 @@ async def _wire_state_lifespan(app_instance):
 
 
 app.router.lifespan_context = _wire_state_lifespan
+
+# -- Ingestion metrics ------------------------------------------------------
+# Registered against the registry create_app built, so HA ingestion state is
+# exported alongside the standard HTTP metrics. The service is resolved per
+# scrape because it does not exist until the lifespan startup hook runs.
+app.state.metrics["registry"].register(
+    IngestionMetricsCollector(lambda: getattr(_startup_service, "_service", None))
+)
 
 # Include existing routers (health router provides /health/detailed)
 app.include_router(health.router)
