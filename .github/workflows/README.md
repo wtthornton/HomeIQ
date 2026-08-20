@@ -51,6 +51,19 @@ Two suites are **not** covered as a result, and want a follow-up:
 Do not restore either by widening the stack back to a bare `up -d`. Add the
 specific services a suite needs, or publish images first.
 
+The job targets `domains/core-platform/compose.yml` directly rather than the
+root orchestrator. The root file's `include:` merges all nine domains, and they
+disagree about the `homeiq_logs` volume — core-platform declares it managed
+(`domains/core-platform/compose.yml:772`) while data-collectors
+(`:439`) and device-management (`:292`) declare the same name `external: true`.
+Compose rejects the merge with `volumes.homeiq_logs conflicts with imported
+resource`. Compose 5.1.1 tolerates it; the runner's version does not.
+
+**This is not only a CI issue.** The same merge backs the full-stack command the
+root `docker-compose.yml` header documents (`docker compose --profile production
+up -d`), so that path is version-dependent today. Reconciling the three
+`homeiq_logs` declarations is worth doing on its own.
+
 ### Path filters
 
 Domain CI is path-filtered so a change to one domain runs one workflow rather than

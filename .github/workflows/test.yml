@@ -23,14 +23,23 @@ jobs:
 
     env:
       # Single definition of the compose scope so up / ps / logs / down can
-      # never drift onto different project names.
+      # never drift onto different project names, files, or env files.
       #
-      # Drives the root compose file, not domains/core-platform/compose.yml
-      # directly: the project directory sets where the interpolation `.env` is
-      # read from and where relative build contexts resolve, and only the root
-      # file puts that at the repo root, which is what every `../..` path in
-      # the domain files is written against.
-      COMPOSE: "-p homeiq-e2e"
+      # Targets the one domain file rather than the root orchestrator, because
+      # the root file's `include:` merges all nine domains and those disagree
+      # about `homeiq_logs`: core-platform declares it as a managed volume
+      # while data-collectors and device-management declare the same name
+      # `external: true`. Compose rejects that with "volumes.homeiq_logs
+      # conflicts with imported resource". All seven services this job needs
+      # live in core-platform, so the merge buys nothing here.
+      #
+      # `--env-file` is explicit because the implicit `.env` is read from the
+      # project directory, which for `-f domains/core-platform/compose.yml` is
+      # that file's directory, not the repo root. The `env_file: ../../.env`
+      # entries inside the compose file resolve relative to the file and so
+      # still land on the repo root — do not add `--project-directory`, which
+      # would repoint those at the parent of the repo.
+      COMPOSE: "-p homeiq-e2e --env-file .env -f domains/core-platform/compose.yml"
       # ha-simulator sits behind the `development` profile, so it is never
       # started by a plain `up`; naming it explicitly enables that profile.
       # websocket-ingestion needs it: StandardHealthCheck answers /health with
