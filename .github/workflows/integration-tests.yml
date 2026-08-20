@@ -85,7 +85,7 @@ jobs:
         run: |
           for svc in data-api admin-api; do
             if [ -f "domains/core-platform/$svc/requirements.txt" ]; then
-              pip install -r "domains/core-platform/$svc/requirements.txt" 2>/dev/null || true
+              pip install -r "domains/core-platform/$svc/requirements.txt"
             fi
           done
 
@@ -101,8 +101,7 @@ jobs:
           pytest tests/integration/cross_group/ \
             -v --timeout=120 \
             -k "core_connectivity" \
-            --tb=short \
-            || true
+            --tb=short
         env:
           POSTGRES_URL: postgresql+asyncpg://homeiq:homeiq_test@localhost:5432/homeiq_test
           DATA_API_URL: http://localhost:8006
@@ -163,14 +162,14 @@ jobs:
           # Core services (data-api is the hub)
           for svc in data-api; do
             if [ -f "domains/core-platform/$svc/requirements.txt" ]; then
-              pip install -r "domains/core-platform/$svc/requirements.txt" 2>/dev/null || true
+              pip install -r "domains/core-platform/$svc/requirements.txt"
             fi
           done
 
           # Automation-core consumers
           for svc in ha-ai-agent-service ai-automation-service-new; do
             if [ -f "domains/automation-core/$svc/requirements.txt" ]; then
-              pip install -r "domains/automation-core/$svc/requirements.txt" 2>/dev/null || true
+              pip install -r "domains/automation-core/$svc/requirements.txt"
             fi
           done
 
@@ -186,8 +185,7 @@ jobs:
           pytest tests/integration/cross_group/ \
             -v --timeout=120 \
             -k "cross_domain_api" \
-            --tb=short \
-            || true
+            --tb=short
         env:
           POSTGRES_URL: postgresql+asyncpg://homeiq:homeiq_test@localhost:5432/homeiq_test
           DATA_API_URL: http://localhost:8006
@@ -231,8 +229,7 @@ jobs:
           pytest tests/integration/cross_group/ \
             -v --timeout=120 \
             -k "health_aggregation" \
-            --tb=short \
-            || true
+            --tb=short
 
   # ---------------------------------------------------------------------------
   # Job 4: Tier 1 Data Flow Chain (Epic 78)
@@ -272,8 +269,7 @@ jobs:
         run: |
           pytest tests/integration/cross_group/test_tier1_data_flow.py \
             -v --timeout=120 \
-            --tb=short \
-            || true
+            --tb=short
 
   # ---------------------------------------------------------------------------
   # Job 5: Zeek Pipeline (Epic 78)
@@ -308,7 +304,7 @@ jobs:
       - name: Install Zeek service dependencies
         run: |
           if [ -f "domains/data-collectors/zeek-network-service/requirements.txt" ]; then
-            pip install -r "domains/data-collectors/zeek-network-service/requirements.txt" 2>/dev/null || true
+            pip install -r "domains/data-collectors/zeek-network-service/requirements.txt"
           fi
 
       - name: Install test dependencies
@@ -319,8 +315,7 @@ jobs:
         run: |
           pytest tests/integration/cross_group/test_zeek_pipeline.py \
             -v --timeout=120 \
-            --tb=short \
-            || true
+            --tb=short
 
   # ---------------------------------------------------------------------------
   # Job 6: Agent Chains (Epic 78)
@@ -360,8 +355,7 @@ jobs:
         run: |
           pytest tests/integration/cross_group/test_agent_chains.py \
             -v --timeout=120 \
-            --tb=short \
-            || true
+            --tb=short
 
   # ---------------------------------------------------------------------------
   # Job 7: Memory Brain (Epic 78)
@@ -401,8 +395,7 @@ jobs:
         run: |
           pytest tests/integration/cross_group/test_memory_brain.py \
             -v --timeout=120 \
-            --tb=short \
-            || true
+            --tb=short
 
   # ---------------------------------------------------------------------------
   # Job 8: Shared Library Compatibility
@@ -494,12 +487,12 @@ jobs:
           echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
 
-          # FAILED was computed above and then never used, so this job reported
-          # success while the jobs it summarizes were red — shared-lib-compat
-          # among them. Propagate it.
-          exit "$FAILED"
-
           if [ "$FAILED" -eq 1 ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "> **Note:** Cross-group integration failures may indicate breaking API changes between domains." >> $GITHUB_STEP_SUMMARY
           fi
+
+          # FAILED was computed above and then never used, so this job reported
+          # success while the jobs it summarizes were red — shared-lib-compat
+          # among them. Propagate it.
+          exit "$FAILED"
