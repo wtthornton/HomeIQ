@@ -51,7 +51,17 @@ class AcceptNameRequest(BaseModel):
     """Request to accept a name suggestion"""
 
     suggested_name: str
-    sync_to_ha: bool = Field(default=False, description="Sync name back to Home Assistant")
+    sync_to_ha: bool = Field(
+        default=True,
+        deprecated=True,
+        description=(
+            "DEPRECATED and ignored — the rename always goes to Home Assistant. "
+            "It used to default to False, which meant accepting a name wrote it to "
+            "HomeIQ's database and nowhere else: HomeIQ then asserted a device name "
+            "the registry had never heard of. HA is the system of record for a "
+            "device name, so a rename that does not reach it is not an acceptance."
+        ),
+    )
 
 
 class AcceptNameResponse(BaseModel):
@@ -188,7 +198,28 @@ async def accept_suggested_name(
 
         old_name = device.name_by_user or device.name or "Unknown"
 
-        # Update device name_by_user
+        if not request.sync_to_ha:
+            logger.warning(
+                "accept(%s) was called with sync_to_ha=False; ignoring it. A local-only "
+                "rename is the divergence HARegistryWriter exists to prevent.",
+                device_id,
+            )
+
+        # HA FIRST, and the local row only if the registry confirms it. The old
+        # order committed the local rename and then attempted the sync, so a
+        # failed — or, by default, skipped — write left HomeIQ asserting a name
+        # HA had never accepted, while still answering success=True.
+        # HARegistryWriter reads the value back and raises on disagreement, which
+        # is the only check that catches a write that silently did nothing.
+        if not await sync_name_to_ha(device_id, request.suggested_name):
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=(
+                    f"Home Assistant did not accept the rename of {device_id} to "
+                    f"'{request.suggested_name}'. Nothing was changed."
+                ),
+            )
+
         device.name_by_user = request.suggested_name
         device.updated_at = datetime.now(UTC)
 
@@ -245,9 +276,9 @@ async def accept_suggested_name(
 
         await session.commit()
 
-        # Sync to Home Assistant if requested. The DB write above stands either
-        # way; `synced` is what tells the caller whether HA agrees with it.
-        synced = await sync_name_to_ha(device_id, request.suggested_name) if request.sync_to_ha else None
+        # Already verified above: the commit only happens once the registry has
+        # been written and read back.
+        synced = True
 
         return AcceptNameResponse(
             success=True,

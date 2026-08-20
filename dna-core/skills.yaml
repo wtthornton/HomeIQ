@@ -37,9 +37,14 @@ skills:
       \ and hiq-judge-automation genes. Source of truth is docs/automation-linter-rules.md."
   home-atlas:
     tier: deployment
-    why: "Home structural ground truth (18 areas, key groups, naming conventions, integration\
-      \ inventory). Authority is config/ha-organization-manifest.yaml. HomeIQ-specific;\
-      \ consumed by entity resolution and automation genes."
+    why: "Home structural ground truth, rendered from dna-core/intake/homeiq.yaml\
+      \ (itself generated from the live instance by scripts/generate_home_intake.py).\
+      \ Every claim carries how it was established, ordered measured >\
+      \ upstream_source > attestation > unverified, and a claim whose only signal\
+      \ is a friendly name is typed unverified and non-actionable so a gene\
+      \ abstains. The previous authority, config/ha-organization-manifest.yaml,\
+      \ justified device->area rows by name-string matching and was measurably\
+      \ wrong. HomeIQ-specific; consumed by entity resolution and automation genes."
   home-taxonomy:
     tier: deployment
     why: "Device event types, anomaly labels, maintenance events, and integration\

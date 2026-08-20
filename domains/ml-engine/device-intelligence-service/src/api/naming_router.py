@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from ..core.database import get_db_session
 from ..models.database import DeviceEntity
@@ -32,6 +33,42 @@ router = APIRouter(prefix="/api/naming", tags=["Naming Convention"])
 
 # Singletons
 _score_engine = ScoreEngine()
+
+# Rubric dimensions HomeIQ does not collect, so it cannot score them. They are
+# reported rather than silently counted as failures: `config/entity_registry/list`
+# carries no `aliases` key at all, and `device_class` is a state attribute this
+# router never reads. Every entity therefore forfeits these points equally, which
+# depresses the absolute score without changing the ranking. Closing the gap means
+# collecting the data first — scoring harder against data that was never fetched
+# would just be a confident wrong number.
+UNCOLLECTED_RUBRIC_FIELDS = ("aliases", "device_class")
+
+def compose_friendly_name(
+    entity_name: str | None,
+    original_name: str | None,
+    has_entity_name: bool,
+    device_name: str | None,
+) -> str:
+    """Rebuild the friendly name HA shows, from the registry fields we store.
+
+    HA does not persist `friendly_name`; it composes it, and scoring the raw
+    `name` column instead reports "entity has no friendly name" for entities that
+    plainly have one — `light.inovelli_vzm31_sn` stores an empty name and shows
+    as "Office Light Dimmer".
+
+    Verified against this instance:
+      has_entity_name, original_name NULL  -> device name
+        light.inovelli_vzm31_sn        -> "Office Light Dimmer"
+      has_entity_name, original_name set   -> "<device> <original>"
+        sensor.inovelli_vzm31_sn_power -> "Office Light Dimmer Power"
+    A user-set entity name overrides all of it.
+    """
+    if entity_name:
+        return entity_name
+    if has_entity_name and device_name:
+        return f"{device_name} {original_name}".strip() if original_name else device_name
+    return original_name or ""
+
 _alias_generator = AliasGenerator()
 
 
@@ -97,6 +134,14 @@ class AuditResponse(BaseModel):
     top_issues: list[TopIssueResponse] = []
     score_distribution: dict[str, int] = {}
     entities: list[EntityScoreResponse] = []
+    uncollected_fields: list[str] = Field(
+        default_factory=lambda: list(UNCOLLECTED_RUBRIC_FIELDS),
+        description=(
+            "Rubric dimensions HomeIQ does not collect, so every entity forfeits "
+            "them equally. The scores below are partial by this much — read them as "
+            "a ranking, not as an absolute compliance percentage."
+        ),
+    )
 
 
 class AliasSuggestionResponse(BaseModel):
@@ -144,26 +189,37 @@ async def _load_entities(
     limit: int = 500,
 ) -> list[dict[str, Any]]:
     """Load entities from DB as dicts suitable for scoring."""
-    query = select(DeviceEntity)
+    # `area_id` lives on the DEVICE, not the entity: HA exposes an entity-level
+    # area_id but it is an override that is unset on all 768 entities here, so
+    # the device's area is the only one there is. Eager-loaded because scoring
+    # 500 entities one lazy `device` hop at a time is 500 round trips.
+    query = select(DeviceEntity).options(joinedload(DeviceEntity.device))
     if entity_ids:
         query = query.where(DeviceEntity.entity_id.in_(entity_ids))
     query = query.limit(limit)
 
     result = await session.execute(query)
-    rows = result.scalars().all()
+    rows = result.scalars().unique().all()
 
     entities = []
     for row in rows:
+        labels = row.labels if isinstance(row.labels, list) else []
         entities.append(
             {
                 "entity_id": row.entity_id,
                 "domain": row.domain or "",
-                "area_id": row.area_id or "",
-                "friendly_name": row.friendly_name or row.name or "",
-                "name_by_user": getattr(row, "name_by_user", None) or "",
-                "device_class": row.device_class or "",
-                "aliases": row.aliases if isinstance(row.aliases, list) else [],
-                "labels": row.labels if isinstance(row.labels, list) else [],
+                "area_id": (row.device.area_id if row.device else None) or "",
+                "friendly_name": compose_friendly_name(
+                    row.name,
+                    row.original_name,
+                    bool(row.has_entity_name),
+                    row.device.name if row.device else None,
+                ),
+                "name_by_user": row.name or "",
+                # Not collected — see UNCOLLECTED_RUBRIC_FIELDS.
+                "device_class": "",
+                "aliases": [],
+                "labels": labels,
             }
         )
 
@@ -184,7 +240,7 @@ async def audit_naming_conventions(
     try:
         entities = await _load_entities(session, limit=limit)
         summary = _score_engine.audit(entities)
-        return summary.to_dict()
+        return {**summary.to_dict(), "uncollected_fields": list(UNCOLLECTED_RUBRIC_FIELDS)}
     except Exception as e:
         logger.error("Audit failed: %s", e)
         raise HTTPException(

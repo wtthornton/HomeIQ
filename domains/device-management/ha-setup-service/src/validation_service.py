@@ -245,28 +245,32 @@ class ValidationService:
                         )
                     )
 
-            # Check for incorrect area assignment (entity name suggests different area)
+            # The entity's NAME points at one area while it is assigned to another.
+            # Worth a human's attention — this is precisely the shape of the
+            # swapped-dimmer defect — but it does NOT say which side is wrong. A
+            # name is a presentation artifact (`.claude/rules/friendly-names.md`),
+            # so the discrepancy is reported, never resolved. It used to be raised
+            # as `incorrect_area_assignment` above a >= 80 confidence gate, which
+            # asserted the registry was wrong on the strength of a string and fed
+            # a path that writes an area to HA.
             elif current_area_id:
                 suggestions = await self.suggestion_engine.suggest_area(
                     entity_id=entity_id, entity_name=entity_name, areas=areas
                 )
 
-                # If top suggestion is different from current, flag as incorrect
                 if suggestions and suggestions[0].get("area_id") != current_area_id:
                     top_suggestion = suggestions[0]
-                    # Only flag if confidence is high (>= 80%)
-                    if top_suggestion.get("confidence", 0) >= 80:
-                        issues.append(
-                            ValidationIssue(
-                                entity_id=entity_id,
-                                category="incorrect_area_assignment",
-                                current_area=current_area_id,
-                                suggestions=[top_suggestion],
-                                device_id=device_id,
-                                entity_name=entity_name,
-                                confidence=top_suggestion.get("confidence", 0),
-                            )
+                    issues.append(
+                        ValidationIssue(
+                            entity_id=entity_id,
+                            category="name_area_mismatch",
+                            current_area=current_area_id,
+                            suggestions=[top_suggestion],
+                            device_id=device_id,
+                            entity_name=entity_name,
+                            confidence=top_suggestion.get("confidence", 0),
                         )
+                    )
 
         return issues
 

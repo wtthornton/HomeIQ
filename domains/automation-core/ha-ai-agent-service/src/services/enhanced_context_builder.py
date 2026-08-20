@@ -263,13 +263,11 @@ class EnhancedContextBuilder:
                     device_id = entity.get("device_id")
                     if device_id:
                         area_id = device_area_map.get(device_id)
-                if not area_id:
-                    # Fallback: infer area from entity_id if it contains a known area name
-                    entity_name = entity_id.split(".", 1)[-1] if "." in entity_id else entity_id
-                    for known_area_id in area_name_map:
-                        if known_area_id in entity_name.lower():
-                            area_id = known_area_id
-                            break
+                # No name-based fallback. An entity whose registry gives no area is
+                # `unassigned`, and saying so is correct; guessing the area from the
+                # entity_id would place the device by its name, which is the defect
+                # that put the "office" row on the bar switch. See
+                # `.claude/rules/friendly-names.md`.
                 area_id = area_id or "unassigned"
 
                 # Use live state from HA (fallback to data-api state)

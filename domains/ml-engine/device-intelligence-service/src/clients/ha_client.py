@@ -431,7 +431,15 @@ class HomeAssistantClient:
                     device_id=entity_data.get("device_id"),
                     area_id=entity_data.get("area_id"),
                     platform=entity_data.get("platform", "unknown"),
-                    domain=entity_data.get("domain", "unknown"),
+                    # `config/entity_registry/list` does not serialise a `domain`
+                    # key — on RegistryEntry it is a property derived from the
+                    # entity_id, so asking the payload for it defaulted every one
+                    # of this instance's 768 entities to the literal "unknown".
+                    # That made (domain, platform, unique_id) — the tuple HA
+                    # itself keys the registry on — collide 21 times, because the
+                    # one column that separates `switch.terminal_ssh` from
+                    # `binary_sensor.terminal_ssh_running` was constant.
+                    domain=entity_data["entity_id"].split(".", 1)[0],
                     disabled_by=entity_data.get("disabled_by"),
                     entity_category=entity_data.get("entity_category"),
                     hidden_by=entity_data.get("hidden_by"),

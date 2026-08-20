@@ -63,7 +63,7 @@ async def test_detect_missing_area_assignments(validation_service, mock_entities
 
 
 @pytest.mark.asyncio
-async def test_detect_incorrect_area_assignments(validation_service, mock_areas):
+async def test_detect_name_area_mismatches(validation_service, mock_areas):
     """Test detection of incorrect area assignments"""
     # Create entity with incorrect area
     entities_with_incorrect = [
@@ -77,7 +77,7 @@ async def test_detect_incorrect_area_assignments(validation_service, mock_areas)
 
     issues = await validation_service._detect_issues(entities_with_incorrect, mock_areas)
 
-    incorrect_issues = [i for i in issues if i.category == "incorrect_area_assignment"]
+    incorrect_issues = [i for i in issues if i.category == "name_area_mismatch"]
     # Should detect if confidence is high enough
     if incorrect_issues:
         assert incorrect_issues[0].current_area == "living_room"
@@ -104,7 +104,7 @@ async def test_generate_summary(validation_service):
         ),
         ValidationIssue(
             entity_id="light.test3",
-            category="incorrect_area_assignment",
+            category="name_area_mismatch",
             current_area="wrong",
             suggestions=[],
             confidence=85.0,
@@ -115,7 +115,7 @@ async def test_generate_summary(validation_service):
 
     assert summary.total_issues == 3
     assert summary.by_category["missing_area_assignment"] == 2
-    assert summary.by_category["incorrect_area_assignment"] == 1
+    assert summary.by_category["name_area_mismatch"] == 1
     assert summary.ha_version == "2025.10.0"
 
 
@@ -140,7 +140,7 @@ async def test_filter_by_category(validation_service):
                 ),
                 ValidationIssue(
                     entity_id="light.test2",
-                    category="incorrect_area_assignment",
+                    category="name_area_mismatch",
                     current_area="wrong",
                     suggestions=[],
                     confidence=90.0,

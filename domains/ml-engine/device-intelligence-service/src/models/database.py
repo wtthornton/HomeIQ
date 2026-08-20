@@ -190,6 +190,12 @@ class DeviceEntity(Base):
     original_icon: Mapped[str | None] = mapped_column(String)
     unique_id: Mapped[str] = mapped_column(String, nullable=False)
     translation_key: Mapped[str | None] = mapped_column(String)
+    # Label ids from the entity registry. HA returns these on every
+    # `config/entity_registry/list` (135 of this instance's 768 entities carry
+    # at least one) and the sync used to drop them on the floor, while the
+    # naming rubric scores `labels` at +20 — so every entity silently lost a
+    # fifth of its score for data HomeIQ had already fetched.
+    labels: Mapped[list | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now(), onupdate=func.now()

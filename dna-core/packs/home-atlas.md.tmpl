@@ -1,0 +1,98 @@
+---
+name: home-atlas
+description: Home structural ground truth for {{instance_name}} — {{area_count}} areas, {{device_count}} devices, {{entity_count}} entities, each claim carrying how it was established. Rendered from dna-core/intake/homeiq.yaml; do not hand-edit.
+version: 2.0.0
+allowed_tools: ""
+---
+# Home Atlas — Structural Ground Truth
+
+Genes that resolve entities, explain anomalies, or draft automations read this
+pack to understand the home's physical structure.
+
+**This file is rendered.** It is generated from `dna-core/intake/homeiq.yaml` by
+`scripts/render_dna_core.py --write-packs`, and `scripts/validate.py` fails if it
+drifts from that intake. Edit the intake, not this file. The intake in turn is
+generated from the live instance by `scripts/generate_home_intake.py --write`.
+
+## How to read a claim
+
+Every claim below says how it was established. The classes are ordered:
+
+    measured > upstream_source > attestation > unverified
+
+- **`measured`** — read from the thing itself: a protocol-native identifier, or a
+  physical observation.
+- **`upstream_source`** — an integration's own model asserts it (a Hue bridge
+  knows which room it commissioned a bulb into). Real corroboration, but it is
+  the integration's belief, not a measurement.
+- **`attestation`** — a person stated it, dated.
+- **`unverified`** — nothing independent supports it.
+
+There is no `name_match` class, and its absence is the point. A friendly name
+that happens to contain an area name is not a way of knowing where a device is.
+Two identically-modelled dimmers on this instance carried **swapped** names, so
+every "office" row derived from names pointed at the bar switch; acting on one
+would have written to the wrong physical device. Where a name echo is the only
+signal, the row is typed `unverified` and says so in its method.
+
+**A row with `actionable: false` must not be acted on.** Abstain and say why, or
+run its `next_verification_step` first. Abstaining on a low-confidence row is a
+correct outcome, not a failure.
+
+## Instance
+
+| Fact | Value |
+|---|---|
+| Instance | {{instance_name}} |
+| Home Assistant | {{ha_version}} |
+| Areas | {{area_count}} |
+| Devices | {{device_count}} |
+| Entities | {{entity_count}} |
+| Devices with no area | {{unassigned_device_count}} |
+| Verified at | {{verified_at}} |
+| Verified by | {{verify_method}} |
+
+Every fact in this pack is as of `{{verified_at}}`. A home changes; a claim older
+than the thing it describes is how the predecessor atlas came to name entities
+that no longer existed.
+
+## Areas
+
+| Area id | Name | Devices | Evidence | How established |
+| --- | --- | --- | --- | --- |
+{{areas}}
+
+## Device placement
+
+One row per device that claims an area. `identity_evidence` and `area_evidence`
+are separate columns because they fail independently: a device can be identified
+perfectly by its ieee address and still be in an unknown room.
+
+| Device | Area | Identity | Identity evidence | Area evidence | Confidence | Actionable | How established | Next verification step |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+{{device_area_claims}}
+
+## Verified group entities
+
+Only groups confirmed present on the instance appear here. The predecessor atlas
+listed seven; six did not exist.
+
+| Entity id | Members | Evidence | How established |
+| --- | --- | --- | --- |
+{{verified_groups}}
+
+## Integrations
+
+| Integration | Devices | Evidence | How established |
+| --- | --- | --- | --- |
+{{integrations}}
+
+## Naming
+
+Entity ids on this instance follow no single scheme — these are real ids read
+from the instance, not a convention to generate from. Resolve an entity by
+looking it up, never by constructing an id from an area and a device type.
+
+| Entity id | Friendly name | Evidence | How established |
+| --- | --- | --- | --- |
+{{naming_examples}}

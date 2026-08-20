@@ -8,10 +8,27 @@ setting was changed as part of this evaluation.
 
 ## Evidence (read live 2026-08-12T23:06Z states, fetched 2026-08-13T01:2xZ)
 
-Entity-id convention (ZHA minted these at pairing): the **`_2`-suffixed**
-entities belong to the **Office Light Dimmer**; the **unsuffixed**
-`inovelli_vzm31_sn` entities belong to the **Bar Light Dimmer** (verified by
-friendly-name mapping during adversarial verification). Full ids per row:
+> **⚠️ IDENTITY CORRECTION — 2026-08-19. The Office/Bar columns below are
+> INVERTED.** The mapping under them was "verified by friendly-name mapping",
+> and those two friendly names were swapped on the instance. Re-read against
+> ieee ground truth (`config/device_registry/list`, 2026-08-19):
+>
+> | ieee | area | slug | role |
+> |---|---|---|---|
+> | `90:35:ea:ff:fe:c9:0e:8f` | Office | **unsuffixed** `inovelli_vzm31_sn` | **Office Light Dimmer** |
+> | `90:35:ea:ff:fe:c9:11:ef` | Bar | **`_2`-suffixed** | **Bar Light Dimmer** |
+>
+> So every "Office id" cell below names the **Bar** device and vice versa. The
+> observations are real; their attribution is not. Do not act on a row without
+> re-attaching it by ieee. See
+> [`docs/architecture/adr-device-knowledge-provenance.md`](../architecture/adr-device-knowledge-provenance.md)
+> — a name-string match is `inferred` evidence and must never outrank a
+> `measured` identity.
+
+Entity-id convention as originally recorded (**inverted — see the correction
+above**): the `_2`-suffixed entities were taken to belong to the Office Light
+Dimmer, and the unsuffixed `inovelli_vzm31_sn` entities to the Bar Light Dimmer.
+Full ids per row:
 
 | Observable (Office id / Bar id) | Office Light Dimmer (VZM31-SN) | Bar Light Dimmer (VZM31-SN) |
 |---|---|---|
@@ -75,7 +92,10 @@ and stands alone.
 
 ## Applying (not done here)
 
-Enabling is one HA write: `switch.inovelli_vzm31_sn_smart_bulb_mode_2` → on,
+Enabling is one HA write on the **Office** dimmer, which by ieee `90:35:ea:ff:fe:c9:0e:8f` is the **unsuffixed** entity:
+`switch.inovelli_vzm31_sn_smart_bulb_mode` → on (**not** the `_2` slug this
+document originally named — that is the Bar dimmer, which recommendation 2
+says to leave alone),
 routed through the gateway converge path per standing rules, after owner
 acknowledgment of recommendation 1. Record the before/after in the applying
 change, not here.

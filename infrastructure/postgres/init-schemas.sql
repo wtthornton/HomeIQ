@@ -668,12 +668,33 @@ CREATE TABLE IF NOT EXISTS device_entities (
     original_icon VARCHAR,
     unique_id VARCHAR NOT NULL,
     translation_key VARCHAR,
+    -- Label ids from the entity registry. HA returns these on every
+    -- config/entity_registry/list; the sync dropped them while the naming rubric
+    -- scores `labels` at +20, so every entity silently lost a fifth of its score
+    -- for data HomeIQ had already fetched.
+    labels JSON,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS ix_device_entities_device_id ON device_entities (device_id);
 CREATE INDEX IF NOT EXISTS ix_device_entities_domain ON device_entities (domain);
+
+-- The durable key. `entity_id` is the PRIMARY KEY above, but it is an ADDRESS,
+-- not an identity: HA mints it from a name at pairing and moves it whenever the
+-- entity is renamed or re-paired. Keying the sync on it meant a rename inserted
+-- a SECOND row and orphaned every finding hanging off the old address.
+--
+-- This tuple is HA's own registry key. `EntityRegistryItems` maintains the index
+-- (domain, platform, unique_id) -> entity_id, and the entity registry docstring
+-- states entities "are uniquely identified by their domain, platform and a
+-- unique id provided by that platform". `unique_id` ALONE is not unique and a
+-- UNIQUE index on it cannot be created here: on this instance 21 pairs share one
+-- (e.g. `core_ssh_state` belongs to both switch.terminal_ssh and
+-- binary_sensor.terminal_ssh_running). With `domain` populated correctly the
+-- tuple is unique across all 768 rows.
+CREATE UNIQUE INDEX IF NOT EXISTS ux_device_entities_registry_key
+    ON device_entities (domain, platform, unique_id);
 
 CREATE TABLE IF NOT EXISTS device_capabilities (
     device_id VARCHAR NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
@@ -710,7 +731,7 @@ CREATE TABLE IF NOT EXISTS device_hygiene_issues (
     severity VARCHAR NOT NULL,
     status VARCHAR NOT NULL,
     device_id VARCHAR REFERENCES devices(id) ON DELETE SET NULL,
-    entity_id VARCHAR REFERENCES device_entities(entity_id) ON DELETE SET NULL,
+    entity_id VARCHAR REFERENCES device_entities(entity_id) ON UPDATE CASCADE ON DELETE SET NULL,
     name VARCHAR,
     suggested_action VARCHAR,
     suggested_value VARCHAR,
@@ -809,7 +830,7 @@ CREATE INDEX IF NOT EXISTS ix_name_preferences_pattern_type ON name_preferences 
 CREATE TABLE IF NOT EXISTS name_suggestions (
     id SERIAL PRIMARY KEY,
     device_id VARCHAR NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
-    entity_id VARCHAR REFERENCES device_entities(entity_id) ON DELETE CASCADE,
+    entity_id VARCHAR REFERENCES device_entities(entity_id) ON UPDATE CASCADE ON DELETE CASCADE,
     original_name VARCHAR NOT NULL,
     suggested_name VARCHAR NOT NULL,
     confidence_score DOUBLE PRECISION,
@@ -908,6 +929,52 @@ CREATE TABLE IF NOT EXISTS zigbee_device_metadata (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_zigbee_device_metadata_ieee_address ON zigbee_device_metadata (ieee_address);
+
+-- -----------------------------------------------------------------------------
+-- Device knowledge claims (device-intelligence-service)
+-- Provenance-bearing facts about a device MODEL (vendor knowledge) or a device
+-- INSTANCE (measurements on this home's hardware). Evidence class is ordered:
+--   measured > upstream_source > vendor_doc > community > inferred
+-- Precedence and supersession are enforced by the service, not by the client.
+-- See docs/architecture/adr-device-knowledge-provenance.md
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS device_knowledge_claims (
+    id SERIAL PRIMARY KEY,
+    subject_kind VARCHAR(16) NOT NULL,
+    subject_key VARCHAR(255) NOT NULL,
+    fact_key VARCHAR(255) NOT NULL,
+    fact_value TEXT NOT NULL,
+    claim_type VARCHAR(16) NOT NULL DEFAULT 'known',
+    caveat TEXT,
+    evidence_class VARCHAR(24) NOT NULL,
+    source_url TEXT,
+    source_ref TEXT,
+    source_version VARCHAR(255),
+    source_quote TEXT,
+    method VARCHAR(255),
+    confidence DOUBLE PRECISION,
+    firmware_min VARCHAR(32),
+    firmware_max VARCHAR(32),
+    recorded_by VARCHAR(128) NOT NULL,
+    recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    superseded_by INTEGER REFERENCES device_knowledge_claims(id) ON DELETE SET NULL,
+    superseded_reason TEXT,
+    CONSTRAINT chk_dk_subject_kind CHECK (subject_kind IN ('model', 'instance')),
+    CONSTRAINT chk_dk_evidence_class CHECK (
+        evidence_class IN ('measured', 'upstream_source', 'vendor_doc', 'community', 'inferred')
+    ),
+    CONSTRAINT chk_dk_claim_type CHECK (claim_type IN ('known', 'not_claimed')),
+    CONSTRAINT chk_dk_confidence_range CHECK (
+        confidence IS NULL OR (confidence >= 0.0 AND confidence <= 1.0)
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_dk_subject ON device_knowledge_claims (subject_kind, subject_key);
+CREATE INDEX IF NOT EXISTS idx_dk_subject_fact ON device_knowledge_claims (subject_kind, subject_key, fact_key);
+CREATE INDEX IF NOT EXISTS ix_device_knowledge_claims_evidence_class ON device_knowledge_claims (evidence_class);
+CREATE INDEX IF NOT EXISTS ix_device_knowledge_claims_superseded_by ON device_knowledge_claims (superseded_by);
+CREATE INDEX IF NOT EXISTS ix_device_knowledge_claims_recorded_at ON device_knowledge_claims (recorded_at);
 
 -- =============================================================================
 -- Energy schema tables (proactive-agent-service)

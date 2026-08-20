@@ -1,36 +1,31 @@
 # Session handoff
-**Updated:** 2026-08-19T14:30:29Z
-**Git:** 90c95b5d (branch tap-6230-ha-write-gateway, 4 ahead of master)
-**Linear P0:** TAP-6230
+**Updated:** 2026-08-19T23:49:57Z · **Git:** `fd5b0dc9` on **master** — all work UNCOMMITTED (~40 paths)
+**Driver:** `prompts/homeiq-dna-rewrite.md` goal loop, SG0→SG4.
+**Read first:** `tapps_memory search "wayfind homeiq dna rewrite"` — then the keys it links (`rule-friendly-names-customer-only`, `homeiq-device-entities-durable-key`, `homeiq-naming-gateway-and-rubric-fixes`, `homeiq-colocation-correlation-confounders`, `homeiq-atlas-no-actionable-placement`). Do not re-derive what they hold.
+
+## Standing rule (owner, 2026-08-19)
+**A friendly name is for talking to the customer, never for the system.** `.claude/rules/friendly-names.md`. Allowed: render to a person, score a name's quality, match what a user typed then resolve to a stable id. Forbidden: name as join key, inferring area from a name, letting a name confer confidence. Test: **"would a rename break this?"** — if yes it is the name. The dangerous case is a name match one hop removed wearing a better label.
 
 ## Done
-- **TAP-6230's success criterion is met.** `HARegistryWriter` (`libs/homeiq-ha/src/homeiq_ha/registry_writer.py`) is the one path writing a device/entity name or area to HA; admin-api, ha-setup-service, device-intelligence and `ManifestDeviceAreasRecipe` all route through it. Every write re-reads the registry and raises `WriteNotVerified` on disagreement. It never sends `new_entity_id`, so entity_id slugs (locked FKs) can't move through it, and it refuses an unknown `area_id` that HA would store verbatim and verify cleanly.
-- Three defects, all hidden behind a 200 or a permissive stub:
-  1. `sync_name_to_ha` posted to the `homeassistant.update_entity` **service** with `name` — a state-refresh service with no `name`, handed a device id where an entity id goes. Logged "Synced name", renamed nothing, for months. Result was discarded too (`success=True` hardcoded); `AcceptNameResponse` now carries `synced_to_ha`.
-  2. `remediation_service._rename_device` sent `name=` to `config/device_registry/update`, which takes only area_id/disabled_by/labels/name_by_user and is PREVENT_EXTRA — that action answered `success: false` every run and never worked.
-  3. `ws.py:501` claimed device renames cascade into `entity_id`s. **They do not** (HA core 2026.8.2: the command never reaches the entity registry); only computed friendly names change. That comment was the stated reason 88 hygiene findings went unactioned.
-- Deleted admin-api's hand-rolled aiohttp WS client (new connection + auth handshake per write). Three WS impls against one instance are now two.
-- Test doubles echoed back any field handed to them — part of why the bugs lived. They now model what HA accepts and hold state, so read-back is exercised.
-- Suites: homeiq-ha 315 (was 307), homeiq 3.14 113, ha-setup-service 61, admin-api 391.
+VAL-001..007 green, each with a pasted artifact: working-tree triage, dna-core drift gate, `dna-core/packs/` + zero-packs hard fail, `home-atlas` re-authored from measured state, durable key `(domain, platform, unique_id)`, name/area gateway made HA-first. Plus 4 friendly-name violations — worst was `suggestion_engine` scoring 100% on a name match into a `>=80` gate reaching a path that writes an area to HA, so a rename could relocate a device. ieee: `...0e:8f`=Office=**unsuffixed**, `...11:ef`=Bar=`_2`.
 
-## Open
-- Three files still under the 70 gate, all pre-existing (`test_coverage: 0`, high CC), all improved: `ha_client.py` 60.7→69.1, `validation_service.py` 62.3→68.9, `name_enhancement_router.py` 63.6→73.0 (now passes).
-- 88 hygiene findings unread, but now safe to act on. Prior triage holds: of 15 high duplicates only 2 of 6 are real.
-- Remaining TAP-6230 children: shared rules module, brand-token contradiction, `AUTO_GENERATE_NAME_SUGGESTIONS` still False (pipeline dark), TAP-6227, TAP-6228.
-- AF agent `homeiq-ha-automation-tester` committed but unpublished — needs a homeiq-scoped `afp_*` key; `AgentForge/.env` one returns 403.
-- `models/` untracked and not gitignored — runtime `.pkl` files, not from this work.
+## Live state
+HA 2026.8.2 @192.168.1.80 (635 states/93 devices/768 entities/17 areas). Baseline `.tapps-mcp/dna-baseline-20260819T193431Z.json`. AF 4.59.1 `scoped_probe=ok`, 24 genes/0 degraded. `homeiq-mcp` 202 POST/48h — AF→HomeIQ transport proven. Container current; **app is at `/app/src`**. DB migrated: unique registry key, FKs `ON UPDATE CASCADE`, `labels JSON` at 135/768.
 
-## Next (P0)
-- Extract naming/area **rules** into one shared module and delete the duplicates. The rubric exists five times: `convention_rules.py`, `name_generator.py`, `hygiene_analyzer._suggest_device_name`, `suggestion_engine.py`, and a TypeScript copy in `useEntityAudit.ts:53-119`. Write the acceptance test first — dashboard and backend must score the same entity identically. It should fail on day one, since the dashboard uses its own copy and nothing detects the divergence.
+## Open — start here
+1. **VAL-012 BLOCKED on owner input.** `scripts/correlate_colocation.py` works (28 tests) but yields **co-location, not a room name** — a label needs an axiom. Need one dated attestation per cluster **against a stable id**, never a name: C01 `binary_sensor.office_office_motion_area`, C02 `binary_sensor.office_presence_2`, C03 **CONTESTED** (both Inovelli dimmers on one Aqara sensor — needs a physical check).
+2. Engine is a local script, **not a published AF gene**. Traps: `kind: task`; `$name` not `{{name}}`; terminal state `complete`; `output_schema` on the workflow NODE; agents before workflows; unchanged-hash republish returns 200 and does NOT activate — pass `--activate`.
+3. VAL-008 `AUTO_GENERATE_NAME_SUGGESTIONS` still False. VAL-009 duplicate generations both published. SG5 untouched — `homeiq-ha-automation-tester` was called "complete" but FAILED the validator; fixed, still unpublished.
+4. Branch before committing. Do NOT commit `device-intelligence-service/models/model_metadata.json` — runtime artifact.
 
 ## Blockers
-- Postgres fixture decision needs the user. Six tests (4 `test_remediation_service.py`, 2 `test_hygiene_router.py`) hardcode `localhost:5432`, which belongs to **another project** — HomeIQ is on 15432. They error identically on HEAD; deliberately not "fixed", since pointing them at a live 5432 authenticates against a stranger's DB. Pick 15432 or containerise.
+Tests hardcode `localhost:5432`, which belongs to **another project** — HomeIQ is **15432**. `asyncpg InvalidPasswordError` blocks `test_remediation_service.py`, `test_hygiene_router.py`, 2 ha-ai-agent-service context tests. Owner decision: repoint or containerise. Full device-intelligence suite exceeds 115s, never measured green.
 
 ## Verify
-- `.venv/bin/python -m pytest libs/homeiq-ha/tests/ -q` — 315 passed
-- `.venv-ha/bin/python -m pytest -c pytest-homeiq.ini -q` — 113 passed
-- admin-api `pytest tests/ -q` — 391 passed, 1 failed (`test_devices_endpoints.py::test_get_device_endpoint`, pre-existing on HEAD)
-- ha-setup-service `pytest tests/ -q` — 61 passed
+`cd scripts && python validate.py` → exit 0 "kit is publishable" · `pytest scripts/tests/ -q` → 54 · ha-setup-service → 63 · device-intelligence `-k "naming or name_enhancement or friendly"` → 63 passed 4 skipped · `scripts/sql/val006_repair_regression.sql` via `docker exec -i` → 3x PASS
+
+## Gotchas
+`docker exec` WITHOUT `-i` silently discards a heredoc — a migration "succeeded" and changed 0 rows. `influx query` takes `-` **positionally**. Prove a gate is wired by **breaking** it, not by grep.
 
 ## Success criterion
-- Dashboard and backend produce the same naming score for the same entity, from one shared rules module, with a test proving it.
+One atlas cluster carries a room whose provenance terminates in a dated `attestation` against a stable id, and the gene returns that room with evidence for a confident case and abstains with a reason for a weak one.

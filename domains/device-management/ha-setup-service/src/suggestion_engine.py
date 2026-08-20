@@ -1,7 +1,25 @@
 """
 Suggestion Engine for Area Assignment
 
-Generates intelligent suggestions for area assignments based on entity names.
+Proposes area assignments to a HUMAN by reading entity names. Every signal it
+has is a name — the entity_id string and the friendly name — so nothing it
+produces may drive a decision the system makes on its own. See
+`.claude/rules/friendly-names.md`.
+
+That is not a theoretical concern here. Two identically-modelled dimmers on this
+instance carried SWAPPED friendly names, so a name-derived area for either one
+named the wrong room. This engine used to answer 100% confidence when the area
+name appeared in the entity_id and 95% when it appeared in the friendly name;
+`validation_service` then flagged the entity's real area as
+`incorrect_area_assignment` at >= 80, and that flows to a path that writes an
+area to HA. A renamed device could therefore relocate itself.
+
+Confidence is now capped below that threshold by construction
+(`NAME_DERIVED_CONFIDENCE_CAP`), and every suggestion carries `basis:
+"name_only"` so a consumer cannot mistake it for evidence. The relative ordering
+is preserved, because ranking candidates for a person to choose between is
+exactly what this engine is for.
+
 Epic 32: Home Assistant Configuration Validation & Suggestions
 """
 
@@ -10,6 +28,20 @@ import re
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+# Everything this engine knows comes from a name, and a name is a presentation
+# artifact — it may rank options for a person, never clear a system threshold.
+# `validation_service` acts at >= 80; this cap sits below it so no name match can
+# reach it however exact the string is. Raising this constant re-opens the
+# rename-relocates-the-device defect.
+NAME_DERIVED_CONFIDENCE_CAP = 49.0
+
+# What each match is worth, all under the cap. The ORDER is the useful part: a
+# person choosing between three candidates wants the best guess first.
+CONFIDENCE_EXACT_IN_ENTITY_ID = 49.0
+CONFIDENCE_EXACT_IN_ENTITY_NAME = 45.0
+CONFIDENCE_PARTIAL_IN_ENTITY_ID = 35.0
+CONFIDENCE_KEYWORD = 25.0
 
 
 class SuggestionEngine:
@@ -81,6 +113,11 @@ class SuggestionEngine:
                         "area_name": area_name,
                         "confidence": confidence,
                         "reasoning": reasoning,
+                        # Declared so no consumer can mistake this for evidence.
+                        # A name match is what a person should look at, never
+                        # what the system should act on.
+                        "basis": "name_only",
+                        "actionable": False,
                     }
                 )
 
@@ -135,36 +172,42 @@ class SuggestionEngine:
 
         # 1. Exact match in entity_id (100% confidence)
         if area_id_lower in entity_id or area_name_lower in entity_id:
-            confidence = 100.0
-            reasoning_parts.append(f"Exact match: '{area_id}' found in entity_id")
+            confidence = CONFIDENCE_EXACT_IN_ENTITY_ID
+            reasoning_parts.append(
+                f"name only: '{area_id}' appears in the entity_id — a naming "
+                "convention, not evidence of where the device is"
+            )
             return confidence, "; ".join(reasoning_parts)
 
         # 2. Exact match in entity_name (95% confidence)
         if entity_name and (
             area_id_lower in entity_name.lower() or area_name_lower in entity_name.lower()
         ):
-            confidence = 95.0
-            reasoning_parts.append(f"Exact match: '{area_name}' found in entity name")
+            confidence = CONFIDENCE_EXACT_IN_ENTITY_NAME
+            reasoning_parts.append(
+                f"name only: '{area_name}' appears in the friendly name — the field "
+                "that was swapped on two dimmers here"
+            )
             return confidence, "; ".join(reasoning_parts)
 
         # 3. Partial match in entity_id (80% confidence)
         area_words = re.split(r"[\s_-]+", area_name_lower)
         for word in area_words:
             if len(word) > 3 and word in entity_id:
-                confidence = max(confidence, 80.0)
-                reasoning_parts.append(f"Partial match: '{word}' found in entity_id")
+                confidence = max(confidence, CONFIDENCE_PARTIAL_IN_ENTITY_ID)
+                reasoning_parts.append(f"name only: partial match '{word}' in the entity_id")
 
         # 4. Keyword matching (60% confidence)
         for keyword in entity_keywords:
             # Check if keyword matches area name
             if keyword in area_name_lower or area_name_lower in keyword:
-                confidence = max(confidence, 60.0)
+                confidence = max(confidence, CONFIDENCE_KEYWORD)
                 reasoning_parts.append(f"Keyword match: '{keyword}' matches area '{area_name}'")
 
             # Check location keyword mappings
             for area_key, keywords_list in self.LOCATION_KEYWORDS.items():
                 if keyword in keywords_list and area_id_lower == area_key:
-                    confidence = max(confidence, 60.0)
+                    confidence = max(confidence, CONFIDENCE_KEYWORD)
                     reasoning_parts.append(
                         f"Location keyword match: '{keyword}' maps to '{area_name}'"
                     )

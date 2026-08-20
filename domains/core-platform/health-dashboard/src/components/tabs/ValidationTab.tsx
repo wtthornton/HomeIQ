@@ -42,7 +42,7 @@ type FilterState = {
 const CATEGORY_OPTIONS: { label: string; value: string }[] = [
   { label: 'All categories', value: '' },
   { label: 'Missing Area Assignment', value: 'missing_area_assignment' },
-  { label: 'Incorrect Area Assignment', value: 'incorrect_area_assignment' },
+  { label: 'Name / Area Mismatch', value: 'name_area_mismatch' },
 ];
 
 const CONFIDENCE_OPTIONS = [
@@ -242,8 +242,8 @@ export const ValidationTab: React.FC<TabProps> = ({ darkMode }) => {
             darkMode={darkMode}
           />
           <SummaryCard
-            title="Incorrect Areas"
-            value={validationResult.summary.by_category.incorrect_area_assignment || 0}
+            title="Name / Area Mismatch"
+            value={validationResult.summary.by_category.name_area_mismatch || 0}
             darkMode={darkMode}
           />
           <SummaryCard

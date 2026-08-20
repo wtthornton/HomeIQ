@@ -721,7 +721,11 @@ export const api = {
     return fetchJSON(`${DEVICE_INTELLIGENCE_API}/api/name-enhancement/devices/pending?limit=${limit}`);
   },
 
-  async acceptNameSuggestion(deviceId: string, suggestedName: string, syncToHA: boolean = false): Promise<{
+  // syncToHA is retained for call-site compatibility only; the backend always
+  // writes the rename to Home Assistant through HARegistryWriter and refuses the
+  // accept if the registry does not confirm it. It defaulted to false, which is
+  // how the UI could report a device renamed while HA knew nothing about it.
+  async acceptNameSuggestion(deviceId: string, suggestedName: string, syncToHA: boolean = true): Promise<{
     success: boolean;
     device_id: string;
     old_name: string;

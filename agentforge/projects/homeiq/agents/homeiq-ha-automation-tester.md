@@ -31,6 +31,12 @@ failure_mode: required
 memory_footprint:
   recall_topics: []
 memory_profile: readonly
+schema_version: '2.1'
+brain_rationale: 'Defect-class recall: recalls behaviours this home''s automations
+  have actually failed on — the 2026-08-19 unavailable-transition being the case
+  in point — so a later test plan covers a defect already seen once, but never
+  writes. hiq-memory-curator is the sole writer; the workflow run record and git
+  hold the authoritative scenarios.'
 capability:
   verb: generate
   object: spec

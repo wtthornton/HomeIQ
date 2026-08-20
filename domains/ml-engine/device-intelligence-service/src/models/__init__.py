@@ -12,6 +12,12 @@ from .database import (
     DeviceRelationship,
     DiscoverySession,
 )
+from .device_knowledge import (
+    ClaimType,
+    DeviceKnowledgeClaim,
+    EvidenceClass,
+    SubjectKind,
+)
 from .name_enhancement import NamePreference, NameSuggestion
 
 __all__ = [
@@ -26,4 +32,8 @@ __all__ = [
     "CacheStats",
     "NameSuggestion",
     "NamePreference",
+    "DeviceKnowledgeClaim",
+    "SubjectKind",
+    "EvidenceClass",
+    "ClaimType",
 ]

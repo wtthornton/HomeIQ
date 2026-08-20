@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 
 from .api.database_management import router as database_management_router
+from .api.device_knowledge_router import router as device_knowledge_router
 from .api.device_mappings_router import router as device_mappings_router
 from .api.discovery import get_discovery_service, shutdown_discovery_service
 from .api.discovery import router as discovery_router
@@ -228,6 +229,7 @@ app.include_router(team_tracker_router, tags=["Team Tracker"])
 # real DeviceService logic.
 app.include_router(device_mappings_router)  # Epic AI-24: Device Mapping Library
 app.include_router(naming_router)  # Epic 64: Naming Convention
+app.include_router(device_knowledge_router)  # Device knowledge with provenance
 
 
 if __name__ == "__main__":

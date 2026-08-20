@@ -52,9 +52,11 @@ INTAKE_DIR = CORE / "intake"
 # to copy between stores: `store-atlas` names the hosts a gene may touch, so
 # copying it verbatim hands a new store the previous store's domains.
 PACKS_DIR = CORE / "packs"
-# Which intake section fills which pack. The schema has exactly two sections
-# because exactly two packs are populated per storefront (dna-core/skills.yaml).
-PACK_SECTIONS = {"store-atlas": "storefront", "brand-voice-pack": "brand"}
+# Which intake section fills which pack. One entry per deployment-tier pack this
+# species populates (dna-core/skills.yaml). The names are this species' own: the
+# exporting kit's `store-atlas`/`brand-voice-pack` are storefront concepts and
+# have no meaning in a home.
+PACK_SECTIONS = {"home-atlas": "home"}
 SKILLS_DIR = ROOT / "skills"
 # The Hydrogen app. One template serves every store: what differs per store is
 # `brand.tokens.json` (generated from intake) and `pages.yaml` (narrowed to the
@@ -611,7 +613,18 @@ def render_packs(intake: dict[str, object]) -> dict[Path, str]:
     """
     rendered: dict[Path, str] = {}
     problems: list[str] = []
-    for template in pack_templates():
+    templates = pack_templates()
+    if not templates:
+        # Without this, an absent or empty `dna-core/packs/` renders nothing,
+        # `check_deployment_packs` compares an empty mapping, and the gate passes
+        # having verified nothing at all. A species that declares deployment-tier
+        # packs and ships no templates for them is the vacuous-pass case, not the
+        # no-op case.
+        sys.exit(
+            f"no pack templates found in {PACKS_DIR}: expected one *{TMPL_SUFFIX} "
+            f"per deployment pack ({', '.join(sorted(PACK_SECTIONS)) or 'none declared'})"
+        )
+    for template in templates:
         name = template.name[: -len(TMPL_SUFFIX)]
         section = PACK_SECTIONS.get(name)
         if not section:

@@ -6,6 +6,7 @@ Main discovery service that orchestrates device discovery from multiple sources.
 
 import asyncio
 import contextlib
+import json
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -253,7 +254,7 @@ class DiscoveryService:
                         "name": e.name,
                         "original_name": e.original_name,
                         "platform": e.platform or "unknown",
-                        "domain": e.domain or e.entity_id.split(".", 1)[0],
+                        "domain": e.domain or e.entity_id.split(".", 1)[0],  # client derives; split is the floor
                         "disabled_by": e.disabled_by,
                         "entity_category": e.entity_category,
                         "hidden_by": e.hidden_by,
@@ -261,6 +262,7 @@ class DiscoveryService:
                         "original_icon": e.original_icon,
                         "unique_id": e.unique_id,
                         "translation_key": e.translation_key,
+                        "labels": json.dumps(list(e.labels or [])),
                     }
                     for e in self.ha_entities
                 ]
@@ -270,15 +272,22 @@ class DiscoveryService:
                         INSERT INTO device_entities (
                             entity_id, device_id, name, original_name, platform, domain,
                             disabled_by, entity_category, hidden_by, has_entity_name,
-                            original_icon, unique_id, translation_key,
+                            original_icon, unique_id, translation_key, labels,
                             created_at, updated_at
                         ) VALUES (
                             :entity_id, :device_id, :name, :original_name, :platform, :domain,
                             :disabled_by, :entity_category, :hidden_by, :has_entity_name,
-                            :original_icon, :unique_id, :translation_key,
+                            :original_icon, :unique_id, :translation_key, CAST(:labels AS JSON),
                             NOW(), NOW()
                         )
-                        ON CONFLICT (entity_id) DO UPDATE SET
+                        -- Keyed on HA's own registry tuple, not on entity_id.
+                        -- entity_id is an ADDRESS that moves on rename/re-pair,
+                        -- so conflicting on it inserted a second row and left
+                        -- findings attached to the stale address. Updating it
+                        -- here is the point: the row keeps its identity and
+                        -- changes its address, and the two FKs cascade.
+                        ON CONFLICT (domain, platform, unique_id) DO UPDATE SET
+                            entity_id = EXCLUDED.entity_id,
                             device_id = EXCLUDED.device_id,
                             name = EXCLUDED.name,
                             original_name = EXCLUDED.original_name,
@@ -291,6 +300,7 @@ class DiscoveryService:
                             original_icon = EXCLUDED.original_icon,
                             unique_id = EXCLUDED.unique_id,
                             translation_key = EXCLUDED.translation_key,
+                            labels = EXCLUDED.labels,
                             updated_at = NOW()
                         """
                     ),
