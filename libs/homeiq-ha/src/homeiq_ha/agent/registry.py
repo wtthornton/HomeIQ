@@ -149,7 +149,7 @@ class DevicesHaveAreasRecipe(Recipe):
             return CheckResult(
                 CheckStatus.SATISFIED,
                 "every assignable device has an area",
-                {"excluded": excluded} if excluded else None,
+                {"excluded": excluded} if excluded else {},
             )
         return CheckResult(
             CheckStatus.BLOCKED_ON_HUMAN,
