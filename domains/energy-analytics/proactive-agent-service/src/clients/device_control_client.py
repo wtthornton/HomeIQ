@@ -25,7 +25,7 @@ class DeviceControlClient:
 
     def __init__(
         self,
-        base_url: str = "http://ha-device-control:8040",
+        base_url: str = "http://ha-device-control:8046",
         timeout: int = 10,
     ):
         self.base_url = base_url.rstrip("/")

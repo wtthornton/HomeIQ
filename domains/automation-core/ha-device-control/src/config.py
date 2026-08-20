@@ -13,7 +13,7 @@ class Settings(BaseServiceSettings):
     """Application settings loaded from environment variables."""
 
     # Override base defaults
-    service_port: int = 8040
+    service_port: int = 8046
     service_name: str = "ha-device-control"
 
     # Home Assistant connection

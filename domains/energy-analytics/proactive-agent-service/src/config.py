@@ -90,7 +90,7 @@ class Settings(BaseServiceSettings):
 
     # ha-device-control for autonomous execution (Story 68.4)
     ha_device_control_url: str = Field(
-        default="http://ha-device-control:8040",
+        default="http://ha-device-control:8046",
         description="HA Device Control service URL for autonomous execution",
     )
     ha_device_control_timeout: int = Field(
