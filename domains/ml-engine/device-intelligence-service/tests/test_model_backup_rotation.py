@@ -12,7 +12,13 @@ from src.core.predictive_analytics import PredictiveAnalyticsEngine
 def test_prune_keeps_only_the_newest_backups(tmp_path: Path):
     artifact = tmp_path / "failure_prediction_model.pkl"
     artifact.write_bytes(b"current")
-    for ts in ("20260819_010101", "20260819_010102", "20260819_010103", "20260819_010104", "20260819_010105"):
+    for ts in (
+        "20260819_010101",
+        "20260819_010102",
+        "20260819_010103",
+        "20260819_010104",
+        "20260819_010105",
+    ):
         (tmp_path / f"{artifact.name}.backup_{ts}").write_bytes(b"old")
 
     engine = PredictiveAnalyticsEngine.__new__(PredictiveAnalyticsEngine)

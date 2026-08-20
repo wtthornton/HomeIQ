@@ -184,9 +184,12 @@ async def test_rename_writes_name_by_user_and_leaves_the_integration_name():
     ha = FakeHaClient()
     issue = _Issue()
 
-    assert await DeviceHygieneRemediationService(ha, _Session()).apply_action(
-        issue, "rename_device", "Kitchen Main Light"
-    ) is True
+    assert (
+        await DeviceHygieneRemediationService(ha, _Session()).apply_action(
+            issue, "rename_device", "Kitchen Main Light"
+        )
+        is True
+    )
     assert ha.devices[0]["name_by_user"] == "Kitchen Main Light"
     assert ha.devices[0]["name"] == "Kitchen Light"  # integration-owned, untouched
 

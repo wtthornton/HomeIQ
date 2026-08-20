@@ -25,8 +25,7 @@ class TestComposeFriendlyName:
     def test_has_entity_name_with_no_original_name_uses_the_device_name(self):
         # light.inovelli_vzm31_sn -> "Office Light Dimmer"
         assert (
-            compose_friendly_name(None, None, True, "Office Light Dimmer")
-            == "Office Light Dimmer"
+            compose_friendly_name(None, None, True, "Office Light Dimmer") == "Office Light Dimmer"
         )
 
     def test_has_entity_name_with_original_name_appends_it(self):
@@ -38,10 +37,7 @@ class TestComposeFriendlyName:
 
     def test_hue_bulb_takes_its_device_name(self):
         # light.office_office_front_right -> "Office Front Right"
-        assert (
-            compose_friendly_name(None, None, True, "Office Front Right")
-            == "Office Front Right"
-        )
+        assert compose_friendly_name(None, None, True, "Office Front Right") == "Office Front Right"
 
     def test_user_set_entity_name_overrides_everything(self):
         assert compose_friendly_name("My Lamp", "Power", True, "Office Light Dimmer") == "My Lamp"
@@ -60,9 +56,7 @@ class TestComposeFriendlyName:
         # device name would invent a name HA never shows.
         assert compose_friendly_name(None, None, False, "Office Light Dimmer") == ""
 
-    @pytest.mark.parametrize(
-        "original", ["", None], ids=["empty-string", "none"]
-    )
+    @pytest.mark.parametrize("original", ["", None], ids=["empty-string", "none"])
     def test_falsy_original_name_does_not_leave_a_trailing_space(self, original):
         assert compose_friendly_name(None, original, True, "Office Light Dimmer") == (
             "Office Light Dimmer"

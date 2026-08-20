@@ -139,10 +139,13 @@ async def test_apply_action_uses_home_assistant_client(test_client):
     assert payload["status"] == "resolved"
     # The rename must reach name_by_user -- a device's `name` is integration-owned.
     assert stub_client.devices[0]["name_by_user"] == "Kitchen Main Light"
-    assert ("config/device_registry/update", {
-        "device_id": "device-1",
-        "name_by_user": "Kitchen Main Light",
-    }) in stub_client.calls
+    assert (
+        "config/device_registry/update",
+        {
+            "device_id": "device-1",
+            "name_by_user": "Kitchen Main Light",
+        },
+    ) in stub_client.calls
 
     # Verify database updated
     async for session in get_db_session():

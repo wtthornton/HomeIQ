@@ -111,18 +111,14 @@ class TestPrecedence:
     def test_only_strictly_weaker_incumbents_are_superseded(self):
         stronger = make_claim(EvidenceClass.UPSTREAM_SOURCE, 1)
         weaker = make_claim(EvidenceClass.COMMUNITY, 2)
-        decision = decide_precedence(
-            [stronger, weaker], EvidenceClass.VENDOR_DOC.value
-        )
+        decision = decide_precedence([stronger, weaker], EvidenceClass.VENDOR_DOC.value)
         assert decision.outranked_by is stronger
         assert decision.to_supersede == []
 
     def test_supersedes_all_weaker_when_nothing_is_stronger(self):
         weak_a = make_claim(EvidenceClass.COMMUNITY, 1)
         weak_b = make_claim(EvidenceClass.INFERRED, 2)
-        decision = decide_precedence(
-            [weak_a, weak_b], EvidenceClass.UPSTREAM_SOURCE.value
-        )
+        decision = decide_precedence([weak_a, weak_b], EvidenceClass.UPSTREAM_SOURCE.value)
         assert decision.outranked_by is None
         assert {c.id for c in decision.to_supersede} == {1, 2}
 
@@ -145,9 +141,7 @@ class TestProvenanceEnforcement:
 
     def test_upstream_source_requires_ref_and_version(self):
         with pytest.raises(ProvenanceRequired) as exc:
-            _validate_provenance(
-                EvidenceClass.UPSTREAM_SOURCE.value, {"source_ref": "a.py:1"}
-            )
+            _validate_provenance(EvidenceClass.UPSTREAM_SOURCE.value, {"source_ref": "a.py:1"})
         assert exc.value.missing == ["source_version"]
 
     def test_vendor_doc_requires_a_url(self):
@@ -182,26 +176,20 @@ class TestRefusalPrecedence:
         assert decision.outranked_by is None  # orthogonal, so also not outranked
 
     def test_a_known_claim_at_equal_evidence_resolves_a_refusal(self):
-        refusal = make_claim(
-            EvidenceClass.MEASURED, 1, claim_type=ClaimType.NOT_CLAIMED
-        )
+        refusal = make_claim(EvidenceClass.MEASURED, 1, claim_type=ClaimType.NOT_CLAIMED)
         decision = decide_precedence([refusal], EvidenceClass.MEASURED.value)
         assert decision.to_supersede == [refusal]
 
     def test_a_weaker_known_claim_is_blocked_by_a_stronger_refusal(self):
         # Filling the gap with less evidence than it took to declare the gap
         # is exactly the invention the store exists to prevent.
-        refusal = make_claim(
-            EvidenceClass.MEASURED, 1, claim_type=ClaimType.NOT_CLAIMED
-        )
+        refusal = make_claim(EvidenceClass.MEASURED, 1, claim_type=ClaimType.NOT_CLAIMED)
         decision = decide_precedence([refusal], EvidenceClass.INFERRED.value)
         assert decision.outranked_by is refusal
         assert decision.to_supersede == []
 
     def test_refusals_compete_with_each_other_on_evidence(self):
-        weak_refusal = make_claim(
-            EvidenceClass.INFERRED, 1, claim_type=ClaimType.NOT_CLAIMED
-        )
+        weak_refusal = make_claim(EvidenceClass.INFERRED, 1, claim_type=ClaimType.NOT_CLAIMED)
         decision = decide_precedence(
             [weak_refusal],
             EvidenceClass.MEASURED.value,

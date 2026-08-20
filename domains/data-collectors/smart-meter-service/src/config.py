@@ -24,4 +24,3 @@ class Settings(BaseServiceSettings):
 
     # Service configuration
     fetch_interval_seconds: int = Field(default=300, description="Data fetch interval in seconds")
-

@@ -67,9 +67,7 @@ async def _run_batch(sync_returns: bool) -> tuple[FakeDevice, list[Any], FakeSes
             bp_module, "sync_name_to_ha", new=AsyncMock(return_value=sync_returns)
         ) as sync,
     ):
-        await processor.process_batch(
-            [device], use_ai=False, auto_accept=True, session=session
-        )
+        await processor.process_batch([device], use_ai=False, auto_accept=True, session=session)
 
     assert sync.await_count == 1  # the gate was consulted
     return device, session.added, session

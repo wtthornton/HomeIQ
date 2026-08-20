@@ -339,9 +339,7 @@ class IntegrationHealthChecker:
                 recommendation = "Home Assistant reports no devices; check its integrations"
             elif sync_status == "error":
                 status = IntegrationStatus.ERROR
-                recommendation = (
-                    f"Devices are not reaching the ingestor: {ingestor_sync.get('error', 'sync failed')}"
-                )
+                recommendation = f"Devices are not reaching the ingestor: {ingestor_sync.get('error', 'sync failed')}"
             elif sync_status in ("not_synced", "partial"):
                 status = IntegrationStatus.WARNING
                 recommendation = (
