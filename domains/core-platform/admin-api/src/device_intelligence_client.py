@@ -109,8 +109,13 @@ class DeviceIntelligenceClient:
             return data
 
         except CircuitOpenError:
+            # Re-raise: a None return means "the device does not exist", and
+            # callers turn it into a 404 without ever trying their InfluxDB
+            # fallback. An open circuit is "upstream unavailable" -- a
+            # different answer (TAP-6184); the shared ml_engine_breaker is a
+            # module singleton, so one trip would otherwise 404 every device.
             logger.warning("Device Intelligence circuit open for device %s", device_id)
-            return None
+            raise
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 logger.warning("Device %s not found in Device Intelligence Service", device_id)

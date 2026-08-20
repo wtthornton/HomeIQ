@@ -114,15 +114,16 @@ class HARegistryWriter:
 
     # -- internals ---------------------------------------------------------
 
-    async def _write_entity(
-        self, entity_id: str, field: str, value: str | None
-    ) -> WriteResult:
+    async def _write_entity(self, entity_id: str, field: str, value: str | None) -> WriteResult:
         before = await self._entity(entity_id)
         previous = before.get(field)
         if previous == value:
             logger.info(
                 "%s: %s=%r already in the registry (caller=%s, no write)",
-                entity_id, field, value, self._caller,
+                entity_id,
+                field,
+                value,
+                self._caller,
             )
             return WriteResult(entity_id, field, value, value, wrote=False)
 
@@ -134,15 +135,16 @@ class HARegistryWriter:
         self._assert_landed(entity_id, field, value, previous, after)
         return WriteResult(entity_id, field, value, previous, wrote=True)
 
-    async def _write_device(
-        self, device_id: str, field: str, value: str | None
-    ) -> WriteResult:
+    async def _write_device(self, device_id: str, field: str, value: str | None) -> WriteResult:
         before = await self._device(device_id)
         previous = before.get(field)
         if previous == value:
             logger.info(
                 "%s: %s=%r already in the registry (caller=%s, no write)",
-                device_id, field, value, self._caller,
+                device_id,
+                field,
+                value,
+                self._caller,
             )
             return WriteResult(device_id, field, value, value, wrote=False)
 
@@ -165,9 +167,13 @@ class HARegistryWriter:
         observed = after.get(field)
         if observed != requested:
             logger.warning(
-                "%s: %s=%r -> %r NOT verified -- registry still reports %r "
-                "(caller=%s)",
-                target, field, previous, requested, observed, self._caller,
+                "%s: %s=%r -> %r NOT verified -- registry still reports %r (caller=%s)",
+                target,
+                field,
+                previous,
+                requested,
+                observed,
+                self._caller,
             )
             raise WriteNotVerified(
                 f"{target}: asked for {field}={requested!r} but the registry "
@@ -176,7 +182,11 @@ class HARegistryWriter:
             )
         logger.info(
             "%s: %s=%r -> %r verified in the registry (caller=%s)",
-            target, field, previous, requested, self._caller,
+            target,
+            field,
+            previous,
+            requested,
+            self._caller,
         )
 
     async def _entity(self, entity_id: str) -> dict[str, Any]:

@@ -7,6 +7,8 @@ import pytest
 
 pytest.importorskip("influxdb_client_3", reason="influxdb_client_3 required by src.main")
 
+from types import SimpleNamespace
+
 from fastapi.testclient import TestClient
 from src.main import app
 
@@ -23,7 +25,17 @@ def test_current_weather_endpoint_exists():
 
 def test_cache_stats_endpoint():
     """Test cache statistics endpoint"""
-    response = client.get("/cache/stats")
+    import src.main as main_module
+
+    stub = SimpleNamespace(
+        cache_hits=3, cache_misses=1, cache_ttl=900, cache_time=None, fetch_count=4
+    )
+    original = main_module.weather_service
+    main_module.weather_service = stub
+    try:
+        response = client.get("/cache/stats")
+    finally:
+        main_module.weather_service = original
 
     assert response.status_code == 200
     data = response.json()
@@ -34,10 +46,12 @@ def test_cache_stats_endpoint():
 
 
 def test_service_root():
-    """Test root endpoint lists weather endpoints"""
-    response = client.get("/")
+    """The weather routes exist on the app.
 
-    assert response.status_code == 200
-    data = response.json()
-    assert "/current-weather" in data["endpoints"]
-    assert "/cache/stats" in data["endpoints"]
+    The old assertion read an `endpoints` list from a root handler that was
+    dead code -- create_app()'s `/` shadowed it (TAP-6183). The real check is
+    the routing table itself.
+    """
+    paths = {getattr(route, "path", None) for route in app.routes}
+    assert "/current-weather" in paths
+    assert "/cache/stats" in paths

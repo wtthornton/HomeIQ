@@ -25,6 +25,3 @@ class Settings(BaseServiceSettings):
         default=None,
         description="Comma-separated CIDR networks for access control",
     )
-
-
-settings = Settings()

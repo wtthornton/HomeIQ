@@ -214,3 +214,43 @@ async def test_flux_never_filters_on_the_nonexistent_entity_category_tag(monkeyp
     flux = query_api.query.call_args[0][0]
     assert "entity_category" not in flux
     assert 'r.event_category == "lighting"' in flux
+
+
+@pytest.mark.asyncio
+async def test_service_scoped_events_fail_loudly_when_the_backend_is_dead():
+    """The ?service= branch was the surviving twin of the TAP-6151 fix: an
+    unreachable backend answered HTTP 200 + [], indistinguishable from an
+    idle window. It must 503 like _get_all_events does."""
+    endpoints = EventsEndpoints()
+    endpoints.service_urls = {"websocket-ingestion": "http://127.0.0.1:1"}  # unroutable
+
+    with pytest.raises(HTTPException) as excinfo:
+        await endpoints._get_service_events(
+            "websocket-ingestion", EventFilter(), limit=10, offset=0
+        )
+
+    assert excinfo.value.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_entities_aggregator_503s_when_every_backend_is_dead():
+    """Partial aggregation may degrade; ALL backends failing must not read
+    as 'no active entities' (TAP-6151 shape on /events/entities)."""
+    endpoints = EventsEndpoints()
+    endpoints.service_urls = {"websocket-ingestion": "http://127.0.0.1:1"}
+
+    with pytest.raises(HTTPException) as excinfo:
+        await endpoints._get_all_active_entities(limit=10)
+
+    assert excinfo.value.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_event_types_aggregator_503s_when_every_backend_is_dead():
+    endpoints = EventsEndpoints()
+    endpoints.service_urls = {"websocket-ingestion": "http://127.0.0.1:1"}
+
+    with pytest.raises(HTTPException) as excinfo:
+        await endpoints._get_all_event_types(limit=10)
+
+    assert excinfo.value.status_code == 503

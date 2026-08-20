@@ -5,7 +5,6 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import (
-    JSON,
     Boolean,
     Column,
     DateTime,
@@ -16,6 +15,7 @@ from sqlalchemy import (
     String,
     Text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, relationship
 
@@ -50,21 +50,21 @@ class IndexedBlueprint(Base):
     domain = Column(String(50), default="automation")  # 'automation', 'script', 'template'
 
     # Device requirements (JSON arrays for flexible querying)
-    required_domains = Column(JSON, default=list)  # ["binary_sensor", "light"]
-    required_device_classes = Column(JSON, default=list)  # ["motion", "door"]
-    optional_domains = Column(JSON, default=list)
-    optional_device_classes = Column(JSON, default=list)
+    required_domains = Column(JSONB, default=list)  # ["binary_sensor", "light"]
+    required_device_classes = Column(JSONB, default=list)  # ["motion", "door"]
+    optional_domains = Column(JSONB, default=list)
+    optional_device_classes = Column(JSONB, default=list)
 
     # Input definitions (full blueprint input schema)
-    inputs = Column(JSON, default=dict)
+    inputs = Column(JSONB, default=dict)
 
     # Trigger/Action metadata for pattern matching
-    trigger_platforms = Column(JSON, default=list)  # ["state", "time", "event"]
-    action_services = Column(JSON, default=list)  # ["light.turn_on", "notify.mobile"]
+    trigger_platforms = Column(JSONB, default=list)  # ["state", "time", "event"]
+    action_services = Column(JSONB, default=list)  # ["light.turn_on", "notify.mobile"]
 
     # Use case classification
     use_case = Column(String(50))  # 'energy', 'comfort', 'security', 'convenience'
-    tags = Column(JSON, default=list)
+    tags = Column(JSONB, default=list)
 
     # Community metrics
     stars = Column(Integer, default=0)
@@ -86,10 +86,10 @@ class IndexedBlueprint(Base):
     blueprint_version = Column(String(20))
 
     # Timestamps
-    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
-    updated_at = Column(DateTime, default=lambda: datetime.now(UTC))
-    indexed_at = Column(DateTime, default=lambda: datetime.now(UTC))
-    last_checked_at = Column(DateTime)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    indexed_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    last_checked_at = Column(DateTime(timezone=True))
 
     # Full YAML content
     yaml_content = Column(Text)
@@ -164,7 +164,7 @@ class BlueprintInput(Base):
 
     # Selector info
     selector_type = Column(String(50))  # 'entity', 'device', 'target', 'number', 'text', etc.
-    selector_config = Column(JSON)  # Full selector configuration
+    selector_config = Column(JSONB)  # Full selector configuration
 
     # Default value
     default_value = Column(Text)
@@ -200,13 +200,13 @@ class IndexingJob(Base):
     failed_items = Column(Integer, default=0)
 
     # Timestamps
-    started_at = Column(DateTime)
-    completed_at = Column(DateTime)
-    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+    started_at = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
     # Error info
     error_message = Column(Text)
-    error_details = Column(JSON)
+    error_details = Column(JSONB)
 
     # Configuration
-    config = Column(JSON)  # Job-specific configuration
+    config = Column(JSONB)  # Job-specific configuration

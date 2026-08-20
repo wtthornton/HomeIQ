@@ -84,8 +84,7 @@ async def restart_core(
     failed = await _automations_that_failed_to_load(ha)
     if failed:
         raise HAClientError(
-            f"core restarted but {len(failed)} automation(s) failed to load: "
-            f"{', '.join(failed)}"
+            f"core restarted but {len(failed)} automation(s) failed to load: {', '.join(failed)}"
         )
 
 

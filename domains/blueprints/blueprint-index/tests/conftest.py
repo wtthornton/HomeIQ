@@ -30,6 +30,11 @@ async def db_session():
     async with async_session() as session:
         yield session
 
+    # Per-test isolation: without the drop, rows written by one test collide
+    # with the next test's seed data (unique source_url) — the suite only
+    # passed before because every test used to error out earlier (TAP-6170).
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
     await engine.dispose()
 
 

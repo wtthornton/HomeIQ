@@ -23,7 +23,7 @@ from influxdb_client_3 import InfluxDBClient3, Point
 from providers import AwattarProvider
 from security import require_internal_network, validate_hours_parameter
 
-from config import settings
+from config import Settings
 
 logger = setup_logging("electricity-pricing-service")
 
@@ -33,6 +33,10 @@ class ElectricityPricingService:
 
     def __init__(self) -> None:
         """Initialize the electricity pricing service with provider and InfluxDB config."""
+        # Read the environment the service actually starts with. A module-level
+        # singleton snapshots whatever was set at first import, which is neither
+        # what CI exports at run time nor what tests patch (TAP-6174).
+        settings = Settings()
         self.provider_name = settings.pricing_provider
 
         # InfluxDB configuration
@@ -334,6 +338,6 @@ if __name__ == "__main__":
     uvicorn.run(
         app,
         host="0.0.0.0",  # noqa: S104 — Docker requires binding all interfaces
-        port=settings.service_port,
+        port=Settings().service_port,
         log_level="info",
     )

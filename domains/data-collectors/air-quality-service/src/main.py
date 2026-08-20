@@ -20,7 +20,7 @@ from homeiq_observability.logging_config import (
 from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 from influxdb_client_3 import InfluxDBClient3, Point
 
-from config import settings
+from config import Settings
 
 logger = setup_logging("air-quality-service")
 
@@ -30,6 +30,10 @@ class AirQualityService:
 
     def __init__(self) -> None:
         """Initialize the air quality service with location and InfluxDB config."""
+        # Read the environment the service actually starts with; a module
+        # singleton snapshots first-import state, which is neither what CI
+        # exports at run time nor what tests patch (TAP-6180/TAP-6185).
+        settings = Settings()
         self.latitude = settings.latitude
         self.longitude = settings.longitude
         self.base_url = settings.air_quality_api_url
@@ -479,6 +483,6 @@ if __name__ == "__main__":
     uvicorn.run(
         app,
         host="0.0.0.0",  # noqa: S104 — Docker requires binding all interfaces
-        port=settings.service_port,
+        port=Settings().service_port,
         log_level="info",
     )

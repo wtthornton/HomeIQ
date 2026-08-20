@@ -93,7 +93,7 @@ class TestServiceConfiguration:
 
         with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
             service = AirQualityService()
-            assert service.influxdb_org == "home_assistant"
+            assert service.influxdb_org == "homeiq"  # BaseServiceSettings default
 
     def test_default_influxdb_bucket(self):
         """
@@ -105,7 +105,7 @@ class TestServiceConfiguration:
 
         with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
             service = AirQualityService()
-            assert service.influxdb_bucket == "events"
+            assert service.influxdb_bucket == "home_assistant_events"  # BaseServiceSettings default
 
     def test_fetch_interval_default(self):
         """
@@ -191,7 +191,7 @@ class TestCompleteConfiguration:
 
             assert service.influxdb_token == "test-token"
             assert service.influxdb_url == "http://influxdb:8086"
-            assert service.influxdb_org == "home_assistant"
-            assert service.influxdb_bucket == "events"
+            assert service.influxdb_org == "homeiq"  # BaseServiceSettings default
+            assert service.influxdb_bucket == "home_assistant_events"  # BaseServiceSettings default
             assert service.latitude == "36.1699"
             assert service.longitude == "-115.1398"

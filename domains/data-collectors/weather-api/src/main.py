@@ -587,32 +587,6 @@ app = create_app(
 )
 
 
-@app.get("/")
-async def root():
-    """Root endpoint"""
-    return {
-        "service": SERVICE_NAME,
-        "version": SERVICE_VERSION,
-        "status": "running",
-        "endpoints": ["/health", "/metrics", "/current-weather", "/cache/stats"],
-    }
-
-
-@app.get("/metrics")
-async def metrics():
-    """Lightweight numeric metrics endpoint (JSON)"""
-    if not weather_service:
-        raise HTTPException(status_code=503, detail="Service not initialized")
-
-    return {
-        "fetch_count": weather_service.fetch_count,
-        "cache_hits": weather_service.cache_hits,
-        "cache_misses": weather_service.cache_misses,
-        "influx_write_success_count": weather_service.influx_write_success_count,
-        "influx_write_failure_count": weather_service.influx_write_failure_count,
-    }
-
-
 @app.get("/current-weather", response_model=WeatherResponse)
 async def get_current_weather():
     """Get current weather (Story 31.3)"""

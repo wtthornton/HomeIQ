@@ -241,9 +241,7 @@ class ManifestEntityAliasesRecipe(Recipe):
             if row.entity_id not in known:
                 stale.append(row.entity_id)
                 continue
-            entry = await ha.ws.send_command(
-                "config/entity_registry/get", entity_id=row.entity_id
-            )
+            entry = await ha.ws.send_command("config/entity_registry/get", entity_id=row.entity_id)
             current = [str(a) for a in (entry or {}).get("aliases") or []]
             missing = [a for a in row.aliases if a not in current]
             if missing:

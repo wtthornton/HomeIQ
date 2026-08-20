@@ -2,7 +2,7 @@
 
 import logging
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import Text, and_, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..api.schemas import (
@@ -76,7 +76,7 @@ class BlueprintSearchEngine:
                 conditions.append(
                     or_(
                         IndexedBlueprint.required_domains.contains([request.action_domain]),
-                        func.json_extract(IndexedBlueprint.action_services, "$").like(
+                        cast(IndexedBlueprint.action_services, Text).like(
                             f"%{request.action_domain}%"
                         ),
                     )
@@ -170,9 +170,7 @@ class BlueprintSearchEngine:
             conditions.append(
                 or_(
                     IndexedBlueprint.required_domains.contains([request.action_domain]),
-                    func.json_extract(IndexedBlueprint.action_services, "$").like(
-                        f"%{request.action_domain}%"
-                    ),
+                    cast(IndexedBlueprint.action_services, Text).like(f"%{request.action_domain}%"),
                 )
             )
 
