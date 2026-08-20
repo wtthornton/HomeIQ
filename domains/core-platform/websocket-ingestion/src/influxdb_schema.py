@@ -380,6 +380,14 @@ class InfluxDBSchema:
         if context_user_id:
             point = point.field(self.FIELD_CONTEXT_USER_ID, context_user_id)
 
+        # Automation causality (TAP-6107): the processor extracted parent_id
+        # all along, but no builder wrote it — so the whole trace feature
+        # (automation-trace endpoint, MCP trace_automation) walked a field
+        # that never existed in the bucket.
+        context_parent_id = event_data.get("context_parent_id")
+        if context_parent_id:
+            point = point.field(self.FIELD_CONTEXT_PARENT_ID, context_parent_id)
+
         # Epic 23.3: Add duration_in_state for time-based analytics
         duration_in_state = event_data.get("duration_in_state")
         if duration_in_state is not None:

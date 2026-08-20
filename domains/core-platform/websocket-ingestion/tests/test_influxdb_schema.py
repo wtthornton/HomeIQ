@@ -340,3 +340,51 @@ class TestInfluxDBSchema:
 
         assert not is_valid
         assert any("Invalid tag pattern for entity_id" in error for error in errors)
+
+
+class TestContextParentIdField:
+    """The point builder writes context_parent_id (TAP-6107).
+
+    The processor extracted context.parent_id all along and the schema
+    declared the field name, but no builder ever wrote it — the live bucket
+    had context_id and context_user_id and nothing else, so the automation
+    trace endpoint and the MCP trace_automation tool always walked an empty
+    chain while looking merely quiet.
+    """
+
+    def setup_method(self):
+        self.schema = InfluxDBSchema()
+
+    def test_parent_id_is_written_when_present(self):
+        point = self.schema.create_event_point(
+            {
+                "event_type": "state_changed",
+                "entity_id": "light.office",
+                "new_state": "on",
+                "time_fired": "2026-08-20T04:00:00Z",
+                "context_id": "01CTX_CHILD",
+                "context_parent_id": "01CTX_PARENT",
+            }
+        )
+
+        if point:
+            assert point._fields["context_id"] == "01CTX_CHILD"
+            assert point._fields["context_parent_id"] == "01CTX_PARENT"
+        else:
+            assert point is None
+
+    def test_no_parent_id_writes_no_field(self):
+        point = self.schema.create_event_point(
+            {
+                "event_type": "state_changed",
+                "entity_id": "light.office",
+                "new_state": "on",
+                "time_fired": "2026-08-20T04:00:00Z",
+                "context_id": "01CTX_MANUAL",
+            }
+        )
+
+        if point:
+            assert "context_parent_id" not in point._fields
+        else:
+            assert point is None
