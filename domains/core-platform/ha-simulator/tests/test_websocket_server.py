@@ -2,10 +2,8 @@
 Tests for HA Simulator WebSocket Server
 """
 
-import asyncio
-import contextlib
 import json
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from src.authentication import AuthenticationManager
@@ -37,30 +35,17 @@ class TestHASimulatorWebSocketServer:
     @pytest.mark.asyncio
     async def test_websocket_handler_connection(self, server):
         """Test WebSocket connection handling"""
-        # Mock WebSocket response
+        # The handler constructs its own WebSocketResponse, so inject the mock
+        # by patching the class. Iterating no messages models a client that
+        # connects and immediately disconnects.
         ws = AsyncMock()
-        ws.prepare = AsyncMock()
-        ws.send_str = AsyncMock()
+        with patch("src.websocket_server.WebSocketResponse", return_value=ws):
+            await server.websocket_handler(Mock())
 
-        # Mock request
-        request = Mock()
-
-        # Create task for handler
-        handler_task = asyncio.create_task(server.websocket_handler(request))
-
-        # Let it run briefly
-        await asyncio.sleep(0.1)
-
-        # Cancel the task
-        handler_task.cancel()
-
-        # Awaiting a task you just cancelled always raises CancelledError:
-        # that is the cancellation being confirmed, not an error.
-        with contextlib.suppress(asyncio.CancelledError):
-            await handler_task
-
-        # Verify connection was handled
-        assert len(server.clients) == 0  # Should be removed after cancellation
+        ws.prepare.assert_awaited_once()
+        auth_required = json.loads(ws.send_str.await_args_list[0].args[0])
+        assert auth_required["type"] == "auth_required"
+        assert len(server.clients) == 0  # Removed after disconnect
 
     @pytest.mark.asyncio
     async def test_handle_auth_message(self, server):
@@ -116,6 +101,11 @@ class TestHASimulatorWebSocketServer:
             ws2, {"id": 1, "type": "subscribe_events"}
         )
 
+        # Auth and subscribe confirmations above also went through send_str;
+        # only the broadcast itself is under test.
+        ws1.send_str.reset_mock()
+        ws2.send_str.reset_mock()
+
         # Broadcast event
         test_event = {
             "type": "event",
@@ -125,8 +115,8 @@ class TestHASimulatorWebSocketServer:
         await server.broadcast_event(test_event)
 
         # Verify both clients received the event
-        ws1.send_str.assert_called_once()
-        ws2.send_str.assert_called_once()
+        ws1.send_str.assert_called_once_with(json.dumps(test_event))
+        ws2.send_str.assert_called_once_with(json.dumps(test_event))
 
     @pytest.mark.asyncio
     async def test_health_check(self, server):

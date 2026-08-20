@@ -10,8 +10,9 @@ from typing import Any
 
 from aiohttp import WSMsgType, web
 from aiohttp.web_ws import WebSocketResponse
-from authentication import AuthenticationManager
-from subscription_manager import SubscriptionManager
+
+from .authentication import AuthenticationManager
+from .subscription_manager import SubscriptionManager
 
 logger = logging.getLogger(__name__)
 

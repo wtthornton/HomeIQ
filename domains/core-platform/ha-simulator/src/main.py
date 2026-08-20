@@ -9,18 +9,13 @@ Uses BaseServiceSettings from homeiq-data for configuration management.
 import asyncio
 import signal
 import sys
-from pathlib import Path
 
 from homeiq_observability.logging_config import setup_logging
 
-# Add src directory to path
-sys.path.insert(0, str(Path(__file__).parent))
-
-from data_patterns import HADataPatternAnalyzer
-from event_generator import EventGenerator
-from websocket_server import HASimulatorWebSocketServer
-
-from config import settings
+from .config import settings
+from .data_patterns import HADataPatternAnalyzer
+from .event_generator import EventGenerator
+from .websocket_server import HASimulatorWebSocketServer
 
 # Configure logging
 logger = setup_logging("ha-simulator", group_name="core-platform")

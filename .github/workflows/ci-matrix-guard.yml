@@ -1,0 +1,32 @@
+name: CI Matrix Guard
+
+# Runs on EVERY pull request, deliberately unfiltered, like compose-parse.yml:
+# the check exists to catch a service directory added without a group CI
+# matrix entry (TAP-6202 found four of them). A path filter scoped to today's
+# domains/ layout would miss the new directory that motivates the guard.
+on:
+  pull_request:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  matrix-coverage:
+    name: Every packaged service has a CI matrix entry
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check service matrix coverage
+        run: python3 scripts/check_ci_matrix.py
