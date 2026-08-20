@@ -648,7 +648,7 @@ async def generate_automation_from_synergy(
         async with httpx.AsyncClient(timeout=30.0) as ha_client:
             # Generate and deploy automation
             result = await generator.generate_automation_from_synergy(
-                synergy=synergy_data, ha_client=ha_client, db=db
+                synergy=synergy_data, ha_client=ha_client
             )
 
         logger.info(

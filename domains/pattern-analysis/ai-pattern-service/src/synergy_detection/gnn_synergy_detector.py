@@ -819,8 +819,11 @@ else:
                 "GNNSynergyDetector requires torch-geometric. Install with: pip install torch torch-geometric"
             )
 
-        def predict_synergy(self, _device1: str, _device2: str, **_kwargs) -> dict[str, Any]:
-            """Dummy method that returns None when torch is not available."""
+        async def initialize(self) -> None:
+            """Nothing to load without torch; mirrors the real detector's surface."""
+
+        async def predict_synergy_score(self, *_args: Any, **_kwargs: Any) -> dict[str, Any]:
+            """Accepts the torch-backed detector's arguments; always reports unavailable."""
             return {
                 "score": 0.0,
                 "explanation": "GNN not available (torch-geometric not installed)",

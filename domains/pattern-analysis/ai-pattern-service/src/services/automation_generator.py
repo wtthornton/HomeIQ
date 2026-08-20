@@ -24,9 +24,10 @@ from homeiq_ha.homeiq_automation.schema import (
     HomeIQMetadata,
     HomeIQTrigger,
     SafetyChecks,
+    Target,
+    TriggerConfig,
 )
 from homeiq_ha.homeiq_automation.yaml_transformer import YAMLTransformer
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from .automation_pre_deployment_validator import AutomationPreDeploymentValidator
 
@@ -100,7 +101,6 @@ class AutomationGenerator:
         self,
         synergy: dict[str, Any],
         ha_client: httpx.AsyncClient,
-        _db: AsyncSession | None = None,
         device_inventory: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """
@@ -113,7 +113,6 @@ class AutomationGenerator:
         Args:
             synergy: Synergy dictionary with devices, trigger_entity, action_entity, etc.
             ha_client: HTTP client for Home Assistant API calls
-            db: Optional database session for pattern lookups
             device_inventory: Optional device inventory for blueprint auto-fill
 
         Returns:
@@ -297,9 +296,8 @@ class AutomationGenerator:
             HomeIQAutomation object
         """
         # Extract device information
-        devices = synergy.get("devices", [])
-        if not devices and "chain_devices" in synergy:
-            devices = synergy["chain_devices"]
+        # Stored synergies may carry device_ids / chain_devices as NULL.
+        devices = synergy.get("devices") or synergy.get("chain_devices") or []
 
         # Extract trigger and action entities
         trigger_entity = synergy.get("trigger_entity")
@@ -311,13 +309,16 @@ class AutomationGenerator:
         if not action_entity and len(devices) >= 2:
             action_entity = devices[1]
 
+        area = synergy.get("area")
+
         # Create trigger (state change on trigger entity)
         trigger = HomeIQTrigger(
             platform="state",
-            entity_id=trigger_entity,
-            to="on" if synergy.get("synergy_type") == "device_pair" else None,
-            device_id=trigger_entity,
-            area_id=synergy.get("area"),
+            config=TriggerConfig(
+                entity_id=trigger_entity,
+                parameters={"to": "on"} if synergy.get("synergy_type") == "device_pair" else {},
+            ),
+            target=Target(area_id=area) if area else None,
         )
 
         # Create action (turn on/off action entity)
@@ -325,9 +326,7 @@ class AutomationGenerator:
             service=f"{action_entity.split('.')[0]}.turn_on"
             if action_entity
             else "automation.turn_on",
-            entity_id=action_entity,
-            device_id=action_entity,
-            area_id=synergy.get("area"),
+            target=Target(entity_id=action_entity, area_id=area),
         )
 
         # Create device context
