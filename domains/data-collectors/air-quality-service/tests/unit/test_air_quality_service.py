@@ -275,29 +275,45 @@ class TestInfluxDBStorage:
 class TestAPIEndpoints:
     """Test API endpoints"""
 
+    @pytest.fixture
+    def client(self, service_instance, monkeypatch):
+        """ASGI client against the real app, with the module-level service swapped
+        for the fixture instance and no lifespan run (startup would open real
+        aiohttp/InfluxDB clients)."""
+        import httpx
+        from src import main
+
+        monkeypatch.setattr(main, "service", service_instance)
+        return httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=main.app), base_url="http://test"
+        )
+
     @pytest.mark.asyncio
-    async def test_get_current_aqi_with_data(self, service_instance, sample_aqi_data):
+    async def test_get_current_aqi_with_data(self, client, service_instance, sample_aqi_data):
         """GIVEN: Cached data exists | WHEN: GET /current-aqi | THEN: Return data"""
         service_instance.cached_data = sample_aqi_data.copy()
         service_instance.last_fetch_time = datetime.now(UTC)
 
-        mock_request = MagicMock()
-        response = await service_instance.get_current_aqi(mock_request)
+        async with client:
+            response = await client.get("/current-aqi")
 
-        assert response.status == 200
-        body = response.body
-        assert b"aqi" in body
-        assert b"category" in body
+        assert response.status_code == 200
+        body = response.json()
+        assert body["aqi"] == sample_aqi_data["aqi"]
+        assert body["category"] == sample_aqi_data["category"]
+        assert body["pm25"] == sample_aqi_data["pm25"]
+        assert body["timestamp"] == service_instance.last_fetch_time.isoformat()
 
     @pytest.mark.asyncio
-    async def test_get_current_aqi_no_data(self, service_instance):
+    async def test_get_current_aqi_no_data(self, client, service_instance):
         """GIVEN: No cached data | WHEN: GET /current-aqi | THEN: Return 503"""
         service_instance.cached_data = None
 
-        mock_request = MagicMock()
-        response = await service_instance.get_current_aqi(mock_request)
+        async with client:
+            response = await client.get("/current-aqi")
 
-        assert response.status == 503
+        assert response.status_code == 503
+        assert response.json() == {"error": "No data available"}
 
 
 class TestServiceLifecycle:
