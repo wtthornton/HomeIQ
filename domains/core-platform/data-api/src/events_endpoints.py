@@ -1339,12 +1339,22 @@ from(bucket: "{bucket}")
                     )
                     break
 
+                # One pivoted query per level. The old two-query walk read
+                # `context_id` off UNPIVOTED records (always None — it is a
+                # sibling field, not a column there) and then filtered the
+                # detail query on r["context_id"] as if it were a tag, so the
+                # walk skipped every child and returned [] even with parent
+                # data present (found while landing TAP-6107).
                 query = f'''
                 from(bucket: "{influxdb_bucket}")
                     |> range(start: -30d)
                     |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
-                    |> filter(fn: (r) => r["_field"] == "context_parent_id")
-                    |> filter(fn: (r) => r["_value"] == "{current_context_safe}")
+                    |> filter(fn: (r) => r["_field"] == "context_parent_id" or
+                                         r["_field"] == "context_id" or
+                                         r["_field"] == "state_value" or
+                                         r["_field"] == "previous_state")
+                    |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+                    |> filter(fn: (r) => r["context_parent_id"] == "{current_context_safe}")
                     |> limit(n: 100)
                 '''
 
@@ -1355,58 +1365,26 @@ from(bucket: "{bucket}")
 
                 for table in result:
                     for record in table.records:
-                        # Get the event context_id for next iteration
                         event_context_id = record.values.get("context_id")
-
+                        event_info = {
+                            "depth": depth,
+                            "context_id": event_context_id,
+                            "context_parent_id": current_context,
+                            "timestamp": record.get_time().isoformat(),
+                        }
                         if include_details:
-                            # Query full event details
-                            event_context_safe = (
-                                sanitize_flux_value(event_context_id) if event_context_id else ""
+                            event_info.update(
+                                {
+                                    "entity_id": record.values.get("entity_id", "unknown"),
+                                    "event_type": record.values.get("event_type", "unknown"),
+                                    "state": record.values.get("state_value"),
+                                    "old_state": record.values.get("previous_state"),
+                                }
                             )
-                            if not event_context_safe:
-                                logger.warning(
-                                    "Skipping automation trace detail due to invalid context_id"
-                                )
-                                continue
-                            event_detail_query = f'''
-                            from(bucket: "{influxdb_bucket}")
-                                |> range(start: -30d)
-                                |> filter(fn: (r) => r["_measurement"] == "home_assistant_events")
-                                |> filter(fn: (r) => r["context_id"] == "{event_context_safe}")
-                                |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-                                |> limit(n: 1)
-                            '''
-                            detail_result = query_api.query(event_detail_query)
-
-                            for detail_table in detail_result:
-                                for detail_record in detail_table.records:
-                                    event_info = {
-                                        "depth": depth,
-                                        "context_id": event_context_id,
-                                        "context_parent_id": current_context,
-                                        "timestamp": detail_record.get_time().isoformat(),
-                                        "entity_id": detail_record.values.get(
-                                            "entity_id", "unknown"
-                                        ),
-                                        "event_type": detail_record.values.get(
-                                            "event_type", "unknown"
-                                        ),
-                                        "state": detail_record.values.get("state"),
-                                        "old_state": detail_record.values.get("old_state"),
-                                    }
-                                    found_events.append(event_info)
-                        else:
-                            # Minimal info
-                            event_info = {
-                                "depth": depth,
-                                "context_id": event_context_id,
-                                "context_parent_id": current_context,
-                                "timestamp": record.get_time().isoformat(),
-                            }
-                            found_events.append(event_info)
+                        found_events.append(event_info)
 
                         # Use first event's context_id for next iteration
-                        if not next_context:
+                        if not next_context and event_context_id:
                             next_context = event_context_id
 
                 chain.extend(found_events)
