@@ -261,11 +261,13 @@ class TestAnomalyDetection:
 
     @pytest.fixture
     def detector(self):
+        # max_cv gates the pattern before anomalies are reported, and one
+        # outlier among six samples already pushes CV past 1.0.
         return DurationPatternDetector(
             min_state_changes=3,
             min_confidence=0.3,
             anomaly_threshold_std=2.0,
-            max_cv=1.0,
+            max_cv=1.5,
             filter_system_noise=False,
         )
 
@@ -732,6 +734,17 @@ class TestConfidenceCalculation:
             coefficient_of_variation=0.5,
             durations=[300.0] * 50,
         )
+        steady = DurationStats(
+            device_id="light.test",
+            state="on",
+            count=50,
+            mean_seconds=300.0,
+            std_seconds=15.0,
+            min_seconds=280.0,
+            max_seconds=320.0,
+            coefficient_of_variation=0.05,
+            durations=[300.0] * 50,
+        )
 
-        confidence = detector._calculate_confidence(stats)
-        assert confidence < 0.8
+        # Same sample size, ten times the spread: confidence must drop.
+        assert detector._calculate_confidence(stats) < detector._calculate_confidence(steady)

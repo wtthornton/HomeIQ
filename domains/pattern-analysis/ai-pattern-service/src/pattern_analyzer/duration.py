@@ -252,19 +252,23 @@ class DurationPatternDetector:
             if device_id in device_states:
                 prev_state, prev_time = device_states[device_id]
 
-                if normalized_state != prev_state:
-                    duration_seconds = (timestamp - prev_time).total_seconds()
+                if normalized_state == prev_state:
+                    # Same-state updates (attribute changes, periodic reports)
+                    # do not end the stay; keep timing from the original entry.
+                    continue
 
-                    if self.min_duration_seconds <= duration_seconds <= max_duration_seconds:
-                        durations.append(
-                            StateDuration(
-                                device_id=device_id,
-                                state=prev_state,
-                                duration_seconds=duration_seconds,
-                                start_time=prev_time,
-                                end_time=timestamp,
-                            )
+                duration_seconds = (timestamp - prev_time).total_seconds()
+
+                if self.min_duration_seconds <= duration_seconds <= max_duration_seconds:
+                    durations.append(
+                        StateDuration(
+                            device_id=device_id,
+                            state=prev_state,
+                            duration_seconds=duration_seconds,
+                            start_time=prev_time,
+                            end_time=timestamp,
                         )
+                    )
 
             device_states[device_id] = (normalized_state, timestamp)
 
