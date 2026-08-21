@@ -24,6 +24,7 @@ from .api.health_router import router as health_api_router
 from .api.hygiene_router import router as hygiene_router
 from .api.name_enhancement_router import router as name_enhancement_router
 from .api.naming_router import router as naming_router
+from .api.onboarding_router import router as onboarding_router
 from .api.predictions_router import router as predictions_router
 from .api.recommendations_router import router as recommendations_router
 from .api.storage import router as storage_router
@@ -221,6 +222,7 @@ app.include_router(health_api_router, tags=["Health API"])
 app.include_router(predictions_router, tags=["Predictions"])
 app.include_router(recommendations_router, tags=["Recommendations"])
 app.include_router(database_management_router, prefix="/api", tags=["Database Management"])
+app.include_router(onboarding_router, prefix="/api", tags=["Device Onboarding"])
 app.include_router(hygiene_router)
 app.include_router(name_enhancement_router)
 app.include_router(team_tracker_router, tags=["Team Tracker"])
