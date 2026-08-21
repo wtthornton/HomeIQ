@@ -8,6 +8,7 @@ import asyncio
 import contextlib
 import json
 import logging
+from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -16,9 +17,9 @@ from sqlalchemy import bindparam, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..clients.ha_client import HAArea, HADevice, HAEntity
-from ..clients.mqtt_client import MQTTClient, ZigbeeDevice, ZigbeeGroup
 from ..config import Settings
 from ..core.database import get_db_session
+from ..services.device_knowledge import DeviceKnowledge
 from ..services.device_service import DeviceService
 from ..services.hygiene_analyzer import DeviceHygieneAnalyzer
 from ..services.name_enhancement import DeviceNameGenerator, NameUniquenessValidator
@@ -34,7 +35,6 @@ class DiscoveryStatus:
 
     service_running: bool
     ha_connected: bool
-    mqtt_connected: bool
     last_discovery: datetime | None
     devices_count: int
     areas_count: int
@@ -49,16 +49,6 @@ class DiscoveryService:
 
         # Clients - HA client will be initialized with unified connection manager
         self.ha_client = None  # Will be initialized in start() method
-        # No broker configured -> Zigbee2MQTT discovery disabled entirely
-        self.mqtt_client = None
-        if settings.MQTT_BROKER:
-            self.mqtt_client = MQTTClient(
-                settings.MQTT_BROKER,
-                settings.MQTT_USERNAME,
-                settings.MQTT_PASSWORD,
-                settings.ZIGBEE2MQTT_BASE_TOPIC,
-            )
-
         # Parser
         self.device_parser = DeviceParser()
 
@@ -91,8 +81,6 @@ class DiscoveryService:
         self.ha_entities: list[HAEntity] = []
         self.ha_areas: list[HAArea] = []
         self.ha_config_entries: dict[str, str] = {}  # Maps config_entry_id -> domain/integration
-        self.zigbee_devices: dict[str, ZigbeeDevice] = {}
-        self.zigbee_groups: dict[int, ZigbeeGroup] = {}
 
     async def start(self) -> bool:
         """Start the discovery service."""
@@ -118,19 +106,6 @@ class DiscoveryService:
 
             # Subscribe to registry update events for real-time cache updates
             await self._subscribe_to_registry_updates()
-
-            # Connect to MQTT broker (optional - can discover HA devices without Zigbee)
-            if self.mqtt_client is None:
-                logger.info("No MQTT broker configured - Zigbee2MQTT discovery disabled")
-            elif await self.mqtt_client.connect():
-                logger.info("Connected to MQTT broker")
-                # Register MQTT message handlers
-                self.mqtt_client.register_message_handler("devices", self._on_zigbee_devices_update)
-                self.mqtt_client.register_message_handler("groups", self._on_zigbee_groups_update)
-            else:
-                logger.warning(
-                    "MQTT broker connection failed - will continue without Zigbee devices"
-                )
 
             # Start discovery task
             self.running = True
@@ -171,8 +146,6 @@ class DiscoveryService:
         # Disconnect clients
         if self.ha_client:
             await self.ha_client.disconnect()
-        if self.mqtt_client:
-            await self.mqtt_client.disconnect()
 
         logger.info("Discovery service stopped")
 
@@ -204,10 +177,6 @@ class DiscoveryService:
             # Discover Home Assistant data
             await self._discover_home_assistant()
 
-            # Discover Zigbee2MQTT data (already handled by MQTT callbacks)
-            # But we can trigger a refresh if needed
-            await self._refresh_zigbee_data()
-
             # Parse and unify device data
             await self._unify_device_data()
             # Entities must land before the analyzer runs: hygiene findings carry
@@ -228,6 +197,36 @@ class DiscoveryService:
         except Exception as e:
             logger.error("Error during discovery: %s", e)
             self.errors.append(f"Discovery error: {str(e)}")
+
+    async def _safe_states(self) -> list[dict[str, Any]]:
+        """Current states, or an empty list.
+
+        Only feeds battery readings. A failure here must degrade battery_level
+        and power_source to an honest NULL, never abort a discovery pass that
+        would otherwise succeed.
+        """
+        try:
+            return await self.ha_client.get_states() or []
+        except Exception as exc:
+            logger.warning("Could not fetch states for device knowledge: %s", exc)
+            return []
+
+    async def _safe_zha_devices(self) -> list[dict[str, Any]]:
+        """ZHA's own device list, or an empty list.
+
+        `zha/devices` is a ZHA-specific websocket command and the only source of
+        LQI. It is absent on an instance with no ZHA integration, which is a
+        normal configuration and not an error — hence the empty list rather than
+        a raised exception.
+        """
+        try:
+            result = await self.ha_client.send_command("zha/devices")
+        except Exception as exc:
+            logger.debug("ZHA device list unavailable (no ZHA integration?): %s", exc)
+            return []
+        if isinstance(result, dict):
+            result = result.get("result", [])
+        return result if isinstance(result, list) else []
 
     async def _persist_entities(self):
         """Mirror the Home Assistant entity registry into ``device_entities``.
@@ -358,10 +357,6 @@ class DiscoveryService:
                     # not a disappearance — surface it. Identity is the ieee,
                     # never the name (.claude/rules/friendly-names.md).
                     current_ieees = {
-                        d.zigbee_device.ieee_address
-                        for d in self.unified_devices.values()
-                        if d.zigbee_device and d.zigbee_device.ieee_address
-                    } | {
                         identifier[1]
                         for d in self.unified_devices.values()
                         if d.ha_device and d.ha_device.identifiers
@@ -406,6 +401,8 @@ class DiscoveryService:
 
             # Get entity registry
             self.ha_entities = await self.ha_client.get_entity_registry()
+            self.ha_states = await self._safe_states()
+            self.zha_devices = await self._safe_zha_devices()
 
             # Get area registry
             self.ha_areas = await self.ha_client.get_area_registry()
@@ -472,34 +469,13 @@ class DiscoveryService:
             logger.warning("Failed to subscribe to registry updates: %s", e)
             # Don't fail startup if subscriptions fail - we still have periodic discovery
 
-    async def _refresh_zigbee_data(self):
-        """Refresh Zigbee2MQTT data by requesting bridge info."""
-        try:
-            # Request bridge devices (this will trigger MQTT callback)
-            if self.mqtt_client and self.mqtt_client.is_connected():
-                base_topic = self.mqtt_client.base_topic
-                # Publish request for bridge devices
-                request_topic = f"{base_topic}/bridge/request/device/list"
-                self.mqtt_client.client.publish(request_topic, "{}")  # Empty JSON payload
-                logger.debug("Requested Zigbee2MQTT device list refresh via %s", request_topic)
-
-                # Also request groups
-                group_request_topic = f"{base_topic}/bridge/request/group/list"
-                self.mqtt_client.client.publish(group_request_topic, "{}")
-                logger.debug("Requested Zigbee2MQTT group list refresh via %s", group_request_topic)
-
-        except Exception as e:
-            logger.error("Error refreshing Zigbee data: %s", e)
-
     async def _unify_device_data(self):
         """Unify device data from all sources."""
         try:
             logger.info("Unifying device data from all sources")
 
             # Parse devices
-            unified_devices = self.device_parser.parse_devices(
-                self.ha_devices, self.ha_entities, self.zigbee_devices
-            )
+            unified_devices = self.device_parser.parse_devices(self.ha_devices, self.ha_entities)
 
             # Update unified devices in memory
             self.unified_devices = {device.id: device for device in unified_devices}
@@ -528,6 +504,13 @@ class DiscoveryService:
             devices_data = []
             capabilities_data = []
             missing_integrations = []
+
+            knowledge = DeviceKnowledge(
+                self.ha_entities,
+                getattr(self, "ha_states", None),
+                getattr(self, "zha_devices", None),
+            )
+            knowledge_exclusions: dict[str, dict[str, str]] = {}
 
             for device in unified_devices:
                 integration_value = (device.integration or "").strip()
@@ -565,7 +548,7 @@ class DiscoveryService:
                     "suggested_area": None,
                     "entry_type": None,
                     "configuration_url": None,
-                    # Initialize Zigbee2MQTT fields
+                    # Radio/power facts; populated from ZHA via the HA websocket
                     "lqi": None,
                     "lqi_updated_at": None,
                     "availability_status": None,
@@ -576,6 +559,15 @@ class DiscoveryService:
                     "device_type": None,
                     "source": None,
                 }
+
+                # Replace the initialised Nones with whatever the durable rules
+                # could establish. Anything they could not establish stays None
+                # and carries a written reason, which is logged once per pass
+                # rather than silently dropped (TAP-6393).
+                established, missing = knowledge.for_device(device)
+                device_data.update(established)
+                if missing:
+                    knowledge_exclusions[device.id] = missing
 
                 # Override with actual values if available
                 if device.ha_device:
@@ -601,63 +593,6 @@ class DiscoveryService:
                     device_data["suggested_area"] = device.ha_device.suggested_area
                     device_data["entry_type"] = device.ha_device.entry_type
                     device_data["configuration_url"] = device.ha_device.configuration_url
-
-                    # Set source based on HA device integration if Zigbee2MQTT
-                    # This allows Zigbee devices to be identified even without MQTT data
-                    # Note: Zigbee2MQTT devices in HA may use 'mqtt' as integration name
-                    integration_lower = integration_value.lower()
-                    if (
-                        "zigbee" in integration_lower
-                        or integration_lower == "zigbee2mqtt"
-                        or integration_lower == "mqtt"
-                    ):
-                        # For MQTT integration, check if it's a Zigbee device by checking identifiers
-                        # Zigbee devices typically have identifiers with 'ieee' or 'zigbee' patterns
-                        is_zigbee = False
-                        if integration_lower == "mqtt":
-                            # Check if device has Zigbee-like identifiers
-                            identifiers = device.ha_device.identifiers or []
-                            for identifier in identifiers:
-                                identifier_str = str(identifier).lower()
-                                if "zigbee" in identifier_str or "ieee" in identifier_str:
-                                    is_zigbee = True
-                                    break
-                            # Only set source to zigbee2mqtt if we confirm it's a Zigbee device
-                            if not is_zigbee:
-                                continue
-
-                        device_data["source"] = "zigbee2mqtt"
-                        # Ensure integration field is set correctly
-                        if device.ha_device.integration:
-                            device_data["integration"] = device.ha_device.integration
-
-                # Add Zigbee2MQTT data if available (from MQTT - this will override source if MQTT data exists)
-                if device.zigbee_device:
-                    device_data["zigbee_ieee"] = device.zigbee_device.ieee_address
-                    device_data["source"] = "zigbee2mqtt"
-
-                    # Zigbee2MQTT-specific fields
-                    if device.zigbee_device.lqi is not None:
-                        device_data["lqi"] = device.zigbee_device.lqi
-                        device_data["lqi_updated_at"] = datetime.now(UTC)
-
-                    if device.zigbee_device.availability:
-                        device_data["availability_status"] = device.zigbee_device.availability
-                        device_data["availability_updated_at"] = datetime.now(UTC)
-
-                    if device.zigbee_device.battery is not None:
-                        device_data["battery_level"] = device.zigbee_device.battery
-                        device_data["battery_updated_at"] = datetime.now(UTC)
-
-                    if device.zigbee_device.battery_low is not None:
-                        device_data["battery_low"] = device.zigbee_device.battery_low
-
-                    if device.zigbee_device.device_type:
-                        device_data["device_type"] = device.zigbee_device.device_type
-
-                    # Update last_seen from Zigbee2MQTT if available
-                    if device.zigbee_device.last_seen:
-                        device_data["last_seen"] = device.zigbee_device.last_seen
 
                 # Remove the JSON fields that were initialized to None to avoid SQLAlchemy issues
                 device_data.pop("connections_json", None)
@@ -690,14 +625,23 @@ class DiscoveryService:
             # Store in database using DeviceService
             async for session in get_db_session():
                 device_service = DeviceService(session)
+                if knowledge_exclusions:
+                    by_column = Counter(
+                        column for reasons in knowledge_exclusions.values() for column in reasons
+                    )
+                    logger.info(
+                        "Device knowledge: %d of %d devices carry at least one column "
+                        "with no durable signal; unfilled by column: %s",
+                        len(knowledge_exclusions),
+                        len(devices_data),
+                        dict(by_column),
+                    )
+
                 await device_service.bulk_upsert_devices(devices_data)
 
                 # Store capabilities if any
                 if capabilities_data:
                     await device_service.bulk_upsert_capabilities(capabilities_data)
-
-                # Store Zigbee2MQTT metadata if available
-                await self._store_zigbee_metadata(session, unified_devices)
 
                 # NEW: Generate name suggestions (optional, non-blocking)
                 if self.auto_generate_name_suggestions and self.name_generator:
@@ -722,82 +666,6 @@ class DiscoveryService:
             logger.error("Error storing devices in database: %s", e)
             raise
 
-    async def _on_zigbee_devices_update(self, data: list[dict[str, Any]]):
-        """Handle Zigbee2MQTT devices update."""
-        try:
-            logger.info("Zigbee2MQTT devices updated: %d devices", len(data))
-
-            # Update Zigbee devices
-            for device_data in data:
-                # Parse last_seen with timezone handling
-                last_seen = None
-                if device_data.get("last_seen"):
-                    try:
-                        last_seen_str = device_data["last_seen"].replace("Z", "+00:00")
-                        last_seen = datetime.fromisoformat(last_seen_str)
-                    except Exception as e:
-                        logger.debug(
-                            f"Could not parse last_seen for {device_data.get('ieee_address')}: {e}"
-                        )
-
-                # Extract Zigbee2MQTT-specific fields
-                definition = device_data.get("definition", {})
-
-                zigbee_device = ZigbeeDevice(
-                    ieee_address=device_data["ieee_address"],
-                    friendly_name=device_data["friendly_name"],
-                    model=device_data.get("model", ""),
-                    description=device_data.get("description", ""),
-                    manufacturer=device_data.get("manufacturer", ""),
-                    manufacturer_code=device_data.get("manufacturer_code"),
-                    power_source=device_data.get("power_source"),
-                    model_id=device_data.get("model_id"),
-                    hardware_version=device_data.get("hardware_version"),
-                    software_build_id=device_data.get("software_build_id"),
-                    date_code=device_data.get("date_code"),
-                    last_seen=last_seen,
-                    definition=definition,
-                    exposes=definition.get("exposes", []),
-                    capabilities={},
-                    # Zigbee2MQTT-specific fields
-                    lqi=device_data.get("lqi"),
-                    availability=device_data.get("availability"),
-                    battery=device_data.get("battery"),
-                    battery_low=device_data.get("battery_low"),
-                    device_type=device_data.get("type"),
-                    network_address=device_data.get("network_address"),
-                    supported=device_data.get("supported"),
-                    interview_completed=device_data.get("interview_completed"),
-                    settings=device_data.get("settings"),
-                )
-
-                self.zigbee_devices[zigbee_device.ieee_address] = zigbee_device
-
-            # Trigger device unification
-            await self._unify_device_data()
-
-        except Exception as e:
-            logger.error("Error handling Zigbee devices update: %s", e)
-
-    async def _on_zigbee_groups_update(self, data: list[dict[str, Any]]):
-        """Handle Zigbee2MQTT groups update."""
-        try:
-            logger.info("Zigbee2MQTT groups updated: %d groups", len(data))
-
-            # Update Zigbee groups
-            for group_data in data:
-                group = ZigbeeGroup(
-                    id=group_data["id"],
-                    friendly_name=group_data["friendly_name"],
-                    members=group_data.get("members", []),
-                    scenes=group_data.get("scenes", []),
-                )
-
-                self.zigbee_groups[group.id] = group
-
-        except Exception as e:
-            logger.error("Error handling Zigbee groups update: %s", e)
-
     async def force_refresh(self) -> bool:
         """Force a complete discovery refresh."""
         try:
@@ -813,7 +681,6 @@ class DiscoveryService:
         return DiscoveryStatus(
             service_running=self.running,
             ha_connected=self.ha_client.is_connected() if self.ha_client else False,
-            mqtt_connected=self.mqtt_client.is_connected(),
             last_discovery=self.last_discovery,
             devices_count=len(self.unified_devices),
             areas_count=len(self.ha_areas),
@@ -839,10 +706,6 @@ class DiscoveryService:
     def get_areas(self) -> list[HAArea]:
         """Get all discovered areas."""
         return self.ha_areas.copy()
-
-    def get_zigbee_groups(self) -> list[ZigbeeGroup]:
-        """Get all discovered Zigbee groups."""
-        return list(self.zigbee_groups.values())
 
     async def _generate_name_suggestions_async(
         self, unified_devices: list[UnifiedDevice], db_session: AsyncSession
@@ -943,61 +806,3 @@ class DiscoveryService:
         except Exception as e:
             logger.warning(f"Name suggestion generation failed: {e}")
             # Graceful degradation: continue without suggestions
-
-    async def _store_zigbee_metadata(
-        self, session: AsyncSession, unified_devices: list[UnifiedDevice]
-    ):
-        """Store Zigbee2MQTT-specific metadata in ZigbeeDeviceMetadata table."""
-        try:
-            from sqlalchemy import select
-
-            from ..models.database import ZigbeeDeviceMetadata
-
-            for device in unified_devices:
-                if not device.zigbee_device:
-                    continue
-
-                zigbee = device.zigbee_device
-
-                # Check if metadata already exists
-                result = await session.execute(
-                    select(ZigbeeDeviceMetadata).where(ZigbeeDeviceMetadata.device_id == device.id)
-                )
-                existing = result.scalar_one_or_none()
-
-                metadata_data = {
-                    "device_id": device.id,
-                    "ieee_address": zigbee.ieee_address,
-                    "model_id": zigbee.model_id,
-                    "manufacturer_code": zigbee.manufacturer_code,
-                    "date_code": zigbee.date_code,
-                    "hardware_version": zigbee.hardware_version,
-                    "software_build_id": zigbee.software_build_id,
-                    "network_address": zigbee.network_address,
-                    "supported": zigbee.supported if zigbee.supported is not None else True,
-                    "interview_completed": zigbee.interview_completed
-                    if zigbee.interview_completed is not None
-                    else False,
-                    "definition_json": zigbee.definition,
-                    "settings_json": zigbee.settings,
-                    "last_seen_zigbee": zigbee.last_seen,
-                    "updated_at": datetime.now(UTC),
-                }
-
-                if existing:
-                    # Update existing metadata
-                    for key, value in metadata_data.items():
-                        setattr(existing, key, value)
-                else:
-                    # Create new metadata
-                    metadata_data["created_at"] = datetime.now(UTC)
-                    metadata = ZigbeeDeviceMetadata(**metadata_data)
-                    session.add(metadata)
-
-            await session.commit()
-            stored_count = sum(1 for d in unified_devices if d.zigbee_device)
-            logger.info("Stored Zigbee2MQTT metadata for %d devices", stored_count)
-
-        except Exception as e:
-            logger.error("Error storing Zigbee metadata: %s", e)
-            # Don't fail discovery if metadata storage fails

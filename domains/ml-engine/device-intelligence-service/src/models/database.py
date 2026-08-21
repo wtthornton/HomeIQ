@@ -60,7 +60,17 @@ class Device(Base):
         Boolean, index=True
     )  # True if battery low warning
     battery_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    device_type: Mapped[str | None] = mapped_column(String)  # Router/EndDevice/Coordinator
+    # The device's kind, from the shared taxonomy: light, switch, sensor,
+    # thermostat, media_player, ... Validate against
+    # homeiq_device_taxonomy.device_type_vocabulary() before writing.
+    #
+    # This previously read "Router/EndDevice/Coordinator", i.e. the ZHA node
+    # role. That was wrong, and ambiguously so: the column sits in the radio
+    # block next to zigbee_ieee and lqi, which made the ZHA reading look right,
+    # while every consumer and the epic that owns this column expect the
+    # taxonomy. Settled as the taxonomy on 2026-08-21 (TAP-6393). The ZHA node
+    # role is not captured anywhere; add a separate column if it is ever wanted.
+    device_type: Mapped[str | None] = mapped_column(String)
     source: Mapped[str | None] = mapped_column(
         String, index=True
     )  # "zha", "homeassistant", etc.

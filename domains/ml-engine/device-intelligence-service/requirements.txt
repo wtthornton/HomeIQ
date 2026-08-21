@@ -24,8 +24,6 @@ PyYAML>=6.0.1,<7.0.0  # YAML configuration files for device mappings
 # WebSocket client
 websockets>=13.0,<18.0.0  # >=13.0: homeiq-ha needs websockets.asyncio (absent in 12.0)
 
-# MQTT client
-paho-mqtt>=1.6.1,<2.0.0  # Unpinned for patch updates
 
 # System monitoring
 psutil>=7.1.3,<8.0.0  # Unpinned for patch updates

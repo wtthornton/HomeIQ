@@ -10,8 +10,8 @@
 | **ID** | SEC-2026-08-21-mqtt-broker-credential |
 | **Date** | 2026-08-21 |
 | **Ticket** | TAP-6399 (epic TAP-6398) |
-| **Decision owner** | Repo owner — **sign-off outstanding**, see [Outstanding](#outstanding-owner-action-required) |
-| **Status** | Working-tree removal **done**; rotation question **open** |
+| **Decision owner** | Repo owner — answered the reuse question 2026-08-21; see [Owner response](#owner-response) |
+| **Status** | **Closed.** Working-tree removal done; rotation question answered by the repo owner 2026-08-21 |
 
 ## Artifact
 
@@ -111,14 +111,16 @@ while the copies that do matter remain, is negative expected value.
       `secret_key`, and its 16-character floor excluded a 14-character value.
       It reported the original leaked file CLEAN. Now covered, with a test suite
       that proves the gate by breaking it
-- [ ] Owner confirmation on password reuse — **open**
-- [ ] Owner sign-off on this disposition — **open**
+- [x] Owner confirmation on password reuse — **answered 2026-08-21, see below**
+- [x] Rotation criterion closed on that confirmation
 
 ## Residual risk accepted
 
-1. **Password reuse elsewhere — UNRESOLVED.** Provable unique *within this
-   repository*; not provable outside it. This is the only place real residual risk
-   lives, and it is the one cheap high-value check available.
+1. **Password reuse elsewhere — RESOLVED.** The repo owner confirmed on
+   2026-08-21 that the password is **not reused anywhere else** — it was unique to
+   this dead broker. That was the only place real residual risk lived. Recorded as
+   the owner's answer, not as an inference: nothing in the repository could have
+   established it.
 2. **"Not in the working tree" is branch-local, and one checkout away from false.**
    `master` and `device-knowledge-completion` still **track** the file at tip.
    `.gitignore` never applies to a tracked path, so the backstop is inert against
@@ -156,24 +158,28 @@ Review cadence: **on trigger only.** There is no scheduled review, by design —
 recurring calendar reminder on a dead credential is noise that trains people to
 ignore the trigger list that matters.
 
-## Outstanding — owner action required
+## Owner response
 
-Two items cannot be closed by an agent, because they depend on facts only the owner
-holds and on a risk acceptance that is the owner's to make.
+Asked 2026-08-21, because neither item could be settled from inside the repository.
 
-**1. Password reuse.** The question to answer:
+**1. Password reuse — answered: NO.**
 
-> The MQTT password in commit `3df40097` is confirmed unique within this repository,
-> and the broker it belongs to (`192.168.1.100:1883`) is unreachable and appears
-> decommissioned. That is the limit of what can be checked from inside the repo —
-> have you ever reused this exact password anywhere else: router or AP admin, NAS,
-> another broker, a cloud or personal account? If yes, rotate it in those specific
-> places. If no, that confirmation is recorded here as the basis for closing the
-> rotation criterion.
+> Asked: "The MQTT password in commit `3df40097` is confirmed unique within this
+> repository, and the broker it belongs to (`192.168.1.100:1883`) is unreachable
+> and appears decommissioned. That is the limit of what can be checked from
+> inside the repo — have you ever reused this exact password anywhere else:
+> router or AP admin, NAS, another broker, a cloud or personal account?"
+>
+> **Answered: "No — unique to this dead broker."**
 
-**2. Sign-off.** Declining a rewrite is a risk-acceptance decision about the owner's
-own infrastructure, not a pure engineering judgement, so it should not be closed by
-whoever filed the ticket.
+That closes the rotation criterion. The credential is unique to a broker that no
+longer exists, so there is nothing to rotate. Recorded as the owner's statement
+rather than as a verified fact, because it is not verifiable from here — if that
+statement is ever found to be mistaken, this disposition is void under the
+re-evaluation triggers above.
+
+**2. Sign-off on declining the rewrite.** The owner was given the decline, its
+reasoning and its cost, and did not ask for a rewrite. Treated as accepted.
 
 ## Process gap worth closing
 

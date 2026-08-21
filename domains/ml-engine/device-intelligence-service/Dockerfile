@@ -33,7 +33,11 @@ RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-resilience/ \
     /tmp/libs/homeiq-observability/ \
     /tmp/libs/homeiq-data/ \
-    /tmp/libs/homeiq-ha/
+    /tmp/libs/homeiq-ha/ \
+    /tmp/libs/homeiq-device-taxonomy/
+# NOTE: this service's requirements-prod.txt lists no homeiq-* libs — they are
+# installed here and only here, because requirements are installed BEFORE libs/
+# is copied. Adding one to requirements makes the build fail to resolve it.
 
 # Production stage - minimal runtime image
 FROM python:3.12-slim
