@@ -18,6 +18,30 @@ from ..services.context_builder import ContextBuilder
 logger = logging.getLogger(__name__)
 
 
+def _battery_parts(device: dict[str, Any]) -> list[str]:
+    """Battery facts, reported only where the device is known to run on one.
+
+    A percentage is meaningless without a battery. Two Aqara FP1E presence
+    sensors expose a battery entity stuck at 0% — a phantom cluster the ZHA
+    quirk surfaces on a mains-powered device — so this summary reported
+    "Battery: 0%" for hardware that has no battery, which reads to a model as an
+    urgent fault.
+
+    device-intelligence already handles this honestly: it mirrors the reading
+    faithfully but records ``power_source`` as NULL, declining to claim the
+    device is battery-powered. Honour that refusal here instead of re-asserting
+    what it would not (TAP-6393).
+    """
+    if device.get("power_source") != "battery":
+        return []
+    parts: list[str] = []
+    if device.get("battery_level") is not None:
+        parts.append(f"Battery: {device['battery_level']}%")
+    if device.get("battery_low"):
+        parts.append("Battery Low")
+    return parts
+
+
 class DevicesSummaryService:
     """
     Service for generating devices summary with details.
@@ -163,6 +187,9 @@ class DevicesSummaryService:
                             "availability_status": z_device.get("availability_status"),
                             "battery_level": z_device.get("battery_level"),
                             "battery_low": z_device.get("battery_low"),
+                            # Needed to decide whether a battery reading means
+                            # anything — see _battery_parts.
+                            "power_source": z_device.get("power_source"),
                         }
                 if zigbee_metadata_map:
                     logger.info("Fetched Zigbee2MQTT metadata for %d devices", len(zigbee_metadata_map))
@@ -264,12 +291,16 @@ class DevicesSummaryService:
                     # Phase 2.4: Energy consumption
                     "power_consumption_active_w": power_w,
                     "daily_kwh": daily_kwh,
-                    # Zigbee2MQTT fields (will be populated if available)
+                    # Radio and power facts from device-intelligence, populated
+                    # below where available. These come from ZHA over the Home
+                    # Assistant websocket; the Zigbee2MQTT path they were named
+                    # for was removed in 2026-08 and no broker exists.
                     "zigbee_ieee": None,
                     "lqi": None,
                     "availability_status": None,
                     "battery_level": None,
                     "battery_low": None,
+                    "power_source": None,
                 }
 
                 # Enhance with Zigbee2MQTT metadata if available
@@ -394,10 +425,7 @@ class DevicesSummaryService:
                             status = device["availability_status"]
                             if status != "enabled":
                                 zigbee_info_parts.append(f"Status: {status}")
-                        if device.get("battery_level") is not None:
-                            zigbee_info_parts.append(f"Battery: {device['battery_level']}%")
-                        if device.get("battery_low"):
-                            zigbee_info_parts.append("Battery Low")
+                        zigbee_info_parts.extend(_battery_parts(device))
 
                         if zigbee_info_parts:
                             device_line_parts.append(f"[{', '.join(zigbee_info_parts)}]")
@@ -490,10 +518,7 @@ class DevicesSummaryService:
                         status = device["availability_status"]
                         if status != "enabled":
                             zigbee_info_parts.append(f"Status: {status}")
-                    if device.get("battery_level") is not None:
-                        zigbee_info_parts.append(f"Battery: {device['battery_level']}%")
-                    if device.get("battery_low"):
-                        zigbee_info_parts.append("Battery Low")
+                    zigbee_info_parts.extend(_battery_parts(device))
 
                     if zigbee_info_parts:
                         device_line_parts.append(f"[{', '.join(zigbee_info_parts)}]")
