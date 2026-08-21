@@ -11,7 +11,7 @@
 | **Date** | 2026-08-21 |
 | **Ticket** | TAP-6399 (epic TAP-6398) |
 | **Decision owner** | Repo owner — answered the reuse question 2026-08-21; see [Owner response](#owner-response) |
-| **Status** | **Closed.** Working-tree removal done; rotation question answered by the repo owner 2026-08-21 |
+| **Status** | **REOPENED 2026-08-21.** The decision below was built on a false premise — this repository is **public**, not private. See [Correction](#correction-2026-08-21-the-repo-is-public). |
 
 ## Artifact
 
@@ -40,7 +40,7 @@ Point-in-time facts. **Liveness can change; these are not permanent properties.*
 | Surface | Assessment |
 |---|---|
 | **Unauthenticated HTTP endpoint** | **The most serious surface, and it was already known.** `GET /api/v1/config/integrations/mqtt` on `admin-api` was registered with **no authentication** and returned a body containing `MQTT_PASSWORD`. `admin-api` bind-mounts `infrastructure/` at `/app/infrastructure`, and the handler merged that file over env defaults — so **until the file was deleted on 2026-08-21, any host able to reach `admin-api` on the LAN could read the plaintext broker password with no credentials.** Confirmed live before removal: HTTP 200, no auth header, password present. The endpoint's docstring asserted "Configuration values are not sensitive." This was filed as **CRIT-02 in `domains/core-platform/admin-api/REVIEW_AND_FIXES.md` on 2026-02-06** and remained unfixed for six months; the work here rediscovered it independently rather than finding it first. Removed outright under TAP-6400 — a stronger fix than the masking the review proposed, since the endpoint has no remaining purpose. |
-| Git history | Private GitHub repo, single human contributor. Anyone who can `git log` to find `3df40097` already holds repo read/push — a strictly larger grant than a password to a dead broker. |
+| Git history | **PUBLIC. This row was wrong when written.** `github.com/wtthornton/HomeIQ` is a public repository (`gh repo view` → `visibility: PUBLIC`, 4 stars, 0 forks). Commit `3df40097`, dated **2025-11-10**, is an ancestor of `origin/master`, so the credential has been world-readable for roughly nine months. No repo grant was ever needed to read it. |
 | Container image | **None.** The file arrived by bind mount, so no image layer ever contained it and no registry copy exists. Deleting the file removed it from the running container immediately, verified. |
 | AI coding agents | **The material exposure.** Agents with repository access have read this tree repeatedly; the value has appeared in tool output and may persist in provider-side request logs, abuse-monitoring retention, or agent transcript/memory stores. |
 | CI / build logs | **Not audited.** See [Residual risk](#residual-risk-accepted). |
@@ -70,6 +70,56 @@ The residual risk is therefore **not** "someone reconnects to 192.168.1.100" —
 target is dead. It is **password reuse**: whether that pair, or the habit that
 generated it, is live on any other system.
 
+
+## Correction 2026-08-21: the repo is public
+
+**Everything above that reasons from "private repo" is wrong.** `gh repo view
+wtthornton/HomeIQ` returns `visibility: PUBLIC`, `isPrivate: false`, 4 stars,
+0 forks, created 2025-08-19. Commit `3df40097` (2025-11-10) is an ancestor of
+`origin/master` and carries the file with the password in cleartext. The
+credential has therefore been world-readable for about nine months.
+
+This was never checked. The claim was asserted from assumption and then used as
+the load-bearing premise of the decline. The document even lists "Repository
+visibility changes to public" as a trigger that voids the decision — a trigger
+written for a condition that was already true.
+
+### What actually changes
+
+**Exploitability was never the binding constraint; disclosure is.** The broker
+at `192.168.1.100:1883` is still dead, so nothing is directly attackable. What
+is now established is that the username, the password, and the *pattern that
+generated it* have been publicly indexed for months. Credential-stuffing does
+not care that the original target is dead.
+
+**A history rewrite is no longer sufficient, and is barely relevant.** The
+original reasoning — "a rewrite cannot claw back the copies that actually
+matter" — survives the correction and gets stronger, not weaker. Against nine
+months of public exposure a rewrite cannot reach: clones taken by anyone,
+GitHub's retention of unreachable commits (which stay fetchable by SHA), or any
+search index or scraper that has already read the tree. Rotation is the control.
+The rewrite is cosmetic beside it.
+
+**Rotation is no longer closeable by "confirmed unique to a dead broker".** The
+repo owner's 2026-08-21 answer — that the password is not reused — was given
+against a stated private-repo blast radius. It was answered honestly to a
+question that had the wrong premise attached, so it cannot carry the rotation
+criterion any more. The owner needs to re-answer knowing the string is public.
+
+### Required actions, none of them yet done
+
+- [ ] Owner treats the password and its construction pattern as burned, and
+      retires it anywhere the same string or a variant may have been used
+- [ ] Rotation criterion re-answered against public disclosure, not against the
+      private-repo framing it was asked under
+- [ ] Decide the history rewrite again on the corrected facts, recording that it
+      is a tidiness measure and not a containment one
+- [ ] Audit whether any other credential in this repo's history was assessed
+      under the same false premise
+
+Until those are closed this document is **not** a disposition. It is an open
+finding.
+
 ## Decision
 
 **Decline the git-history rewrite. Record the decline.**
@@ -80,7 +130,8 @@ that actually matter.*
 A rewrite is justified when a secret is both exploitable and exposed beyond the
 trust boundary that repo access already grants. Neither holds. The broker is dead,
 so exploitability is nil; the repo is private, so git-history readers are already
-inside the boundary. Against that, a rewrite costs `filter-repo`/BFG plus a
+inside the boundary. **<- FALSE. The repo is public. This clause is the error that
+voids the decision below; see [Correction](#correction-2026-08-21-the-repo-is-public).** Against that, a rewrite costs `filter-repo`/BFG plus a
 force-push across all 19 remote branches carrying it, invalidating every
 existing clone and any open PR.
 
