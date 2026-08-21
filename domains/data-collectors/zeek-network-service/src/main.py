@@ -18,6 +18,7 @@ from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 
 from . import __version__
 from .config import settings
+from .migrations import run_migrations
 from .parsers.anomaly_parser import AnomalyParser
 from .parsers.conn_parser import ConnLogParser
 from .parsers.dhcp_parser import DhcpParser
@@ -76,25 +77,30 @@ class ZeekNetworkService:
         self.dns_lines_parsed: int = 0
         self.start_time: datetime | None = None
 
+        # False until Alembic reports head. The fingerprint endpoints answer
+        # 503 rather than [] while it is False, so an unmigrated schema cannot
+        # masquerade as "no devices on this network".
+        self.schema_ready: bool = False
+
         # Eagerly create sub-components so endpoints never hit AttributeError
         self.device_aggregator = DeviceAggregator(
             influx_writer=self.influx_writer,
             service=self,
         )
         self.fingerprint_service = FingerprintService(
-            dsn=settings.effective_database_url,
+            dsn=settings.asyncpg_dsn,
             schema=settings.database_schema,
         )
         self.cert_tracker = CertTracker(
-            dsn=settings.effective_database_url,
+            dsn=settings.asyncpg_dsn,
             schema=settings.database_schema,
         )
         self.dns_profiler = DnsProfiler(
-            dsn=settings.effective_database_url,
+            dsn=settings.asyncpg_dsn,
             schema=settings.database_schema,
         )
         self.baseline_service = BaselineService(
-            dsn=settings.effective_database_url,
+            dsn=settings.asyncpg_dsn,
             schema=settings.database_schema,
         )
         self.security_feed = SecurityFeed(
@@ -122,6 +128,11 @@ class ZeekNetworkService:
         """Initialize connections and start background tasks."""
         logger.info("Initializing Zeek Network Intelligence Service...")
         self.start_time = datetime.now(UTC)
+
+        # Before any service that writes to Postgres: the fingerprint, cert,
+        # DNS-profile and baseline tables all live in migrations that nothing
+        # used to run.
+        self.schema_ready = await run_migrations()
 
         await self.influx_writer.initialize()
         await self.fingerprint_service.initialize()
@@ -304,6 +315,8 @@ class ZeekNetworkService:
         fingerprint_stats = {}
         if self.dhcp_parser:
             fingerprint_stats["dhcp_devices_discovered"] = self.dhcp_parser.devices_discovered
+            fingerprint_stats["dhcp_backfilled_records"] = self.dhcp_parser.backfilled_records
+        fingerprint_stats["schema_ready"] = self.schema_ready
         if self.tls_parser:
             fingerprint_stats["tls_fingerprints_captured"] = (
                 self.tls_parser.tls_fingerprints_captured
@@ -453,11 +466,29 @@ async def list_devices():
     return zeek_service.device_aggregator.get_devices()
 
 
+def _require_schema() -> None:
+    """Refuse fingerprint reads when the ``devices`` schema is not at head.
+
+    An empty list is indistinguishable from "this network has no devices",
+    which is how an unrun migration went unnoticed for months. A 503 is not.
+    """
+    if zeek_service is not None and not zeek_service.schema_ready:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Fingerprint schema unavailable: Alembic did not reach head. "
+                "Device discovery data cannot be served. Check the "
+                "zeek-migrations logs."
+            ),
+        )
+
+
 @app.get("/devices/discovered")
 async def discovered_devices(hours: int = Query(default=24, ge=1, le=720)):
     """Devices discovered via DHCP within the last N hours."""
     if not zeek_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
+    _require_schema()
 
     return await zeek_service.fingerprint_service.get_discovered(hours=hours)
 
@@ -467,6 +498,7 @@ async def new_devices():
     """Devices not yet in the baseline (seen only once)."""
     if not zeek_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
+    _require_schema()
 
     return await zeek_service.fingerprint_service.get_new_devices()
 

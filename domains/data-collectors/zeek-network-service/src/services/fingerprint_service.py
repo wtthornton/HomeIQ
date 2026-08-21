@@ -44,14 +44,20 @@ class FingerprintService:
         vendor: str | None = None,
         dhcp_fingerprint: str | None = None,
         dhcp_vendor_class: str | None = None,
-    ) -> None:
+    ) -> bool:
         """Insert or update a device from DHCP discovery.
 
         MAC is the primary key. On conflict, update IP, hostname, vendor,
         DHCP fields, increment times_seen, and refresh last_seen.
+
+        Returns True when the row was written. Callers must not count a
+        False as a discovery: when the pool failed to open, this used to
+        return None indistinguishably from success, and the parser's
+        ``devices_discovered`` counter reported thousands of upserts into a
+        store that had received nothing.
         """
         if not self._pool:
-            return
+            return False
 
         table = f"{self._schema}.network_device_fingerprints"
         now = datetime.now(UTC)
@@ -80,6 +86,7 @@ class FingerprintService:
             dhcp_vendor_class,
             now,
         )
+        return True
 
     async def update_tls_fingerprints(
         self,

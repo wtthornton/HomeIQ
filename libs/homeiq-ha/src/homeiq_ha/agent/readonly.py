@@ -49,6 +49,10 @@ _READ_COMMANDS = frozenset(
         # In-progress discovery flows: enumerating them changes nothing
         # (advancing/aborting a flow is a different command). TAP-5943.
         "config_entries/flow/progress",
+        # The installed-integration index. Read-only, and the only way to
+        # enumerate domains for manifest/get — which the /get suffix already
+        # allows. Needed by integrations.unclaimed_devices. TAP-6402.
+        "integration/descriptions",
     }
 )
 

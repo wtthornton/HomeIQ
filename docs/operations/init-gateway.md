@@ -173,3 +173,83 @@ password otherwise). Verify by identity, not by build exit code:
 docker exec homeiq-setup-service python -c \
   "from homeiq_ha.agent.recipes import default_recipes; print([r.name for r in default_recipes()])"
 ```
+
+## Unclaimed LAN devices (TAP-6402)
+
+`integrations.unclaimed_devices` reports devices that are on the network but
+that no configured Home Assistant integration owns, and configures the ones
+that need no account.
+
+> **MACs below are suffix-redacted.** The repo is public, so every example
+> keeps its real IEEE OUI (the first 3 octets — public registry data, and the
+> only part the matching depends on) and carries a synthetic last 3 octets.
+> They will not match your instance byte-for-byte; the OUI will.
+
+**Why it exists.** HA's `dhcp` discovery is passive and its matchers are
+strict: each manifest entry ANDs every key it declares. On this instance that
+missed both Ring devices at once —
+
+- `9c:76:13:00:00:11` has an OUI that *is* in HA's `ring` matcher list, but
+  sends no DHCP hostname, and the entry also requires `hostname: "ring*"`.
+- `90:48:6c:00:00:22` announces `RingDoorbell-22`, but its OUI (`90486C`,
+  Ring LLC) is not in HA's five-prefix list.
+
+Neither ever produced a discovery flow. HA reported 93 healthy devices while
+two doorbells and nine Amazon devices sat unseen.
+
+**Where the data comes from.** `zeek-network-service` (`:8048`) owns LAN
+observation — the `homeiq-zeek` sensor runs on the host network, and the
+service parses `dhcp.log` into `devices.network_device_fingerprints`. The
+recipe reads `/devices/discovered`; it does not scan anything itself, because
+`homeiq-setup-service` sits on a docker bridge and cannot see LAN layer 2.
+Point it with `HOMEIQ_NETWORK_OBSERVER_URL` (already set in
+`domains/device-management/compose.yml`). **Unset, the recipe reports
+`not_applicable`, never `satisfied`** — an uninspected network must not read
+as a clean one.
+
+**Where the matchers come from.** Home Assistant itself, at audit time:
+`integration/descriptions` for the domain list, then `manifest/get` per domain
+(~1 s for ~1200 domains). There is no vendor→integration table in HomeIQ to
+rot. Both commands are reads and are allowlisted in `readonly.py`.
+
+### Match strength decides autonomy
+
+| Strength | Meaning | Auto-apply? |
+|---|---|---|
+| `STRICT` | Every key of one matcher entry matched — HA's own bar | Yes, **if** the integration needs no account |
+| `MAC` | OUI matched, other keys did not. Protocol-native identity, durable across renames | Never |
+| `HOSTNAME` | Only the DHCP hostname matched. A name is renameable, so it confers nothing | Never |
+
+An integration whose `iot_class` starts with `cloud` — or that has no
+`iot_class` at all — is treated as needing an account and is never configured
+automatically. Ring and Alexa require an account login plus a second factor;
+no automation gets past that, and driving the flow with placeholder input
+errors rather than configuring anything.
+
+### The second bucket: identified but unmatchable
+
+Some integrations declare **no** `dhcp`/`zeroconf`/`ssdp` block at all —
+`alexa_devices` is one on HA 2026.8.2, so it is manual-only and no
+matcher-based survey can ever reach it. Devices whose IEEE vendor resolved but
+which match no matcher anywhere are therefore reported separately, by vendor,
+most devices first.
+
+That bucket deliberately carries **no** guess about which integration covers a
+vendor. A vendor's legal name is not its HA brand name (Signify ships as
+"Philips Hue", D&M as "Denon"), and phones and laptops land here with no
+integration to add at all. An earlier revision ranked this list by
+token-matching vendor names against integration brand names; it proposed
+`amazon_polly, aws, fire_tv` for a set of Amazon *thermostats* and missed
+Signify→`hue` entirely. That is a name match wearing a better job title
+(`.claude/rules/friendly-names.md`), and it was removed.
+
+### Coverage boundaries
+
+- **DHCP-only.** A device that never renewed a lease inside the capture window
+  is not in the store. An empty result means "nothing observed", never
+  "nothing present". One Ring (`b0:09:da:00:00:33`) is visible in ARP but sent
+  no DHCP record carrying an address, so it does not appear.
+- **Randomized MACs do not resolve.** 9 of 54 observed MACs on this instance
+  have the locally-administered bit set (phone privacy MACs). They have no
+  IEEE assignment and are correctly reported as `Unknown`, not guessed at.
+- **Adoption is judged on registry MAC `connections`**, never on device names.

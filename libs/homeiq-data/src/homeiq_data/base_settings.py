@@ -64,8 +64,30 @@ class BaseServiceSettings(BaseSettings):
 
     @property
     def effective_database_url(self) -> str:
-        """Return the best available database URL."""
+        """Return the best available database URL (SQLAlchemy form)."""
         return self.postgres_url or self.database_url
+
+    @property
+    def asyncpg_dsn(self) -> str:
+        """Return :attr:`effective_database_url` in the form raw asyncpg accepts.
+
+        SQLAlchemy URLs name the driver (``postgresql+asyncpg://``); asyncpg's
+        own ``connect``/``create_pool`` reject anything but ``postgresql://``
+        or ``postgres://`` with ``invalid DSN: scheme is expected to be…``.
+
+        Services that talk to asyncpg directly must use this property rather
+        than :attr:`effective_database_url`. Passing the SQLAlchemy form makes
+        ``create_pool`` raise inside ``initialize()``, and a service that logs
+        that failure and carries on then silently drops every write — which is
+        how zeek-network-service's four Postgres stores stayed empty for
+        months while ``/health`` reported healthy.
+        """
+        url = self.effective_database_url
+        scheme, sep, rest = url.partition("://")
+        if sep and "+" in scheme:
+            scheme = scheme.split("+", 1)[0]
+            return f"{scheme}://{rest}"
+        return url
 
     def get_cors_origins_list(self) -> list[str]:
         """Parse cors_origins string into a list."""

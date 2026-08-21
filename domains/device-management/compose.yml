@@ -237,6 +237,11 @@ services:
       # Overrides the .env value, which names a path on the HOST. Inside the
       # container the key is only ever at the mount target below.
       - HOMEIQ_HA_SSH_KEY=/run/secrets/ha_agent_key
+      # Network observer for integrations.unclaimed_devices. Points at
+      # zeek-network-service, which owns LAN observation (this container is on
+      # a docker bridge and cannot see LAN layer 2). Unset => the recipe
+      # reports NOT_APPLICABLE rather than implying the network is clean.
+      - HOMEIQ_NETWORK_OBSERVER_URL=${HOMEIQ_NETWORK_OBSERVER_URL:-http://zeek-network-service:8048}
     volumes:
       - ha_setup_data:/app/data
       - ../../config:/app/config

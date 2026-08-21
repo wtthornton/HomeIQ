@@ -36,6 +36,7 @@ from .helpers import ManifestHelpersRecipe
 from .host_files import host_files_from_env
 from .integration import IntegrationRecipe, TeamTrackerRecipe
 from .manifest import DEFAULT_MANIFEST_PATH, OrganizationManifest, load_manifest
+from .netobserve import observer_from_env
 from .organization import (
     ManifestEntityAliasesRecipe,
     ManifestEntityLabelsRecipe,
@@ -62,6 +63,7 @@ from .registry import (
     FloorsRecipe,
     LabelsRecipe,
 )
+from .unclaimed import UnclaimedDevicesRecipe
 from .zha import ZHA_SERIAL_PATH, ZHAFormationRefused, ZHARecipe
 from .zha_quirks import AqaraFP1EQuirkRecipe
 
@@ -383,6 +385,10 @@ def default_recipes(
         AqaraFP1EQuirkRecipe(host_files),
         ZigbeeCoordinatorWatchdogRecipe(zha_serial_path),
         ZigbeeMeshHealthRecipe(),
+        # LAN devices no configured integration owns. Needs a network
+        # observer (HOMEIQ_NETWORK_OBSERVER_URL); without one it reports
+        # NOT_APPLICABLE rather than implying the network is clean. TAP-6402.
+        UnclaimedDevicesRecipe(observer_from_env()),
     ]
     if manifest is not None:
         recipes.extend(
