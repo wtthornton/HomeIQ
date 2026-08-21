@@ -5,7 +5,6 @@
  */
 import React from 'react';
 import { EnvironmentHealthCard } from '../EnvironmentHealthCard';
-import { MqttConfigForm } from '../setup/MqttConfigForm';
 
 export const SetupTab: React.FC = () => {
   return (
@@ -24,8 +23,6 @@ export const SetupTab: React.FC = () => {
       {/* Environment Health Card */}
       <EnvironmentHealthCard />
 
-      <MqttConfigForm />
-
       {/* Additional Information */}
       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
         <div className="flex items-start">
@@ -42,7 +39,7 @@ export const SetupTab: React.FC = () => {
               </p>
               <ul className="list-disc list-inside space-y-1 ml-2">
                 <li>Real-time health scoring (0-100 based on weighted components)</li>
-                <li>Integration status verification (MQTT, device discovery)</li>
+                <li>Integration status verification (device discovery)</li>
                 <li>Performance metrics tracking (response time, resource usage)</li>
                 <li>Automatic issue detection with actionable recommendations</li>
               </ul>

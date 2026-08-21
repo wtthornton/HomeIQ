@@ -371,32 +371,14 @@ curl http://localhost:8004/api/v1/config
 
 ### MQTT/Zigbee Configuration
 
-#### MQTT configuration endpoints
-MQTT and Zigbee configuration management endpoints available under `/api/v1/config/integrations/mqtt`
+**Removed 2026-08-21 (TAP-6400).** `GET|PUT /api/v1/config/integrations/mqtt` no
+longer exist. Zigbee on this deployment is Home Assistant's built-in ZHA; there
+is no MQTT broker and nothing read the configuration these endpoints wrote.
 
-**Authentication:** These endpoints are **public** (no authentication required) to allow the dashboard to load and save MQTT configuration. Configuration values are not sensitive (they're already in environment variables or config files).
-
-**Endpoints:**
-- `GET /api/v1/config/integrations/mqtt` - Get current MQTT/Zigbee configuration
-- `PUT /api/v1/config/integrations/mqtt` - Update MQTT/Zigbee configuration
-
-**Example:**
-```bash
-# Get configuration (public, no auth required)
-curl http://localhost:8004/api/v1/config/integrations/mqtt
-
-# Update configuration (public, no auth required)
-curl -X PUT http://localhost:8004/api/v1/config/integrations/mqtt \
-  -H "Content-Type: application/json" \
-  -d '{
-    "MQTT_BROKER": "mqtt://192.168.1.100:1883",
-    "MQTT_USERNAME": "user",
-    "MQTT_PASSWORD": "pass",
-    "ZIGBEE2MQTT_BASE_TOPIC": "zigbee2mqtt"
-  }'
-```
-
-**Note:** In production, consider adding authentication for PUT endpoint to prevent unauthorized configuration changes.
+The GET was public by design and returned `MQTT_PASSWORD` in its body, which is
+how a plaintext broker credential was readable over HTTP without authentication
+(filed as CRIT-02 on 2026-02-06, unfixed until the endpoints were deleted). See
+`docs/security/secret-disposition-mqtt-broker-credential.md`.
 
 ### Devices & Entities
 

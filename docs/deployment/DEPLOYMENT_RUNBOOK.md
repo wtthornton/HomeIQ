@@ -1343,7 +1343,6 @@ docker logs homeiq-dashboard --tail 50
 ### Authentication Issues (401 Unauthorized)
 
 **Dashboard Endpoints Requiring Public Access:**
-- `/api/v1/config/integrations/mqtt` (GET/PUT) - MQTT configuration for dashboard
 - `/api/v1/real-time-metrics` - Real-time metrics for dashboard display
 
 **If Dashboard Shows "Authentication Required":**

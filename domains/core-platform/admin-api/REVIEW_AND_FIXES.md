@@ -87,6 +87,17 @@ app.add_middleware(
 
 ### CRIT-02: MQTT GET Endpoint Exposes Credentials Without Authentication
 
+> **RESOLVED 2026-08-21 (TAP-6400).** Fixed by deleting the endpoints rather than
+> masking the field: `mqtt_config_endpoints.py` and both route registrations are
+> gone, as is the dashboard form that called them. Zigbee here is ZHA and no
+> broker exists, so the endpoints had no remaining purpose and masking would have
+> left a no-auth route writing shared config. The credential itself was removed
+> from the working tree the same day — see
+> `docs/security/secret-disposition-mqtt-broker-credential.md`. This finding sat
+> open for six months; it was rediscovered independently, then matched to this
+> entry.
+
+
 **File**: `c:\cursor\HomeIQ\services\admin-api\src\mqtt_config_endpoints.py`, lines 142-152
 **Severity**: CRITICAL
 **Category**: Security
@@ -981,7 +992,7 @@ and have been removed or corrected in this revision:
 ### Immediate Actions (This Sprint)
 
 1. **Remove or secure `simple_main.py`** -- CRIT-01
-2. **Mask MQTT password in public GET response** -- CRIT-02
+2. ~~**Mask MQTT password in public GET response** -- CRIT-02~~ — superseded: endpoints deleted outright, 2026-08-21 (TAP-6400)
 3. **Add period/window/service_name allowlist validation in `influxdb_client.py`** -- CRIT-04
 4. **Move API keys from URL query strings to headers where possible** -- CRIT-03
 5. **Add character validation to API key format checking** -- MED-07

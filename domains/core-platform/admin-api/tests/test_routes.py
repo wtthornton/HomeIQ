@@ -51,11 +51,13 @@ class TestRegisterRouters:
             "Health",
             "Statistics",
             "Configuration",
-            "Integrations",
             "Docker Management",
             "Monitoring",
         } <= registered_tags
-        assert mock_app.include_router.call_count == len(registered_tags) + 1
+        # The "Integrations" tag existed only for the MQTT broker-config routes,
+        # deleted in TAP-6400. Asserting its absence is what stops them coming
+        # back: Zigbee here is ZHA and no endpoint may accept broker config.
+        assert "Integrations" not in registered_tags
 
 
 class TestRegisterRootEndpoints:

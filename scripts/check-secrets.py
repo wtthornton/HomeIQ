@@ -19,12 +19,18 @@ from pathlib import Path
 SECRET_PATTERNS: list[tuple[re.Pattern, str]] = [
     # VITE env vars with actual values (not empty or placeholder)
     (
-        re.compile(r"""VITE_\w*(?:KEY|SECRET|TOKEN|PASSWORD)\s*=\s*['"]?[A-Za-z0-9_\-/.]{8,}""", re.IGNORECASE),
+        re.compile(
+            r"""VITE_\w*(?:KEY|SECRET|TOKEN|PASSWORD)\s*=\s*['"]?[A-Za-z0-9_\-/.]{8,}""",
+            re.IGNORECASE,
+        ),
         "VITE_ secret env var with hardcoded value",
     ),
     # Generic API key assignments (not in comments)
     (
-        re.compile(r"""(?:api[_-]?key|apikey|secret[_-]?key)\s*[:=]\s*['"][A-Za-z0-9_\-/.]{16,}['"]""", re.IGNORECASE),
+        re.compile(
+            r"""(?:api[_-]?key|apikey|secret[_-]?key)\s*[:=]\s*['"][A-Za-z0-9_\-/.]{16,}['"]""",
+            re.IGNORECASE,
+        ),
         "Hardcoded API key or secret",
     ),
     # Bearer tokens in code (not test files)
@@ -42,16 +48,96 @@ SECRET_PATTERNS: list[tuple[re.Pattern, str]] = [
         re.compile(r"""-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----"""),
         "Private key",
     ),
+    # Password assignments carrying a real value.
+    #
+    # Added after a plaintext MQTT broker password sat committed for nine
+    # months and this scanner reported the file CLEAN: the generic rule above
+    # only matches keys literally named api_key/apikey/secret_key, and the
+    # value was 14 characters against its 16-character floor. Two independent
+    # reasons to miss it. A gate blind to the thing it is supposed to catch
+    # reads as coverage while providing none (TAP-6399).
+    #
+    # Placeholders are excluded by PLACEHOLDER_VALUES rather than by length,
+    # because real passwords are often short and placeholders often long.
+    (
+        re.compile(
+            r"""(?:password|passwd|pwd)['\"]?\s*[:=]\s*['\"](?![$&])[^'\"]{4,}['\"]""",
+            re.IGNORECASE,
+        ),
+        "Hardcoded password",
+    ),
 ]
+# The `(?![$&])` above rejects a value that is a variable reference rather than
+# a literal: PGPASSWORD="$TEST_PASSWORD" names a secret, it does not contain one.
+
+# Substrings that mark a value as a placeholder rather than a live secret.
+# Checked case-insensitively against the matched line.
+PLACEHOLDER_VALUES = (
+    "replace-with",
+    "replace_with",
+    "your-",
+    "your_",
+    "<your",
+    "changeme",
+    "change-me",
+    "example",
+    "placeholder",
+    "dummy",
+    "xxxx",
+    "****",
+    "${",
+    "{{",
+    "os.getenv",
+    "os.environ",
+    "process.env",
+)
 
 # Files/patterns to always skip (in addition to pre-commit exclude)
 SKIP_PATTERNS = {
+    # This scanner's own test corpus. It necessarily contains one live-looking
+    # example of every pattern the scanner detects — that is what makes it a
+    # test of a detector rather than a test that nothing matches. Without this
+    # entry the hook blocks every commit that touches those vectors.
+    "test_check_secrets.py",
     ".env.example",
     ".env.template",
     "package-lock.json",
     "pnpm-lock.yaml",
     "yarn.lock",
 }
+
+
+def _is_test_artifact(path: Path) -> bool:
+    """True for test files, where a password literal is fixture data.
+
+    Scoped to the password rule. Test suites legitimately hand literal values
+    to a fixture, and a hook that fires on every one of them gets switched off —
+    which leaves the repo with no scanner at all, the outcome this rule exists
+    to prevent. The stricter rules (API key, bearer, AWS, private key) still
+    apply to test files.
+    """
+    name = path.name.lower()
+    parts = {part.lower() for part in path.parts}
+    return (
+        "tests" in parts
+        or "test" in parts
+        or "__tests__" in parts
+        or name.startswith("test")
+        or name == "conftest.py"
+        or "_test." in name
+        or ".test." in name
+        or ".spec." in name
+    )
+
+
+def _is_placeholder(line: str) -> bool:
+    """True when a password-shaped line carries a template value, not a secret.
+
+    A scanner that fires on every `.env.example` gets switched off, which is how
+    a repo ends up with no scanner at all.
+    """
+    lowered = line.lower()
+    return any(marker in lowered for marker in PLACEHOLDER_VALUES)
 
 
 def check_file(filepath: str) -> list[tuple[int, str, str]]:
@@ -79,9 +165,18 @@ def check_file(filepath: str) -> list[tuple[int, str, str]]:
         if stripped.startswith(("#", "//", "*", "/*")):
             continue
         for pattern, reason in SECRET_PATTERNS:
-            if pattern.search(line):
-                findings.append((line_no, line.rstrip(), reason))
-                break  # One finding per line is enough
+            if not pattern.search(line):
+                continue
+            # Placeholder filtering applies to the password rule alone. Applied
+            # to every rule it suppressed real findings, because marker words
+            # like "example" appear inside legitimate secret shapes such as
+            # AKIAIOSFODNN7EXAMPLE.
+            if reason == "Hardcoded password" and (
+                _is_placeholder(line) or _is_test_artifact(path)
+            ):
+                continue
+            findings.append((line_no, line.rstrip(), reason))
+            break  # One finding per line is enough
 
     return findings
 
@@ -100,8 +195,10 @@ def main() -> int:
             total_findings += 1
 
     if total_findings:
-        print(f"\n{total_findings} potential secret(s) found. "
-              "Remove hardcoded values and use environment variables instead.")
+        print(
+            f"\n{total_findings} potential secret(s) found. "
+            "Remove hardcoded values and use environment variables instead."
+        )
         return 1
     return 0
 
