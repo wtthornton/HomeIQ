@@ -182,12 +182,39 @@ class PowercalcRecipe(Recipe):
             eligible.add(entity_id)
 
         covered = {eid for eid in eligible if device_of.get(eid) in metered_devices}
+
+        # Why each uncovered load is uncovered. A bare list of 30 entity ids
+        # says "something is wrong somewhere"; these say which of them a person
+        # could act on, and how. The three causes need different actions and
+        # only one of them is a software problem.
+        state_of = {str(s.get("entity_id")): str(s.get("state")) for s in states}
+        reasons: dict[str, str] = {}
+        for entity_id in sorted(eligible - covered):
+            state = state_of.get(entity_id, "unknown")
+            if state == "unavailable":
+                reasons[entity_id] = (
+                    "the load itself is unavailable — a sensor cannot read a device "
+                    "that is not reachable, so this clears when the device is powered"
+                )
+            elif entity_id.startswith("media_player."):
+                reasons[entity_id] = (
+                    "no Powercalc profile for this media player; it needs a manually "
+                    "stated wattage, which is a fact about the hardware"
+                )
+            else:
+                reasons[entity_id] = (
+                    "Powercalc raised no discovery flow that closes on defaults — "
+                    "typically a profile asking for supply voltage, which is a fact "
+                    "about the installation rather than the device"
+                )
+
         for entity_ids in excluded.values():
             entity_ids.sort()
         return {
             "eligible": eligible,
             "covered": covered,
             "excluded": excluded,
+            "uncovered_reasons": reasons,
         }
 
     async def check(self, ha: HAClient) -> CheckResult:
@@ -204,6 +231,7 @@ class PowercalcRecipe(Recipe):
                 "eligible": sorted(eligible),
                 "covered": sorted(covered),
                 "uncovered": uncovered,
+                "uncovered_reasons": coverage["uncovered_reasons"],
                 "excluded": coverage["excluded"],
                 "coverage_ratio": round(ratio, 3),
                 "coverage_target": self.coverage_target,

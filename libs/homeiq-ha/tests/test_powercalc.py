@@ -577,3 +577,39 @@ async def test_powercalc_apply_leaves_flows_needing_human_facts_in_triage(sim):
     assert any(c.action == "configure integration" for c in result.changed)
     # The blocked flow is still outstanding, where a human can answer it.
     assert [f["flow_id"] for f in sim.state["flow_progress"]] == ["wled1"]
+
+
+@pytest.mark.asyncio
+async def test_powercalc_check_says_why_each_load_is_uncovered(sim):
+    """A bare list of uncovered ids says "something is wrong somewhere".
+
+    The three causes need different actions and only one is a software problem:
+    a device that is not powered, a profile that wants a fact about the
+    installation, and hardware Powercalc has no profile for at all.
+    """
+    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
+    sim.state["config_entries"].append(
+        {"entry_id": "pc1", "domain": "powercalc", "state": "loaded"}
+    )
+    sim.state["entities"] = [
+        {"entity_id": "light.dead", "device_id": "d1"},
+        {"entity_id": "light.strip", "device_id": "d2"},
+        {"entity_id": "media_player.tv", "device_id": "d3"},
+        {"entity_id": "sensor.office_light_power", "platform": "powercalc"},
+    ]
+    sim.state["states"] = [
+        {"entity_id": "light.dead", "state": "unavailable", "attributes": {}},
+        {"entity_id": "light.strip", "state": "on", "attributes": {}},
+        {"entity_id": "media_player.tv", "state": "on", "attributes": {}},
+        {"entity_id": "sensor.office_light_power", "state": "3.4"},
+    ]
+
+    result = await powercalc_recipe().check(sim)
+
+    reasons = result.details["uncovered_reasons"]
+    assert "not reachable" in reasons["light.dead"]
+    assert "no Powercalc profile" in reasons["media_player.tv"]
+    assert "supply voltage" in reasons["light.strip"]
+    # Every uncovered load has one; a reason nobody can act on is still better
+    # than a silent gap, but a missing one is a hole.
+    assert set(reasons) == set(result.details["uncovered"])
