@@ -207,3 +207,29 @@ def plan_onboarding(
     # worth more than one behind a single device, and a budget that runs out
     # should run out on the long tail.
     return sorted(needing, key=lambda c: (-c.device_count, c.subject_key))
+
+
+#: How many newly-seen models one discovery pass may dispatch. New models are rare
+#: in steady state — a home gains a device, not a catalogue — so this bounds the
+#: one case that is not rare: a first sight of an unfamiliar home, where every
+#: model is new at once. The remainder is not dropped; it is left for the next
+#: pass and for the setup sweep, which is bounded the same way.
+MAX_DISPATCH_PER_PASS = 3
+
+
+def newly_seen_models(
+    current: set[str],
+    previously_seen: set[str] | None,
+) -> set[str]:
+    """Model subject keys appearing for the first time.
+
+    `previously_seen` is None on the first pass after a restart, when everything
+    looks new because nothing has been seen yet. Returning empty there is
+    deliberate: a restart is not a home full of new devices, and treating it as
+    one would re-dispatch the whole catalogue every time the service bounces.
+    The setup sweep exists for the genuine first-run case and is explicit about
+    what it will cost.
+    """
+    if previously_seen is None:
+        return set()
+    return current - previously_seen

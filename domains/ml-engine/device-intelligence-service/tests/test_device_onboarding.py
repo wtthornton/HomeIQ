@@ -160,3 +160,28 @@ class TestServiceEntriesAreNotDevices:
 
     def test_a_real_device_is_unaffected(self):
         assert len(plan_onboarding([device(entry_type=None)], {}, {})) == 1
+
+
+class TestNewlySeenModels:
+    def test_a_genuinely_new_model_is_reported(self):
+        from src.services.device_onboarding import newly_seen_models
+
+        assert newly_seen_models({"a/b", "c/d"}, {"a/b"}) == {"c/d"}
+
+    def test_nothing_new_is_empty(self):
+        from src.services.device_onboarding import newly_seen_models
+
+        assert newly_seen_models({"a/b"}, {"a/b", "c/d"}) == set()
+
+    def test_the_first_pass_after_a_restart_reports_nothing(self):
+        from src.services.device_onboarding import newly_seen_models
+
+        # A restart is not a home full of new devices. Treating it as one would
+        # re-dispatch the whole catalogue every time the service bounces.
+        assert newly_seen_models({"a/b", "c/d"}, None) == set()
+
+    def test_an_empty_previous_set_is_not_the_same_as_none(self):
+        from src.services.device_onboarding import newly_seen_models
+
+        # An observed-empty home really did gain these models.
+        assert newly_seen_models({"a/b"}, set()) == {"a/b"}

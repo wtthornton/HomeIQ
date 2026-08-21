@@ -20,6 +20,7 @@ from ..clients.ha_client import HAArea, HADevice, HAEntity
 from ..config import Settings
 from ..core.database import get_db_session
 from ..services.device_knowledge import DeviceKnowledge
+from ..services.device_onboarding import newly_seen_models, normalize_model_key
 from ..services.device_service import DeviceService
 from ..services.hygiene_analyzer import DeviceHygieneAnalyzer
 from ..services.name_enhancement import DeviceNameGenerator, NameUniquenessValidator
@@ -85,6 +86,10 @@ class DiscoveryService:
         self.zha_devices: list[dict[str, Any]] | None = None
         # device_id -> {column: why no durable signal established it}
         self.knowledge_exclusions: dict[str, dict[str, str]] = {}
+        # Model subject keys seen last pass. None until the first pass completes,
+        # so a restart is not mistaken for a home full of new devices.
+        self.seen_model_keys: set[str] | None = None
+        self.newly_seen_models: set[str] = set()
         self.ha_areas: list[HAArea] = []
         self.ha_config_entries: dict[str, str] = {}  # Maps config_entry_id -> domain/integration
 
@@ -652,6 +657,26 @@ class DiscoveryService:
                 # Retained so every NULL is traceable to the rule that declined
                 # to fill it. An aggregate log line is not checkable per device.
                 self.knowledge_exclusions = knowledge_exclusions
+
+                # Ongoing onboarding: notice a model this home has not had
+                # before. Deliberately keyed on the MODEL, not the device —
+                # a second Hue downlight is not new knowledge, and researching
+                # it again would cost real money for an answer already stored.
+                current_models = {
+                    normalize_model_key(entry["manufacturer"], entry["model"])
+                    for entry in devices_data
+                    if (entry.get("manufacturer") or "").strip()
+                    and (entry.get("model") or "").strip()
+                    and str(entry.get("entry_type") or "").lower() != "service"
+                }
+                self.newly_seen_models = newly_seen_models(current_models, self.seen_model_keys)
+                self.seen_model_keys = current_models
+                if self.newly_seen_models:
+                    logger.info(
+                        "Device onboarding: %d model(s) seen for the first time: %s",
+                        len(self.newly_seen_models),
+                        sorted(self.newly_seen_models),
+                    )
 
                 if knowledge_exclusions:
                     by_column = Counter(
