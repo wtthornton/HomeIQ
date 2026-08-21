@@ -331,3 +331,9 @@ ha-baseline*.json
 # Runtime state on the config bind mount: flow keys embed hardware
 # identity (MACs/serials) that must never enter a public repo history.
 config/init-triage.json
+
+# Broker config carrying a plaintext credential for a broker that does not
+# exist. Deleted 2026-08-21 (TAP-6399); Zigbee here is ZHA and nothing reads
+# this path. Ignored so a rebase from an older branch, or the admin-api writer
+# still awaiting removal in TAP-6400, cannot quietly recommit it.
+infrastructure/config/mqtt_zigbee_config.json
