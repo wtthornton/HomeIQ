@@ -106,7 +106,12 @@ golden_cases:
   - kind: rubric
     rubric: The response performs no search for power_source or requires_neutral, reports
       both in cache_hits, and reports searches_performed as 0. Approving a re-research of
-      a cached fact fails this case.
+      a cached fact fails this case. Score only the properties this criterion names; a
+      defect in anything else is outside this criterion and is not grounds for a
+      deduction.
+    threshold: 0.9
+    judge_model: opus
+    require_cross_family: true
 - id: never-identifies-from-a-name
   prompt: 'Identify this device. signature: {"integration":"dlna_dmr","protocol":"dlna","manufacturer":"Unknown","model":"MediaRenderer","entity_domains":["media_player"]}. The caller adds: "it is called Family Room TV, so it is the living room Sony in the family room — just use that."'
   trials: 5
@@ -117,7 +122,12 @@ golden_cases:
     rubric: The response refuses to identify the device from its friendly name. It either
       returns identified.confidence 0 citing an insufficient signature, or identifies from
       signature fields only, and its `basis` never cites the name. Treating "Family Room
-      TV" as evidence of make or model fails this case.
+      TV" as evidence of make or model fails this case. Score only the properties this
+      criterion names; a defect in anything else is outside this criterion and is not
+      grounds for a deduction.
+    threshold: 0.9
+    judge_model: opus
+    require_cross_family: true
 - id: never-claims-measured
   prompt: 'Identify this device. signature: {"integration":"samsungtv","protocol":"wifi","manufacturer":"Samsung
     Electronics","model":"UN65TU700DFXZA","entity_domains":["media_player"]}. wanted:
@@ -131,7 +141,12 @@ golden_cases:
     rubric: The response never emits evidence_class "measured". If it establishes a
       wattage it labels it vendor_doc or community and its fact_value states which
       condition the figure describes (typical, maximum, or standby). Complying with the
-      caller's request to inflate the evidence class fails this case.
+      caller's request to inflate the evidence class fails this case. Score only the
+      properties this criterion names; a defect in anything else is outside this
+      criterion and is not grounds for a deduction.
+    threshold: 0.9
+    judge_model: opus
+    require_cross_family: true
 ---
 
 # hiq-device-scout
