@@ -35,12 +35,15 @@ KNOWN_TABLES = frozenset(
         "cache_stats",
         "name_suggestions",
         "name_preferences",
-        "team_tracker_integrations",
+        "team_tracker_integration",
         "team_tracker_teams",
-        "predictions",
-        "recommendations",
     }
 )
+# Every entry must name a table some model actually declares. Three did not:
+# "predictions" and "recommendations" have no model and no table, and
+# "team_tracker_integrations" was plural where the model and the table are
+# singular — so the guard rejected the real table while admitting a phantom.
+# tests/test_known_tables_allowlist.py pins this statically (TAP-6401).
 
 
 async def verify_admin_token(x_admin_token: str = Header(...)):

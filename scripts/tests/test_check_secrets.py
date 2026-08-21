@@ -150,6 +150,45 @@ class TestPasswordDetection:
         assert not _scan(tmp_path, "service.py", line), f"false positive: {line}"
 
 
+class TestPlaceholderFilteringDoesNotWeakenOtherRules:
+    """A filter added for one rule must not silently disarm the others.
+
+    Both of these shipped broken and were caught by an adversarial verifier, not
+    by the suite — which is why they are pinned here now.
+    """
+
+    def test_a_marker_word_elsewhere_on_the_line_does_not_silence_the_quoted_rule(self, tmp_path):
+        # The literal markers for the unquoted rule were appended to the SHARED
+        # placeholder tuple, and placeholder matching is a substring test over
+        # the whole line — so the word "undefined" in a trailing comment
+        # suppressed a real finding from the pre-existing quoted rule.
+        findings = _scan(tmp_path, "config.py", 'PASSWORD = "s3cretValue"  # undefined behavior')
+        assert findings, "a marker word elsewhere on the line disarmed the quoted rule"
+
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "DB_PASSWORD=Falsetto99xyz",  # starts with "false"
+            "API_PASSWORD=Nonesuch7781",  # starts with "none"
+            "X_PASSWORD=Truebeliever42",  # starts with "true"
+            "Y_PASSWORD=Nullifier5566",  # starts with "null"
+        ],
+    )
+    def test_a_value_merely_starting_with_a_literal_is_not_suppressed(self, tmp_path, line):
+        # Matched as substrings, "=false"/"=none"/"=true" silenced any credential
+        # whose value happened to begin with those letters — in exactly the file
+        # type the rule exists to cover. The check is now an exact match against
+        # the captured value.
+        assert _scan(tmp_path, ".env", line), f"substring bypass: {line}"
+
+    @pytest.mark.parametrize(
+        "line",
+        ["password=None", "password=null", "password = false", "password: undefined"],
+    )
+    def test_bare_literals_are_still_not_values(self, tmp_path, line):
+        assert not _scan(tmp_path, ".env", line), f"false positive: {line}"
+
+
 class TestPreExistingRulesStillWork:
     @pytest.mark.parametrize(
         "line,expected",

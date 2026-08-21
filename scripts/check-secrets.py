@@ -79,7 +79,7 @@ SECRET_PATTERNS: list[tuple[re.Pattern, str]] = [
     # secret.
     (
         re.compile(
-            r"""(?:password|passwd|pwd)\s*[:=]\s*(?![$&{'\"])[^\s'\"#]{4,}""",
+            r"""(?:password|passwd|pwd)\s*[:=]\s*(?![$&{'\"])([^\s'\"#]{4,})""",
             re.IGNORECASE,
         ),
         "Hardcoded password (unquoted)",
@@ -108,19 +108,22 @@ PLACEHOLDER_VALUES = (
     "os.getenv",
     "os.environ",
     "process.env",
-    # Bare literals and type syntax, which the unquoted rule would otherwise
-    # read as values.
-    "=none",
-    ": none",
-    "=null",
-    ": null",
-    "=true",
-    "=false",
-    "undefined",
-    ": str",
-    ": bool",
-    ": int",
-    "optional[",
+)
+
+# Judged against the CAPTURED VALUE of the unquoted rule, by exact match — never
+# as a substring of the line.
+#
+# Both properties are load-bearing, and getting either wrong is a silent
+# weakening rather than a visible failure:
+#
+#   * Shared with the quoted rule, "undefined" silenced
+#     `PASSWORD = "s3cretValue"  # undefined behavior here`.
+#   * Matched as a substring, "=false" silenced `DB_PASSWORD=Falsetto99xyz`,
+#     "=none" silenced `Nonesuch7781`, and "=true" silenced `Truebeliever42` —
+#     a bypass any real credential could fall into by accident, in exactly the
+#     file type this rule exists to cover.
+UNQUOTED_NON_VALUES = frozenset(
+    {"none", "null", "true", "false", "undefined", "str", "bool", "int", "nil", "empty"}
 )
 
 # Files/patterns to always skip (in addition to pre-commit exclude)
@@ -217,8 +220,12 @@ def check_file(filepath: str) -> list[tuple[int, str, str]]:
             if reason.startswith("Hardcoded password"):
                 if _is_placeholder(line) or _is_test_artifact(path):
                     continue
-                if reason.endswith("(unquoted)") and not _is_config_file(path):
-                    continue
+                if reason.endswith("(unquoted)"):
+                    if not _is_config_file(path):
+                        continue
+                    value = pattern.search(line).group(1)
+                    if value.lower().rstrip(",;") in UNQUOTED_NON_VALUES:
+                        continue
             findings.append((line_no, line.rstrip(), reason))
             break  # One finding per line is enough
 

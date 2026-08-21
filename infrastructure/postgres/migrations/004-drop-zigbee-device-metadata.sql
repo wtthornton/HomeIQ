@@ -54,6 +54,29 @@
 SET lock_timeout = '3s';
 SET statement_timeout = '5s';
 
+-- Enforce the zero-row precondition rather than attesting it in a comment.
+-- The counts above were verified by hand on 2026-08-21, but this file will be
+-- applied to other databases on other days, and a bare DROP would destroy data
+-- silently if that re-confirmation were ever wrong somewhere else.
+DO $$
+DECLARE
+    row_count bigint;
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'devices' AND table_name = 'zigbee_device_metadata'
+    ) THEN
+        EXECUTE 'SELECT count(*) FROM devices.zigbee_device_metadata' INTO row_count;
+        IF row_count > 0 THEN
+            RAISE EXCEPTION
+                'REFUSING TO DROP: devices.zigbee_device_metadata holds % row(s). '
+                'This migration is only valid for the empty table it was written '
+                'for. Something wrote to it after 2026-08-21 — find the producer '
+                'before dropping anything.', row_count;
+        END IF;
+    END IF;
+END $$;
+
 DROP TABLE IF EXISTS devices.zigbee_device_metadata;
 
 -- Verification, so applying this file proves the end state instead of trusting
