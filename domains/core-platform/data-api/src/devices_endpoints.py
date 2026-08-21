@@ -2228,9 +2228,7 @@ async def classify_device(device_id: str, db: AsyncSession = Depends(get_db)):
             )
         else:
             # Fallback: Classify by device name/manufacturer/model (no entities needed)
-            classification = classifier_service.classify_device_by_metadata(
-                device_id, device.model
-            )
+            classification = classifier_service.classify_device_by_metadata(device_id, device.model)
 
         # Update device with classification. Fill only where the column is empty:
         # a device_type already established by a durable-evidence producer is
