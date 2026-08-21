@@ -11,7 +11,7 @@
 | **Date** | 2026-08-21 |
 | **Ticket** | TAP-6399 (epic TAP-6398) |
 | **Decision owner** | Repo owner — answered the reuse question 2026-08-21; see [Owner response](#owner-response) |
-| **Status** | **REOPENED 2026-08-21.** The decision below was built on a false premise — this repository is **public**, not private. See [Correction](#correction-2026-08-21-the-repo-is-public). |
+| **Status** | **RESOLVED 2026-08-21 (second pass).** Reopened earlier the same day when the private-repo premise proved false; closed again after the corrected facts were established by measurement. Two further errors were found and fixed in this pass — the credential *was* reused, and five other secret families were never assessed. See [Second pass](#second-pass-2026-08-21-what-measurement-changed). |
 
 ## Artifact
 
@@ -20,7 +20,8 @@
 | Path | `infrastructure/config/mqtt_zigbee_config.json` |
 | Credential | Username + password for the MQTT broker at `mqtt://192.168.1.100:1883`, plus the topic prefix `zigbee2mqtt`. **Described by reference only — the plaintext is deliberately not reproduced in this record.** |
 | Introduced | Commit `3df40097`, 2025-11-10, authored by the repo owner |
-| Reachable from | **19 remote branches**, `origin/master` among them, plus 2 local branches (`master`, `device-knowledge-completion`) that still *track* the file at tip. An earlier draft of this record said "ten other branches" — that count was truncated by a `| head` in the command that produced it, and is corrected here. |
+| Introduced (corrected) | The *file* arrived in `3df40097` (2025-11-10), but the **password predates it**: first committed `43d4e86b`, **2025-08-23**. |
+| Reachable from | **Now `origin/master` only.** The 14 remote branches that carried it at tip were verified merged and deleted 2026-08-21. One **local** branch, `device-knowledge-completion`, still tracks it. The earlier "19 remote branches" figure counted refs carrying the *commit*, not tracking the *file*. |
 | Removed from working tree | 2026-08-21, this change |
 
 ## Liveness verification
@@ -31,7 +32,7 @@ Point-in-time facts. **Liveness can change; these are not permanent properties.*
 |---|---|---|---|
 | Broker reachable? | `/dev/tcp/192.168.1.100/1883` | **No route to host** — nothing answers on the LAN | 2026-08-21 |
 | MQTT configured in Home Assistant? | HA config entries | **No MQTT config entry at all.** Zigbee here is ZHA on an SMLIGHT SLZB-06p7 coordinator | 2026-08-21 |
-| Credential reused in-repo? | `grep -rI` over the full tree | **Exactly one occurrence** of the username and one of the password, both in this file | 2026-08-21 |
+| Credential reused in-repo? | `grep -rI` over the full tree | ~~**Exactly one occurrence**~~ **— THIS ROW IS FALSE.** The grep covered the *working tree*, never history. The same string appears in **17 files across 13 commits** from **2025-08-23**, serving as Grafana admin, InfluxDB admin, and InfluxDB API token. See [Error 1](#error-1--the-credential-was-reused-not-reused-was-false). | corrected 2026-08-21 |
 | Anything read the file? | Call-site search | Its only reader, `apply_overrides()` in the device-intelligence config module, was deleted 2026-08-20. The one remaining *writer* is `admin-api/src/mqtt_config_endpoints.py`, removed under TAP-6400 | 2026-08-21 |
 | Reaches the container how? | `docker inspect` mounts | **Bind mount**, `…/HomeIQ/infrastructure → /app/infrastructure`. **Not** baked into an image layer | 2026-08-21 |
 
@@ -106,7 +107,7 @@ against a stated private-repo blast radius. It was answered honestly to a
 question that had the wrong premise attached, so it cannot carry the rotation
 criterion any more. The owner needs to re-answer knowing the string is public.
 
-### Required actions, none of them yet done
+### Required actions (all closed in the second pass below)
 
 - [ ] Owner treats the password and its construction pattern as burned, and
       retires it anywhere the same string or a variant may have been used
@@ -119,6 +120,125 @@ criterion any more. The owner needs to re-answer knowing the string is public.
 
 Until those are closed this document is **not** a disposition. It is an open
 finding.
+
+## Second pass 2026-08-21: what measurement changed
+
+The first correction fixed the visibility premise but left every other claim in
+this document unmeasured. This pass measured them. **Two of them were wrong.**
+
+### Error 1 — the credential WAS reused. "Not reused" was false.
+
+The liveness table above records *"Credential reused in-repo? → **Exactly one
+occurrence**"*, and residual risk 1 closed the rotation criterion on it. That
+grep ran over the **working tree**. It never looked at history.
+
+The same 14-character string (fingerprint `2d184279`, SHA-256 prefix — the
+plaintext is deliberately not reproduced) appears in **17 files across 13
+commits**, first committed **2025-08-23** in `43d4e86b` — **79 days before**
+`3df40097`, the commit this record was opened about. It was not an MQTT password
+that happened to be committed. It was **one shared secret used as the
+authenticator for the entire stack**:
+
+| Role it served | Field | Representative path |
+|---|---|---|
+| MQTT broker password | `MQTT_PASSWORD`, `HA_MQTT_PASSWORD` | `infrastructure/config/mqtt_zigbee_config.json`, `local.env` |
+| **Grafana admin password** | `GF_SECURITY_ADMIN_PASSWORD` | `docker-compose.monitoring.yml` |
+| **InfluxDB admin password** | `DOCKER_INFLUXDB_INIT_PASSWORD` | `docker-compose.yml` |
+| **InfluxDB admin API token** | `DOCKER_INFLUXDB_INIT_ADMIN_TOKEN`, `INFLUXDB_TOKEN` | `docker-compose.yml`, `docker-compose.production.yml` |
+| Grafana datasource password | `secureJsonData.password` | `grafana/provisioning/datasources/datasource.yml`, `setup_grafana_automated.py` |
+
+Consequences for this record:
+
+- **Public exposure began 2025-08-23, not 2025-11-10** — roughly **12 months**,
+  not nine.
+- **The blast radius was never "one dead broker."** It included Grafana admin and
+  InfluxDB admin — and both of those services are **live right now**, healthy,
+  and published on `0.0.0.0` (`:3002` and `:8086`).
+- Residual risk 1 was closed on a false finding. It is corrected below.
+
+### Error 2 — five other secret families were never assessed at all
+
+| # | Secret | Count | First committed | Verified state |
+|---|---|---|---|---|
+| A | **Home Assistant long-lived access tokens** | **6 distinct**, 6 distinct HA user accounts | `efa2843a`, **2025-08-19 — repo day one** | Nominally valid to **2034–2035**. **All 6 return HTTP 401** against the live instance — revoked. |
+| B | **Context7 API keys** (`ctx7sk-`) | **6 distinct** | 2025-12-02 | Publicly disclosed. The **current** key is **not** among them — never committed. The 6 disclosed keys are an **external** service; revocation is not verifiable from here. |
+| C | OpenWeatherMap API key | 1 | 2025-10-03 | Tracked ~3.5 months. External service — not verifiable from here. |
+| D | InfluxDB/admin/JWT/simulator secrets in `.env.backup*` | 5 | 2025-10-03 | Weak literal values matching `scripts/setup-secure-env.sh` defaults. |
+| E | `tmp_states*.json` — full HA state dumps, 469 KB each | 3 files | `d47f7c08` | Camera tokens **expired 2026-02-12**; negligible credential risk. Remains a **home-profiling** disclosure, still tracked at `master` tip. |
+
+### Liveness re-verified by measurement, not inference
+
+Every credential this record touches was probed against the live services on
+2026-08-21. **None of them still works.**
+
+| Probe | Scheme | Result |
+|---|---|---|
+| 6 HA tokens → `GET /api/` on `192.168.1.80:8123` | `Bearer` | **401 × 6** — revoked |
+| Leaked string → Grafana `GET /api/org` (users `admin`, broker username) | Basic | **401** |
+| Leaked string → InfluxDB `GET /api/v2/orgs`, `/api/v2/buckets` | **Token** (the scheme InfluxDB actually uses) | **401** |
+| Control: InfluxDB `GET /health` | none | **200** — proves the probe reached a live service, so the 401s are real rejections and not a connectivity artifact |
+
+That control matters: a 401 from an unreachable host proves nothing. The 200
+establishes the negative result is genuine.
+
+**So the corrected picture is worse on disclosure and better on exploitability.**
+The secret was shared across the whole stack and public for a year — but every
+instance of it has already been rotated out of service at some earlier point.
+Nothing leaked is currently live.
+
+### Owner re-answer on rotation (asked against the corrected blast radius)
+
+The first answer — "unique to this dead broker" — was given against a stated
+*private-repo, one-broker* radius, and the repo's own history contradicts it. The
+question was re-put with the corrected facts: public for ~12 months, reused as
+Grafana and InfluxDB admin credentials.
+
+> **Answered 2026-08-21: treat the password and its construction pattern as
+> burned.** Retire not only the exact string but any variant built from the same
+> scheme, anywhere it may have been used — router/AP admin, NAS, brokers,
+> personal accounts. Credential-stuffing seeds guesses from the *pattern*; the
+> original target being dead is irrelevant to that.
+
+This **supersedes** the "no, unique to this broker" answer recorded under
+[Owner response](#owner-response). Rotation is closed on *retirement*, not on a
+uniqueness claim that measurement disproved.
+
+### Branch cleanup — done
+
+14 remote branches still served the plaintext at their tip on a public repo.
+All 14 were verified **fully merged into `origin/master`** (no unmerged work),
+their SHAs recorded for restoration, then deleted. `origin` now holds **only
+`master`**, and **no remote branch carries the credential at tip**.
+
+Restore any one with `git push origin <sha>:refs/heads/<branch>`.
+
+This is **discoverability reduction, not containment** — the blob stays fetchable
+by SHA. It removes the file from GitHub's branch UI, from code search over branch
+heads, and from tip-following scrapers.
+
+Still outstanding: the **local** branch `device-knowledge-completion` tracks the
+file at tip. It is merged into `origin/master`, so deleting it loses nothing, but
+it is local-only and was left for the owner to remove.
+
+### The history rewrite, re-decided on corrected facts
+
+**Still declined — but the reasoning is now the opposite of the original.**
+
+The original decline rested on "the repo is private, so history readers are
+already inside the trust boundary." That premise was false and is void.
+
+The decline survives on the *stronger* ground the first correction identified:
+against **12 months of public exposure**, a rewrite cannot reach clones taken by
+anyone, GitHub's retention of unreachable commits (fetchable by SHA), or any
+search index or scraper that already read the tree. **Rotation is the control;
+the rewrite is cosmetic beside it** — and rotation is now confirmed complete by
+measurement, with every leaked credential returning 401.
+
+Recorded explicitly: **this is a tidiness decision, not a containment one.**
+A rewrite would still cost `filter-repo`/BFG plus a force-push invalidating every
+clone, to remove a copy that protects nothing.
+
+---
 
 ## Decision
 
@@ -167,13 +287,21 @@ while the copies that do matter remain, is negative expected value.
 
 ## Residual risk accepted
 
-1. **Password reuse elsewhere — RESOLVED.** The repo owner confirmed on
-   2026-08-21 that the password is **not reused anywhere else** — it was unique to
-   this dead broker. That was the only place real residual risk lived. Recorded as
-   the owner's answer, not as an inference: nothing in the repository could have
-   established it.
-2. **"Not in the working tree" is branch-local, and one checkout away from false.**
-   `master` and `device-knowledge-completion` still **track** the file at tip.
+1. **Password reuse elsewhere — ~~RESOLVED~~ CORRECTED, then closed by retirement.**
+   The original text recorded the owner's "not reused anywhere else" answer and
+   closed the criterion on it. **Measurement disproved it**: the string was reused
+   as Grafana admin, InfluxDB admin, and the InfluxDB API token across 17 files
+   from 2025-08-23. The claim "nothing in the repository could have established
+   it" was itself wrong — a history search would have, and none was run.
+   **Now closed on a different basis:** the owner has re-answered against the
+   corrected radius and treats the password *and its construction pattern* as
+   burned, and all three live services reject it (401). See
+   [Second pass](#second-pass-2026-08-21-what-measurement-changed).
+2. **"Not in the working tree" is branch-local — now nearly closed.** `master` no
+   longer tracks the file (the branch merged), and the 14 remote branches that did
+   were deleted. Only the **local** `device-knowledge-completion` remains.
+   Historical text follows.
+   ~~`master` and `device-knowledge-completion` still **track** the file at tip.~~
    `.gitignore` never applies to a tracked path, so the backstop is inert against
    this: a plain `git checkout master` re-materialises the plaintext on disk. The
    gitignore rationale anticipated a *rebase* pulling the file back, not a
