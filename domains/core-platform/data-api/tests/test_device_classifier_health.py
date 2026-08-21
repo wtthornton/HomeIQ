@@ -1,30 +1,12 @@
-"""
-Tests for services/device_classifier.py + services/device_health.py — Epic 80, Story 80.9
+"""Tests for services/device_classifier.py + services/device_health.py.
 
-Covers 14 scenarios:
-
-DeviceClassifierService:
-1.  classify_device — extracts domains from entity_ids
-2.  classify_device_from_domains — empty domains returns None
-3.  classify_device_from_domains — handles exception
-4.  classify_device_by_metadata — light keywords
-5.  classify_device_by_metadata — switch/plug keywords
-6.  classify_device_by_metadata — sensor keywords
-7.  classify_device_by_metadata — vacuum keywords
-8.  classify_device_by_metadata — thermostat keywords
-9.  classify_device_by_metadata — lock keywords
-10. classify_device_by_metadata — camera keywords
-11. classify_device_by_metadata — unknown device returns None
-
-DeviceHealthService:
-12. get_device_health — returns basic report when HA not configured
-13. get_device_health — handles exception gracefully
-14. Singleton getter returns same instance
+DeviceClassifierService is covered exhaustively in test_device_classifier_unit.py;
+what lives here is a smoke subset plus the DeviceHealthService cases.
 """
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
@@ -40,95 +22,64 @@ async def fresh_db():
 
 
 # ===========================================================================
-# DeviceClassifierService Tests
+# DeviceClassifierService — smoke subset
 # ===========================================================================
+#
+# The exhaustive keyword corpus lives in test_device_classifier_unit.py. This
+# is a deliberately small smoke set; a second hand-copied corpus would drift
+# from the first.
 
 
-class TestClassifyDevice:
-    """DeviceClassifierService.classify_device()."""
+class TestClassifierSmoke:
+    """One case per code path, plus the guarantee that matters."""
 
-    @pytest.mark.asyncio
-    async def test_extracts_domains_from_entity_ids(self):
+    def _svc(self):
         from src.services.device_classifier import DeviceClassifierService
 
-        svc = DeviceClassifierService()
-        result = await svc.classify_device("dev-001", ["light.kitchen", "sensor.temp"])
-        # Should call classify_device_from_domains with ["light", "sensor"]
+        return DeviceClassifierService()
+
+    @pytest.mark.asyncio
+    async def test_durable_path_classifies_from_entity_domains(self):
+        result = await self._svc().classify_device("dev-001", ["light.kitchen", "sensor.temp"])
         assert result["device_id"] == "dev-001"
-
-
-class TestClassifyDeviceFromDomains:
-    """DeviceClassifierService.classify_device_from_domains()."""
+        assert result["device_type"] == "light"
 
     @pytest.mark.asyncio
     async def test_empty_domains(self):
-        from src.services.device_classifier import DeviceClassifierService
-
-        svc = DeviceClassifierService()
-        result = await svc.classify_device_from_domains("dev-001", [])
+        result = await self._svc().classify_device_from_domains("dev-001", [])
         assert result["device_type"] is None
         assert result["device_category"] is None
 
     @pytest.mark.asyncio
-    async def test_handles_exception(self):
-        from src.services.device_classifier import DeviceClassifierService
+    async def test_handles_exception(self, monkeypatch):
+        from src.services import device_classifier as dc_mod
 
-        svc = DeviceClassifierService()
-        with patch(
-            "src.services.device_classifier.match_device_pattern", side_effect=Exception("fail")
-        ):
-            result = await svc.classify_device_from_domains("dev-001", ["light"])
+        def boom(*_args, **_kwargs):
+            raise Exception("fail")
+
+        monkeypatch.setattr(dc_mod, "match_device_pattern", boom)
+        result = await self._svc().classify_device_from_domains("dev-001", ["light"])
         assert result["device_type"] is None
 
-
-class TestClassifyDeviceByMetadata:
-    """DeviceClassifierService.classify_device_by_metadata()."""
-
-    def _classify(self, name, manufacturer=None, model=None):
-        from src.services.device_classifier import DeviceClassifierService
-
-        svc = DeviceClassifierService()
-        return svc.classify_device_by_metadata("dev-001", name, manufacturer, model)
-
-    def test_light_keywords(self):
-        result = self._classify("Hue White Bulb", "Signify")
+    def test_metadata_fallback_matches_on_model(self):
+        result = self._svc().classify_device_by_metadata("dev-001", "Hue White Bulb")
         assert result["device_type"] == "light"
         assert result["device_category"] == "lighting"
 
-    def test_switch_keywords(self):
-        result = self._classify("Smart Plug S31", "Sonoff")
-        assert result["device_type"] == "switch"
-        assert result["device_category"] == "control"
-
-    def test_sensor_keywords(self):
-        result = self._classify("Motion Sensor", "Aqara")
-        assert result["device_type"] == "sensor"
-        assert result["device_category"] == "sensor"
-
-    def test_vacuum_keywords(self):
-        result = self._classify("S7 MaxV", "Roborock")
-        assert result["device_type"] == "vacuum"
-        assert result["device_category"] == "appliance"
-
-    def test_thermostat_keywords(self):
-        result = self._classify("Learning Thermostat", "Nest")
-        assert result["device_type"] == "thermostat"
-        assert result["device_category"] == "climate"
-
-    def test_lock_keywords(self):
-        result = self._classify("Smart Lock Pro", "August")
-        assert result["device_type"] == "lock"
-        assert result["device_category"] == "security"
-
-    def test_camera_keywords(self):
-        result = self._classify("Indoor Cam", "Ring")
-        assert result["device_type"] == "camera"
-        assert result["device_category"] == "security"
-
-    def test_unknown_device(self):
-        result = self._classify("Generic Widget", "Acme Corp")
+    def test_metadata_fallback_returns_none_without_a_signal(self):
+        result = self._svc().classify_device_by_metadata("dev-001", "Generic Widget")
         assert result["device_type"] is None
         assert result["device_category"] is None
+
+    def test_metadata_fallback_takes_no_name(self):
+        # The friendly name is not a parameter, so a rename cannot reach the
+        # decision. See test_device_classifier_unit.py for the full argument.
+        import inspect
+
+        from src.services.device_classifier import DeviceClassifierService
+
+        params = inspect.signature(DeviceClassifierService.classify_device_by_metadata).parameters
+        assert "name" not in params
 
 
 # ===========================================================================

@@ -1,6 +1,8 @@
-"""
-Device Pattern Definitions
-Phase 2.1: Patterns for identifying device types from entities
+"""Device pattern definitions — the `device_type` vocabulary.
+
+Classification is keyed on entity domains and attribute keys, both of which are
+platform-assigned and survive a rename. Nothing here reads a device's friendly
+name, its `entity_id` slug or an area label; see `.claude/rules/friendly-names.md`.
 """
 
 from __future__ import annotations
@@ -221,3 +223,13 @@ def get_device_category(device_type: str | None) -> str | None:
         "remote": "control",
     }
     return category_map.get(device_type) if device_type else None
+
+
+def device_type_vocabulary() -> frozenset[str]:
+    """Every legal `device_type` value.
+
+    Callers validate against this before writing the column, so a value that is
+    not in the vocabulary fails at the write rather than becoming a row nothing
+    can filter on.
+    """
+    return frozenset(DOMAIN_TO_DEVICE_TYPE.values()) | frozenset(DEVICE_PATTERNS)

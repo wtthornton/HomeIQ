@@ -18,7 +18,8 @@ RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-resilience/ \
     /tmp/libs/homeiq-observability/ \
     /tmp/libs/homeiq-data/ \
-    /tmp/libs/homeiq-ha/
+    /tmp/libs/homeiq-ha/ \
+    /tmp/libs/homeiq-device-taxonomy/
 
 # Copy requirements and install remaining dependencies
 COPY domains/device-management/device-context-classifier/requirements.txt .

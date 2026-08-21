@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "homeiq-device-taxonomy"
+version = "1.0.0"
+description = "HomeIQ device taxonomy: the device_type vocabulary and the rename-proof matcher"
+requires-python = ">=3.11"
+# Deliberately dependency-free: pure vocabulary plus two pure functions, so
+# every service that needs the taxonomy can install it without pulling a tree.
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]

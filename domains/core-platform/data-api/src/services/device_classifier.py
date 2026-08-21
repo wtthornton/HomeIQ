@@ -1,32 +1,28 @@
-"""
-Device Classification Service
-Phase 2.1: Classify devices based on entity patterns
+"""Device classification.
+
+`device_type` is a decision input — it filters `GET /api/devices` and drives the
+"similar devices" recommender — so every rule here must survive a rename. Entity
+domains and manufacturer/model are platform- and vendor-assigned and do; a
+friendly name is not, and is never read. See `.claude/rules/friendly-names.md`.
 """
 
 import logging
 import os
-from pathlib import Path
+import re
 from typing import Any
 
 import aiohttp
+from homeiq_device_taxonomy import get_device_category, match_device_pattern
 
 logger = logging.getLogger(__name__)
 
-# Import patterns from device-context-classifier
-try:
-    import sys
-
-    sys.path.append(str(Path(__file__).resolve().parent / "../../../device-context-classifier/src"))
-    from patterns import get_device_category, match_device_pattern
-except ImportError:
-    # Fallback if classifier service not available
-    logger.warning("Device context classifier patterns not available, using fallback")
-
-    def match_device_pattern(_entity_domains, _entity_attributes):
-        return None
-
-    def get_device_category(_device_type):
-        return None
+# The taxonomy import is deliberately unguarded. It used to sit behind a
+# `try/except ImportError` that appended a relative path to `sys.path` and fell
+# back to stubs returning None. The path resolved to a directory that has never
+# existed, so the stubs were always live: every device with entities classified
+# as None, and the only rule that ever assigned a device_type was a keyword scan
+# over the device's name. A missing vocabulary must break the build, not degrade
+# into silence (TAP-6392).
 
 
 class DeviceClassifierService:
@@ -95,9 +91,10 @@ class DeviceClassifierService:
             if not entity_domains:
                 return {"device_id": device_id, "device_type": None, "device_category": None}
 
-            # PRIMARY: Domain-based classification (no HA API needed)
-            # Use improved match_device_pattern which uses domain mapping first
-            device_type = match_device_pattern(entity_domains, {})
+            # PRIMARY: domain-based classification. match_device_pattern returns
+            # (device_type, confidence) — binding the tuple to device_type would
+            # write "('light', 0.95)" into the column (TAP-6392).
+            device_type, _confidence = match_device_pattern(entity_domains, set())
             device_category = get_device_category(device_type)
 
             return {
@@ -110,164 +107,59 @@ class DeviceClassifierService:
             logger.error(f"Error classifying device {device_id}: {e}")
             return {"device_id": device_id, "device_type": None, "device_category": None}
 
+    # Ordered model-keyword rules, most specific first. Applied only when a
+    # device exposes no entities, so the durable domain-based path cannot run.
+    _MODEL_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+        ("light", ("downlight", "lightstrip", "light strip", "bulb", "lamp", "led", "light")),
+        ("media_player", ("television", "soundbar", "tv")),
+        ("switch", ("outlet", "smart plug", "smartplug", "switch")),
+        ("sensor", ("motion", "presence", "temperature", "humidity", "sensor")),
+        ("vacuum", ("roborock", "vacuum")),
+        ("thermostat", ("thermostat", "hvac", "climate")),
+        ("lock", ("deadbolt", "lock")),
+        ("camera", ("camera",)),
+        ("fan", ("fan",)),
+        ("button", ("button", "remote")),
+    )
+
     def classify_device_by_metadata(
-        self, device_id: str, name: str, manufacturer: str | None = None, model: str | None = None
+        self, device_id: str, model: str | None = None
     ) -> dict[str, Any]:
-        """
-        Classify device by name/manufacturer/model patterns (fallback when entities unavailable).
+        """Classify a device from its model string, for devices that expose no entities.
 
-        Uses device metadata to infer device type when entity domains aren't available.
+        Last resort. A device with entities is classified by
+        :meth:`classify_device_from_domains`, which is both more accurate and
+        genuinely structural; this runs only when there are no entities at all.
 
-        Args:
-            device_id: Device identifier
-            name: Device name
-            manufacturer: Device manufacturer (optional)
-            model: Device model (optional)
+        Matching is on **model** alone, deliberately.
 
-        Returns:
-            Classification result with device_type and device_category
+        - The device *name* is excluded because a rename would change the answer,
+          which the friendly-names rule forbids for a decision input.
+        - The *manufacturer* is excluded because it names a vendor, not a device
+          type, and on this instance that distinction is not academic: the four
+          entity-less devices include two Hue **Room** groups whose manufacturer
+          is "Signify Netherlands B.V.". Matching the brand token "signify"
+          classified both as lights. A room is not a light. Manufacturer is
+          rename-proof but it is not evidence of what a device *is* (TAP-6392).
+
+        Keywords match on word boundaries, so "flight" does not contain "light"
+        and "Netvue" does not contain "tv".
+
+        Returns `device_type: None` when the model carries no signal, rather
+        than guessing.
         """
         try:
-            name_lower = name.lower() if name else ""
-            manufacturer_lower = manufacturer.lower() if manufacturer else ""
-            model_lower = model.lower() if model else ""
-            combined = f"{name_lower} {manufacturer_lower} {model_lower}".strip()
+            if not model:
+                return {"device_id": device_id, "device_type": None, "device_category": None}
 
-            # Pattern matching on device name/manufacturer/model
-            # Check patterns in priority order (most specific first)
-
-            # Lights (check first - many devices have "light" in name)
-            if (
-                any(
-                    keyword in combined
-                    for keyword in [
-                        "hue",
-                        "downlight",
-                        "lightstrip",
-                        "light strip",
-                        "lightstrip",
-                        "bulb",
-                        "lamp",
-                        "led",
-                        "signify",
-                    ]
-                )
-                or "light" in combined
-                and not any(
-                    skip in combined for skip in ["lightweight", "flight", "highlight", "lightning"]
-                )
-            ):
-                return {
-                    "device_id": device_id,
-                    "device_type": "light",
-                    "device_category": "lighting",
-                }
-
-            # Media players (check before "tv" to avoid false matches like "ATV")
-            if any(
-                keyword in combined
-                for keyword in ["television", "frame tv", "samsung tv", "sony tv", "lg tv"]
-            ):
-                # Avoid matching "ATV" (all-terrain vehicle) - check it's not standalone "atv"
-                if " atv " in combined or combined.endswith(" atv") or combined.startswith("atv "):
-                    pass  # Skip - might be all-terrain vehicle
-                else:
+            haystack = model.lower()
+            for device_type, keywords in self._MODEL_KEYWORDS:
+                if any(re.search(rf"\b{re.escape(kw)}\b", haystack) for kw in keywords):
                     return {
                         "device_id": device_id,
-                        "device_type": "media_player",
-                        "device_category": "entertainment",
+                        "device_type": device_type,
+                        "device_category": get_device_category(device_type),
                     }
-            elif "tv" in combined and "atv" not in combined.lower():  # Avoid "ATV"
-                return {
-                    "device_id": device_id,
-                    "device_type": "media_player",
-                    "device_category": "entertainment",
-                }
-
-            # Switches and outlets
-            elif any(
-                keyword in combined for keyword in ["switch", "outlet", "smart plug", "smartplug"]
-            ) or ("plug" in combined and "smart" in combined):
-                return {
-                    "device_id": device_id,
-                    "device_type": "switch",
-                    "device_category": "control",
-                }
-
-            # Sensors
-            elif any(
-                keyword in combined
-                for keyword in [
-                    "sensor",
-                    "motion",
-                    "presence",
-                    "temperature",
-                    "humidity",
-                    "binary_sensor",
-                ]
-            ):
-                return {
-                    "device_id": device_id,
-                    "device_type": "sensor",
-                    "device_category": "sensor",
-                }
-
-            # Vacuum
-            elif any(
-                keyword in combined for keyword in ["vacuum", "roborock", "robotic vacuum", "dock"]
-            ):
-                return {
-                    "device_id": device_id,
-                    "device_type": "vacuum",
-                    "device_category": "appliance",
-                }
-
-            # Thermostat
-            elif any(keyword in combined for keyword in ["thermostat", "climate", "hvac"]):
-                return {
-                    "device_id": device_id,
-                    "device_type": "thermostat",
-                    "device_category": "climate",
-                }
-
-            # Lock
-            elif any(keyword in combined for keyword in ["lock", "door lock", "smart lock"]):
-                return {
-                    "device_id": device_id,
-                    "device_type": "lock",
-                    "device_category": "security",
-                }
-
-            # Camera
-            elif any(
-                keyword in combined
-                for keyword in ["camera", "cam", "security camera", "stick up cam"]
-            ):
-                return {
-                    "device_id": device_id,
-                    "device_type": "camera",
-                    "device_category": "security",
-                }
-
-            # Fan
-            elif any(keyword in combined for keyword in ["fan", "ceiling fan"]):
-                return {"device_id": device_id, "device_type": "fan", "device_category": "climate"}
-
-            # Button/Remote
-            elif any(keyword in combined for keyword in ["button", "smart button", "remote"]):
-                return {
-                    "device_id": device_id,
-                    "device_type": "button",
-                    "device_category": "control",
-                }
-
-            # TV/Media Player (fallback - check after other patterns)
-            elif "tv" in combined:
-                return {
-                    "device_id": device_id,
-                    "device_type": "media_player",
-                    "device_category": "entertainment",
-                }
 
             return {"device_id": device_id, "device_type": None, "device_category": None}
 

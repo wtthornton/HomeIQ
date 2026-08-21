@@ -1697,10 +1697,7 @@ async def bulk_upsert_entities(entities: list[dict[str, Any]], db: AsyncSession 
                         else:
                             # Fallback to metadata classification
                             classification = classifier_service.classify_device_by_metadata(
-                                device.device_id,
-                                device.name or "",
-                                device.manufacturer,
-                                device.model,
+                                device.device_id, device.model
                             )
 
                         # Update device if classification succeeded
@@ -2232,11 +2229,13 @@ async def classify_device(device_id: str, db: AsyncSession = Depends(get_db)):
         else:
             # Fallback: Classify by device name/manufacturer/model (no entities needed)
             classification = classifier_service.classify_device_by_metadata(
-                device_id, device.name or "", device.manufacturer, device.model
+                device_id, device.model
             )
 
-        # Update device with classification
-        if classification.get("device_type"):
+        # Update device with classification. Fill only where the column is empty:
+        # a device_type already established by a durable-evidence producer is
+        # never overwritten by this route (TAP-6392).
+        if classification.get("device_type") and not device.device_type:
             device.device_type = classification.get("device_type")
             device.device_category = classification.get("device_category")
             await db.commit()
@@ -2483,7 +2482,7 @@ async def classify_all_devices(
                         f"Classifying device {device.device_id} by metadata (no entities found)"
                     )
                     classification = classifier_service.classify_device_by_metadata(
-                        device.device_id, device.name or "", device.manufacturer, device.model
+                        device.device_id, device.model
                     )
 
                 # Update device

@@ -1,202 +1,212 @@
-"""Unit tests for DeviceClassifierService — Story 85.1
+"""Unit tests for DeviceClassifierService.
 
-Tests device classification logic:
-- classify_device_from_domains() with mocked pattern functions
-- classify_device_by_metadata() — pure pattern matching (no I/O)
-- classify_device() — legacy wrapper
-- Edge cases and error handling
+Two things are pinned here, and they are the point of the file:
+
+1. `device_type` never depends on a device's friendly name. The name is not a
+   parameter of `classify_device_by_metadata` at all, so a rename cannot reach
+   the decision — asserted structurally, not by value.
+2. The durable domain-based path is bound to the real taxonomy, not to a stub.
+   It used to sit behind a `try/except ImportError` whose fallback returned None
+   for every device, which made every test of that path pass vacuously.
+
+The matcher is exercised for real rather than mocked. The previous version of
+this file patched `match_device_pattern` to return the bare string `"light"`,
+but the real function returns `(device_type, confidence)` — so the doubles
+encoded the caller's mistaken belief about the contract and hid a live bug
+(TAP-6392).
 """
 
-from unittest.mock import patch
+import inspect
 
 import pytest
+from src.services import device_classifier as dc_mod
 from src.services.device_classifier import (
     DeviceClassifierService,
     get_classifier_service,
 )
 
 # ---------------------------------------------------------------------------
-# classify_device_by_metadata — pure logic, no I/O
+# The durable path is real, not a stub
+# ---------------------------------------------------------------------------
+
+
+class TestTaxonomyIsRealNotAStub:
+    """If the taxonomy import ever degrades again, these fail loudly."""
+
+    def test_matcher_is_bound_to_the_shared_taxonomy(self):
+        # An identity check, not a return-value check: a stub can return the
+        # right answer for a lucky fixture and still be a stub.
+        assert dc_mod.match_device_pattern.__module__ == "homeiq_device_taxonomy.patterns", (
+            "classify_device_from_domains is not using the shared taxonomy. "
+            "The import degraded to a local fallback, which returns None for "
+            "every device and makes every durable-path test pass vacuously."
+        )
+
+    def test_matcher_returns_a_type_and_a_confidence(self):
+        # Positive control. The old stub returned a bare None, so unpacking a
+        # two-tuple is itself an assertion that the real module is loaded.
+        device_type, confidence = dc_mod.match_device_pattern(["light"], set())
+        assert device_type == "light"
+        assert 0.0 < confidence <= 1.0
+
+    @pytest.mark.asyncio
+    async def test_durable_path_classifies_a_device_with_entities(self):
+        svc = DeviceClassifierService()
+        result = await svc.classify_device_from_domains("d1", ["light"], ["light.anything"])
+        assert result["device_type"] == "light"
+        assert result["device_category"] == "lighting"
+
+    @pytest.mark.asyncio
+    async def test_durable_path_does_not_write_the_matcher_tuple(self):
+        # The matcher returns (device_type, confidence). Binding that tuple
+        # straight to device_type wrote "('light', 0.95)" into a String column.
+        svc = DeviceClassifierService()
+        result = await svc.classify_device_from_domains("d1", ["switch"], ["switch.anything"])
+        assert isinstance(result["device_type"], str)
+
+
+# ---------------------------------------------------------------------------
+# A name can never reach the decision
+# ---------------------------------------------------------------------------
+
+
+class TestNameIsNotADecisionInput:
+    """The strongest available guarantee: the parameter does not exist."""
+
+    def test_classify_by_metadata_accepts_no_name_argument(self):
+        params = inspect.signature(DeviceClassifierService.classify_device_by_metadata).parameters
+        assert "name" not in params, (
+            "A `name` parameter was reintroduced. device_type is a decision "
+            "input (it filters GET /api/devices and drives the similar-devices "
+            "recommender), so a rename must not be able to change it."
+        )
+        assert "manufacturer" not in params, (
+            "A `manufacturer` parameter was reintroduced. Manufacturer names a "
+            "vendor, not a device type: matching the brand token 'signify' "
+            "classified two Hue Room groups as lights."
+        )
+
+    def test_a_name_cannot_be_passed_positionally(self):
+        svc = DeviceClassifierService()
+        with pytest.raises(TypeError):
+            svc.classify_device_by_metadata("d1", "Kitchen Light", "Signify", "LCT015")
+
+    def test_device_type_is_invariant_under_rename(self):
+        # Non-vacuous by construction: the expected value is pinned explicitly
+        # and asserted non-None, so this cannot pass by both sides being None.
+        svc = DeviceClassifierService()
+        model = "Hue White Ambiance Bulb"
+
+        before = svc.classify_device_by_metadata("d1", model)
+        # A rename changes only the name, which is not an input, so the call is
+        # byte-identical. That is the guarantee.
+        after = svc.classify_device_by_metadata("d1", model)
+
+        assert before["device_type"] == "light"
+        assert before["device_type"] is not None
+        assert after == before
+
+
+# ---------------------------------------------------------------------------
+# classify_device_by_metadata — model keywords, the entity-less fallback
 # ---------------------------------------------------------------------------
 
 
 class TestClassifyDeviceByMetadata:
-    """Test metadata-based classification (name/manufacturer/model patterns)."""
+    """Model-keyword classification for devices that expose no entities."""
 
     def setup_method(self):
         self.svc = DeviceClassifierService()
 
-    # -- Lights -------------------------------------------------------------
+    @pytest.mark.parametrize(
+        "model,expected_type,expected_category",
+        [
+            # Lights
+            ("Hue White Ambiance Bulb", "light", "lighting"),
+            ("Smart Bulb A19", "light", "lighting"),
+            ("Desk Lamp", "light", "lighting"),
+            ("LED Strip Controller", "light", "lighting"),
+            ("Lightstrip Plus", "light", "lighting"),
+            ("Downlight 5in", "light", "lighting"),
+            # Media players
+            ("Samsung TV Q60", "media_player", "entertainment"),
+            ("Television 55inch", "media_player", "entertainment"),
+            ("Soundbar HW-Q950", "media_player", "entertainment"),
+            # Switches and outlets
+            ("Wall Switch HS200", "switch", "control"),
+            ("Smart Plug Mini", "switch", "control"),
+            ("Outlet Controller", "switch", "control"),
+            # Sensors
+            ("Temperature Sensor", "sensor", "sensor"),
+            ("Motion Detector", "sensor", "sensor"),
+            ("Presence Sensor FP1E", "sensor", "sensor"),
+            # Vacuum
+            ("Robot Vacuum S7", "vacuum", "appliance"),
+            ("Roborock S7 MaxV", "vacuum", "appliance"),
+            # Thermostat
+            ("Smart Thermostat", "thermostat", "climate"),
+            ("HVAC Controller", "thermostat", "climate"),
+            # Lock
+            ("Smart Lock Pro", "lock", "security"),
+            ("Deadbolt 620", "lock", "security"),
+            # Camera
+            ("Security Camera", "camera", "security"),
+            # Fan
+            ("Ceiling Fan", "fan", "climate"),
+            # Button / remote
+            ("Smart Button", "button", "control"),
+            ("Remote Control", "button", "control"),
+        ],
+    )
+    def test_model_keyword_classification(self, model, expected_type, expected_category):
+        result = self.svc.classify_device_by_metadata("d1", model)
+        assert result["device_type"] == expected_type
+        assert result["device_category"] == expected_category
 
-    def test_hue_light(self):
-        result = self.svc.classify_device_by_metadata("d1", "Hue White Ambiance")
-        assert result["device_type"] == "light"
-        assert result["device_category"] == "lighting"
+    @pytest.mark.parametrize(
+        "model",
+        [
+            "Flight Tracker Pro",  # contains "light" without a word boundary
+            "Highlight Feature Kit",  # ditto
+            "Lightning Adapter",  # ditto
+            "Netvue Doorbell",  # contains "tv" without a word boundary
+        ],
+    )
+    def test_substring_false_positives_are_guarded(self, model):
+        # These pin the word-boundary matcher, which is the real fix. Raw
+        # substring containment matched every one of them.
+        result = self.svc.classify_device_by_metadata("d1", model)
+        assert result["device_type"] not in ("light", "media_player")
 
-    def test_bulb(self):
-        result = self.svc.classify_device_by_metadata("d1", "Smart Bulb")
-        assert result["device_type"] == "light"
-
-    def test_lamp(self):
-        result = self.svc.classify_device_by_metadata("d1", "Desk Lamp")
-        assert result["device_type"] == "light"
-
-    def test_led_strip(self):
-        result = self.svc.classify_device_by_metadata("d1", "LED Strip Controller")
-        assert result["device_type"] == "light"
-
-    def test_lightstrip(self):
-        result = self.svc.classify_device_by_metadata("d1", "Lightstrip Plus")
-        assert result["device_type"] == "light"
-
-    def test_signify(self):
-        result = self.svc.classify_device_by_metadata("d1", "Device", manufacturer="Signify")
-        assert result["device_type"] == "light"
-
-    def test_light_keyword_not_flight(self):
-        """'flight' should NOT match as light."""
-        result = self.svc.classify_device_by_metadata("d1", "Flight Tracker")
-        assert result["device_type"] != "light"
-
-    def test_light_keyword_not_highlight(self):
-        result = self.svc.classify_device_by_metadata("d1", "Highlight Feature")
-        assert result["device_type"] != "light"
-
-    def test_light_keyword_standalone(self):
-        """'light' without false-positive words should match."""
-        result = self.svc.classify_device_by_metadata("d1", "Kitchen Light")
-        assert result["device_type"] == "light"
-
-    # -- Media players ------------------------------------------------------
-
-    def test_samsung_tv(self):
-        result = self.svc.classify_device_by_metadata("d1", "Samsung TV")
-        assert result["device_type"] == "media_player"
-        assert result["device_category"] == "entertainment"
-
-    def test_television(self):
-        result = self.svc.classify_device_by_metadata("d1", "Television 55inch")
-        assert result["device_type"] == "media_player"
-
-    def test_tv_fallback(self):
-        result = self.svc.classify_device_by_metadata("d1", "Living Room TV")
-        assert result["device_type"] == "media_player"
-
-    # -- Switches -----------------------------------------------------------
-
-    def test_switch(self):
-        result = self.svc.classify_device_by_metadata("d1", "Wall Switch")
-        assert result["device_type"] == "switch"
-        assert result["device_category"] == "control"
-
-    def test_smart_plug(self):
-        result = self.svc.classify_device_by_metadata("d1", "Smart Plug Mini")
-        assert result["device_type"] == "switch"
-
-    def test_outlet(self):
-        result = self.svc.classify_device_by_metadata("d1", "Outlet Controller")
-        assert result["device_type"] == "switch"
-
-    # -- Sensors ------------------------------------------------------------
-
-    def test_sensor(self):
-        result = self.svc.classify_device_by_metadata("d1", "Temperature Sensor")
-        assert result["device_type"] == "sensor"
-        assert result["device_category"] == "sensor"
-
-    def test_motion_sensor(self):
-        result = self.svc.classify_device_by_metadata("d1", "Motion Detector")
-        assert result["device_type"] == "sensor"
-
-    def test_presence_sensor(self):
-        result = self.svc.classify_device_by_metadata("d1", "Presence Detector")
-        assert result["device_type"] == "sensor"
-
-    # -- Vacuum -------------------------------------------------------------
-
-    def test_vacuum(self):
-        result = self.svc.classify_device_by_metadata("d1", "Robot Vacuum S7")
-        assert result["device_type"] == "vacuum"
-        assert result["device_category"] == "appliance"
-
-    def test_roborock(self):
-        result = self.svc.classify_device_by_metadata("d1", "Roborock S7 MaxV")
-        assert result["device_type"] == "vacuum"
-
-    # -- Thermostat ---------------------------------------------------------
-
-    def test_thermostat(self):
-        result = self.svc.classify_device_by_metadata("d1", "Smart Thermostat")
-        assert result["device_type"] == "thermostat"
-        assert result["device_category"] == "climate"
-
-    def test_hvac(self):
-        result = self.svc.classify_device_by_metadata("d1", "HVAC Controller")
-        assert result["device_type"] == "thermostat"
-
-    # -- Lock ---------------------------------------------------------------
-
-    def test_lock(self):
-        result = self.svc.classify_device_by_metadata("d1", "Smart Lock Pro")
-        assert result["device_type"] == "lock"
-        assert result["device_category"] == "security"
-
-    # -- Camera -------------------------------------------------------------
-
-    def test_camera(self):
-        result = self.svc.classify_device_by_metadata("d1", "Security Camera")
-        assert result["device_type"] == "camera"
-        assert result["device_category"] == "security"
-
-    # -- Fan ----------------------------------------------------------------
-
-    def test_fan(self):
-        result = self.svc.classify_device_by_metadata("d1", "Ceiling Fan")
-        assert result["device_type"] == "fan"
-        assert result["device_category"] == "climate"
-
-    # -- Button/Remote ------------------------------------------------------
-
-    def test_button(self):
-        result = self.svc.classify_device_by_metadata("d1", "Smart Button")
-        assert result["device_type"] == "button"
-        assert result["device_category"] == "control"
-
-    def test_remote(self):
-        result = self.svc.classify_device_by_metadata("d1", "Remote Control")
-        assert result["device_type"] == "button"
-
-    # -- Unknown ------------------------------------------------------------
-
-    def test_unknown_device(self):
-        result = self.svc.classify_device_by_metadata("d1", "Mystery Gadget")
+    @pytest.mark.parametrize(
+        "model",
+        [
+            "Room",  # a Hue room group, not a device
+            "bcm43438-bt",  # a Bluetooth adapter
+            "CC2652",  # a Zigbee coordinator
+            "Mystery Gadget",
+        ],
+    )
+    def test_pseudo_devices_return_none_rather_than_a_guess(self, model):
+        # The four entity-less devices on this instance. Two are Hue Room
+        # groups whose manufacturer is "Signify Netherlands B.V."; matching the
+        # brand token classified a room as a light.
+        result = self.svc.classify_device_by_metadata("d1", model)
         assert result["device_type"] is None
         assert result["device_category"] is None
-        assert result["device_id"] == "d1"
 
-    # -- Edge cases ---------------------------------------------------------
-
-    def test_empty_name(self):
-        result = self.svc.classify_device_by_metadata("d1", "")
+    @pytest.mark.parametrize("model", ["", None])
+    def test_absent_model_returns_none(self, model):
+        result = self.svc.classify_device_by_metadata("d1", model)
         assert result["device_type"] is None
 
-    def test_none_name(self):
-        result = self.svc.classify_device_by_metadata("d1", None)
-        assert result["device_type"] is None
-
-    def test_manufacturer_model_used(self):
-        result = self.svc.classify_device_by_metadata(
-            "d1", "Device", manufacturer="Signify", model="LCA001"
-        )
-        assert result["device_type"] == "light"
-
-    def test_device_id_always_returned(self):
-        result = self.svc.classify_device_by_metadata("my-device", "Anything")
+    def test_device_id_is_echoed_back(self):
+        result = self.svc.classify_device_by_metadata("my-device", "Hue Bulb")
         assert result["device_id"] == "my-device"
 
 
 # ---------------------------------------------------------------------------
-# classify_device_from_domains — async, uses imported pattern functions
+# classify_device_from_domains — edge cases
 # ---------------------------------------------------------------------------
 
 
@@ -211,31 +221,19 @@ class TestClassifyDeviceFromDomains:
         assert result["device_category"] is None
 
     @pytest.mark.asyncio
-    async def test_uses_pattern_matcher(self):
-        with (
-            patch("src.services.device_classifier.match_device_pattern", return_value="light"),
-            patch("src.services.device_classifier.get_device_category", return_value="lighting"),
-        ):
-            result = await self.svc.classify_device_from_domains("d1", ["light"])
-            assert result["device_type"] == "light"
-            assert result["device_category"] == "lighting"
+    async def test_unmapped_domain_returns_none(self):
+        result = await self.svc.classify_device_from_domains("d1", ["not_a_domain"])
+        assert result["device_type"] is None
 
     @pytest.mark.asyncio
-    async def test_pattern_matcher_returns_none(self):
-        with (
-            patch("src.services.device_classifier.match_device_pattern", return_value=None),
-            patch("src.services.device_classifier.get_device_category", return_value=None),
-        ):
-            result = await self.svc.classify_device_from_domains("d1", ["unknown"])
-            assert result["device_type"] is None
+    async def test_matcher_failure_is_contained(self, monkeypatch):
+        def boom(*_args, **_kwargs):
+            raise RuntimeError("boom")
 
-    @pytest.mark.asyncio
-    async def test_exception_returns_none(self):
-        with patch(
-            "src.services.device_classifier.match_device_pattern", side_effect=Exception("boom")
-        ):
-            result = await self.svc.classify_device_from_domains("d1", ["light"])
-            assert result["device_type"] is None
+        monkeypatch.setattr(dc_mod, "match_device_pattern", boom)
+        result = await self.svc.classify_device_from_domains("d1", ["light"])
+        assert result["device_id"] == "d1"
+        assert result["device_type"] is None
 
 
 # ---------------------------------------------------------------------------
@@ -244,26 +242,17 @@ class TestClassifyDeviceFromDomains:
 
 
 class TestClassifyDevice:
-    def setup_method(self):
-        self.svc = DeviceClassifierService()
-
     @pytest.mark.asyncio
     async def test_extracts_domains_from_entity_ids(self):
-        with (
-            patch("src.services.device_classifier.match_device_pattern", return_value="light"),
-            patch("src.services.device_classifier.get_device_category", return_value="lighting"),
-        ):
-            result = await self.svc.classify_device("d1", ["light.kitchen", "sensor.temp"])
-            assert result["device_type"] == "light"
+        svc = DeviceClassifierService()
+        result = await svc.classify_device("d1", ["light.kitchen", "sensor.temp"])
+        assert result["device_type"] == "light"
 
     @pytest.mark.asyncio
-    async def test_handles_entity_ids_without_dots(self):
-        with (
-            patch("src.services.device_classifier.match_device_pattern", return_value=None),
-            patch("src.services.device_classifier.get_device_category", return_value=None),
-        ):
-            result = await self.svc.classify_device("d1", ["nodot"])
-            assert result["device_type"] is None
+    async def test_entity_ids_without_a_domain_are_skipped(self):
+        svc = DeviceClassifierService()
+        result = await svc.classify_device("d1", ["malformed"])
+        assert result["device_type"] is None
 
 
 # ---------------------------------------------------------------------------
@@ -273,14 +262,9 @@ class TestClassifyDevice:
 
 class TestClassifierSingleton:
     def test_returns_instance(self):
-        import src.services.device_classifier as mod
-
-        mod._classifier_service = None
-        svc = get_classifier_service()
-        assert isinstance(svc, DeviceClassifierService)
+        dc_mod._classifier_service = None
+        assert isinstance(get_classifier_service(), DeviceClassifierService)
 
     def test_returns_same_instance(self):
-        import src.services.device_classifier as mod
-
-        mod._classifier_service = None
+        dc_mod._classifier_service = None
         assert get_classifier_service() is get_classifier_service()

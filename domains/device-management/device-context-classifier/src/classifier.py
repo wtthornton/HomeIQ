@@ -9,10 +9,9 @@ import os
 from typing import Any
 
 import aiohttp
+from homeiq_device_taxonomy import get_device_category, match_device_pattern
 from homeiq_ha.client import HAClient as SharedHAClient
 from homeiq_ha.client import HAWebSocketClient
-
-from .patterns import get_device_category, match_device_pattern
 
 logger = logging.getLogger("device-context-classifier")
 
