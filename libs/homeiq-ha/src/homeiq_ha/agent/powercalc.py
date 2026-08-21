@@ -29,6 +29,15 @@ if TYPE_CHECKING:
     from homeiq_ha.client import HAClient
 
 
+#: Domains whose entities can carry a physical electrical load. A ``switch``
+#: only qualifies as an outlet — HA models a smart plug as
+#: ``device_class: outlet`` and a configuration toggle as ``switch`` or none,
+#: and this home's 65 switches are entirely the latter (Inovelli device
+#: parameters, WLED effect toggles, sensor enables). Metering a toggle is not
+#: a gap to close; there is no load behind it.
+_LOAD_DOMAINS = ("light", "media_player")
+
+
 class PowercalcRecipe(Recipe):
     """Install Powercalc through HACS and confirm a discovered power sensor.
 
@@ -44,7 +53,8 @@ class PowercalcRecipe(Recipe):
        supported lights and opens flows on its own). Forms are advanced
        empty only when they have no required field without a default;
        anything else raises with the live schema.
-    4. Assert at least one ``platform == "powercalc"`` power sensor exists.
+    4. Assert power sensors cover most of the home's *metering-eligible*
+       entities, not merely that one exists.
     """
 
     name = "hacs.powercalc"
@@ -62,6 +72,7 @@ class PowercalcRecipe(Recipe):
         discovery_timeout: float = 90.0,
         discovery_poll_interval: float = 5.0,
         power_state_timeout: float = 30.0,
+        coverage_target: float = 0.8,
     ) -> None:
         self.restart_timeout = restart_timeout
         self.restart_poll_interval = restart_poll_interval
@@ -69,6 +80,7 @@ class PowercalcRecipe(Recipe):
         self.discovery_timeout = discovery_timeout
         self.discovery_poll_interval = discovery_poll_interval
         self.power_state_timeout = power_state_timeout
+        self.coverage_target = coverage_target
 
     async def _repo(self, ha: Any) -> dict[str, Any] | None:
         repos = await ha.ws.send_command(
@@ -105,24 +117,122 @@ class PowercalcRecipe(Recipe):
         states = {s.get("entity_id"): s.get("state") for s in await ha.rest.get_states()}
         return powered, [eid for eid in powered if _is_number(states.get(eid))]
 
+    async def _coverage(self, ha: Any) -> dict[str, Any]:
+        """Which metering-eligible loads carry a power reading, and which do not.
+
+        The join from a power sensor to the load it measures is the entity
+        registry's ``device_id`` — never the entity_id string. Powercalc names
+        its sensor after the source's *friendly name*
+        (``light.stairs_bottom_of_stairs`` -> ``sensor.bottom_of_stairs_power``),
+        so a string match silently misses; and a name-keyed join would break on
+        a rename besides (``.claude/rules/friendly-names.md``).
+
+        Any power sensor counts, not only Powercalc's: an Inovelli VZM31-SN
+        reports real metering over ZHA, and a metered load is covered no matter
+        which integration provides the number.
+
+        Two exclusions carry a stated reason rather than silently shrinking the
+        denominator:
+
+        * **group entities** — a light group's power is the sum of its members,
+          so metering the group double-counts every member.
+        * **non-outlet switches** — configuration toggles, not loads. HA models
+          a smart plug as ``device_class: outlet``.
+        """
+        registry = await ha.ws.send_command("config/entity_registry/list") or []
+        device_of = {
+            str(e.get("entity_id")): e.get("device_id") for e in registry if e.get("entity_id")
+        }
+        states = await ha.rest.get_states() or []
+
+        metered_devices = {
+            device_of.get(str(s.get("entity_id")))
+            for s in states
+            if (s.get("attributes") or {}).get("device_class") == "power"
+            and _is_number(s.get("state"))
+            and device_of.get(str(s.get("entity_id")))
+        }
+
+        eligible: set[str] = set()
+        excluded: dict[str, list[str]] = {
+            "group_entity_sums_its_members": [],
+            "switch_is_a_config_toggle_not_a_load": [],
+            "no_device_in_the_entity_registry": [],
+        }
+        for state in states:
+            entity_id = str(state.get("entity_id", ""))
+            domain, _, _ = entity_id.partition(".")
+            attributes = state.get("attributes") or {}
+            if domain in _LOAD_DOMAINS:
+                if attributes.get("entity_id"):
+                    excluded["group_entity_sums_its_members"].append(entity_id)
+                    continue
+            elif domain == "switch":
+                if attributes.get("device_class") != "outlet":
+                    excluded["switch_is_a_config_toggle_not_a_load"].append(entity_id)
+                    continue
+            else:
+                continue
+            if not device_of.get(entity_id):
+                excluded["no_device_in_the_entity_registry"].append(entity_id)
+                continue
+            eligible.add(entity_id)
+
+        covered = {eid for eid in eligible if device_of.get(eid) in metered_devices}
+        for entity_ids in excluded.values():
+            entity_ids.sort()
+        return {
+            "eligible": eligible,
+            "covered": covered,
+            "excluded": excluded,
+        }
+
     async def check(self, ha: HAClient) -> CheckResult:
         entry = await self._loaded_entry(ha)
         if entry is not None:
             powered, reporting = await self._reporting(ha)
-            if reporting:
+            coverage = await self._coverage(ha)
+            eligible, covered = coverage["eligible"], coverage["covered"]
+            uncovered = sorted(eligible - covered)
+            ratio = len(covered) / len(eligible) if eligible else 0.0
+            details = {
+                "entity_ids": powered,
+                "reporting": reporting,
+                "eligible": sorted(eligible),
+                "covered": sorted(covered),
+                "uncovered": uncovered,
+                "excluded": coverage["excluded"],
+                "coverage_ratio": round(ratio, 3),
+                "coverage_target": self.coverage_target,
+            }
+            if not powered:
                 return CheckResult(
-                    CheckStatus.SATISFIED,
-                    f"Powercalc loaded, {len(reporting)} power sensor(s) reporting",
-                    {"entity_ids": powered, "reporting": reporting},
+                    CheckStatus.NEEDS_APPLY,
+                    "Powercalc entry is loaded but provides no power sensor",
+                    details,
                 )
-            if powered:
+            if not reporting:
+                # A distinct, more actionable diagnosis than a coverage figure:
+                # the sensors exist, so the profile matched; they are silent
+                # because their source entities are.
                 return CheckResult(
                     CheckStatus.NEEDS_APPLY,
                     f"power sensor(s) {powered} exist but none reports a number",
+                    details,
+                )
+            if eligible and ratio >= self.coverage_target:
+                return CheckResult(
+                    CheckStatus.SATISFIED,
+                    f"Powercalc covers {len(covered)}/{len(eligible)} "
+                    f"metering-eligible entities ({ratio:.0%})",
+                    details,
                 )
             return CheckResult(
                 CheckStatus.NEEDS_APPLY,
-                "Powercalc entry is loaded but provides no power sensor",
+                f"Powercalc covers {len(covered)}/{len(eligible)} "
+                f"metering-eligible entities ({ratio:.0%}), below the "
+                f"{self.coverage_target:.0%} target; {len(uncovered)} uncovered",
+                details,
             )
         repo = await self._repo(ha)
         if repo is None:

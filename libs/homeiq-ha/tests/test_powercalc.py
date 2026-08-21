@@ -343,3 +343,145 @@ async def test_powercalc_verify_requires_a_numeric_power_state(sim):
     )
 
     sim.state["states"] = [{"entity_id": "sensor.office_light_power", "state": "unavailable"}]
+
+
+def _loaded_powercalc(sim) -> None:
+    sim.state["config_entries"].append(
+        {"entry_id": "pc1", "domain": "powercalc", "state": "loaded"}
+    )
+
+
+def _light(name: str, device_id: str) -> dict:
+    return {"entity_id": f"light.{name}", "state": "on", "attributes": {}, "device_id": device_id}
+
+
+def _power_sensor(name: str, device_id: str, state: str = "8.0") -> dict:
+    return {
+        "entity_id": f"sensor.{name}_power",
+        "state": state,
+        "attributes": {"device_class": "power"},
+        "device_id": device_id,
+    }
+
+
+def _load(sim, rows: list[dict]) -> None:
+    """Put rows in both the states list and the entity registry.
+
+    Coverage joins a power sensor to the load it measures on the registry's
+    device_id, so a fixture that sets states alone cannot exercise it.
+    """
+    sim.state["states"] = [{k: v for k, v in r.items() if k != "device_id"} for r in rows]
+    sim.state["entities"] = [
+        {"entity_id": r["entity_id"], "device_id": r.get("device_id"), "platform": "powercalc"}
+        for r in rows
+    ]
+
+
+@pytest.mark.asyncio
+async def test_powercalc_check_refuses_one_sensor_standing_in_for_a_whole_home(sim):
+    """A floor of one is not coverage.
+
+    Regression: the check asserted only that *some* powercalc sensor reported a
+    number, so a home with 1 metered light out of 34 audited as satisfied.
+    """
+    _loaded_powercalc(sim)
+    _load(sim, [_power_sensor("a", "dev0"), _light("l0", "dev0")]
+              + [_light(f"l{i}", f"dev{i}") for i in range(1, 11)])
+
+    result = await powercalc_recipe().check(sim)
+
+    assert result.status is CheckStatus.NEEDS_APPLY
+    assert result.details["coverage_ratio"] == round(1 / 11, 3)
+    assert len(result.details["uncovered"]) == 10
+
+
+@pytest.mark.asyncio
+async def test_powercalc_check_is_satisfied_once_coverage_clears_the_target(sim):
+    _loaded_powercalc(sim)
+    _load(
+        sim,
+        [_power_sensor(f"l{i}", f"dev{i}") for i in range(4)]
+        + [_light(f"l{i}", f"dev{i}") for i in range(5)],
+    )
+
+    result = await powercalc_recipe().check(sim)
+
+    assert result.status is CheckStatus.SATISFIED
+    assert result.details["coverage_ratio"] == 0.8
+    assert result.details["uncovered"] == ["light.l4"]
+
+
+@pytest.mark.asyncio
+async def test_powercalc_coverage_joins_on_device_id_not_on_the_entity_name(sim):
+    """The sensor name never matches the load's name, and must not have to.
+
+    Powercalc names its sensor after the source's friendly name, so live
+    ``light.stairs_bottom_of_stairs`` is metered by
+    ``sensor.bottom_of_stairs_power``. A string match misses it, and would
+    break on a rename anyway (.claude/rules/friendly-names.md).
+    """
+    _loaded_powercalc(sim)
+    _load(
+        sim,
+        [
+            _power_sensor("bottom_of_stairs", "hue-dev-1", "7.32"),
+            _light("stairs_bottom_of_stairs", "hue-dev-1"),
+        ],
+    )
+
+    result = await powercalc_recipe().check(sim)
+
+    assert result.details["covered"] == ["light.stairs_bottom_of_stairs"]
+    assert result.details["coverage_ratio"] == 1.0
+
+
+@pytest.mark.asyncio
+async def test_powercalc_coverage_counts_a_non_powercalc_power_sensor(sim):
+    """An Inovelli VZM31-SN meters itself over ZHA; that load is covered."""
+    _loaded_powercalc(sim)
+    rows = [_light("inovelli_vzm31_sn", "zha-dev-1")]
+    sim.state["states"] = [{k: v for k, v in r.items() if k != "device_id"} for r in rows] + [
+        {
+            "entity_id": "sensor.inovelli_vzm31_sn_power",
+            "state": "0.0",
+            "attributes": {"device_class": "power"},
+        }
+    ]
+    sim.state["entities"] = [
+        {"entity_id": "light.inovelli_vzm31_sn", "device_id": "zha-dev-1", "platform": "zha"},
+        {"entity_id": "sensor.inovelli_vzm31_sn_power", "device_id": "zha-dev-1", "platform": "zha"},
+    ]
+
+    result = await powercalc_recipe().check(sim)
+
+    assert result.details["covered"] == ["light.inovelli_vzm31_sn"]
+
+
+@pytest.mark.asyncio
+async def test_powercalc_check_excludes_groups_and_config_toggles_with_reasons(sim):
+    """The denominator is physical loads, and every exclusion states why."""
+    _loaded_powercalc(sim)
+    sim.state["states"] = [
+        {"entity_id": "sensor.real_power", "state": "9.1", "attributes": {"device_class": "power"}},
+        {"entity_id": "light.real", "state": "on", "attributes": {}},
+        {"entity_id": "light.kitchen_group", "state": "on",
+         "attributes": {"entity_id": ["light.real"]}},
+        {"entity_id": "switch.smart_bulb_mode", "state": "off", "attributes": {}},
+        {"entity_id": "switch.a_plug", "state": "on", "attributes": {"device_class": "outlet"}},
+    ]
+    sim.state["entities"] = [
+        {"entity_id": "sensor.real_power", "device_id": "dev-a", "platform": "powercalc"},
+        {"entity_id": "light.real", "device_id": "dev-a", "platform": "hue"},
+        {"entity_id": "light.kitchen_group", "device_id": "dev-g", "platform": "hue"},
+        {"entity_id": "switch.smart_bulb_mode", "device_id": "dev-i", "platform": "zha"},
+        {"entity_id": "switch.a_plug", "device_id": "dev-p", "platform": "zha"},
+    ]
+
+    result = await powercalc_recipe().check(sim)
+
+    excluded = result.details["excluded"]
+    assert excluded["group_entity_sums_its_members"] == ["light.kitchen_group"]
+    assert excluded["switch_is_a_config_toggle_not_a_load"] == ["switch.smart_bulb_mode"]
+    # the outlet is a real load, so it counts against coverage
+    assert sorted(result.details["eligible"]) == ["light.real", "switch.a_plug"]
+    assert result.details["uncovered"] == ["switch.a_plug"]
