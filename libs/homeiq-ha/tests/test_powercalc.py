@@ -385,8 +385,11 @@ async def test_powercalc_check_refuses_one_sensor_standing_in_for_a_whole_home(s
     number, so a home with 1 metered light out of 34 audited as satisfied.
     """
     _loaded_powercalc(sim)
-    _load(sim, [_power_sensor("a", "dev0"), _light("l0", "dev0")]
-              + [_light(f"l{i}", f"dev{i}") for i in range(1, 11)])
+    _load(
+        sim,
+        [_power_sensor("a", "dev0"), _light("l0", "dev0")]
+        + [_light(f"l{i}", f"dev{i}") for i in range(1, 11)],
+    )
 
     result = await powercalc_recipe().check(sim)
 
@@ -449,7 +452,11 @@ async def test_powercalc_coverage_counts_a_non_powercalc_power_sensor(sim):
     ]
     sim.state["entities"] = [
         {"entity_id": "light.inovelli_vzm31_sn", "device_id": "zha-dev-1", "platform": "zha"},
-        {"entity_id": "sensor.inovelli_vzm31_sn_power", "device_id": "zha-dev-1", "platform": "zha"},
+        {
+            "entity_id": "sensor.inovelli_vzm31_sn_power",
+            "device_id": "zha-dev-1",
+            "platform": "zha",
+        },
     ]
 
     result = await powercalc_recipe().check(sim)
@@ -464,8 +471,11 @@ async def test_powercalc_check_excludes_groups_and_config_toggles_with_reasons(s
     sim.state["states"] = [
         {"entity_id": "sensor.real_power", "state": "9.1", "attributes": {"device_class": "power"}},
         {"entity_id": "light.real", "state": "on", "attributes": {}},
-        {"entity_id": "light.kitchen_group", "state": "on",
-         "attributes": {"entity_id": ["light.real"]}},
+        {
+            "entity_id": "light.kitchen_group",
+            "state": "on",
+            "attributes": {"entity_id": ["light.real"]},
+        },
         {"entity_id": "switch.smart_bulb_mode", "state": "off", "attributes": {}},
         {"entity_id": "switch.a_plug", "state": "on", "attributes": {"device_class": "outlet"}},
     ]
@@ -485,3 +495,85 @@ async def test_powercalc_check_excludes_groups_and_config_toggles_with_reasons(s
     # the outlet is a real load, so it counts against coverage
     assert sorted(result.details["eligible"]) == ["light.real", "switch.a_plug"]
     assert result.details["uncovered"] == ["switch.a_plug"]
+
+
+@pytest.mark.asyncio
+async def test_powercalc_apply_confirms_every_defaulted_flow_not_just_one(sim):
+    """One reporting sensor proves the integration works; it does not meter a home.
+
+    The apply path used to stop at the first flow that produced a number, which
+    left every other discovered device sitting in the wizard queue — the reason
+    this home read 3 of 43 metered while the integration reported healthy.
+    """
+    sim.state["states"] = list(POWER_OK)
+    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
+    # One sensor already reports, so the "get at least one" bootstrap is
+    # satisfied and what is under test is what happens to the REST.
+    sim.state["config_entries"].append(
+        {"entry_id": "pc1", "domain": "powercalc", "state": "loaded"}
+    )
+    sim.state["entities"].append(
+        {"entity_id": "sensor.office_light_power", "platform": "powercalc"}
+    )
+    sim.state["flow_progress"] = [
+        {
+            "flow_id": f"hue{n}",
+            "handler": "powercalc",
+            "context": {"title_placeholders": {"name": f"Downlight {n} - Philips Hue"}},
+        }
+        for n in range(1, 5)
+    ]
+    sim.state["flow_current_step"] = {"type": "form", "flow_id": "hue1", "data_schema": []}
+
+    result = await powercalc_recipe().apply(sim)
+
+    confirmed = [c for c in result.changed if c.action == "configure integration"]
+    assert len(confirmed) == 4, (
+        f"expected all four defaulted flows confirmed, got {len(confirmed)} — "
+        "apply stopped early and left devices unmetered"
+    )
+    assert not sim.state["flow_progress"], "flows were left outstanding after apply"
+
+
+@pytest.mark.asyncio
+async def test_powercalc_apply_leaves_flows_needing_human_facts_in_triage(sim):
+    """A question for a human is not something to answer with an invented number.
+
+    WLED profiles require `voltage` — a fact about the house, not the device.
+    Guessing it would put a fabricated figure behind every energy number derived
+    from that sensor.
+    """
+    sim.state["states"] = list(POWER_OK)
+    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
+    sim.state["config_entries"].append(
+        {"entry_id": "pc1", "domain": "powercalc", "state": "loaded"}
+    )
+    sim.state["entities"].append(
+        {"entity_id": "sensor.office_light_power", "platform": "powercalc"}
+    )
+    sim.state["flow_progress"] = [
+        {
+            "flow_id": "hue1",
+            "handler": "powercalc",
+            "context": {"title_placeholders": {"name": "Downlight - Philips Hue"}},
+        },
+        {
+            "flow_id": "wled1",
+            "handler": "powercalc",
+            "context": {"title_placeholders": {"name": "Strip - WLED"}},
+        },
+    ]
+    sim.state["flow_current_steps"] = {
+        "hue1": {"type": "form", "flow_id": "hue1", "data_schema": []},
+        "wled1": {
+            "type": "form",
+            "flow_id": "wled1",
+            "data_schema": [{"name": "voltage", "required": True}],
+        },
+    }
+
+    result = await powercalc_recipe().apply(sim)
+
+    assert any(c.action == "configure integration" for c in result.changed)
+    # The blocked flow is still outstanding, where a human can answer it.
+    assert [f["flow_id"] for f in sim.state["flow_progress"]] == ["wled1"]

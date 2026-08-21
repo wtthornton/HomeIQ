@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 from typing import TYPE_CHECKING, Any
 
 from homeiq_ha.client.errors import HAClientError, HAFlowError
@@ -24,6 +25,8 @@ from .recipe import (
     Recipe,
     VerifyResult,
 )
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from homeiq_ha.client import HAClient
@@ -283,6 +286,12 @@ class PowercalcRecipe(Recipe):
         if not reporting:
             changes.extend(await self._ensure_power_sensor(ha))
 
+        # One reporting sensor proves the integration works; it does not meter a
+        # home. Confirm every remaining discovery flow that closes on defaults,
+        # so coverage tracks the loads that can carry a reading rather than
+        # stopping at the first success.
+        changes.extend(await self._cover_remaining(ha))
+
         powered, reporting = await self._reporting(ha)
         if not reporting:
             raise HAClientError(
@@ -337,6 +346,40 @@ class PowercalcRecipe(Recipe):
             flows = await self._wait_for_discovery(ha)
         changes.append(await self._confirm_any_discovery(ha, flows))
         return changes
+
+    async def _cover_remaining(self, ha: Any) -> list[Change]:
+        """Confirm every outstanding discovery flow that closes on defaults.
+
+        Powercalc raises one flow per supported device it finds. Confirming a
+        single one leaves the rest sitting in the wizard queue, which is how a
+        home ends up 3/43 metered with the integration reporting healthy.
+
+        A flow that asks for something is left alone, deliberately. WLED
+        profiles require ``voltage``; that is a fact about the house, not about
+        the device, and inventing it here would put a fabricated number behind
+        every energy figure derived from it. Those flows stay in the triage
+        queue with their reason recorded, which is where a question for a human
+        belongs.
+        """
+        flows = await self._powercalc_flows(ha)
+        if not flows:
+            return []
+
+        confirmed: list[Change] = []
+        blocked: dict[str, str] = {}
+        for flow, label in await self._ranked(ha, flows):
+            try:
+                confirmed.append(await self._confirm_discovery(ha, flow["flow_id"]))
+            except HAFlowError as err:
+                blocked[label] = str(err)
+
+        if blocked:
+            logger.info(
+                "powercalc: %d flow(s) need a human fact and were left in triage: %s",
+                len(blocked),
+                blocked,
+            )
+        return confirmed
 
     async def _confirm_any_discovery(self, ha: Any, flows: list[dict[str, Any]]) -> Change:
         """Confirm discovery flows until one yields a live power number.

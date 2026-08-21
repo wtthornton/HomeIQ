@@ -353,6 +353,14 @@ class SimRest:
         if step.get("type") == "create_entry" and isinstance(result, dict):
             # Mirror HA: a completed flow's entry becomes readable back.
             self.state["config_entries"].append(dict(result))
+        if step.get("type") == "create_entry":
+            # Mirror HA: a flow that creates an entry is finished and leaves the
+            # progress list. Without this the fake reports a completed flow as
+            # still outstanding forever, so any caller that enumerates flows a
+            # second time sees work that no longer exists.
+            self.state["flow_progress"] = [
+                f for f in self.state.get("flow_progress", []) if f.get("flow_id") != flow_id
+            ]
         return step
 
     async def abort_config_flow(self, flow_id: str) -> None:
