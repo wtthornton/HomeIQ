@@ -1,0 +1,169 @@
+# Enrich the device knowledge store for one device model.
+#
+# recall -> research -> curate. The curator is the approval authority: its
+# `approved` array is the complete set of ClaimRequest bodies the caller may POST
+# to /api/device-knowledge/claims on device-intelligence. The workflow itself does
+# not write: the curator holds no HTTP capability at all (`mcp_servers: []`,
+# `allowed_tools: ''`), so the chokepoint is the TOOL GRANT, not the network.
+# Do not mistake this for network isolation — device-intelligence publishes 8028
+# on 0.0.0.0 and an AgentForge container reaches it over the host gateway
+# (verified: `docker exec agentforge-main curl http://172.17.0.1:8028/health` -> 200).
+# The caller relays `approved` verbatim and adds no judgement of its own, so
+# nothing reaches the claim store that hiq-device-kb-curator did not approve.
+name: device-kb-enrich
+spec_version: 2
+
+inputs:
+  - name: manufacturer
+    description: "Device manufacturer exactly as stored in devices.devices, e.g. Inovelli"
+  - name: model
+    description: "Device model exactly as stored in devices.devices, e.g. VZM31-SN"
+  - name: subject_key
+    description: "Claim subject key, lowercased manufacturer/model, e.g. inovelli/vzm31-sn"
+  - name: stored_claims
+    description: "Claims already stored for this subject, as returned by GET /api/device-knowledge/models/{manufacturer}/{model}. Empty array on first run."
+
+nodes:
+  recall:
+    kind: task
+    agent: hiq-kb-librarian
+    inputs:
+      topic: "device knowledge for $manufacturer $model"
+    output_repair_retries: 2
+    output_schema:
+      type: object
+      required: [context, known_issues]
+      properties:
+        context: {type: string}
+        facts:
+          type: array
+          items:
+            type: object
+            required: [fact, tier]
+            properties:
+              fact: {type: string}
+              tier: {type: string}
+              recorded_at: {type: string}
+              confidence: {type: number}
+        known_issues:
+          type: array
+          items: {type: string}
+        empty: {type: boolean}
+
+  research:
+    kind: task
+    agent: hiq-device-kb-researcher
+    depends_on: [recall]
+    inputs:
+      manufacturer: $manufacturer
+      model: $model
+      subject_key: $subject_key
+      prior_context: $recall
+    output_repair_retries: 2
+    output_schema:
+      type: object
+      additionalProperties: false
+      required: [subject_key, claims, not_claimed, sources_consulted, confidence]
+      properties:
+        subject_key: {type: string}
+        claims:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [fact_key, fact_value, evidence_class, source_url, source_quote, confidence, rationale]
+            properties:
+              fact_key: {type: string}
+              fact_value: {type: string, minLength: 1}
+              # measured is deliberately absent: this gene reads documents, it
+              # takes no reading off hardware.
+              evidence_class: {type: string, enum: [upstream_source, vendor_doc, community, inferred]}
+              source_url: {type: string, minLength: 8}
+              source_quote: {type: string, minLength: 1}
+              confidence: {type: number, minimum: 0, maximum: 1}
+              caveat: {type: string}
+              firmware_min: {type: string}
+              firmware_max: {type: string}
+              rationale: {type: string}
+        not_claimed:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [fact_key, reason]
+            properties:
+              fact_key: {type: string}
+              reason: {type: string}
+        sources_consulted:
+          type: array
+          items: {type: string}
+        confidence: {type: number, minimum: 0, maximum: 1}
+
+  curate:
+    kind: task
+    agent: hiq-device-kb-curator
+    depends_on: [research]
+    inputs:
+      subject_kind: "model"
+      subject_key: $subject_key
+      recorded_by: "hiq-device-kb-curator"
+      proposed: $research
+      stored_claims: $stored_claims
+    output_repair_retries: 2
+    output_schema:
+      type: object
+      additionalProperties: false
+      required: [approved, refused, superseded, summary]
+      properties:
+        approved:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [subject_kind, subject_key, fact_key, fact_value, evidence_class, claim_type, recorded_by]
+            properties:
+              subject_kind: {type: string, enum: [model, instance]}
+              subject_key: {type: string, minLength: 1, maxLength: 255}
+              fact_key: {type: string, minLength: 1, maxLength: 255}
+              fact_value: {type: string, minLength: 1}
+              # The full five-class CHECK set. The curator MAY approve a
+              # measured claim it is handed from an instrument-backed source;
+              # the researcher may never propose one.
+              evidence_class: {type: string, enum: [measured, upstream_source, vendor_doc, community, inferred]}
+              claim_type: {type: string, enum: [known, not_claimed]}
+              caveat: {type: string}
+              source_url: {type: string}
+              source_ref: {type: string}
+              source_version: {type: string, maxLength: 255}
+              source_quote: {type: string}
+              method: {type: string, maxLength: 255}
+              confidence: {type: number, minimum: 0, maximum: 1}
+              firmware_min: {type: string, maxLength: 32}
+              firmware_max: {type: string, maxLength: 32}
+              recorded_by: {type: string, minLength: 1, maxLength: 128}
+        refused:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [fact_key, reason_code, reason]
+            properties:
+              fact_key: {type: string}
+              reason_code:
+                type: string
+                enum: [invalid_evidence_class, name_derived, provenance_inflated, missing_source, malformed_field, duplicate_of_stored, out_of_vocabulary]
+              reason: {type: string}
+        superseded:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [supersedes_id, fact_key, superseded_reason]
+            properties:
+              supersedes_id: {type: integer}
+              fact_key: {type: string}
+              superseded_reason: {type: string}
+        summary: {type: string}
+
+output: curate
+on_error: fail
