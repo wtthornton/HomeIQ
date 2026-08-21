@@ -79,6 +79,10 @@ class DiscoveryService:
         self.unified_devices: dict[str, UnifiedDevice] = {}
         self.ha_devices: list[HADevice] = []
         self.ha_entities: list[HAEntity] = []
+        # None until fetched. None means "could not look" and preserves stored
+        # values; an empty list means "asked and got nothing" and clears them.
+        self.ha_states: list[dict[str, Any]] | None = None
+        self.zha_devices: list[dict[str, Any]] | None = None
         # device_id -> {column: why no durable signal established it}
         self.knowledge_exclusions: dict[str, dict[str, str]] = {}
         self.ha_areas: list[HAArea] = []
@@ -200,35 +204,42 @@ class DiscoveryService:
             logger.error("Error during discovery: %s", e)
             self.errors.append(f"Discovery error: {str(e)}")
 
-    async def _safe_states(self) -> list[dict[str, Any]]:
-        """Current states, or an empty list.
+    async def _safe_states(self) -> list[dict[str, Any]] | None:
+        """Current states, or None if they could not be fetched.
 
-        Only feeds battery readings. A failure here must degrade battery_level
-        and power_source to an honest NULL, never abort a discovery pass that
-        would otherwise succeed.
+        The distinction is load-bearing and must not collapse to a bare `[]`.
+        DeviceKnowledge reads an empty list as "Home Assistant was asked and had
+        nothing", which authoritatively CLEARS battery_level and power_source —
+        so returning `[]` on an exception would let one flaky call wipe those
+        columns across the whole fleet. None means "could not look", and the
+        stored values stand.
         """
         try:
-            return await self.ha_client.get_states() or []
+            return await self.ha_client.get_states()
         except Exception as exc:
-            logger.warning("Could not fetch states for device knowledge: %s", exc)
-            return []
+            logger.warning(
+                "Could not fetch states for device knowledge; leaving battery and "
+                "power columns untouched this pass: %s",
+                exc,
+            )
+            return None
 
-    async def _safe_zha_devices(self) -> list[dict[str, Any]]:
-        """ZHA's own device list, or an empty list.
+    async def _safe_zha_devices(self) -> list[dict[str, Any]] | None:
+        """ZHA's own device list, or None if the command could not be run.
 
         `zha/devices` is a ZHA-specific websocket command and the only source of
-        LQI. It is absent on an instance with no ZHA integration, which is a
-        normal configuration and not an error — hence the empty list rather than
-        a raised exception.
+        LQI. Same distinction as _safe_states: None preserves the stored values,
+        an empty list clears them. A command that errors has told us nothing
+        about the mesh, so it must not be allowed to erase it.
         """
         try:
             result = await self.ha_client.send_command("zha/devices")
         except Exception as exc:
             logger.debug("ZHA device list unavailable (no ZHA integration?): %s", exc)
-            return []
+            return None
         if isinstance(result, dict):
             result = result.get("result", [])
-        return result if isinstance(result, list) else []
+        return result if isinstance(result, list) else None
 
     async def _persist_entities(self):
         """Mirror the Home Assistant entity registry into ``device_entities``.
@@ -509,8 +520,8 @@ class DiscoveryService:
 
             knowledge = DeviceKnowledge(
                 self.ha_entities,
-                getattr(self, "ha_states", None),
-                getattr(self, "zha_devices", None),
+                self.ha_states,
+                self.zha_devices,
             )
             knowledge_exclusions: dict[str, dict[str, str]] = {}
 

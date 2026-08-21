@@ -446,3 +446,59 @@ class TestNameBlindness:
         values, _ = k.for_device(Device("d1"))
         assert values["power_source"] == "mains"
         assert values.get("battery_level") is None
+
+
+class TestATransientFetchFailureCannotWipeData:
+    """The most dangerous property of an authoritative clear.
+
+    `None` and `[]` must not collapse into each other. `_safe_states` originally
+    returned `[]` on exception, which this module reads as "Home Assistant was
+    asked and had nothing" — so a single flaky call would have cleared
+    battery_level, power_source and lqi across the entire fleet, silently and
+    on a five-minute loop.
+    """
+
+    def _established(self):
+        return DeviceKnowledge(
+            [Entity("sensor.batt", "d1", "sensor")],
+            [state("sensor.batt", "88", device_class="battery")],
+            zha_devices=[{"ieee": "AA:BB", "lqi": 70, "power_source": "Mains"}],
+        ).for_device(Device("d1", zigbee_ieee="AA:BB"))[0]
+
+    def test_the_happy_path_establishes_all_three(self):
+        # Positive control, so the assertions below cannot pass vacuously.
+        values = self._established()
+        assert values["battery_level"] == 88
+        assert values["lqi"] == 70
+        assert values["power_source"] == "battery"
+
+    def test_unfetched_states_omit_rather_than_clear(self):
+        values, _ = DeviceKnowledge(
+            [Entity("sensor.batt", "d1", "sensor")],
+            states=None,
+            zha_devices=[{"ieee": "AA:BB", "lqi": 70}],
+        ).for_device(Device("d1", zigbee_ieee="AA:BB"))
+        assert "battery_level" not in values, "a failed states fetch cleared battery_level"
+        assert "power_source" not in values, "a failed states fetch cleared power_source"
+
+    def test_unfetched_zha_omits_rather_than_clears_lqi(self):
+        values, _ = DeviceKnowledge(
+            [Entity("sensor.batt", "d1", "sensor")],
+            states=[state("sensor.batt", "88", device_class="battery")],
+            zha_devices=None,
+        ).for_device(Device("d1", zigbee_ieee="AA:BB"))
+        assert "lqi" not in values, "a failed ZHA command cleared lqi"
+
+    def test_a_genuinely_empty_response_still_clears(self):
+        # Otherwise a value could never be retracted, which is the defect the
+        # authoritative clear exists to fix.
+        values, _ = DeviceKnowledge([], states=[], zha_devices=[]).for_device(
+            Device("d1", zigbee_ieee="AA:BB")
+        )
+        assert values["battery_level"] is None
+        assert values["lqi"] is None
+
+    def test_a_non_zigbee_device_clears_lqi_even_without_zha(self):
+        # No ZHA payload is needed to know a non-Zigbee device has no LQI.
+        values, _ = DeviceKnowledge([], states=[], zha_devices=None).for_device(Device("d1"))
+        assert values["lqi"] is None
