@@ -97,11 +97,51 @@ class DeviceService:
             "suggested_area",
             "entry_type",
             "configuration_url",
-            "labels_json",
-            "serial_number",
-            "model_id",
+            # "labels_json", "serial_number" and "model_id" were listed here and
+            # exist neither on the Device model nor in devices.devices. They are
+            # harmless only because discovery never supplies them: if it ever did,
+            # the generated INSERT would name a column that does not exist and the
+            # WHOLE bulk upsert would fail, not just that field. Removed (TAP-6393).
+            # These three are real Device columns that the guard omitted, so
+            # every value written for them was dropped at the safe_entry filter
+            # below — no error, no log. That is the whole reason device_type,
+            # battery_level and source were NULL for all 93 devices: not a
+            # missing producer, an unwritable column (TAP-6393).
+            "device_type",
+            "battery_level",
+            "source",
+            "battery_low",
+            "battery_updated_at",
+            "availability_updated_at",
             "created_at",
             "updated_at",
+        }
+    )
+
+    # Columns enriched out of band, where a discovery pass carrying None must not
+    # erase an established value.
+    #
+    # The upsert's ON CONFLICT wrote `col = EXCLUDED.col` for every column, and
+    # discovery_service builds its payload with these hardcoded to None, so each
+    # pass reset them — on a five-minute loop. Anything written between passes
+    # survived at most five minutes. COALESCE keeps a fresh value when discovery
+    # supplies one and preserves the stored value when it does not.
+    #
+    # Deliberately NOT applied to every column: for ordinary registry fields such
+    # as area_id, a None from Home Assistant means "cleared in HA" and must
+    # propagate.
+    _PRESERVE_WHEN_DISCOVERY_HAS_NOTHING = frozenset(
+        {
+            "device_type",
+            "power_source",
+            "lqi",
+            "lqi_updated_at",
+            "battery_level",
+            "battery_low",
+            "battery_updated_at",
+            "availability_status",
+            "availability_updated_at",
+            "source",
         }
     )
 
@@ -138,7 +178,11 @@ class DeviceService:
 
                 # Build UPDATE SET clause for PostgreSQL
                 update_parts_pg = [
-                    f'"{col}"=EXCLUDED."{col}"'
+                    (
+                        f'"{col}"=COALESCE(EXCLUDED."{col}", devices."{col}")'
+                        if col in self._PRESERVE_WHEN_DISCOVERY_HAS_NOTHING
+                        else f'"{col}"=EXCLUDED."{col}"'
+                    )
                     for col in columns
                     if col not in {"id", "created_at"}
                 ]
