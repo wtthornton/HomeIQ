@@ -64,22 +64,6 @@ class Candidate:
     strength: MatchStrength
     iot_class: str | None = None
 
-    @property
-    def needs_account(self) -> bool:
-        """True when the config flow will demand credentials from a person.
-
-        ``iot_class`` of ``cloud_polling`` / ``cloud_push`` means the
-        integration talks to a vendor cloud, which means an account login and
-        usually a second factor. No amount of automation gets past that, and
-        pretending otherwise produces a flow that errors instead of a device
-        that works.
-        """
-        return not self.iot_class or self.iot_class.startswith("cloud")
-
-    @property
-    def auto_applicable(self) -> bool:
-        return self.strength is MatchStrength.STRICT and not self.needs_account
-
     def describe(self) -> str:
         who = self.host.hostname or self.host.ip or self.host.mac
         return f"{self.title} ({self.domain}) — {who} at {self.host.mac} [{self.strength.name}]"

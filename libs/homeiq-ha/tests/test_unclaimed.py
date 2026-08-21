@@ -45,7 +45,6 @@ class TestMatchStrength:
 
         assert candidate.domain == "ring"
         assert candidate.strength is MatchStrength.MAC
-        assert not candidate.auto_applicable
 
     def test_hostname_matches_but_oui_absent_from_ha_list(self):
         """192.168.1.48 — announces RingDoorbell-22, but 90486C is not in HA's list."""
@@ -55,7 +54,6 @@ class TestMatchStrength:
         [candidate] = matchers.candidates_for(host)
 
         assert candidate.strength is MatchStrength.HOSTNAME
-        assert not candidate.auto_applicable
 
     def test_both_legs_match_is_strict(self):
         matchers = _matchers(ring=(RING_DHCP, "Ring", "cloud_polling"))
@@ -79,39 +77,43 @@ class TestMatchStrength:
         assert matchers.candidates_for(ObservedHost(mac="AA:BB:CC:DD:EE:FF")) == []
 
 
-class TestAutonomyBoundary:
-    """What may be configured without a person, and what may never be."""
+class TestReportOnly:
+    """The recipe never drives a config flow, whatever the match says.
 
-    def test_cloud_integration_is_never_auto_applicable(self):
-        strict_ring = Candidate(
-            "ring", "Ring", ObservedHost("9C:76:13:00:00:01"), MatchStrength.STRICT, "cloud_polling"
+    iot_class does not answer "does this need credentials". Roborock is
+    local_polling and still requires a Roborock account plus a mailed
+    verification code, per HA's own docs. No manifest field distinguishes the
+    two, so nothing here is auto-applied.
+    """
+
+    @pytest.mark.asyncio
+    async def test_apply_is_a_no_op_even_for_a_strict_local_match(self):
+        ha = MagicMock()
+        ha.rest.run_config_flow = AsyncMock()
+        recipe = UnclaimedDevicesRecipe(MagicMock())
+
+        result = await recipe.apply(ha)
+
+        ha.rest.run_config_flow.assert_not_called()
+        assert result.change_count == 0
+        assert result.summary == "report-only"
+
+    @pytest.mark.asyncio
+    async def test_plan_is_always_empty(self):
+        assert (await UnclaimedDevicesRecipe(MagicMock()).plan(MagicMock())).is_empty
+
+    def test_candidate_carries_no_autonomy_verdict(self):
+        """The removed heuristic must not come back by accident."""
+        candidate = Candidate(
+            "roborock",
+            "Roborock",
+            ObservedHost("B0:4A:39:00:00:66"),
+            MatchStrength.STRICT,
+            "local_polling",
         )
 
-        assert strict_ring.needs_account
-        assert not strict_ring.auto_applicable
-
-    def test_local_integration_with_strict_match_is_auto_applicable(self):
-        wled = Candidate(
-            "wled", "WLED", ObservedHost("AA:BB:CC:00:00:01"), MatchStrength.STRICT, "local_push"
-        )
-
-        assert not wled.needs_account
-        assert wled.auto_applicable
-
-    def test_unknown_iot_class_is_treated_as_needing_an_account(self):
-        """Absent metadata must not be read as permission to act."""
-        unknown = Candidate("x", "X", ObservedHost("AA:BB:CC:00:00:01"), MatchStrength.STRICT, None)
-
-        assert unknown.needs_account
-        assert not unknown.auto_applicable
-
-    def test_local_integration_matched_only_by_hostname_is_not_auto_applicable(self):
-        """A name is renameable, so it never authorises a write."""
-        loose = Candidate(
-            "wled", "WLED", ObservedHost("AA:BB:CC:00:00:01"), MatchStrength.HOSTNAME, "local_push"
-        )
-
-        assert not loose.auto_applicable
+        assert not hasattr(candidate, "auto_applicable")
+        assert not hasattr(candidate, "needs_account")
 
 
 def _recipe_with(hosts: list[ObservedHost], configured: list[str], matchers: ManifestMatchers):
@@ -145,7 +147,7 @@ class TestCheck:
         result = await recipe.check(ha)
 
         assert result.status is CheckStatus.BLOCKED_ON_HUMAN
-        assert "ring" in result.details["needs_credentials"]
+        assert "ring" in result.details["integrations"]
         assert "Add Integration" in result.human_action
         assert "192.168.1.40" in result.human_action
 
@@ -169,8 +171,9 @@ class TestCheck:
 
         result = await recipe.check(ha)
 
-        assert result.status is CheckStatus.NEEDS_APPLY
-        assert result.details["auto_applicable"] == ["wled"]
+        # Even a credential-free local integration is reported, not applied.
+        assert result.status is CheckStatus.BLOCKED_ON_HUMAN
+        assert result.details["integrations"] == ["wled"]
 
     @pytest.mark.asyncio
     async def test_observer_returning_nothing_is_satisfied_not_crashing(self, monkeypatch):
@@ -178,38 +181,6 @@ class TestCheck:
         monkeypatch.setattr(ManifestMatchers, "load", load)
 
         assert (await recipe.check(ha)).status is CheckStatus.SATISFIED
-
-
-class TestApply:
-    @pytest.mark.asyncio
-    async def test_apply_never_touches_a_cloud_integration(self, monkeypatch):
-        matchers = _matchers(ring=(RING_DHCP, "Ring", "cloud_polling"))
-        hosts = [ObservedHost("9C:76:13:00:00:11", hostname="ring-doorbell")]
-        recipe, ha, load = _recipe_with(hosts, configured=[], matchers=matchers)
-        monkeypatch.setattr(ManifestMatchers, "load", load)
-        ha.rest.run_config_flow = AsyncMock()
-
-        result = await recipe.apply(ha)
-
-        ha.rest.run_config_flow.assert_not_called()
-        assert result.change_count == 0
-
-    @pytest.mark.asyncio
-    async def test_apply_configures_credential_free_domain_once(self, monkeypatch):
-        matchers = _matchers(wled=(WLED_DHCP, "WLED", "local_push"))
-        hosts = [
-            ObservedHost("FC:E8:C0:00:00:88", hostname="wled-000088"),
-            ObservedHost("EC:64:C9:00:00:77", hostname="wled-livingroom"),
-        ]
-        recipe, ha, load = _recipe_with(hosts, configured=[], matchers=matchers)
-        monkeypatch.setattr(ManifestMatchers, "load", load)
-        ha.rest.run_config_flow = AsyncMock()
-
-        result = await recipe.apply(ha)
-
-        # Two devices, one integration — the flow runs once, not per device.
-        ha.rest.run_config_flow.assert_awaited_once_with("wled", [{}])
-        assert result.change_count == 1
 
 
 class TestIdentifiedButUnmatched:

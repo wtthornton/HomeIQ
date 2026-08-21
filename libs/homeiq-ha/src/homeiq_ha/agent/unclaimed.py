@@ -27,8 +27,21 @@ says it is. There is no vendor table in this file to rot.
 
 What differs from HA is only the *strictness*: HA needs every key in a matcher
 entry to match at once; this recipe scores each leg separately and records
-which one hit. See :class:`MatchStrength` for why that distinction decides
-whether a device may be configured automatically or must go to a person.
+which one hit (see :class:`MatchStrength`).
+
+**Report-only, deliberately.** An earlier revision auto-configured integrations
+whose ``iot_class`` was local, on the theory that local means no account. That
+is false, and Roborock is the counterexample that killed it — HA's own docs
+say: "Despite this integration's IoT class being local polling, cloud access is
+required for it to work just like any other cloud based integration." Its
+config flow wants an email and a mailed verification code. Driving that flow
+with empty input errors or leaves a half-built entry.
+
+There is no manifest field that answers "does this config flow need
+credentials". The only honest way to find out is to start the flow and look at
+the first step — which is a mutation, so it cannot happen during an audit. So
+this recipe reports, and a person decides. That also keeps it in the same shape
+as the other observation recipes in :mod:`.diagnostics`.
 """
 
 from __future__ import annotations
@@ -39,7 +52,6 @@ from .matchers import Candidate, ManifestMatchers
 from .recipe import (
     PHASE_INTEGRATIONS,
     ApplyResult,
-    Change,
     CheckResult,
     CheckStatus,
     Plan,
@@ -51,22 +63,6 @@ if TYPE_CHECKING:
     from homeiq_ha.client import HAClient
 
     from .netobserve import NetworkObserver, ObservedHost
-
-
-def _identified_vendor(host: ObservedHost) -> str:
-    """The host's IEEE vendor, or "" when the OUI did not resolve.
-
-    A randomized privacy MAC has no IEEE assignment; ``oui_lookup`` reports
-    those as ``"Unknown"``, which asserts nothing and must not be listed as a
-    vendor a person could go looking for an integration for.
-    """
-    vendor = (host.vendor or "").strip()
-    return "" if vendor.lower() == "unknown" else vendor
-
-
-def _where(host: ObservedHost) -> str:
-    """How a person locates this device: its name if it has one, else its MAC."""
-    return f"{host.hostname or host.mac} ({host.ip or 'no lease seen'})"
 
 
 class UnclaimedDevicesRecipe(Recipe):
@@ -133,10 +129,6 @@ class UnclaimedDevicesRecipe(Recipe):
                 unmatched.setdefault(_identified_vendor(host), []).append(host)
         return unclaimed, unmatched
 
-    async def _unclaimed(self, ha: HAClient) -> list[Candidate]:
-        candidates, _ = await self._survey(ha)
-        return candidates
-
     @staticmethod
     def _human_action(
         blocked: list[Candidate], unmatched: dict[str, list[ObservedHost]] | None = None
@@ -192,19 +184,51 @@ class UnclaimedDevicesRecipe(Recipe):
 
     @staticmethod
     def _details(
-        unclaimed: list[Candidate],
-        auto: list[Candidate],
-        blocked: list[Candidate],
-        unmatched: dict[str, list[ObservedHost]],
+        unclaimed: list[Candidate], unmatched: dict[str, list[ObservedHost]]
     ) -> dict[str, Any]:
         return {
             "unclaimed": [c.describe() for c in unclaimed],
-            "auto_applicable": [c.domain for c in auto],
-            "needs_credentials": sorted({c.domain for c in blocked}),
+            "integrations": sorted({c.domain for c in unclaimed}),
             "identified_but_unmatched": {
                 vendor: [_where(h) for h in hosts] for vendor, hosts in sorted(unmatched.items())
             },
         }
+
+    @staticmethod
+    def _human_action(unclaimed: list[Candidate], unmatched: dict[str, list[ObservedHost]]) -> str:
+        lines: list[str] = []
+
+        by_domain: dict[str, list[Candidate]] = {}
+        for candidate in unclaimed:
+            by_domain.setdefault(candidate.domain, []).append(candidate)
+
+        if by_domain:
+            lines.append(
+                "Add these in Settings > Devices & Services > Add Integration. "
+                "Each config flow may ask for an account; the agent does not "
+                "attempt them:"
+            )
+            for domain, group in sorted(by_domain.items()):
+                where = ", ".join(_where(c.host) for c in group)
+                lines.append(f"  - {group[0].title} [{domain}]: {len(group)} device(s) — {where}")
+
+        if unmatched:
+            if lines:
+                lines.append("")
+            lines.append(
+                "These are on the network and identified by IEEE OUI, but NO installed "
+                "integration declares a dhcp/zeroconf/ssdp matcher for them, so Home "
+                "Assistant can never discover them on its own. Whether an integration "
+                "covers any of them is a judgement this agent will not guess: a vendor's "
+                "legal name is not its Home Assistant brand name (Signify ships as "
+                "'Philips Hue', D&M as 'Denon'), and phones and laptops appear here with "
+                "no integration to add at all. Listed most devices first:"
+            )
+            for vendor, hosts in sorted(unmatched.items(), key=lambda t: (-len(t[1]), t[0])):
+                where = ", ".join(_where(h) for h in hosts)
+                lines.append(f"  - {vendor}: {len(hosts)} device(s) — {where}")
+
+        return "\n".join(lines)
 
     async def check(self, ha: HAClient) -> CheckResult:
         if self._observer is None:
@@ -216,62 +240,40 @@ class UnclaimedDevicesRecipe(Recipe):
                 CheckStatus.SATISFIED, "every observed LAN device maps to a configured integration"
             )
 
-        auto = [c for c in unclaimed if c.auto_applicable]
-        blocked = [c for c in unclaimed if not c.auto_applicable]
-        details = self._details(unclaimed, auto, blocked, unmatched)
-
-        if not blocked and not unmatched:
-            return CheckResult(
-                CheckStatus.NEEDS_APPLY,
-                f"{len(auto)} unclaimed device(s) can be configured without credentials",
-                details,
-            )
-
         unmatched_count = sum(len(hosts) for hosts in unmatched.values())
         return CheckResult(
             CheckStatus.BLOCKED_ON_HUMAN,
             f"{len(unclaimed)} unclaimed device(s) across "
             f"{len({c.domain for c in unclaimed})} integration(s); "
             f"{unmatched_count} identified device(s) match no integration",
-            details,
-            human_action=self._human_action(blocked, unmatched),
+            self._details(unclaimed, unmatched),
+            human_action=self._human_action(unclaimed, unmatched),
         )
 
-    async def plan(self, ha: HAClient) -> Plan:
-        auto = [c for c in await self._unclaimed(ha) if c.auto_applicable]
-        return Plan(
-            tuple(
-                Change("configure integration", c.domain, after="loaded")
-                for c in _unique_by_domain(auto)
-            )
-        )
+    async def plan(self, _ha: HAClient) -> Plan:
+        return Plan(())
 
-    async def apply(self, ha: HAClient) -> ApplyResult:
-        auto = _unique_by_domain([c for c in await self._unclaimed(ha) if c.auto_applicable])
-        if not auto:
-            return ApplyResult((), "nothing to configure without credentials")
+    async def apply(self, _ha: HAClient) -> ApplyResult:
+        return ApplyResult((), "report-only")
 
-        changed: list[Change] = []
-        for candidate in auto:
-            await ha.rest.run_config_flow(candidate.domain, [{}])
-            changed.append(Change("configure integration", candidate.domain, after="loaded"))
-        return ApplyResult(tuple(changed), f"configured {len(changed)} integration(s)")
-
-    async def verify(self, ha: HAClient) -> VerifyResult:
-        remaining = await self._unclaimed(ha)
-        auto_left = [c for c in remaining if c.auto_applicable]
-        return VerifyResult(
-            not auto_left,
-            f"{len(remaining)} unclaimed device(s) remain; {len(auto_left)} still auto-applicable",
-            {"remaining": [c.describe() for c in remaining]},
-        )
+    async def verify(self, _ha: HAClient) -> VerifyResult:
+        return VerifyResult(True, "report-only")
 
 
-def _unique_by_domain(candidates: list[Candidate]) -> list[Candidate]:
-    seen: dict[str, Candidate] = {}
-    for candidate in candidates:
-        seen.setdefault(candidate.domain, candidate)
-    return list(seen.values())
+def _identified_vendor(host: ObservedHost) -> str:
+    """The host's IEEE vendor, or "" when the OUI did not resolve.
+
+    A randomized privacy MAC has no IEEE assignment; ``oui_lookup`` reports
+    those as ``"Unknown"``, which asserts nothing and must not be listed as a
+    vendor a person could go looking for an integration for.
+    """
+    vendor = (host.vendor or "").strip()
+    return "" if vendor.lower() == "unknown" else vendor
+
+
+def _where(host: ObservedHost) -> str:
+    """How a person locates this device: its name if it has one, else its MAC."""
+    return f"{host.hostname or host.mac} ({host.ip or 'no lease seen'})"
 
 
 __all__ = ["UnclaimedDevicesRecipe"]

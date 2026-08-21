@@ -177,8 +177,8 @@ docker exec homeiq-setup-service python -c \
 ## Unclaimed LAN devices (TAP-6402)
 
 `integrations.unclaimed_devices` reports devices that are on the network but
-that no configured Home Assistant integration owns, and configures the ones
-that need no account.
+that no configured Home Assistant integration owns. It is **report-only** — it
+drives no config flow, ever.
 
 > **MACs below are suffix-redacted.** The repo is public, so every example
 > keeps its real IEEE OUI (the first 3 octets — public registry data, and the
@@ -212,19 +212,30 @@ as a clean one.
 (~1 s for ~1200 domains). There is no vendor→integration table in HomeIQ to
 rot. Both commands are reads and are allowlisted in `readonly.py`.
 
-### Match strength decides autonomy
+### Match strength
 
-| Strength | Meaning | Auto-apply? |
-|---|---|---|
-| `STRICT` | Every key of one matcher entry matched — HA's own bar | Yes, **if** the integration needs no account |
-| `MAC` | OUI matched, other keys did not. Protocol-native identity, durable across renames | Never |
-| `HOSTNAME` | Only the DHCP hostname matched. A name is renameable, so it confers nothing | Never |
+| Strength | Meaning |
+|---|---|
+| `STRICT` | Every key of one matcher entry matched — HA's own bar |
+| `MAC` | OUI matched, other keys did not. Protocol-native identity, durable across renames |
+| `HOSTNAME` | Only the DHCP hostname matched. A name is renameable, so it confers nothing |
 
-An integration whose `iot_class` starts with `cloud` — or that has no
-`iot_class` at all — is treated as needing an account and is never configured
-automatically. Ring and Alexa require an account login plus a second factor;
-no automation gets past that, and driving the flow with placeholder input
-errors rather than configuring anything.
+The strength is information for the reader, not an authorisation.
+
+### Why nothing is auto-applied
+
+An earlier revision auto-configured integrations whose `iot_class` was local,
+on the theory that local means no account. That is false. Roborock is the
+counterexample — [HA's own docs](https://www.home-assistant.io/integrations/roborock/)
+say: *"Despite this integration's IoT class being local polling, cloud access
+is required for it to work just like any other cloud based integration."* Its
+config flow wants an email address and a mailed verification code. Driving it
+with empty input errors, or leaves a half-built entry.
+
+No manifest field answers "does this config flow need credentials". The only
+way to know is to start the flow and read the first step — a mutation, so it
+cannot happen during an audit. The recipe therefore reports and a person
+decides, in the same shape as the observation recipes in `diagnostics.py`.
 
 ### The second bucket: identified but unmatchable
 
