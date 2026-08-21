@@ -633,7 +633,9 @@ CREATE TABLE IF NOT EXISTS devices (
     connections_json TEXT,
     identifiers_json TEXT,
     zigbee_ieee VARCHAR,
-    is_battery_powered BOOLEAN NOT NULL,
+    -- Nullable: derived from power_source, so unknown power source means unknown
+    -- battery-ness. NOT NULL here aborted every discovery pass (migration 006).
+    is_battery_powered BOOLEAN,
     lqi INTEGER,
     lqi_updated_at TIMESTAMPTZ,
     availability_status VARCHAR,

@@ -46,7 +46,11 @@ class Device(Base):
     connections_json: Mapped[str | None] = mapped_column(Text)  # Store as JSON string
     identifiers_json: Mapped[str | None] = mapped_column(Text)  # Store as JSON string
     zigbee_ieee: Mapped[str | None] = mapped_column(String, index=True)
-    is_battery_powered: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Nullable, and deliberately without `default=False`: this is derived from
+    # power_source, so when that could not be established there is nothing to
+    # derive. A default would assert "not battery-powered" about a device whose
+    # power source is unknown.
+    is_battery_powered: Mapped[bool | None] = mapped_column(Boolean)
 
     # Radio/power facts (ZHA)
     lqi: Mapped[int | None] = mapped_column(Integer, index=True)  # Link Quality Indicator (0-255)

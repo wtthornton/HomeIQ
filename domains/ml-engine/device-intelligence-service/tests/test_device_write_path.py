@@ -158,3 +158,107 @@ class TestTheGeneratedSql:
 
     def test_id_and_created_at_are_never_updated(self):
         assert self._update_clause_for(["id", "created_at"]) == []
+
+
+_INIT_SCHEMAS = (
+    Path(__file__).resolve().parents[4] / "infrastructure" / "postgres" / "init-schemas.sql"
+)
+_DISCOVERY = Path(__file__).resolve().parents[1] / "src" / "core" / "discovery_service.py"
+
+
+def _devices_table_ddl() -> list[str]:
+    """Column lines of `devices.devices`, not the unrelated `core.devices`.
+
+    Both schemas declare a table called `devices`, with different columns. The
+    search_path statement is what tells them apart.
+    """
+    lines = _INIT_SCHEMAS.read_text(encoding="utf-8").splitlines()
+    in_devices_schema = False
+    for index, line in enumerate(lines):
+        if line.strip().startswith("SET search_path TO "):
+            in_devices_schema = line.strip() == "SET search_path TO devices;"
+        if in_devices_schema and line.startswith("CREATE TABLE IF NOT EXISTS devices ("):
+            end = next(n for n in range(index, len(lines)) if lines[n].startswith(");"))
+            return lines[index + 1 : end]
+    raise AssertionError("devices.devices CREATE TABLE not found in init-schemas.sql")
+
+
+def _not_null_columns_without_default() -> set[str]:
+    """Columns the database will refuse to accept a missing value for."""
+    columns = set()
+    for line in _devices_table_ddl():
+        text = line.strip().rstrip(",")
+        if not text or text.startswith("--"):
+            continue
+        upper = text.upper()
+        if "DEFAULT " in upper:
+            continue
+        if "NOT NULL" in upper or "PRIMARY KEY" in upper:
+            columns.add(text.split()[0])
+    return columns
+
+
+def _always_supplied_keys() -> set[str]:
+    """Keys in the `device_data = {...}` literal, before any conditional update.
+
+    The literal is the unconditional part of the payload. Everything added after
+    it — `device_data.update(established)`, the `if device.ha_device` block — is
+    conditional by construction, so it cannot satisfy a NOT NULL column.
+    """
+    tree = ast.parse(_DISCOVERY.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Dict):
+            continue
+        if not any(isinstance(t, ast.Name) and t.id == "device_data" for t in node.targets):
+            continue
+        return {
+            key.value
+            for key in node.value.keys
+            if isinstance(key, ast.Constant) and isinstance(key.value, str)
+        }
+    raise AssertionError("device_data literal not found in discovery_service.py")
+
+
+class TestEveryNotNullColumnIsAlwaysSupplied:
+    """A NOT NULL column the write path may omit takes down the whole pass.
+
+    PostgreSQL checks NOT NULL while forming the tuple, BEFORE the ON CONFLICT
+    arbiter runs. "The row already exists, so DO UPDATE would have left it
+    alone" is therefore no defence: the statement raises and the transaction
+    aborts. One column the rules could not establish erases the entire discovery
+    pass, not one device.
+
+    This is what actually happened. `is_battery_powered` was NOT NULL and is
+    derived from `power_source`, which 45 of 93 devices could not establish, so
+    the key was absent from their upserts. Every row in devices.devices sat at
+    updated_at 2026-08-21 03:38:35 for fourteen hours while
+    /api/discovery/status went on reporting 93 devices found — the failure was
+    appended to an errors array nothing alerted on.
+
+    Every other test in this file passed throughout. They assert the generated
+    SQL, and the SQL was right; it was the schema that refused it. Nothing here
+    compared the two, which is the gap this class closes.
+    """
+
+    def test_the_parses_found_something(self):
+        # Guards the guard: two empty sets would make the assertion below vacuous.
+        assert len(_devices_table_ddl()) >= 30
+        assert len(_always_supplied_keys()) >= 15
+
+    def test_no_not_null_column_can_be_omitted(self):
+        required = _not_null_columns_without_default()
+        omittable = sorted(required - _always_supplied_keys())
+        assert not omittable, (
+            f"{omittable} are NOT NULL in devices.devices but are not in the "
+            f"unconditional device_data literal. Any pass that cannot establish one "
+            f"aborts its whole transaction, and discovery keeps reporting success."
+        )
+
+    def test_the_derived_battery_flag_is_nullable(self):
+        # Named explicitly because a `DEFAULT false` would also satisfy the test
+        # above while asserting something untrue: that a device of unknown power
+        # source is known not to run on batteries.
+        ddl = " ".join(_devices_table_ddl())
+        assert "is_battery_powered BOOLEAN," in ddl
+        assert "is_battery_powered BOOLEAN NOT NULL" not in ddl
+        assert "is_battery_powered BOOLEAN DEFAULT" not in ddl
