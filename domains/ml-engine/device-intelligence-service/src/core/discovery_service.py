@@ -79,6 +79,8 @@ class DiscoveryService:
         self.unified_devices: dict[str, UnifiedDevice] = {}
         self.ha_devices: list[HADevice] = []
         self.ha_entities: list[HAEntity] = []
+        # device_id -> {column: why no durable signal established it}
+        self.knowledge_exclusions: dict[str, dict[str, str]] = {}
         self.ha_areas: list[HAArea] = []
         self.ha_config_entries: dict[str, str] = {}  # Maps config_entry_id -> domain/integration
 
@@ -625,6 +627,10 @@ class DiscoveryService:
             # Store in database using DeviceService
             async for session in get_db_session():
                 device_service = DeviceService(session)
+                # Retained so every NULL is traceable to the rule that declined
+                # to fill it. An aggregate log line is not checkable per device.
+                self.knowledge_exclusions = knowledge_exclusions
+
                 if knowledge_exclusions:
                     by_column = Counter(
                         column for reasons in knowledge_exclusions.values() for column in reasons

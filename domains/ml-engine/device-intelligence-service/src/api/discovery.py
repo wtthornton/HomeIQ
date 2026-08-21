@@ -27,7 +27,6 @@ class DiscoveryStatusResponse(BaseModel):
 
     service_running: bool
     ha_connected: bool
-    mqtt_connected: bool
     last_discovery: str | None
     devices_count: int
     areas_count: int
@@ -114,7 +113,6 @@ async def get_discovery_status(
         return DiscoveryStatusResponse(
             service_running=status.service_running,
             ha_connected=status.ha_connected,
-            mqtt_connected=status.mqtt_connected,
             last_discovery=status.last_discovery.isoformat() if status.last_discovery else None,
             devices_count=status.devices_count,
             areas_count=status.areas_count,
@@ -145,12 +143,6 @@ async def get_discovery_sources(
                 "type": "websocket",
                 "connected": status.ha_connected,
                 "description": "Device, entity, and area registry discovery via WebSocket API",
-            },
-            {
-                "name": "Zigbee2MQTT",
-                "type": "mqtt",
-                "connected": status.mqtt_connected,
-                "description": "Device capabilities and network topology via MQTT bridge",
             },
         ]
 
@@ -345,6 +337,39 @@ async def get_all_devices(
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
+@router.get("/knowledge-exclusions")
+async def get_knowledge_exclusions(
+    discovery_service: DiscoveryService = Depends(get_discovery_service),
+) -> dict[str, Any]:
+    """Why each device-knowledge column is NULL, per device.
+
+    Several of these columns cannot be filled for every device and are not meant
+    to be: a Hue Room group has no device kind, a mains-wired dimmer has no
+    battery reading, and the Zigbee coordinator has no link quality to itself.
+    Those NULLs are correct answers, so each one carries the reason the rule
+    declined rather than being left to look like an unexplained gap.
+
+    Recorded by the most recent discovery pass. The device name is included for
+    reading only — every rule keys on ids.
+    """
+    exclusions = getattr(discovery_service, "knowledge_exclusions", {}) or {}
+    names = {d.id: d.name for d in getattr(discovery_service, "ha_devices", []) or []}
+
+    by_column: dict[str, int] = {}
+    for reasons in exclusions.values():
+        for column in reasons:
+            by_column[column] = by_column.get(column, 0) + 1
+
+    return {
+        "devices_with_exclusions": len(exclusions),
+        "unfilled_by_column": by_column,
+        "exclusions": [
+            {"device_id": device_id, "device_name": names.get(device_id), "columns": reasons}
+            for device_id, reasons in sorted(exclusions.items())
+        ],
+    }
+
+
 @router.get("/areas")
 async def get_areas(
     discovery_service: DiscoveryService = Depends(get_discovery_service),
@@ -372,32 +397,4 @@ async def get_areas(
 
     except Exception as e:
         logger.error(f"Error getting areas: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error") from e
-
-
-@router.get("/groups")
-async def get_zigbee_groups(
-    discovery_service: DiscoveryService = Depends(get_discovery_service),
-) -> list[dict[str, Any]]:
-    """
-    Get all discovered Zigbee groups.
-
-    Returns:
-        List[Dict[str, Any]]: List of Zigbee groups
-    """
-    try:
-        groups = discovery_service.get_zigbee_groups()
-
-        return [
-            {
-                "id": group.id,
-                "friendly_name": group.friendly_name,
-                "members": group.members,
-                "scenes": group.scenes,
-            }
-            for group in groups
-        ]
-
-    except Exception as e:
-        logger.error(f"Error getting Zigbee groups: {e}")
         raise HTTPException(status_code=500, detail="Internal server error") from e
