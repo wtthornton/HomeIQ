@@ -130,20 +130,19 @@ class DeviceService:
     # Deliberately NOT applied to every column: for ordinary registry fields such
     # as area_id, a None from Home Assistant means "cleared in HA" and must
     # propagate.
-    _PRESERVE_WHEN_DISCOVERY_HAS_NOTHING = frozenset(
-        {
-            "device_type",
-            "power_source",
-            "lqi",
-            "lqi_updated_at",
-            "battery_level",
-            "battery_low",
-            "battery_updated_at",
-            "availability_status",
-            "availability_updated_at",
-            "source",
-        }
-    )
+    # Empty by design, and kept as a named seam rather than deleted.
+    #
+    # It once held the device-knowledge columns, to stop a discovery pass that
+    # hardcoded them to None from resetting them every 300 seconds. That was
+    # treating the symptom: the caller now omits a column it could not evaluate
+    # and sends an explicit None only when it authoritatively knows the column
+    # is empty, so absence preserves and None clears — which COALESCE cannot
+    # express, because SQL sees the same NULL either way.
+    #
+    # Leaving COALESCE in place after that change made values unretractable:
+    # sixteen Hue Room groups wrongly typed as physical lights survived the fix
+    # that stopped typing them.
+    _PRESERVE_WHEN_DISCOVERY_HAS_NOTHING: frozenset[str] = frozenset()
 
     async def bulk_upsert_devices(self, devices_data: list[dict[str, Any]]) -> list[Device]:
         """Bulk upsert multiple devices using parameterized queries."""

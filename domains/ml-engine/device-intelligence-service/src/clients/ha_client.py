@@ -772,7 +772,7 @@ class HomeAssistantClient:
         Subscribe to state_changed events for real-time telemetry updates.
 
         This enables real-time monitoring of entity state changes (sensor readings,
-        switch toggles, etc.) for Zigbee2MQTT and other devices.
+        switch toggles, etc.) for ZHA and other devices.
 
         Args:
             callback: Async callback function that receives state_changed event data.

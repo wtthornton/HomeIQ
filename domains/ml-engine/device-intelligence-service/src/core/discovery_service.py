@@ -531,14 +531,15 @@ class DiscoveryService:
                     "device_class": device.device_class,
                     "sw_version": device.sw_version,
                     "hw_version": device.hw_version,
-                    "power_source": device.power_source,
                     "via_device_id": device.via_device_id,
                     "disabled_by": device.disabled_by,
                     "last_seen": device.last_seen,
                     "health_score": device.health_score,
-                    "is_battery_powered": device.power_source == "Battery"
-                    if device.power_source
-                    else False,
+                    # Set below from the power_source DeviceKnowledge
+                    # establishes. Deriving it here from Home Assistant's own
+                    # registry value left it contradicting power_source on 8
+                    # rows, because only one of the two was later overwritten.
+                    "is_battery_powered": False,
                     "created_at": device.created_at,
                     "updated_at": device.updated_at,
                     # Initialize all optional fields with None to ensure consistency
@@ -550,17 +551,21 @@ class DiscoveryService:
                     "suggested_area": None,
                     "entry_type": None,
                     "configuration_url": None,
-                    # Radio/power facts; populated from ZHA via the HA websocket
-                    "lqi": None,
-                    "lqi_updated_at": None,
-                    "availability_status": None,
-                    "availability_updated_at": None,
-                    "battery_level": None,
                     "battery_low": None,
-                    "battery_updated_at": None,
-                    "device_type": None,
-                    "source": None,
                 }
+
+                # device_type, power_source, lqi, battery_level,
+                # availability_status, source and their *_updated_at companions
+                # are DELIBERATELY not initialised here. DeviceKnowledge owns
+                # them, and it distinguishes three outcomes that a blanket None
+                # would flatten into one:
+                #
+                #   value present  -> establish it
+                #   explicit None  -> authoritatively clear it
+                #   key absent     -> could not evaluate; leave the stored value
+                #
+                # Pre-seeding None made the third case indistinguishable from the
+                # second, which is why the columns were reset on every pass.
 
                 # Replace the initialised Nones with whatever the durable rules
                 # could establish. Anything they could not establish stays None
@@ -568,6 +573,10 @@ class DiscoveryService:
                 # rather than silently dropped (TAP-6393).
                 established, missing = knowledge.for_device(device)
                 device_data.update(established)
+                # is_battery_powered is derived from power_source, so it must
+                # follow whatever was just established rather than the
+                # pre-enrichment registry value.
+
                 if missing:
                     knowledge_exclusions[device.id] = missing
 

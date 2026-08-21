@@ -31,8 +31,8 @@ class DeviceResponse(BaseModel):
     area_id: str | None
     entity_count: int
     timestamp: str
-    integration: str | None = None  # Integration/domain name (e.g., 'mqtt', 'hue', 'zigbee2mqtt')
-    # Zigbee2MQTT fields
+    integration: str | None = None  # Integration/domain name (e.g., 'hue', 'zha', 'wled')
+    # Radio/power facts (ZHA)
     lqi: int | None = None
     availability_status: str | None = None
     battery_level: int | None = None
@@ -109,7 +109,7 @@ async def get_devices(
                 if device.updated_at
                 else datetime.now().isoformat(),
                 integration=device.integration,  # Include integration field
-                # Zigbee2MQTT fields
+                # Radio/power facts (ZHA)
                 lqi=device.lqi,
                 availability_status=device.availability_status,
                 battery_level=device.battery_level,
@@ -204,7 +204,7 @@ async def get_device(device_id: str, device_service: DeviceService = Depends(get
             if device.updated_at
             else datetime.now().isoformat(),
             integration=device.integration,  # Include integration field
-            # Zigbee2MQTT fields
+            # Radio/power facts (ZHA)
             lqi=device.lqi,
             availability_status=device.availability_status,
             battery_level=device.battery_level,
@@ -241,7 +241,7 @@ async def get_devices_by_area(
                 if device.updated_at
                 else datetime.now().isoformat(),
                 integration=device.integration,  # Include integration field
-                # Zigbee2MQTT fields
+                # Radio/power facts (ZHA)
                 lqi=device.lqi,
                 availability_status=device.availability_status,
                 battery_level=device.battery_level,
@@ -280,7 +280,7 @@ async def get_devices_by_integration(
                 if device.updated_at
                 else datetime.now().isoformat(),
                 integration=device.integration,  # Include integration field
-                # Zigbee2MQTT fields
+                # Radio/power facts (ZHA)
                 lqi=device.lqi,
                 availability_status=device.availability_status,
                 battery_level=device.battery_level,

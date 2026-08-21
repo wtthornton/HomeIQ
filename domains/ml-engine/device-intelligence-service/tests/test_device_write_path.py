@@ -44,16 +44,24 @@ def _frozenset_literal(name: str) -> set[str]:
     """
     tree = ast.parse(_SERVICE.read_text(encoding="utf-8"))
     for node in ast.walk(tree):
-        if isinstance(node, ast.Assign) and any(
-            isinstance(t, ast.Name) and t.id == name for t in node.targets
-        ):
-            call = node.value
-            assert isinstance(call, ast.Call), f"{name} is no longer a frozenset(...) call"
-            return {
-                elt.value
-                for elt in call.args[0].elts
-                if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
-            }
+        # Either `NAME = frozenset({...})` or `NAME: frozenset[str] = frozenset()`.
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+        elif isinstance(node, ast.AnnAssign):
+            targets = [node.target]
+        else:
+            continue
+        if not any(isinstance(t, ast.Name) and t.id == name for t in targets):
+            continue
+        call = node.value
+        assert isinstance(call, ast.Call), f"{name} is no longer a frozenset(...) call"
+        if not call.args:
+            return set()  # frozenset() — deliberately empty
+        return {
+            elt.value
+            for elt in call.args[0].elts
+            if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
+        }
     raise AssertionError(f"{name} not found in device_service.py")
 
 
@@ -93,34 +101,31 @@ class TestTheGuardDoesNotDropRealColumns:
         assert not phantoms, f"_ALLOWED_DEVICE_COLUMNS names non-columns: {phantoms}"
 
 
-class TestDiscoveryCannotEraseAnEstablishedValue:
-    @pytest.mark.parametrize("column", KNOWLEDGE_COLUMNS)
-    def test_each_knowledge_column_is_preserved_when_discovery_sends_null(self, column):
+class TestPreservationIsByOmissionNotByCoalesce:
+    """Absence preserves, an explicit None clears.
+
+    COALESCE cannot express this distinction, because SQL sees the same NULL
+    whether the caller meant "I could not evaluate this" or "this is genuinely
+    empty". Treating both as "preserve" made values unretractable: sixteen Hue
+    Room groups wrongly typed as physical lights survived the very fix that
+    stopped typing them.
+    """
+
+    def test_nothing_is_coalesced_any_more(self):
         preserved = _frozenset_literal("_PRESERVE_WHEN_DISCOVERY_HAS_NOTHING")
-        assert column in preserved, (
-            f"{column!r} is not preserved on conflict, so the every-300s discovery "
-            f"upsert — which hardcodes it to None — resets it to NULL. Any enriched "
-            f"value survives at most one discovery interval."
+        assert preserved == set(), (
+            "COALESCE is back. It makes a wrong value unretractable, because the "
+            "rules can then add but never clear. Preservation is the caller's job: "
+            "omit the key."
         )
 
-    def test_ordinary_registry_columns_are_not_preserved(self):
-        # A None for area_id means "cleared in Home Assistant" and must
-        # propagate. Preserving everything would silently pin stale state.
-        preserved = _frozenset_literal("_PRESERVE_WHEN_DISCOVERY_HAS_NOTHING")
-        for column in ("area_id", "name", "integration", "sw_version", "disabled_by"):
-            assert column not in preserved, (
-                f"{column!r} must propagate a None — it means the field was cleared upstream."
-            )
-
-    def test_preserved_columns_are_all_writable(self):
-        # Preserving a column the guard drops would be doubly useless.
-        preserved = _frozenset_literal("_PRESERVE_WHEN_DISCOVERY_HAS_NOTHING")
-        allowed = _frozenset_literal("_ALLOWED_DEVICE_COLUMNS")
-        assert preserved <= allowed, f"preserved but not writable: {sorted(preserved - allowed)}"
+    @pytest.mark.parametrize("column", KNOWLEDGE_COLUMNS)
+    def test_each_knowledge_column_is_still_writable(self, column):
+        assert column in _frozenset_literal("_ALLOWED_DEVICE_COLUMNS")
 
 
 class TestTheGeneratedSql:
-    """Assert the SQL text, since that is where both defects actually lived."""
+    """Assert the SQL text, since that is where the defects actually lived."""
 
     def _update_clause_for(self, columns: list[str]) -> list[str]:
         preserved = _frozenset_literal("_PRESERVE_WHEN_DISCOVERY_HAS_NOTHING")
@@ -134,13 +139,16 @@ class TestTheGeneratedSql:
             if col not in {"id", "created_at"}
         ]
 
-    def test_a_knowledge_column_uses_coalesce(self):
+    def test_a_supplied_column_is_assigned_so_an_explicit_none_clears(self):
         clause = self._update_clause_for(["id", "device_type"])
-        assert clause == ['"device_type"=COALESCE(EXCLUDED."device_type", devices."device_type")']
+        assert clause == ['"device_type"=EXCLUDED."device_type"']
 
-    def test_an_ordinary_column_uses_a_plain_assignment(self):
-        clause = self._update_clause_for(["id", "area_id"])
-        assert clause == ['"area_id"=EXCLUDED."area_id"']
+    def test_an_omitted_column_never_reaches_the_update_at_all(self):
+        # This is the preservation mechanism. A column the caller did not supply
+        # is not in `columns`, so it is absent from the UPDATE SET and the stored
+        # value stands untouched.
+        assert self._update_clause_for(["id", "name"]) == ['"name"=EXCLUDED."name"']
+        assert "device_type" not in " ".join(self._update_clause_for(["id", "name"]))
 
     def test_id_and_created_at_are_never_updated(self):
         assert self._update_clause_for(["id", "created_at"]) == []

@@ -33,6 +33,20 @@ class Device:
     zigbee_ieee: str | None = None
 
 
+class _HADevice:
+    def __init__(self, entry_type=None, identifiers=None):
+        self.entry_type = entry_type
+        self.identifiers = identifiers or []
+
+
+class ServiceDevice(Device):
+    """A device Home Assistant registers as a service, not hardware."""
+
+    def __init__(self, id_: str, **kw):
+        super().__init__(id_, **kw)
+        self.ha_device = _HADevice(entry_type="service")
+
+
 def state(entity_id: str, value, device_class: str | None = None) -> dict:
     return {
         "entity_id": entity_id,
@@ -70,20 +84,51 @@ class TestDeviceType:
         values, _ = k.for_device(Device("d1"))
         assert values["device_type"] == "light"
 
-    def test_a_hue_room_group_is_not_a_device(self):
-        # "Backyard" is a Hue Room exposing 19 scene entities. `scene` is not in
-        # the domain map, so it falls out without needing to be named — which is
-        # why these rules need no per-integration branches.
+    def test_a_hue_room_group_with_a_light_entity_is_still_not_a_device(self):
+        # THE REGRESSION. Most Hue Rooms and Zones expose a `light` GROUP entity
+        # alongside their scenes, so the domain vote types them as physical
+        # lights on mains — 16 of them were, and downstream inventory and energy
+        # consumers then double-count hardware that does not exist.
+        #
+        # The earlier fixture here used scene-only entities, which is the shape
+        # of the two Rooms that happen to have no light group. It encoded the
+        # belief instead of testing it, so it passed while production was wrong.
+        k = DeviceKnowledge(
+            [
+                Entity("light.downstairs", "d1", "light"),
+                Entity("scene.relax", "d1", "scene"),
+            ]
+        )
+        values, exclusions = k.for_device(ServiceDevice("d1"))
+        assert values.get("device_type") is None, "a Hue Room group was typed as a physical light"
+        assert values.get("power_source") is None
+        assert "service entry" in exclusions["device_type"]
+
+    def test_a_scene_only_group_is_also_not_a_device(self):
         k = DeviceKnowledge([Entity(f"scene.s{i}", "d1", "scene") for i in range(19)])
         values, exclusions = k.for_device(Device("d1"))
-        assert "device_type" not in values
+        assert values.get("device_type") is None
         assert "scene" in exclusions["device_type"]
+
+    def test_a_stateless_controller_is_a_button(self):
+        # Hue tap dials and Smart buttons expose only `event` entities. They were
+        # excluded as "an integration or grouping construct" — false, and
+        # insulting to a physical device sitting on a wall. HA models a stateless
+        # controller as the event domain; `button` is already in the vocabulary.
+        k = DeviceKnowledge([Entity("event.button_1", "d1", "event")])
+        values, _ = k.for_device(Device("d1"))
+        assert values["device_type"] == "button"
+
+    def test_an_event_entity_does_not_outvote_a_real_domain(self):
+        k = DeviceKnowledge([Entity("light.a", "d1", "light"), Entity("event.a", "d1", "event")])
+        values, _ = k.for_device(Device("d1"))
+        assert values["device_type"] == "light"
 
     def test_a_device_with_no_entities_is_excluded_with_a_reason(self):
         # The Zigbee coordinator and the Bluetooth adapter.
         k = DeviceKnowledge([])
         values, exclusions = k.for_device(Device("d1"))
-        assert "device_type" not in values
+        assert values.get("device_type") is None
         assert "no functional entities" in exclusions["device_type"]
 
     def test_the_emitted_value_is_always_in_the_vocabulary(self):
@@ -127,7 +172,7 @@ class TestPowerSource:
             zha_devices=[{"ieee": "00:11:22", "power_source": "Battery or Unknown", "lqi": 45}],
         )
         values, exclusions = k.for_device(Device("d1", zigbee_ieee="00:11:22"))
-        assert "power_source" not in values
+        assert values.get("power_source") is None
         assert "power_source" in exclusions
 
     def test_absence_of_a_battery_is_not_evidence_of_mains(self):
@@ -135,7 +180,7 @@ class TestPowerSource:
         # entities and no battery reading tells us nothing about its supply.
         k = DeviceKnowledge([Entity("sensor.x", "d1", "sensor")])
         values, exclusions = k.for_device(Device("d1"))
-        assert "power_source" not in values
+        assert values.get("power_source") is None
         assert "absence of a battery is not evidence" in exclusions["power_source"]
 
 
@@ -157,7 +202,7 @@ class TestBatteryLevel:
             [state("sensor.batt", bad, device_class="battery")],
         )
         values, exclusions = k.for_device(Device("d1"))
-        assert "battery_level" not in values
+        assert values.get("battery_level") is None
         assert "battery_level" in exclusions
 
     @pytest.mark.parametrize("out_of_range", ["-5", "150"])
@@ -167,12 +212,105 @@ class TestBatteryLevel:
             [state("sensor.batt", out_of_range, device_class="battery")],
         )
         values, _ = k.for_device(Device("d1"))
-        assert "battery_level" not in values
+        assert values.get("battery_level") is None
 
     def test_no_battery_entity_yields_a_reason(self):
         k = DeviceKnowledge([Entity("light.a", "d1", "light")])
         _, exclusions = k.for_device(Device("d1"))
         assert "no battery-class entity" in exclusions["battery_level"]
+
+
+class TestDefectsAnAdversarialVerifierFound:
+    """Each of these shipped, and none was visible to a green suite."""
+
+    def test_a_zha_hedge_outranks_a_battery_entity(self):
+        # Both Aqara FP1E expose a battery entity stuck at 0% since pairing,
+        # because the quirk surfaces a battery cluster the mains-powered device
+        # does not use. Believing it produced "battery, 0%" on a USB device —
+        # a fabricated dead battery, which downstream reads as an urgent fault.
+        k = DeviceKnowledge(
+            [Entity("sensor.batt", "d1", "sensor", entity_category="diagnostic")],
+            [state("sensor.batt", "0.0", device_class="battery")],
+            zha_devices=[{"ieee": "AA:BB", "power_source": "Battery or Unknown", "lqi": 31}],
+        )
+        values, exclusions = k.for_device(Device("d1", zigbee_ieee="AA:BB"))
+        assert values.get("power_source") is None
+        assert "declines to commit" in exclusions["power_source"]
+        # The reading itself is still mirrored: it is a measurement, and it
+        # answers a different question from "what supplies this device".
+        assert values["battery_level"] == 0
+
+    def test_diagnostic_battery_entities_still_count(self):
+        # Seven of the eight battery entities on this instance are `diagnostic`
+        # — that is simply the Home Assistant convention for battery sensors.
+        # Filtering them out of the battery scan, as was once proposed, would
+        # drop battery_level from 8 devices to 1.
+        k = DeviceKnowledge(
+            [Entity("sensor.batt", "d1", "sensor", entity_category="diagnostic")],
+            [state("sensor.batt", "100", device_class="battery")],
+        )
+        values, _ = k.for_device(Device("d1"))
+        assert values["battery_level"] == 100
+        assert values["power_source"] == "battery"
+
+    def test_is_battery_powered_agrees_with_power_source(self):
+        # These disagreed on 8 rows: the flag was computed upstream from a
+        # pre-enrichment value and never recomputed.
+        k = DeviceKnowledge(
+            [Entity("sensor.batt", "d1", "sensor")],
+            [state("sensor.batt", "90", device_class="battery")],
+        )
+        values, _ = k.for_device(Device("d1"))
+        assert values["power_source"] == "battery"
+        assert values["is_battery_powered"] is True
+
+        mains = DeviceKnowledge([Entity("light.a", "d2", "light")]).for_device(Device("d2"))[0]
+        assert mains["power_source"] == "mains"
+        assert mains["is_battery_powered"] is False
+
+    @pytest.mark.parametrize(
+        "column,stamp",
+        [
+            ("lqi", "lqi_updated_at"),
+            ("battery_level", "battery_updated_at"),
+            ("availability_status", "availability_updated_at"),
+        ],
+    )
+    def test_a_written_value_is_stamped(self, column, stamp):
+        # These columns are preserved on conflict, so without a timestamp a
+        # device that leaves the mesh keeps its last reading forever with
+        # nothing to age it out by.
+        k = DeviceKnowledge(
+            [Entity("sensor.batt", "d1", "sensor")],
+            [state("sensor.batt", "77", device_class="battery")],
+            zha_devices=[{"ieee": "AA:BB", "lqi": 44}],
+        )
+        values, _ = k.for_device(Device("d1", zigbee_ieee="AA:BB"))
+        assert column in values
+        assert stamp in values, f"{column} was written without stamping {stamp}"
+
+    def test_an_unwritten_value_is_not_stamped(self):
+        # A stamp with no value behind it would claim a reading that never
+        # happened. The column itself IS present, as an explicit None: a
+        # non-Zigbee device authoritatively has no LQI, and saying so clears any
+        # stale value rather than letting it stand.
+        values, _ = DeviceKnowledge([]).for_device(Device("d1"))
+        assert values["lqi"] is None
+        assert "lqi_updated_at" not in values
+
+    def test_a_column_whose_inputs_were_unavailable_is_omitted_entirely(self):
+        # states=None means the caller could not fetch them. Clearing
+        # battery_level on that basis would wipe good data on a transient
+        # failure, so the key is omitted and the stored value stands.
+        values, _ = DeviceKnowledge([], states=None).for_device(Device("d1"))
+        assert values.get("battery_level") is None
+
+    def test_a_column_whose_inputs_were_empty_is_cleared(self):
+        # states=[] means they WERE fetched and held nothing. That is a real
+        # answer, so it clears.
+        values, _ = DeviceKnowledge([], states=[]).for_device(Device("d1"))
+        assert "battery_level" in values
+        assert values["battery_level"] is None
 
 
 class TestZigbeeIeeeDerivation:
@@ -230,7 +368,7 @@ class TestLqi:
         # the method.
         k = DeviceKnowledge([], zha_devices=[{"ieee": "AA:BB", "lqi": None}])
         values, exclusions = k.for_device(Device("d1", zigbee_ieee="AA:BB"))
-        assert "lqi" not in values
+        assert values.get("lqi") is None
         assert "no link to itself" in exclusions["lqi"]
 
 
@@ -243,7 +381,7 @@ class TestSourceAndAvailability:
     def test_an_unresolved_integration_is_excluded(self):
         k = DeviceKnowledge([])
         values, exclusions = k.for_device(Device("d1", integration="unknown"))
-        assert "source" not in values
+        assert values.get("source") is None
         assert "source" in exclusions
 
     def test_a_present_device_is_enabled(self):
@@ -284,9 +422,19 @@ class TestNameBlindness:
         before, _ = DeviceKnowledge(entities, states_a).for_device(Device("d1"))
         after, _ = DeviceKnowledge(renamed, states_b).for_device(Device("d1"))
 
+        # Compare the derived values. The *_updated_at stamps are wall-clock and
+        # differ between two calls by construction, so including them would make
+        # this fail for a reason that has nothing to do with renaming.
+        def derived(values):
+            return {k: v for k, v in values.items() if not k.endswith("_updated_at")}
+
         assert before["device_type"] == "light"
         assert before["battery_level"] == 55
-        assert after == before
+        # A battery entity outranks the mains-domain inference; this fixture has one.
+        assert before["power_source"] == "battery"
+        assert derived(after) == derived(before)
+        # And the stamps are present, so trimming them above hides nothing.
+        assert "battery_updated_at" in before
 
     def test_entities_belonging_to_another_device_do_not_leak(self):
         # The join is device_id. A battery on a neighbouring device must not
@@ -297,4 +445,4 @@ class TestNameBlindness:
         )
         values, _ = k.for_device(Device("d1"))
         assert values["power_source"] == "mains"
-        assert "battery_level" not in values
+        assert values.get("battery_level") is None

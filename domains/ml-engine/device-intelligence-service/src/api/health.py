@@ -81,7 +81,6 @@ async def health_check(_settings: Settings = Depends(lambda: Settings())) -> Hea
         "database": db_status,
         "redis": "not_configured",
         "home_assistant": "not_checked",
-        "mqtt": "not_checked",
     }
 
     # Report "degraded" when the database is unavailable, but always
@@ -122,7 +121,6 @@ async def service_status(settings: Settings = Depends(lambda: Settings())) -> Se
         "database": "operational",
         "cache": "operational",
         "home_assistant": "operational",
-        "mqtt_broker": "operational",
     }
 
     return ServiceStatus(

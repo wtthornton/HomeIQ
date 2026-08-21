@@ -8,7 +8,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from src.clients.ha_client import HAArea, HADevice
-from src.clients.mqtt_client import ZigbeeDevice
 from src.config import Settings
 from src.core.discovery_service import DiscoveryService
 
@@ -19,7 +18,6 @@ def mock_settings():
     settings = Settings()
     settings.HA_URL = "http://localhost:8123"
     settings.HA_TOKEN = "test_token"
-    settings.MQTT_BROKER = "mqtt://localhost:1883"
     return settings
 
 
@@ -34,7 +32,7 @@ def mock_ha_device():
         model="Test Model",
         area_id="living_room",
         suggested_area=None,
-        integration="zigbee2mqtt",
+        integration="zha",
         entry_type=None,
         configuration_url=None,
         config_entries=["test_entry"],
@@ -46,30 +44,6 @@ def mock_ha_device():
         disabled_by=None,
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
-    )
-
-
-@pytest.fixture
-def mock_zigbee_device():
-    """Mock Zigbee device for testing."""
-    return ZigbeeDevice(
-        ieee_address="00:11:22:33:44:55:66:77",
-        friendly_name="Test Device",
-        model="Test Model",
-        description="Test Description",
-        manufacturer="Test Manufacturer",
-        manufacturer_code="1234",
-        power_source="Mains (single phase)",
-        model_id="test_model_id",
-        hardware_version="1.0",
-        software_build_id="1.0.0",
-        date_code="20240101",
-        last_seen=datetime.now(UTC),
-        definition={
-            "exposes": [{"name": "state", "type": "binary", "properties": {"state": "ON"}}]
-        },
-        exposes=[{"name": "state", "type": "binary", "properties": {"state": "ON"}}],
-        capabilities={},
     )
 
 
@@ -121,10 +95,7 @@ async def test_discovery_service_start_success(mock_settings):
     service = DiscoveryService(mock_settings)
 
     # Mock successful connections
-    with (
-        patch("src.clients.ha_client.HomeAssistantClient") as mock_client_cls,
-        patch.object(service.mqtt_client, "connect", return_value=True),
-    ):
+    with patch("src.clients.ha_client.HomeAssistantClient") as mock_client_cls:
         mock_client = AsyncMock()
         mock_client.connect.return_value = True
         mock_client.start_message_handler.return_value = None
@@ -152,9 +123,8 @@ async def test_discovery_service_stop(mock_settings):
 
     service.discovery_task = asyncio.create_task(dummy_task())
 
-    with patch.object(service.mqtt_client, "disconnect", return_value=None):
-        await service.stop()
-        assert not service.running
+    await service.stop()
+    assert not service.running
 
 
 @pytest.mark.asyncio
@@ -168,15 +138,31 @@ async def test_get_status(mock_settings):
 
     service.ha_client = MagicMock()
     service.ha_client.is_connected.return_value = True
-    service.mqtt_client.is_connected = MagicMock(return_value=True)
 
     status = service.get_status()
 
     assert status.service_running is True
     assert status.ha_connected is True
-    assert status.mqtt_connected is True
     assert status.devices_count == 1
     assert status.areas_count == 1
+    assert not hasattr(status, "mqtt_connected")
+
+
+@pytest.mark.asyncio
+async def test_get_status_needs_no_broker(mock_settings):
+    """get_status() must not depend on any broker client.
+
+    Regression: get_status() called self.mqtt_client.is_connected() on a home
+    with no broker, so /api/discovery/status and /api/discovery/sources both
+    returned 500 on a correctly-configured ZHA-only instance.
+    """
+    service = DiscoveryService(mock_settings)
+
+    status = service.get_status()
+
+    assert status.service_running is False
+    assert status.ha_connected is False
+    assert status.devices_count == 0
 
 
 @pytest.mark.asyncio
@@ -241,13 +227,13 @@ async def test_get_devices_by_integration(mock_settings):
     service = DiscoveryService(mock_settings)
 
     mock_device1 = MagicMock()
-    mock_device1.integration = "zigbee2mqtt"
+    mock_device1.integration = "zha"
     mock_device2 = MagicMock()
     mock_device2.integration = "homeassistant"
 
     service.unified_devices = {"device1": mock_device1, "device2": mock_device2}
 
-    devices = service.get_devices_by_integration("zigbee2mqtt")
+    devices = service.get_devices_by_integration("zha")
     assert len(devices) == 1
     assert devices[0] == mock_device1
 
@@ -264,7 +250,6 @@ async def test_absent_devices_are_marked_unavailable_never_deleted(mock_settings
 
     device = MagicMock()
     device.id = "dev_present"
-    device.zigbee_device = None
     device.ha_device = None
     service.unified_devices = {"dev_present": device}
 

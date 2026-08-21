@@ -15,17 +15,26 @@ gets ``None`` plus a written exclusion reason, because a confident wrong value
 is worse than an honest gap — a NULL reads as "unknown", while "mains" on a
 battery device reads as established fact.
 
-The rules are the ones that survived adversarial refutation in the TAP-6393
-fan-out. They are deliberately family-agnostic: per-integration branches were
-proposed and refuted, and the generic form turns out to handle the awkward cases
-for free. Hue Room and Zone groups, for instance, expose only ``scene``
-entities, and ``scene`` is not in the domain map — so they fall out as NULL
-without needing to be named.
+The rules are deliberately family-agnostic: per-integration branches were
+proposed and refuted in the TAP-6393 fan-out, and the generic form handles the
+awkward cases without naming them.
+
+What separates a device from a construct is ``entry_type``. Home Assistant
+registers Hue Room and Zone groups, add-ons and service integrations with
+``entry_type='service'``, and those carry no physical kind and no power supply.
+An earlier version of this module claimed such groups "expose only ``scene``
+entities, so they fall out as NULL" — that was false, and expensively so: most
+Rooms also expose a ``light`` group entity, so 16 of them were typed as
+physical lights running on mains. The generalisation came from sampling the two
+Rooms that happen to have no light group. ``entry_type`` is the registry's own
+answer to the same question, and it does not depend on which entities a group
+happens to hold.
 """
 
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime
 from typing import Any
 
 from homeiq_device_taxonomy import (
@@ -123,6 +132,13 @@ class DeviceKnowledge:
             if ieee:
                 self._zha_by_ieee[str(ieee).lower()] = zha_device
 
+        # Whether each optional payload was actually fetched. `None` means the
+        # caller could not get it; an empty list means it was fetched and held
+        # nothing. Conflating them is how a transient fetch failure would wipe
+        # good data.
+        self._states_available = states is not None
+        self._zha_available = zha_devices is not None
+
         self._vocabulary = device_type_vocabulary()
 
     # -- individual rules ---------------------------------------------------
@@ -144,16 +160,29 @@ class DeviceKnowledge:
     def _power_source(
         self, device_id: str, zigbee_ieee: str | None
     ) -> tuple[str | None, str | None]:
+        zha_device = self._zha_by_ieee.get((zigbee_ieee or "").lower())
+        reported = str((zha_device or {}).get("power_source") or "").strip().lower()
+
+        if zha_device and reported not in ("mains", "battery"):
+            # ZHA answers "Battery or Unknown" when a quirk leaves it unable to
+            # tell. That is a refusal to commit by the integration that owns the
+            # radio, and it OUTRANKS the presence of a battery entity: both Aqara
+            # FP1E presence sensors expose a battery entity stuck at 0% since
+            # they were paired, because the quirk surfaces a battery cluster the
+            # mains-powered device does not use. Believing the entity there
+            # produces "battery, 0%" for a device on USB power — a fabricated
+            # dead battery, which reads downstream as an urgent fault.
+            return None, (
+                f"ZHA declines to commit to a power source for this device "
+                f"(reports {(zha_device or {}).get('power_source')!r}); a battery "
+                f"entity alone does not override the integration that owns the radio"
+            )
+
         if device_id in self._battery_entities:
             return "battery", None
 
-        zha_device = self._zha_by_ieee.get((zigbee_ieee or "").lower())
-        if zha_device:
-            # ZHA hedges as "Battery or Unknown" for quirks it cannot resolve.
-            # Only an unhedged Mains is evidence.
-            reported = str(zha_device.get("power_source") or "")
-            if reported.strip().lower() == "mains":
-                return "mains", None
+        if reported == "mains":
+            return "mains", None
 
         domains = set(self._functional_domains.get(device_id) or [])
         if domains & MAINS_REQUIRING_DOMAINS:
@@ -238,20 +267,84 @@ class DeviceKnowledge:
 
         # availability_status: a device present in this pass is enabled unless
         # Home Assistant says otherwise. Devices absent from the pass are not
-        # touched here — _mark_absent_devices_unavailable owns 'unavailable'.
+        # touched here — _reconcile_absent_devices owns 'unavailable'.
         values["availability_status"] = (
             AVAILABILITY_DISABLED if getattr(device, "disabled_by", None) else AVAILABILITY_ENABLED
         )
 
-        for column, (value, reason) in {
-            "device_type": self._device_type(device_id),
-            "power_source": self._power_source(device_id, zigbee_ieee),
-            "battery_level": self._battery_level(device_id),
-            "lqi": self._lqi(zigbee_ieee),
-        }.items():
-            if value is None:
-                exclusions[column] = reason or "no rule produced a value"
-            else:
+        # Home Assistant's own answer to "is this a physical device?". Hue Room
+        # and Zone groups, add-ons and service integrations are registered as
+        # services; they have no physical kind and no power supply, and typing
+        # them from their entities makes an inventory double-count hardware that
+        # does not exist. A registry field, so a rename cannot move it.
+        is_service = getattr(getattr(device, "ha_device", None), "entry_type", None) == "service"
+
+        if is_service:
+            rules: dict[str, tuple[Any, str | None]] = {
+                "device_type": (
+                    None,
+                    "Home Assistant registers this as a service entry, not a physical "
+                    "device — it groups or represents hardware rather than being any",
+                ),
+                "power_source": (
+                    None,
+                    "Home Assistant registers this as a service entry, so it draws no "
+                    "power of its own",
+                ),
+            }
+        else:
+            rules = {
+                "device_type": self._device_type(device_id),
+                "power_source": self._power_source(device_id, zigbee_ieee),
+            }
+
+        # A battery reading is a measurement and is mirrored whenever Home
+        # Assistant reports one, independently of whether a power source could be
+        # established. The two answer different questions.
+        rules["battery_level"] = self._battery_level(device_id)
+        rules["lqi"] = self._lqi(zigbee_ieee)
+
+        # A column whose inputs were fetched but yielded nothing gets an
+        # explicit None — an authoritative "this is empty", which CLEARS a value
+        # established by an earlier, wronger rule. A column whose inputs were
+        # unavailable this pass is omitted entirely, so the stored value stands.
+        #
+        # The distinction matters: without it a rule can add a value but never
+        # retract one. Sixteen Hue Room groups typed as physical lights survived
+        # the fix that stopped typing them, because "no signal" and "could not
+        # look" were the same absence.
+        inputs_available = {
+            "device_type": True,  # the entity registry is required for the pass at all
+            "power_source": self._states_available and (self._zha_available or not zigbee_ieee),
+            "battery_level": self._states_available,
+            "lqi": self._zha_available or not zigbee_ieee,
+        }
+
+        for column, (value, reason) in rules.items():
+            if value is not None:
                 values[column] = value
+                continue
+            exclusions[column] = reason or "no rule produced a value"
+            if inputs_available.get(column, False):
+                values[column] = None
+
+        # Keep the derived flag consistent with what was actually established.
+        # It was computed upstream from a pre-enrichment value, so leaving it
+        # alone left 8 rows reading power_source='battery' with
+        # is_battery_powered=false.
+        if values.get("power_source") is not None:
+            values["is_battery_powered"] = values["power_source"] == "battery"
+
+        # Stamp the companions. Without them a COALESCE-preserved value is sticky
+        # forever: a device that leaves the Zigbee mesh keeps its last LQI with
+        # nothing to age it out by.
+        now = datetime.now(UTC)
+        for column, stamp in (
+            ("lqi", "lqi_updated_at"),
+            ("battery_level", "battery_updated_at"),
+            ("availability_status", "availability_updated_at"),
+        ):
+            if values.get(column) is not None:
+                values[stamp] = now
 
         return values, exclusions

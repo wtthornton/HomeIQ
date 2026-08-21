@@ -6,7 +6,8 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+from pydantic_core import PydanticCustomError
 from sqlalchemy import func, select
 
 from ..clients.ha_client import HomeAssistantClient
@@ -73,7 +74,28 @@ class IssuesResponse(BaseModel):
 
 
 class StatusUpdateRequest(BaseModel):
+    """A status change, and — when it dismisses an issue — why.
+
+    ``reason`` is mandatory for ``ignored`` because an exclusion nobody can
+    read is indistinguishable from suppressing the finding: the count drops
+    and the judgement behind it is lost. A reviewer has to be able to check
+    the reason rather than the number.
+    """
+
     status: str = Field(pattern="^(open|ignored|resolved)$")
+    reason: str | None = Field(default=None, max_length=500)
+
+    @model_validator(mode="after")
+    def _ignored_requires_a_reason(self) -> StatusUpdateRequest:
+        if self.status == "ignored" and not (self.reason or "").strip():
+            # PydanticCustomError, not a bare ValueError: Pydantic puts a raw
+            # ValueError into the error `ctx`, which FastAPI's handler cannot
+            # JSON-encode — the client gets a 500 instead of a 422 telling it
+            # what to fix.
+            raise PydanticCustomError(
+                "reason_required", "reason is required when status is 'ignored'"
+            )
+        return self
 
 
 class ApplyActionRequest(BaseModel):
@@ -129,10 +151,20 @@ async def update_issue_status(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")
 
     issue.status = payload.status
+    metadata = dict(issue.metadata_json or {})
     if payload.status == "resolved":
         issue.resolved_at = datetime.now(UTC)
     elif payload.status == "open":
         issue.resolved_at = None
+        metadata.pop("exclusion", None)
+
+    if payload.reason:
+        metadata["exclusion"] = {
+            "reason": payload.reason.strip(),
+            "status": payload.status,
+            "recorded_at": datetime.now(UTC).isoformat(),
+        }
+    issue.metadata_json = metadata
 
     await session.commit()
     await session.refresh(issue)

@@ -10,14 +10,13 @@ from datetime import UTC, datetime
 from typing import Any
 
 from ..clients.ha_client import HAArea, HADevice, HAEntity
-from ..clients.mqtt_client import ZigbeeDevice
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class UnifiedDevice:
-    """Unified device representation combining HA and Zigbee2MQTT data."""
+    """Unified device representation built from Home Assistant registry data."""
 
     # Core identification
     id: str
@@ -43,7 +42,6 @@ class UnifiedDevice:
 
     # Source data references
     ha_device: HADevice | None = None
-    zigbee_device: ZigbeeDevice | None = None
 
     # Status and health
     disabled_by: str | None = None
@@ -88,37 +86,21 @@ class DeviceParser:
         self,
         ha_devices: list[HADevice],
         ha_entities: list[HAEntity],
-        zigbee_devices: dict[str, ZigbeeDevice],
     ) -> list[UnifiedDevice]:
-        """Parse and normalize devices from multiple sources."""
-        logger.info(
-            f"Parsing {len(ha_devices)} HA devices, {len(ha_entities)} entities, {len(zigbee_devices)} Zigbee devices"
-        )
+        """Parse and normalize devices from the Home Assistant registries."""
+        logger.info(f"Parsing {len(ha_devices)} HA devices, {len(ha_entities)} entities")
 
         unified_devices = []
 
         # Process Home Assistant devices
         for ha_device in ha_devices:
             try:
-                unified_device = self._parse_ha_device(ha_device, ha_entities, zigbee_devices)
+                unified_device = self._parse_ha_device(ha_device, ha_entities)
                 if unified_device:
                     unified_devices.append(unified_device)
                     self.devices[unified_device.id] = unified_device
             except Exception as e:
                 logger.error(f"Error parsing HA device {ha_device.id}: {e}")
-
-        # Process standalone Zigbee devices (not in HA)
-        for zigbee_device in zigbee_devices.values():
-            if not self._is_zigbee_device_in_ha(zigbee_device, ha_devices):
-                try:
-                    unified_device = self._parse_zigbee_device(zigbee_device)
-                    if unified_device:
-                        unified_devices.append(unified_device)
-                        self.devices[unified_device.id] = unified_device
-                except Exception as e:
-                    logger.error(
-                        f"Error parsing standalone Zigbee device {zigbee_device.ieee_address}: {e}"
-                    )
 
         logger.info(f"Parsed {len(unified_devices)} unified devices")
         return unified_devices
@@ -127,23 +109,14 @@ class DeviceParser:
         self,
         ha_device: HADevice,
         ha_entities: list[HAEntity],
-        zigbee_devices: dict[str, ZigbeeDevice],
     ) -> UnifiedDevice | None:
         """Parse a Home Assistant device into unified format."""
-
-        # Find matching Zigbee device
-        zigbee_device = self._find_matching_zigbee_device(ha_device, zigbee_devices)
 
         # Get device entities
         device_entities = [e for e in ha_entities if e.device_id == ha_device.id]
 
-        # Parse capabilities from Zigbee device if available
-        capabilities = []
-        if zigbee_device and zigbee_device.exposes:
-            capabilities = self._parse_zigbee_capabilities(zigbee_device.exposes)
-        else:
-            # Infer capabilities for non-MQTT devices based on device class and entities
-            capabilities = self._infer_non_mqtt_capabilities(device_entities, ha_device)
+        # Infer capabilities from the device's entities and device class
+        capabilities = self._infer_capabilities_from_entities(device_entities, ha_device)
 
         # Get area name
         area_name = None
@@ -160,118 +133,27 @@ class DeviceParser:
         unified_device = UnifiedDevice(
             id=ha_device.id,
             name=ha_device.name_by_user or ha_device.name,  # Prefer user-customized name
-            manufacturer=ha_device.manufacturer or zigbee_device.manufacturer
-            if zigbee_device
-            else "Unknown",
-            model=ha_device.model or zigbee_device.model if zigbee_device else "Unknown",
+            manufacturer=ha_device.manufacturer or "Unknown",
+            model=ha_device.model or "Unknown",
             area_id=ha_device.area_id,
             area_name=area_name,
             integration=integration,
             device_class=device_class,
-            sw_version=ha_device.sw_version or zigbee_device.software_build_id
-            if zigbee_device
-            else None,
-            hw_version=ha_device.hw_version or zigbee_device.hardware_version
-            if zigbee_device
-            else None,
-            power_source=zigbee_device.power_source if zigbee_device else None,
+            sw_version=ha_device.sw_version,
+            hw_version=ha_device.hw_version,
+            power_source=None,
             via_device_id=ha_device.via_device_id,
             capabilities=capabilities,
             entities=[self._entity_to_dict(e) for e in device_entities],
             ha_device=ha_device,
-            zigbee_device=zigbee_device,
             disabled_by=ha_device.disabled_by,
-            last_seen=zigbee_device.last_seen if zigbee_device else None,
-            health_score=self._calculate_health_score(ha_device, zigbee_device, device_entities),
+            last_seen=None,
+            health_score=self._calculate_health_score(ha_device, device_entities),
             created_at=ha_device.created_at,
-            updated_at=max(
-                ha_device.updated_at,
-                zigbee_device.last_seen
-                if zigbee_device and zigbee_device.last_seen
-                else datetime.min.replace(tzinfo=UTC),
-            ),
+            updated_at=ha_device.updated_at,
         )
 
         return unified_device
-
-    def _parse_zigbee_device(self, zigbee_device: ZigbeeDevice) -> UnifiedDevice | None:
-        """Parse a standalone Zigbee device into unified format."""
-
-        # Parse capabilities
-        capabilities = self._parse_zigbee_capabilities(zigbee_device.exposes)
-
-        # Extract device class from capabilities/exposes
-        device_class = self._extract_device_class_from_zigbee(zigbee_device)
-
-        # Create unified device
-        unified_device = UnifiedDevice(
-            id=f"zigbee_{zigbee_device.ieee_address}",
-            name=zigbee_device.friendly_name,
-            manufacturer=zigbee_device.manufacturer,
-            model=zigbee_device.model,
-            area_id=None,
-            area_name=None,
-            integration="zigbee2mqtt",
-            device_class=device_class,
-            sw_version=zigbee_device.software_build_id,
-            hw_version=zigbee_device.hardware_version,
-            power_source=zigbee_device.power_source,
-            via_device_id=None,
-            capabilities=capabilities,
-            entities=[],
-            ha_device=None,
-            zigbee_device=zigbee_device,
-            disabled_by=None,
-            last_seen=zigbee_device.last_seen,
-            health_score=self._calculate_health_score(None, zigbee_device, []),
-            created_at=zigbee_device.last_seen or datetime.now(UTC),
-            updated_at=zigbee_device.last_seen or datetime.now(UTC),
-        )
-
-        return unified_device
-
-    def _find_matching_zigbee_device(
-        self, ha_device: HADevice, zigbee_devices: dict[str, ZigbeeDevice]
-    ) -> ZigbeeDevice | None:
-        """Find matching Zigbee device for HA device."""
-
-        # Try to match by identifiers
-        for identifier in ha_device.identifiers:
-            if len(identifier) >= 2:
-                identifier_type, identifier_value = identifier[0], identifier[1]
-
-                # Match by IEEE address
-                if identifier_type == "ieee_address" and identifier_value in zigbee_devices:
-                    return zigbee_devices[identifier_value]
-
-                # Match by model/manufacturer
-                if identifier_type in ["model", "manufacturer"]:
-                    for zigbee_device in zigbee_devices.values():
-                        if (
-                            identifier_type == "model" and zigbee_device.model == identifier_value
-                        ) or (
-                            identifier_type == "manufacturer"
-                            and zigbee_device.manufacturer == identifier_value
-                        ):
-                            return zigbee_device
-
-        return None
-
-    def _is_zigbee_device_in_ha(
-        self, zigbee_device: ZigbeeDevice, ha_devices: list[HADevice]
-    ) -> bool:
-        """Check if Zigbee device is already represented in HA."""
-
-        for ha_device in ha_devices:
-            for identifier in ha_device.identifiers:
-                if (
-                    len(identifier) >= 2
-                    and identifier[0] == "ieee_address"
-                    and identifier[1] == zigbee_device.ieee_address
-                ):
-                    return True
-
-        return False
 
     def _resolve_integration(self, ha_device: HADevice) -> str:
         """
@@ -302,27 +184,10 @@ class DeviceParser:
         # Last fallback
         return "unknown"
 
-    def _parse_zigbee_capabilities(self, exposes: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """Parse Zigbee2MQTT exposes into capability format."""
-        capabilities = []
-
-        for expose in exposes:
-            capability = {
-                "name": expose.get("name", ""),
-                "type": expose.get("type", ""),
-                "properties": expose.get("properties", {}),
-                "exposed": True,
-                "configured": True,
-                "source": "zigbee2mqtt",
-            }
-            capabilities.append(capability)
-
-        return capabilities
-
-    def _infer_non_mqtt_capabilities(
+    def _infer_capabilities_from_entities(
         self, entities: list[HAEntity], _device: HADevice
     ) -> list[dict[str, Any]]:
-        """Infer capabilities for non-MQTT devices based on entities and device class."""
+        """Infer capabilities from a device's entities and device class."""
         capabilities = []
 
         # Extract unique domains from entities
@@ -406,40 +271,9 @@ class DeviceParser:
         # Return first entity domain if available
         return entities[0].domain if entities else None
 
-    def _extract_device_class_from_zigbee(self, zigbee_device: ZigbeeDevice) -> str | None:
-        """Extract device class from Zigbee device capabilities."""
-        if not zigbee_device.exposes:
-            return None
-
-        # Map common Zigbee capability types to device classes
-        capability_to_class = {
-            "light": "light",
-            "switch": "switch",
-            "occupancy": "sensor",
-            "temperature": "sensor",
-            "humidity": "sensor",
-            "battery": "sensor",
-            "cover": "cover",
-            "lock": "lock",
-            "fan": "fan",
-            "climate": "climate",
-        }
-
-        for expose in zigbee_device.exposes:
-            if isinstance(expose, dict):
-                expose_type = expose.get("type", "").lower()
-                if expose_type in capability_to_class:
-                    return capability_to_class[expose_type]
-                expose_name = expose.get("name", "").lower()
-                if expose_name in capability_to_class:
-                    return capability_to_class[expose_name]
-
-        return None
-
     def _calculate_health_score(
         self,
         ha_device: HADevice | None,
-        zigbee_device: ZigbeeDevice | None,
         entities: list[HAEntity],
     ) -> int:
         """Calculate device health score (0-100)."""
@@ -454,39 +288,6 @@ class DeviceParser:
         if entities:
             disabled_ratio = disabled_entities / len(entities)
             score -= int(disabled_ratio * 30)
-
-        # Deduct for old last seen (Zigbee devices)
-        if zigbee_device and zigbee_device.last_seen:
-            hours_since_seen = (datetime.now(UTC) - zigbee_device.last_seen).total_seconds() / 3600
-            if hours_since_seen > 24:
-                score -= min(30, int(hours_since_seen / 24) * 5)
-
-        # Zigbee2MQTT-specific health factors
-        if zigbee_device:
-            # Deduct for low LQI (Link Quality Indicator < 50)
-            if zigbee_device.lqi is not None:
-                if zigbee_device.lqi < 50:
-                    score -= 20
-                elif zigbee_device.lqi < 100:
-                    score -= 10
-
-            # Deduct for disabled/unavailable status
-            if zigbee_device.availability:
-                if zigbee_device.availability == "disabled":
-                    score -= 30
-                elif zigbee_device.availability == "unavailable":
-                    score -= 20
-
-            # Deduct for low battery
-            if zigbee_device.battery is not None:
-                if zigbee_device.battery < 20:
-                    score -= 15
-                elif zigbee_device.battery < 50:
-                    score -= 5
-
-            # Deduct for battery low warning
-            if zigbee_device.battery_low:
-                score -= 10
 
         # Deduct for missing critical information
         if not ha_device or not ha_device.manufacturer:

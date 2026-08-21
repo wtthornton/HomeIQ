@@ -14,33 +14,6 @@ from pathlib import Path
 from homeiq_data import BaseServiceSettings
 from pydantic import Field, SecretStr, field_validator
 
-CONFIG_FILE_ENV = "MQTT_ZIGBEE_CONFIG_PATH"
-
-
-def _determine_default_path() -> Path:
-    env_override = os.getenv(CONFIG_FILE_ENV)
-    if env_override:
-        return Path(env_override)
-
-    module_path = Path(__file__).resolve()
-    candidates = [
-        Path("/app/infrastructure/config/mqtt_zigbee_config.json"),
-        module_path.parents[2] / "infrastructure" / "config" / "mqtt_zigbee_config.json",
-        module_path.parents[1] / "config" / "mqtt_zigbee_config.json",
-    ]
-
-    for candidate in candidates:
-        try:
-            if candidate.parent.exists():
-                return candidate
-        except IndexError:
-            continue
-
-    return candidates[-1]
-
-
-DEFAULT_CONFIG_PATH = _determine_default_path()
-
 MODELS_DIR_ENV = "MODELS_DIR"
 
 
@@ -122,22 +95,6 @@ class Settings(BaseServiceSettings):
     REDIS_URL: str = Field(
         default="redis://redis:6379/0",
         description="Redis cache URL",
-    )
-
-    # MQTT Configuration
-    # None/empty means "no broker configured": Zigbee discovery is disabled
-    # and the service runs on HA discovery alone.
-    MQTT_BROKER: str | None = Field(
-        default=None,
-        description="MQTT broker URL (unset disables Zigbee2MQTT discovery)",
-    )
-    MQTT_USERNAME: str | None = Field(default=None, description="MQTT username")
-    MQTT_PASSWORD: str | None = Field(default=None, description="MQTT password")
-
-    # Zigbee2MQTT Configuration
-    ZIGBEE2MQTT_BASE_TOPIC: str = Field(
-        default="zigbee2mqtt",
-        description="Zigbee2MQTT base topic",
     )
 
     # Performance Configuration
@@ -223,17 +180,6 @@ class Settings(BaseServiceSettings):
             raise ValueError(msg)
         return v.rstrip("/")
 
-    @field_validator("MQTT_BROKER", mode="before")
-    @classmethod
-    def validate_mqtt_broker(cls, v: str | None) -> str | None:
-        """Validate MQTT broker URL format; empty env value means unconfigured."""
-        if v is None or (isinstance(v, str) and not v.strip()):
-            return None
-        if not v.startswith(("mqtt://", "mqtts://", "ws://", "wss://")):
-            msg = "MQTT_BROKER must start with mqtt://, mqtts://, ws://, or wss://"
-            raise ValueError(msg)
-        return v
-
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
     def normalize_allowed_origins(cls, value: str | list[str]) -> list[str] | str:
@@ -250,35 +196,6 @@ class Settings(BaseServiceSettings):
                     raise ValueError(msg) from exc
             return [origin.strip() for origin in stripped.split(",") if origin.strip()]
         return value
-
-    def apply_overrides(self) -> None:
-        """Apply runtime overrides from the shared MQTT/Zigbee configuration file."""
-        config_path = DEFAULT_CONFIG_PATH
-        overrides: dict[str, str] = {}
-
-        try:
-            if config_path.exists():
-                with config_path.open("r", encoding="utf-8") as config_file:
-                    overrides = json.load(config_file) or {}
-        except json.JSONDecodeError as exc:
-            import logging
-
-            logging.getLogger(__name__).warning(
-                "Failed to parse MQTT/Zigbee configuration overrides (%s): %s",
-                config_path,
-                exc,
-            )
-
-        mapping = {
-            "MQTT_BROKER": "MQTT_BROKER",
-            "MQTT_USERNAME": "MQTT_USERNAME",
-            "MQTT_PASSWORD": "MQTT_PASSWORD",
-            "ZIGBEE2MQTT_BASE_TOPIC": "ZIGBEE2MQTT_BASE_TOPIC",
-        }
-
-        for attr_name, override_key in mapping.items():
-            if override_key in overrides and overrides[override_key] not in (None, ""):
-                setattr(self, attr_name, overrides[override_key])
 
     def get_database_url(self) -> str:
         """Get the database URL for SQLAlchemy."""
@@ -335,4 +252,3 @@ class Settings(BaseServiceSettings):
 
 # Global settings instance
 settings = Settings()
-settings.apply_overrides()

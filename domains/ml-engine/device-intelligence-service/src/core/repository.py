@@ -229,7 +229,7 @@ class DeviceRepository:
                 model=bindparam("model"),
                 area_id=bindparam("area_id"),
                 health_score=bindparam("health_score"),
-                # Zigbee2MQTT fields
+                # Radio/power facts (ZHA)
                 lqi=bindparam("lqi"),
                 lqi_updated_at=bindparam("lqi_updated_at"),
                 availability_status=bindparam("availability_status"),
@@ -429,7 +429,7 @@ class DeviceRepository:
             "last_seen": device.last_seen.isoformat() if device.last_seen else None,
             "health_score": device.health_score,
             "disabled_by": device.disabled_by,
-            # Zigbee2MQTT fields
+            # Radio/power facts (ZHA)
             "lqi": device.lqi,
             "lqi_updated_at": device.lqi_updated_at.isoformat() if device.lqi_updated_at else None,
             "availability_status": device.availability_status,

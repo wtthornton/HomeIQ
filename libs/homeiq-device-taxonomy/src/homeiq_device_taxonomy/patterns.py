@@ -91,6 +91,9 @@ DOMAIN_TO_DEVICE_TYPE: dict[str, str] = {
     "valve": "valve",
     "button": "button",
     "remote": "remote",
+    # HA models a stateless controller — a dial, a scene switch, a wall remote —
+    # as the `event` domain. Its entities carry device_class="button".
+    "event": "button",
 }
 
 # Priority order for domain-based classification (most specific first)
@@ -111,6 +114,9 @@ DOMAIN_PRIORITY = [
     "valve",
     "button",
     "remote",
+    # Last: a device that exposes an event entity *and* a primary domain is that
+    # primary thing. Only a controller exposes event and nothing else.
+    "event",
 ]
 
 
