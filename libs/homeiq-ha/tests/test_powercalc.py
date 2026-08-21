@@ -613,3 +613,77 @@ async def test_powercalc_check_says_why_each_load_is_uncovered(sim):
     # Every uncovered load has one; a reason nobody can act on is still better
     # than a silent gap, but a missing one is a hole.
     assert set(reasons) == set(result.details["uncovered"])
+
+
+@pytest.mark.asyncio
+async def test_powercalc_counts_one_physical_device_once(sim):
+    """A TV found by three integrations is one load, not three.
+
+    samsungtv, dlna_dmr and cast each register their own Home Assistant device
+    for the same television, so a per-entity count meters it up to three times —
+    the same double-count a light group commits, arriving from the other
+    direction. The MAC is protocol-native identity and settles it; the identical
+    NAMES those integrations report would not, and matching on them would be a
+    name match wearing a better job title.
+    """
+    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
+    sim.state["config_entries"].append(
+        {"entry_id": "pc1", "domain": "powercalc", "state": "loaded"}
+    )
+    sim.state["devices"] = [
+        {"id": "d_samsung", "connections": [["mac", "28:AF:42:1E:40:78"]]},
+        {"id": "d_dlna", "connections": [["upnp", "uuid:x"], ["mac", "28:af:42:1e:40:78"]]},
+        {"id": "d_other", "connections": [["mac", "aa:bb:cc:dd:ee:ff"]]},
+    ]
+    sim.state["entities"] = [
+        {"entity_id": "media_player.tv_samsung", "device_id": "d_samsung"},
+        {"entity_id": "media_player.tv_dlna", "device_id": "d_dlna"},
+        {"entity_id": "media_player.other_tv", "device_id": "d_other"},
+        {"entity_id": "sensor.tv_power", "device_id": "d_samsung", "platform": "powercalc"},
+    ]
+    sim.state["states"] = [
+        {"entity_id": "media_player.tv_samsung", "state": "on", "attributes": {}},
+        {"entity_id": "media_player.tv_dlna", "state": "on", "attributes": {}},
+        {"entity_id": "media_player.other_tv", "state": "on", "attributes": {}},
+        {
+            "entity_id": "sensor.tv_power",
+            "state": "42.0",
+            "attributes": {"device_class": "power"},
+        },
+    ]
+
+    result = await powercalc_recipe().check(sim)
+    det = result.details
+
+    assert len(det["eligible"]) == 2, f"the same TV was counted twice: {det['eligible']}"
+    # The representative is chosen by sort order, so the count cannot drift
+    # between runs on dict ordering.
+    assert det["excluded"]["same_physical_device_already_counted"] == ["media_player.tv_samsung"]
+    # The reading belongs to the hardware, not to the integration that surfaced
+    # it: the power sensor sits on d_samsung, and the surviving representative
+    # is the dlna entity, yet the physical TV still counts as metered.
+    assert "media_player.tv_dlna" in det["covered"]
+    assert "media_player.other_tv" not in det["covered"]
+
+
+@pytest.mark.asyncio
+async def test_powercalc_keeps_devices_without_a_mac_separate(sim):
+    """Absence of a MAC is not evidence that two devices are the same one."""
+    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
+    sim.state["config_entries"].append(
+        {"entry_id": "pc1", "domain": "powercalc", "state": "loaded"}
+    )
+    sim.state["devices"] = [{"id": "d1", "connections": []}, {"id": "d2", "connections": []}]
+    sim.state["entities"] = [
+        {"entity_id": "media_player.a", "device_id": "d1"},
+        {"entity_id": "media_player.b", "device_id": "d2"},
+    ]
+    sim.state["states"] = [
+        {"entity_id": "media_player.a", "state": "on", "attributes": {}},
+        {"entity_id": "media_player.b", "state": "on", "attributes": {}},
+    ]
+
+    result = await powercalc_recipe().check(sim)
+
+    assert len(result.details["eligible"]) == 2
+    assert result.details["excluded"]["same_physical_device_already_counted"] == []

@@ -156,11 +156,30 @@ class PowercalcRecipe(Recipe):
             and device_of.get(str(s.get("entity_id")))
         }
 
+        # One physical device can appear as several Home Assistant devices, one
+        # per integration that found it. A Samsung TV is discovered by samsungtv,
+        # dlna_dmr and cast at once, so a per-entity count meters it up to three
+        # times — the same double-count a light group commits, arriving from the
+        # other direction.
+        #
+        # The MAC is what settles it. It is protocol-native identity: burned into
+        # the NIC, shared by every integration that reaches the same hardware, and
+        # unmoved by a rename. Matching on the identical *names* those
+        # integrations report would be a name match wearing a better job title.
+        devices_registry = await ha.ws.send_command("config/device_registry/list") or []
+        mac_of_device: dict[str, str] = {}
+        for device in devices_registry:
+            for kind, value in device.get("connections") or []:
+                if kind == "mac" and value:
+                    mac_of_device[str(device.get("id"))] = str(value).lower()
+                    break
+
         eligible: set[str] = set()
         excluded: dict[str, list[str]] = {
             "group_entity_sums_its_members": [],
             "switch_is_a_config_toggle_not_a_load": [],
             "no_device_in_the_entity_registry": [],
+            "same_physical_device_already_counted": [],
         }
         for state in states:
             entity_id = str(state.get("entity_id", ""))
@@ -181,7 +200,30 @@ class PowercalcRecipe(Recipe):
                 continue
             eligible.add(entity_id)
 
-        covered = {eid for eid in eligible if device_of.get(eid) in metered_devices}
+        # Collapse entities whose devices share a MAC down to one representative,
+        # chosen deterministically so the count does not move between runs.
+        by_mac: dict[str, list[str]] = {}
+        for entity_id in sorted(eligible):
+            mac = mac_of_device.get(str(device_of.get(entity_id)))
+            if mac:
+                by_mac.setdefault(mac, []).append(entity_id)
+        for mac_group in by_mac.values():
+            for duplicate in mac_group[1:]:
+                eligible.discard(duplicate)
+                excluded["same_physical_device_already_counted"].append(duplicate)
+
+        # A physical device is metered if ANY of its Home Assistant devices is —
+        # the reading belongs to the hardware, not to the integration that
+        # happened to surface it.
+        metered_macs = {
+            mac_of_device[device_id] for device_id in metered_devices if device_id in mac_of_device
+        }
+        covered = {
+            eid
+            for eid in eligible
+            if device_of.get(eid) in metered_devices
+            or mac_of_device.get(str(device_of.get(eid))) in metered_macs
+        }
 
         # Why each uncovered load is uncovered. A bare list of 30 entity ids
         # says "something is wrong somewhere"; these say which of them a person
