@@ -37,6 +37,7 @@ from ..models.device_knowledge import (
     EvidenceClass,
     SubjectKind,
 )
+from .fact_keys import canonical_fact_key
 
 logger = logging.getLogger(__name__)
 
@@ -227,6 +228,13 @@ class DeviceKnowledgeService:
         """
         evidence_class = fields["evidence_class"]
         _validate_provenance(evidence_class, fields)
+
+        # Normalise the join key before anything reads or locks on it. Two genes
+        # write this column and only one declared a vocabulary, so `wattage` and
+        # `typical_power_watts` both landed live and a lookup for either missed
+        # the other. Canonicalising at the write is the one place every claim
+        # passes through, whichever gene proposed it.
+        fields["fact_key"] = canonical_fact_key(fields["fact_key"])
 
         # Serialize concurrent records for the same fact. Without this, two
         # simultaneous inserts each read an empty incumbent set and both land
