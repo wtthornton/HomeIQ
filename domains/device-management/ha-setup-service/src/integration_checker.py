@@ -2,7 +2,6 @@
 Integration Health Checker Service
 
 Context7 Best Practices Applied:
-- Async context managers for MQTT connections
 - Proper exception handling with specific error types
 - Retry logic with exponential backoff
 - Pydantic models for validation
@@ -43,7 +42,6 @@ class IntegrationHealthChecker:
     Comprehensive integration health checker
 
     Implements detailed health checks for:
-    - MQTT broker connectivity
     - Home Assistant integrations
     - Device discovery validation
     - Authentication validation
@@ -67,7 +65,6 @@ class IntegrationHealthChecker:
         # Run all checks in parallel for performance
         results = await asyncio.gather(
             self.check_ha_authentication(),
-            self.check_mqtt_integration(),
             self.check_device_discovery(),
             self.check_data_api_integration(),
             self.check_admin_api_integration(),
@@ -190,123 +187,6 @@ class IntegrationHealthChecker:
                 error_message=str(e),
                 check_details={"error_type": type(e).__name__},
             )
-
-    async def check_mqtt_integration(self) -> CheckResult:
-        """
-        Check MQTT integration status
-
-        Checks:
-        - MQTT integration configured in HA
-        - MQTT broker connectivity
-        - MQTT discovery enabled
-        """
-        try:
-            session = await get_http_session()
-            headers = {
-                "Authorization": f"Bearer {self.ha_token}",
-                "Content-Type": "application/json",
-            }
-
-            # Get all config entries
-            async with session.get(
-                f"{self.ha_url}/api/config/config_entries/entry",
-                headers=headers,
-                timeout=self.timeout,
-            ) as response:
-                if response.status == 200:
-                    entries = await response.json()
-                    mqtt_entry = next((e for e in entries if e.get("domain") == "mqtt"), None)
-
-                    if not mqtt_entry:
-                        return CheckResult(
-                            integration_name="MQTT",
-                            integration_type="mqtt",
-                            status=IntegrationStatus.NOT_CONFIGURED,
-                            is_configured=False,
-                            is_connected=False,
-                            error_message="MQTT integration not found in Home Assistant",
-                            check_details={
-                                "recommendation": "Add MQTT integration via HA UI: Settings → Devices & Services → Add Integration → MQTT"
-                            },
-                        )
-
-                    # MQTT integration found - check details
-                    entry_data = mqtt_entry.get("data", {})
-                    broker_host = entry_data.get("broker", "unknown")
-                    broker_port = entry_data.get("port", 1883)
-                    discovery = entry_data.get("discovery", False)
-
-                    # Check if broker is reachable
-                    is_connected = await self._check_mqtt_broker_connectivity(
-                        broker_host, broker_port
-                    )
-
-                    status = (
-                        IntegrationStatus.HEALTHY if is_connected else IntegrationStatus.WARNING
-                    )
-
-                    return CheckResult(
-                        integration_name="MQTT",
-                        integration_type="mqtt",
-                        status=status,
-                        is_configured=True,
-                        is_connected=is_connected,
-                        error_message=None if is_connected else "MQTT broker not reachable",
-                        check_details={
-                            "broker": broker_host,
-                            "port": broker_port,
-                            "discovery_enabled": discovery,
-                            "entry_id": mqtt_entry.get("entry_id"),
-                            "title": mqtt_entry.get("title", "MQTT"),
-                            "recommendation": "Enable discovery for automatic device detection"
-                            if not discovery
-                            else None,
-                        },
-                    )
-                else:
-                    return CheckResult(
-                        integration_name="MQTT",
-                        integration_type="mqtt",
-                        status=IntegrationStatus.ERROR,
-                        is_configured=False,
-                        is_connected=False,
-                        error_message=f"Failed to get config entries: HTTP {response.status}",
-                        check_details={"http_status": response.status},
-                    )
-
-        except Exception as e:
-            return CheckResult(
-                integration_name="MQTT",
-                integration_type="mqtt",
-                status=IntegrationStatus.ERROR,
-                is_configured=False,
-                is_connected=False,
-                error_message=str(e),
-                check_details={"error_type": type(e).__name__},
-            )
-
-    async def _check_mqtt_broker_connectivity(self, broker: str, port: int) -> bool:
-        """
-        Test MQTT broker TCP connectivity
-
-        Args:
-            broker: MQTT broker hostname/IP
-            port: MQTT broker port
-
-        Returns:
-            True if broker is reachable
-        """
-        try:
-            # Try to open TCP connection
-            reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(broker, port), timeout=5.0
-            )
-            writer.close()
-            await writer.wait_closed()
-            return True
-        except (TimeoutError, OSError, ConnectionRefusedError) as e:
-            logger.debug(f"MQTT broker connectivity check failed: {e}")
-            return False
 
     async def check_device_discovery(self) -> CheckResult:
         """
@@ -559,7 +439,9 @@ class IntegrationHealthChecker:
 
             # Get all config entries to check for HACS
             async with session.get(
-                f"{self.ha_url}/api/config/config_entries", headers=headers, timeout=self.timeout
+                f"{self.ha_url}/api/config/config_entries/entry",
+                headers=headers,
+                timeout=self.timeout,
             ) as config_response:
                 if config_response.status != 200:
                     return CheckResult(

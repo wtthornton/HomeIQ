@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import get_settings
 from .http_client import get_http_session
+from .integration_checker import IntegrationHealthChecker
 from .models import EnvironmentHealth
 from .schemas import (
     EnvironmentHealthResponse,
@@ -36,8 +37,6 @@ class HealthMonitoringService:
     Core health monitoring service
 
     Implements Context7 async patterns for Home Assistant health checks.
-    Note: Zigbee2MQTT is not checked separately - it uses the same MQTT broker
-    as the MQTT integration, just with a different topic prefix.
     """
 
     def __init__(self):
@@ -46,6 +45,7 @@ class HealthMonitoringService:
         self.data_api_url = settings.data_api_url
         self.admin_api_url = settings.admin_api_url
         self.scoring_algorithm = HealthScoringAlgorithm()  # Enhanced scoring
+        self.integration_checker = IntegrationHealthChecker()
         logger.info(
             f"HealthMonitoringService initialized: URL={self.ha_url}, Token={'SET' if self.ha_token else 'NOT SET'}"
         )
@@ -288,150 +288,44 @@ class HealthMonitoringService:
             return {"status": "warning", "version": "unknown", "error": str(e)}
 
     async def _check_integrations(self) -> list[dict]:
+        """Every integration the environment health score is averaged over.
+
+        Delegates to :class:`IntegrationHealthChecker` so this score covers the
+        same set as ``/api/health/integrations`` and the monitoring loop's
+        alerts. This method used to run its own two checks — MQTT and Data API —
+        and when the dead MQTT check was removed that left a single-item
+        average, which reports 100 while any other integration is broken. A
+        score whose denominator is one is not a health signal.
         """
-        Check all integrations status - always returns at least MQTT and Data API
-
-        Note: Zigbee2MQTT uses the same MQTT broker, so if MQTT is healthy,
-        Zigbee2MQTT can work (it's just a different topic prefix)
-        """
-        integrations = []
-
-        # Check MQTT integration (always include, even if check fails)
         try:
-            mqtt_status = await self._check_mqtt_integration()
-            integrations.append(mqtt_status)
+            results = await self.integration_checker.check_all_integrations()
         except Exception as e:
-            logger.error(f"MQTT check failed: {e}", exc_info=True)
-            integrations.append(
+            logger.error(f"Integration checks failed: {e}", exc_info=True)
+            return [
                 {
-                    "name": "MQTT",
-                    "type": "mqtt",
-                    "status": IntegrationStatus.ERROR.value,
-                    "is_configured": False,
-                    "is_connected": False,
-                    "error_message": str(e),
-                    "last_check": datetime.now(UTC),
-                }
-            )
-
-        # Check HA Ingestor services (always include, even if check fails)
-        try:
-            data_api_status = await self._check_data_api()
-            integrations.append(data_api_status)
-        except Exception as e:
-            logger.error(f"Data API check failed: {e}", exc_info=True)
-            integrations.append(
-                {
-                    "name": "Data API",
+                    "name": "Integration checks",
                     "type": "homeiq",
                     "status": IntegrationStatus.ERROR.value,
-                    "is_configured": True,  # Service exists, just not reachable
-                    "is_connected": False,
-                    "error_message": str(e),
-                    "last_check": datetime.now(UTC),
-                }
-            )
-
-        return integrations
-
-    async def _check_mqtt_integration(self) -> dict:
-        """Check MQTT broker status"""
-        try:
-            session = await get_http_session()
-            headers = {
-                "Authorization": f"Bearer {self.ha_token}",
-                "Content-Type": "application/json",
-            }
-
-            # Check MQTT config entry
-            async with session.get(
-                f"{self.ha_url}/api/config/config_entries/entry",
-                headers=headers,
-                timeout=aiohttp.ClientTimeout(total=10),
-            ) as response:
-                if response.status == 200:
-                    entries = await response.json()
-                    mqtt_entry = next((e for e in entries if e.get("domain") == "mqtt"), None)
-
-                    if mqtt_entry:
-                        return {
-                            "name": "MQTT",
-                            "type": "mqtt",
-                            "status": IntegrationStatus.HEALTHY.value,
-                            "is_configured": True,
-                            "is_connected": True,
-                            "error_message": None,
-                            "last_check": datetime.now(UTC),
-                        }
-                    else:
-                        return {
-                            "name": "MQTT",
-                            "type": "mqtt",
-                            "status": IntegrationStatus.NOT_CONFIGURED.value,
-                            "is_configured": False,
-                            "is_connected": False,
-                            "error_message": "MQTT integration not found",
-                            "last_check": datetime.now(UTC),
-                        }
-
-                # Non-200 responses should produce a structured error result
-                return {
-                    "name": "MQTT",
-                    "type": "mqtt",
-                    "status": IntegrationStatus.ERROR.value,
-                    "is_configured": False,
-                    "is_connected": False,
-                    "error_message": f"Failed to fetch config entries: HTTP {response.status}",
-                    "last_check": datetime.now(UTC),
-                }
-        except Exception as e:
-            return {
-                "name": "MQTT",
-                "type": "mqtt",
-                "status": IntegrationStatus.ERROR.value,
-                "is_configured": False,
-                "is_connected": False,
-                "error_message": str(e),
-                "last_check": datetime.now(UTC),
-            }
-
-    async def _check_data_api(self) -> dict:
-        """Check HA Ingestor Data API status"""
-        try:
-            session = await get_http_session()
-            async with session.get(
-                f"{self.data_api_url}/health", timeout=aiohttp.ClientTimeout(total=5)
-            ) as response:
-                if response.status == 200:
-                    return {
-                        "name": "Data API",
-                        "type": "homeiq",
-                        "status": IntegrationStatus.HEALTHY.value,
-                        "is_configured": True,
-                        "is_connected": True,
-                        "error_message": None,
-                        "last_check": datetime.now(UTC),
-                    }
-                # Surface non-200 responses as warning/error data instead of None
-                return {
-                    "name": "Data API",
-                    "type": "homeiq",
-                    "status": IntegrationStatus.WARNING.value,
                     "is_configured": True,
                     "is_connected": False,
-                    "error_message": f"Health endpoint returned HTTP {response.status}",
+                    "error_message": str(e),
                     "last_check": datetime.now(UTC),
                 }
-        except Exception as e:
-            return {
-                "name": "Data API",
-                "type": "homeiq",
-                "status": IntegrationStatus.ERROR.value,
-                "is_configured": True,
-                "is_connected": False,
-                "error_message": str(e),
-                "last_check": datetime.now(UTC),
+            ]
+
+        return [
+            {
+                "name": result.integration_name,
+                "type": result.integration_type,
+                "status": result.status.value,
+                "is_configured": result.is_configured,
+                "is_connected": result.is_connected,
+                "error_message": result.error_message,
+                "check_details": result.check_details,
+                "last_check": result.last_check,
             }
+            for result in results
+        ]
 
     async def _check_performance(self) -> dict:
         """Check system performance metrics using real system data"""

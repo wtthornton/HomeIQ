@@ -12,18 +12,18 @@
 
 ## Overview
 
-The HA Setup & Recommendation Service provides comprehensive health monitoring, automated setup wizards, and performance optimization for Home Assistant environments integrated with HomeIQ. It continuously monitors the health of Home Assistant, integrations (MQTT, Zigbee2MQTT), and HomeIQ services, providing actionable recommendations.
+The HA Setup & Recommendation Service provides comprehensive health monitoring, automated setup wizards, and performance optimization for Home Assistant environments integrated with HomeIQ. It continuously monitors the health of Home Assistant, its integrations, and HomeIQ services, providing actionable recommendations.
 
-**Port Mapping Note:** This service runs on port 8020 internally within the Docker network, but is exposed as port 8027 externally for host access. When making requests from outside Docker, use port 8027. Internal services should use port 8020.
+**Port Mapping Note:** This service runs on port 8020 internally within the Docker network and is exposed as port **8024** on the host. From outside Docker use 8024; internal services use 8020.
 
 ### Key Features
 
 - **Environment Health Monitoring** - Real-time health score (0-100) with intelligent weighting and graceful degradation
-- **Integration Health Checks** - Monitor HA authentication, MQTT, Zigbee2MQTT, device discovery, HomeIQ services
+- **Integration Health Checks** - Monitor HA authentication, device discovery, and HomeIQ services
 - **Continuous Monitoring** - Background health monitoring with configurable intervals
 - **Health Trends** - Track health score trends over time
-- **Setup Wizards** - Guided setup for MQTT and Zigbee2MQTT integrations
-- **Zigbee2MQTT Bridge Management** - Monitor and recover Zigbee2MQTT bridge connectivity
+- **Init Gateway** - Read-only `audit` and backup-gated `converge` over the HA init agent's recipes
+- **Human-Decision Queue** - Surface `blocked_on_human` outcomes and accept answers
 - **Performance Optimization** - Automated performance analysis and recommendations
 - **Configuration Validation** - Detect and fix Home Assistant configuration issues (Epic 32)
 - **Area Assignment Fixes** - Automatically fix missing or incorrect area assignments
@@ -123,13 +123,13 @@ Detailed integration health status.
   "not_configured_count": 0,
   "integrations": [
     {
-      "integration_name": "MQTT",
-      "integration_type": "mqtt",
+      "integration_name": "Device Discovery",
+      "integration_type": "discovery",
       "status": "healthy",
       "is_configured": true,
       "is_connected": true,
       "check_details": {
-        "broker": "192.168.1.86:1883",
+        "sync_status": "synced",
         "devices_discovered": 15
       }
     }
@@ -137,137 +137,41 @@ Detailed integration health status.
 }
 ```
 
-### Setup Wizard Endpoints
+### Init Gateway Endpoints
+
+The HA init agent (`libs/homeiq-ha/src/homeiq_ha/agent/`) is served here. This is
+the only path in HomeIQ that writes to Home Assistant. Full semantics in
+[docs/operations/init-gateway.md](../../../docs/operations/init-gateway.md).
 
 ```bash
-POST /api/setup/wizard/{integration_type}/start
+GET /api/v1/init/audit
 ```
-Start setup wizard for integration (zigbee2mqtt, mqtt).
-
-**Response:**
-```json
-{
-  "session_id": "wizard-abc123",
-  "integration_type": "zigbee2mqtt",
-  "status": "started",
-  "timestamp": "2025-12-09T10:30:00Z"
-}
-```
+Runs every recipe's `check()` behind a read-only proxy that raises on any write.
+Always safe. Returns one outcome row per recipe with `status`
+(`satisfied` / `needs_apply` / `blocked_on_human` / `not_applicable`), `summary`,
+`details`, and `human_action`.
 
 ```bash
-POST /api/setup/wizard/{session_id}/step/{step_number}
+POST /api/v1/init/converge   {"phase": N, "only": "<recipe>"}
 ```
-Execute setup wizard step.
-
-**Request:**
-```json
-{
-  "mqtt_broker": "192.168.1.86",
-  "mqtt_port": 1883
-}
-```
-
-### Zigbee2MQTT Bridge Management
+Backup-gated plan -> apply -> verify. A backup is taken before every phase past
+the gate; a `blocked_on_human` outcome halts later phases.
 
 ```bash
-GET /api/zigbee2mqtt/bridge/status
+GET  /api/v1/init/queue?show_all=false
+POST /api/v1/init/answers
 ```
-Get comprehensive Zigbee2MQTT bridge health status.
-
-**Response:**
-```json
-{
-  "bridge_state": "online",
-  "is_connected": true,
-  "health_score": 95,
-  "device_count": 15,
-  "response_time_ms": 45,
-  "signal_strength_avg": -65,
-  "network_health_score": 90,
-  "consecutive_failures": 0,
-  "recommendations": [],
-  "last_check": "2025-12-09T10:30:00Z",
-  "recovery_attempts": []
-}
-```
+The human-decision queue and its answer sink. `queue` returns `audit_blocked`
+items carrying a `decision` payload (e.g. `type: "area_assignment"` listing the
+devices needing an area); `answers` submits the resolutions.
 
 ```bash
-POST /api/zigbee2mqtt/bridge/recovery
+POST /api/v1/init/pairing/permit
+POST /api/v1/init/flows/{flow_id}/start
+POST /api/v1/init/flows/{flow_id}/decision
+POST /api/v1/init/hacs/start
 ```
-Attempt to recover Zigbee2MQTT bridge connectivity.
-
-**Query Parameters:**
-- `force` (optional) - Force recovery attempt (default: false)
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Bridge recovered successfully",
-  "timestamp": "2025-12-09T10:30:00Z"
-}
-```
-
-```bash
-POST /api/zigbee2mqtt/bridge/restart
-```
-Restart Zigbee2MQTT bridge (alias for forced recovery).
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Bridge restarted successfully",
-  "timestamp": "2025-12-09T10:30:00Z"
-}
-```
-
-```bash
-GET /api/zigbee2mqtt/bridge/health
-```
-Simple health check for bridge status.
-
-**Response:**
-```json
-{
-  "healthy": true,
-  "state": "online",
-  "health_score": 95,
-  "device_count": 15,
-  "last_check": "2025-12-09T10:30:00Z"
-}
-```
-
-### Zigbee2MQTT Setup Wizard
-
-```bash
-POST /api/zigbee2mqtt/setup/start
-```
-Start enhanced Zigbee2MQTT setup wizard.
-
-**Request:**
-```json
-{
-  "mqtt_broker": "192.168.1.86",
-  "mqtt_port": 1883,
-  "coordinator_type": "ConBee II"
-}
-```
-
-```bash
-POST /api/zigbee2mqtt/setup/{wizard_id}/continue
-```
-Continue wizard to next step.
-
-```bash
-GET /api/zigbee2mqtt/setup/{wizard_id}/status
-```
-Get current wizard status.
-
-```bash
-DELETE /api/zigbee2mqtt/setup/{wizard_id}
-```
-Cancel active setup wizard.
+Zigbee permit-join (ZHA), HA config-flow driving, and HACS bootstrap.
 
 ### Performance Optimization
 
@@ -481,7 +385,7 @@ docker compose up -d ha-setup-service
 docker compose logs -f ha-setup-service
 
 # Test health endpoint (external port)
-curl http://localhost:8027/health
+curl http://localhost:8024/health
 
 # Test from inside Docker network (internal port)
 docker exec homeiq-health-dashboard curl http://ha-setup-service:8020/health
@@ -491,25 +395,25 @@ docker exec homeiq-health-dashboard curl http://ha-setup-service:8020/health
 
 ```bash
 # Health check
-curl http://localhost:8027/health
+curl http://localhost:8024/health
 
 # Environment health
-curl http://localhost:8027/api/health/environment
+curl http://localhost:8024/api/health/environment
 
 # Integration health
-curl http://localhost:8027/api/health/integrations
+curl http://localhost:8024/api/health/integrations
 
 # Health trends (24 hours)
-curl "http://localhost:8027/api/health/trends?hours=24"
+curl "http://localhost:8024/api/health/trends?hours=24"
 
-# Zigbee2MQTT bridge status
-curl http://localhost:8027/api/zigbee2mqtt/bridge/status
+# Init audit (read-only)
+curl http://localhost:8024/api/v1/init/audit
 
 # Configuration validation
-curl http://localhost:8027/api/v1/validation/ha-config
+curl http://localhost:8024/api/v1/validation/ha-config
 
 # Performance analysis
-curl http://localhost:8027/api/optimization/analyze
+curl http://localhost:8024/api/optimization/analyze
 ```
 
 ## Dependencies
@@ -519,8 +423,6 @@ curl http://localhost:8027/api/optimization/analyze
 - **Home Assistant** - External instance for integration health monitoring
 - **data-api** (Port 8006) - Historical data queries
 - **admin-api** (Port 8003) - System control
-- **MQTT Broker** (Optional) - MQTT integration health checks (typically 192.168.1.86:1883)
-- **Zigbee2MQTT** (Optional) - Zigbee integration monitoring
 - **PostgreSQL Database** - Health history and validation results
 
 ### Python Dependencies
@@ -562,26 +464,23 @@ The service implements a comprehensive health monitoring system:
 
 Monitors these integrations:
 - **Home Assistant Core** - API authentication and availability
-- **MQTT Broker** - Connection and message delivery
-- **Zigbee2MQTT** - Addon status and device connectivity
-- **Device Discovery** - Registry sync verification
+- **Device Discovery** - Registry sync verification (HA device count vs ingestor count)
 - **Data API** - HomeIQ service health
 - **Admin API** - HomeIQ service health
+- **HACS** - Custom-component store availability
 
-### Setup Wizards
+Zigbee is **HA built-in ZHA**, checked by the init agent's `zigbee.*` recipes
+(coordinator watchdog, mesh health) rather than by this hand-rolled check list.
+HomeIQ runs no MQTT broker and no Zigbee2MQTT; see
+[docs/operations/init-gateway.md](../../../docs/operations/init-gateway.md).
 
-Guided setup processes for:
-- **MQTT Integration** - Configure MQTT broker connection
-- **Zigbee2MQTT Setup** - Configure Zigbee coordinator and devices
-- **Session Management** - Track wizard progress and state
+### Init Gateway
 
-### Zigbee2MQTT Bridge Management
-
-Advanced bridge monitoring and recovery:
-- **Health Monitoring** - Track bridge state, device count, response time
-- **Signal Strength** - Monitor Zigbee network quality
-- **Automatic Recovery** - Attempt recovery on failures
-- **Recovery History** - Track recovery attempts and success rates
+Recipe-driven convergence over Home Assistant:
+- **Audit** - Every recipe's `check()` behind a write-raising read-only proxy
+- **Converge** - Backup-gated plan -> apply -> verify, halting on `blocked_on_human`
+- **Queue / Answers** - Surface human decisions (area assignment, pairing) and accept them
+- **Zigbee (ZHA)** - Coordinator watchdog and mesh-health recipes, plus permit-join
 
 ### Configuration Validation (Epic 32)
 
@@ -618,8 +517,6 @@ All logs follow structured logging format:
 **Tables:**
 - `health_checks` - Historical health check results
 - `integration_health` - Integration health history
-- `wizard_sessions` - Setup wizard sessions
-- `recovery_attempts` - Zigbee2MQTT recovery attempts
 - `validation_results` - Configuration validation findings
 
 ## Security Notes
@@ -641,7 +538,7 @@ docker compose logs ha-setup-service
 **Common issues:**
 - Missing `HA_TOKEN` - Verify `infrastructure/.env.websocket`
 - Database initialization failed - Check `/app/data` volume permissions
-- Port 8027 in use - Change port in docker-compose.yml
+- Port 8024 in use - Change the host mapping in `domains/device-management/compose.yml`
 
 ### HA Authentication Failures
 
@@ -661,32 +558,30 @@ docker exec homeiq-ha-setup-service env | grep HA_TOKEN
 # Profile → Long-Lived Access Tokens → Create Token
 ```
 
-### Zigbee2MQTT Bridge Issues
+### Zigbee (ZHA) Issues
 
-**Check bridge status:**
+Zigbee is HA's built-in ZHA on an SMLIGHT SLZB-06p7. The init agent owns the
+probes; there is no bridge service to restart here.
+
+**Check coordinator and mesh health:**
 ```bash
-curl http://localhost:8027/api/zigbee2mqtt/bridge/status
+curl -s http://localhost:8024/api/v1/init/audit \
+  | python3 -c "import json,sys; [print(o) for o in json.load(sys.stdin)['outcomes']]" \
+  | grep -i zigbee
 ```
 
-**Attempt recovery:**
-```bash
-curl -X POST http://localhost:8027/api/zigbee2mqtt/bridge/recovery
-```
-
-**Force restart:**
-```bash
-curl -X POST http://localhost:8027/api/zigbee2mqtt/bridge/restart
-```
+A `blocked_on_human` row from `zigbee.coordinator_watchdog` carries a
+`human_action` (typically a coordinator power-cycle). See
+[docs/operations/init-gateway.md](../../../docs/operations/init-gateway.md).
 
 ## Version History
 
 - **v1.0.0** (December 2025) - Initial production release
   - Environment health monitoring with 0-100 scoring
-  - Integration health checks (HA, MQTT, Zigbee2MQTT, HomeIQ services)
+  - Integration health checks (HA, device discovery, HomeIQ services)
   - Continuous monitoring with configurable intervals
   - Health trend analysis
-  - Setup wizards for MQTT and Zigbee2MQTT
-  - Zigbee2MQTT bridge management and recovery
+  - Init gateway: audit, converge, decision queue
   - Performance optimization engine
   - Configuration validation (Epic 32)
   - Area assignment fixes
@@ -694,7 +589,7 @@ curl -X POST http://localhost:8027/api/zigbee2mqtt/bridge/restart
 
 ---
 
-**Last Updated:** December 09, 2025
+**Last Updated:** August 20, 2026
 **Version:** 1.0.0
 **Status:** Production Ready ✅
-**Port:** 8020 (internal) / 8027 (external)
+**Port:** 8020 (internal) / 8024 (external)

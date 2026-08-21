@@ -20,13 +20,13 @@ def test_environment_health_includes_check_details() -> None:
     mock_ha_core = {"status": "healthy", "version": "2025.10.0"}
     mock_integrations = [
         {
-            "name": "MQTT",
-            "type": "mqtt",
+            "name": "HACS",
+            "type": "custom_component",
             "status": IntegrationStatus.HEALTHY,
             "is_configured": True,
             "is_connected": True,
             "error_message": None,
-            "check_details": {"broker": "mqtt.local", "port": 1883},
+            "check_details": {"hacs_installed": True, "team_tracker_installed": False},
             "last_check": datetime.now(UTC),
             "extra_field": "ignored",
         }
@@ -75,9 +75,12 @@ def test_environment_health_includes_check_details() -> None:
 
         assert payload["integrations"], "Integrations list should not be empty"
         integration = payload["integrations"][0]
-        assert integration["name"] == "MQTT"
+        assert integration["name"] == "HACS"
         assert integration["status"] == "healthy"
-        assert integration["check_details"] == {"broker": "mqtt.local", "port": 1883}
+        assert integration["check_details"] == {
+            "hacs_installed": True,
+            "team_tracker_installed": False,
+        }
 
         monitor._store_health_metric.assert_awaited_once()  # type: ignore[attr-defined]
     finally:

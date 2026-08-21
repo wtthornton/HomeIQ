@@ -100,7 +100,7 @@ Home Assistant (192.168.1.86:8123)
 | Rank | Service | Port | Role | Dependencies |
 |------|---------|------|------|--------------|
 | **6** | **data-retention** | 8080 | Data lifecycle management - prevents bloat/data loss | InfluxDB, PostgreSQL |
-| **7** | **ha-setup-service** | 8024 | HA health monitoring, integration checks, setup wizards | HA, MQTT, Zigbee2MQTT |
+| **7** | **ha-setup-service** | 8024 | HA health monitoring, integration checks, init audit/converge gateway | HA (ZHA via init recipes) |
 | **8** | **weather-api** | 8009 | Weather data for automations | InfluxDB |
 | **9** | **smart-meter-service** | 8014 | Real-time power monitoring | InfluxDB |
 | **10** | **energy-correlator** | 8017 | Device power consumption causality | InfluxDB |

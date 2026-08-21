@@ -69,8 +69,8 @@ class EnvironmentHealthResponse(BaseModel):
                 "ha_version": "2025.1.0",
                 "integrations": [
                     {
-                        "name": "MQTT",
-                        "type": "mqtt",
+                        "name": "HACS",
+                        "type": "custom_component",
                         "status": "healthy",
                         "is_configured": True,
                         "is_connected": True,

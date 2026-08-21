@@ -333,7 +333,7 @@ await influxdb_manager.write_points(points)
 | Service | Port | Purpose | Dependencies |
 |---------|------|---------|--------------|
 | data-retention | 8080 | Data lifecycle management | InfluxDB, PostgreSQL |
-| ha-setup-service | 8024 | HA health monitoring | HA, MQTT, Zigbee2MQTT |
+| ha-setup-service | 8024 | HA health monitoring, init audit/converge gateway | HA (ZHA via init recipes) |
 | weather-api | 8009 | Weather data | InfluxDB |
 | smart-meter-service | 8014 | Power monitoring | InfluxDB |
 | energy-correlator | 8017 | Power causality | InfluxDB |

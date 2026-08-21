@@ -34,7 +34,7 @@ class IntegrationHealth(Base):
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     integration_name = Column(String, nullable=False, index=True)
-    integration_type = Column(String, nullable=False)  # mqtt, zigbee2mqtt, etc.
+    integration_type = Column(String, nullable=False)  # zha, hue, wled, etc.
     status = Column(String, nullable=False)  # healthy, warning, error
     is_configured = Column(Boolean, default=False)
     is_connected = Column(Boolean, default=False)
@@ -55,7 +55,7 @@ class PerformanceMetric(Base):
     timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     metric_type = Column(String, nullable=False, index=True)  # response_time, cpu, memory
     metric_value = Column(Float, nullable=False)
-    component = Column(String)  # Which component (ha_core, mqtt, etc.)
+    component = Column(String)  # Which component (ha_core, hacs, etc.)
     metric_metadata = Column(
         JSON
     )  # Additional metric context (renamed from 'metadata' - reserved in SQLAlchemy)
@@ -71,7 +71,7 @@ class SetupWizardSession(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(String, unique=True, nullable=False, index=True)
-    integration_type = Column(String, nullable=False)  # zigbee2mqtt, mqtt, etc.
+    integration_type = Column(String, nullable=False)  # zha, hue, wled, etc.
     status = Column(String, nullable=False)  # pending, in_progress, completed, failed
     steps_completed = Column(Integer, default=0)
     total_steps = Column(Integer, nullable=False)
