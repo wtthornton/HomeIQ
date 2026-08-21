@@ -546,11 +546,13 @@ class DiscoveryService:
                     "disabled_by": device.disabled_by,
                     "last_seen": device.last_seen,
                     "health_score": device.health_score,
-                    # Set below from the power_source DeviceKnowledge
-                    # establishes. Deriving it here from Home Assistant's own
-                    # registry value left it contradicting power_source on 8
-                    # rows, because only one of the two was later overwritten.
-                    "is_battery_powered": False,
+                    # is_battery_powered is DELIBERATELY absent, like the other
+                    # columns DeviceKnowledge owns. Seeding it here put it in
+                    # every upsert, so on the preserve path — where power_source
+                    # is omitted and the stored value stands — the flag was
+                    # still written False, recreating the exact contradiction
+                    # (power_source='battery' with is_battery_powered=false)
+                    # that removing the earlier derivation had fixed.
                     "created_at": device.created_at,
                     "updated_at": device.updated_at,
                     # Initialize all optional fields with None to ensure consistency

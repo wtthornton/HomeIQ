@@ -289,14 +289,14 @@ class TestDefectsAnAdversarialVerifierFound:
         assert column in values
         assert stamp in values, f"{column} was written without stamping {stamp}"
 
-    def test_an_unwritten_value_is_not_stamped(self):
-        # A stamp with no value behind it would claim a reading that never
-        # happened. The column itself IS present, as an explicit None: a
-        # non-Zigbee device authoritatively has no LQI, and saying so clears any
-        # stale value rather than letting it stand.
+    def test_an_authoritative_clear_clears_its_stamp(self):
+        # A non-Zigbee device authoritatively has no LQI, so the column is
+        # written as an explicit None — clearing any stale value rather than
+        # letting it stand. The stamp is written as None alongside it, so the
+        # row never carries a timestamp for a reading it does not have.
         values, _ = DeviceKnowledge([]).for_device(Device("d1"))
         assert values["lqi"] is None
-        assert "lqi_updated_at" not in values
+        assert values["lqi_updated_at"] is None
 
     def test_a_column_whose_inputs_were_unavailable_is_omitted_entirely(self):
         # states=None means the caller could not fetch them. Clearing
@@ -502,3 +502,117 @@ class TestATransientFetchFailureCannotWipeData:
         # No ZHA payload is needed to know a non-Zigbee device has no LQI.
         values, _ = DeviceKnowledge([], states=[], zha_devices=None).for_device(Device("d1"))
         assert values["lqi"] is None
+
+
+class TestValueAndStampMoveTogether:
+    """A stamp asserts that a reading happened. It must not outlive one."""
+
+    def _batt(self, raw):
+        return DeviceKnowledge(
+            [Entity("sensor.b", "d1", "sensor")],
+            [state("sensor.b", raw, device_class="battery")],
+        ).for_device(Device("d1"))[0]
+
+    def test_a_reading_writes_both(self):
+        values = self._batt("100")
+        assert values["battery_level"] == 100
+        assert "battery_updated_at" in values
+
+    def test_a_clearing_pass_clears_the_stamp_too(self):
+        # The invariant: the stamp is non-NULL exactly when the value is.
+        #
+        # Stamping only non-None values left the previous pass's timestamp on a
+        # row with no reading. Stamping every write put a FRESH timestamp beside
+        # a NULL, which is the same lie with a newer date. Reachable on any HA
+        # restart, when a battery entity reports `unknown`.
+        values = self._batt("unknown")
+        assert values["battery_level"] is None
+        assert "battery_updated_at" in values, "the stale stamp was left in place"
+        assert values["battery_updated_at"] is None, (
+            "a NULL reading was stamped with a fresh timestamp, claiming a "
+            "measurement that did not happen"
+        )
+
+    def test_a_preserved_column_stamps_nothing(self):
+        # states=None means the column is omitted entirely; stamping it would
+        # claim a reading on a pass that never looked.
+        values, _ = DeviceKnowledge([], states=None).for_device(Device("d1"))
+        assert "battery_level" not in values
+        assert "battery_updated_at" not in values
+
+
+class TestTheDerivedFlagFollowsPowerSource:
+    def test_it_is_written_when_power_source_is(self):
+        values, _ = DeviceKnowledge(
+            [Entity("sensor.b", "d1", "sensor")],
+            [state("sensor.b", "50", device_class="battery")],
+        ).for_device(Device("d1"))
+        assert values["power_source"] == "battery"
+        assert values["is_battery_powered"] is True
+
+    def test_it_is_omitted_when_power_source_is_preserved(self):
+        # The preserve path. Writing the flag here while power_source keeps its
+        # stored value is what produced power_source='battery' alongside
+        # is_battery_powered=false.
+        values, _ = DeviceKnowledge([], states=None).for_device(Device("d1"))
+        assert "power_source" not in values
+        assert "is_battery_powered" not in values, (
+            "the derived flag was written while its source was preserved, so the two can disagree"
+        )
+
+    def test_it_is_omitted_when_power_source_is_cleared(self):
+        # An explicit clear says "no supply established". Asserting
+        # is_battery_powered=false alongside would be a claim we cannot make.
+        values, _ = DeviceKnowledge([], states=[]).for_device(Device("d1"))
+        assert values["power_source"] is None
+        assert "is_battery_powered" not in values
+
+
+class TestTheStampInvariant:
+    """One property, checked across every path: stamp non-NULL iff value non-NULL."""
+
+    @pytest.mark.parametrize(
+        "states,zha,label",
+        [
+            ([], [], "everything cleared"),
+            (
+                [
+                    {
+                        "entity_id": "sensor.b",
+                        "state": "60",
+                        "attributes": {"device_class": "battery"},
+                    }
+                ],
+                [{"ieee": "AA:BB", "lqi": 90}],
+                "everything established",
+            ),
+            (
+                [
+                    {
+                        "entity_id": "sensor.b",
+                        "state": "unknown",
+                        "attributes": {"device_class": "battery"},
+                    }
+                ],
+                [],
+                "battery unreadable",
+            ),
+        ],
+    )
+    def test_stamp_is_set_exactly_when_its_value_is(self, states, zha, label):
+        values, _ = DeviceKnowledge([Entity("sensor.b", "d1", "sensor")], states, zha).for_device(
+            Device("d1", zigbee_ieee="AA:BB")
+        )
+
+        for column, stamp in (
+            ("lqi", "lqi_updated_at"),
+            ("battery_level", "battery_updated_at"),
+            ("availability_status", "availability_updated_at"),
+        ):
+            if column not in values:
+                assert stamp not in values, f"{label}: {stamp} written for a preserved column"
+                continue
+            assert stamp in values, f"{label}: {column} written without {stamp}"
+            assert (values[column] is None) == (values[stamp] is None), (
+                f"{label}: {column}={values[column]!r} but {stamp}={values[stamp]!r}"
+            )

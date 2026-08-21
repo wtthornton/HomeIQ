@@ -71,9 +71,7 @@ class Device(Base):
     # taxonomy. Settled as the taxonomy on 2026-08-21 (TAP-6393). The ZHA node
     # role is not captured anywhere; add a separate column if it is ever wanted.
     device_type: Mapped[str | None] = mapped_column(String)
-    source: Mapped[str | None] = mapped_column(
-        String, index=True
-    )  # "zha", "homeassistant", etc.
+    source: Mapped[str | None] = mapped_column(String, index=True)  # "zha", "homeassistant", etc.
 
     # Additional HA device attributes
     name_by_user: Mapped[str | None] = mapped_column(String)  # User-customized device name
@@ -122,9 +120,7 @@ class DeviceCapability(Base):
     properties: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     exposed: Mapped[bool] = mapped_column(Boolean, default=False)
     configured: Mapped[bool] = mapped_column(Boolean, default=False)
-    source: Mapped[str] = mapped_column(
-        String, default="unknown"
-    )  # zha, homeassistant, etc.
+    source: Mapped[str] = mapped_column(String, default="unknown")  # zha, homeassistant, etc.
     last_updated: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
 
     # Relationships
@@ -346,5 +342,3 @@ class TeamTrackerTeam(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=func.now(), onupdate=func.now()
     )
-
-

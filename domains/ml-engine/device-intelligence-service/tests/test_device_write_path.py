@@ -33,6 +33,12 @@ KNOWLEDGE_COLUMNS = (
     "battery_level",
     "availability_status",
     "source",
+    "is_battery_powered",
+    # The companions are as droppable as the values, and dropping one silently
+    # discards its writes — the original TAP-6393 failure mode exactly.
+    "lqi_updated_at",
+    "battery_updated_at",
+    "availability_updated_at",
 )
 
 

@@ -344,7 +344,16 @@ class DeviceKnowledge:
             ("battery_level", "battery_updated_at"),
             ("availability_status", "availability_updated_at"),
         ):
-            if values.get(column) is not None:
-                values[stamp] = now
+            if column in values:
+                # The stamp MIRRORS the value, so the invariant is simply
+                # "stamp is non-NULL exactly when the value is".
+                #
+                # Both of the obvious alternatives are wrong. Stamping only
+                # non-None values leaves the previous pass's timestamp attached
+                # to a row that no longer has a reading. Stamping every write
+                # puts a fresh timestamp beside a NULL, which asserts a
+                # measurement that did not happen. Writing None alongside None
+                # is the only pairing that never claims one.
+                values[stamp] = now if values[column] is not None else None
 
         return values, exclusions
