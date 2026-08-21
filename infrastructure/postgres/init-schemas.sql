@@ -917,26 +917,6 @@ CREATE TABLE IF NOT EXISTS team_tracker_teams (
 CREATE UNIQUE INDEX IF NOT EXISTS ix_team_tracker_teams_entity_id ON team_tracker_teams (entity_id);
 CREATE INDEX IF NOT EXISTS ix_team_tracker_teams_league_id ON team_tracker_teams (league_id);
 
-CREATE TABLE IF NOT EXISTS zigbee_device_metadata (
-    device_id VARCHAR PRIMARY KEY REFERENCES devices(id) ON DELETE CASCADE,
-    ieee_address VARCHAR NOT NULL,
-    model_id VARCHAR,
-    manufacturer_code VARCHAR,
-    date_code VARCHAR,
-    hardware_version VARCHAR,
-    software_build_id VARCHAR,
-    network_address INTEGER,
-    supported BOOLEAN NOT NULL,
-    interview_completed BOOLEAN NOT NULL,
-    definition_json JSON,
-    settings_json JSON,
-    last_seen_zigbee TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS ix_zigbee_device_metadata_ieee_address ON zigbee_device_metadata (ieee_address);
-
 -- -----------------------------------------------------------------------------
 -- Device knowledge claims (device-intelligence-service)
 -- Provenance-bearing facts about a device MODEL (vendor knowledge) or a device

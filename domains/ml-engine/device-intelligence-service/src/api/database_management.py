@@ -35,7 +35,6 @@ KNOWN_TABLES = frozenset(
         "cache_stats",
         "name_suggestions",
         "name_preferences",
-        "zigbee_device_metadata",
         "team_tracker_integrations",
         "team_tracker_teams",
         "predictions",

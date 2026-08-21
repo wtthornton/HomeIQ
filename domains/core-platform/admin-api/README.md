@@ -442,7 +442,6 @@ admin-api/
 │   ├── events_endpoints.py        # Events query endpoints
 │   ├── docker_endpoints.py        # Docker management endpoints
 │   ├── devices_endpoints.py       # Device & entity endpoints
-│   ├── mqtt_config_endpoints.py   # MQTT/Zigbee configuration
 │   └── metrics_endpoints.py       # Metrics endpoints (Epic 17.3)
 │   └── alert_endpoints.py         # Alert management (Epic 17.4)
 ├── tests/                         # Unit tests

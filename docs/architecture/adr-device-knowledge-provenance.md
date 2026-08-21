@@ -41,9 +41,11 @@ This is not a one-off. It is the predictable output of three structural gaps:
 
 1. **No model-keyed store.** Facts like "P52 forces full-wave output on
    firmware ≥ 3.00" or "P21 is read-only, not Output Mode" are properties of a
-   *model*, not of a device instance. HomeIQ has `devices`,
-   `device_capabilities` and `zigbee_device_metadata`, all keyed to instances
-   discovered from Home Assistant. Vendor facts have nowhere to live, so every
+   *model*, not of a device instance. HomeIQ has `devices` and
+   `device_capabilities`, both keyed to instances discovered from Home
+   Assistant. (`zigbee_device_metadata` was a third such store when this ADR
+   was written; it was dropped on 2026-08-21 under TAP-6401, having never held
+   a row. The argument is unchanged.) Vendor facts have nowhere to live, so every
    agent re-derives them from the web and re-makes the same mistakes.
 
 2. **No home for measurements.** The cluster reads that refuted the report were

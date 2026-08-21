@@ -66,6 +66,24 @@ SECRET_PATTERNS: list[tuple[re.Pattern, str]] = [
         ),
         "Hardcoded password",
     ),
+    # The rule above requires a quoted value, which is the shape the committed
+    # broker config used. It cannot see the bare form:
+    #     MQTT_PASSWORD=Zt7pQm4wLx
+    # and that is not hypothetical — admin-api's config writer emits exactly
+    # `f"{key}={value}\n"` into a read-write bind mount, so a credential written
+    # back through it would land in the one shape the scanner missed.
+    #
+    # Restricted to config-shaped files by _is_config_file, because unquoted
+    # matching in source code produces nonsense: `password=None`, `password: str`
+    # and `password = get_password()` are all four-plus characters and none is a
+    # secret.
+    (
+        re.compile(
+            r"""(?:password|passwd|pwd)\s*[:=]\s*(?![$&{'\"])[^\s'\"#]{4,}""",
+            re.IGNORECASE,
+        ),
+        "Hardcoded password (unquoted)",
+    ),
 ]
 # The `(?![$&])` above rejects a value that is a variable reference rather than
 # a literal: PGPASSWORD="$TEST_PASSWORD" names a secret, it does not contain one.
@@ -90,6 +108,19 @@ PLACEHOLDER_VALUES = (
     "os.getenv",
     "os.environ",
     "process.env",
+    # Bare literals and type syntax, which the unquoted rule would otherwise
+    # read as values.
+    "=none",
+    ": none",
+    "=null",
+    ": null",
+    "=true",
+    "=false",
+    "undefined",
+    ": str",
+    ": bool",
+    ": int",
+    "optional[",
 )
 
 # Files/patterns to always skip (in addition to pre-commit exclude)
@@ -105,6 +136,18 @@ SKIP_PATTERNS = {
     "pnpm-lock.yaml",
     "yarn.lock",
 }
+
+
+def _is_config_file(path: Path) -> bool:
+    """True for files where a bare `KEY=value` line carries a real value.
+
+    Unquoted matching is only meaningful here. In source code the same shape is
+    almost always something else — a default, a type annotation, a call.
+    """
+    if path.suffix.lower() in {".env", ".ini", ".cfg", ".conf", ".properties"}:
+        return True
+    name = path.name.lower()
+    return name.startswith(".env") or ".env." in name or name.startswith("env.")
 
 
 def _is_test_artifact(path: Path) -> bool:
@@ -171,10 +214,11 @@ def check_file(filepath: str) -> list[tuple[int, str, str]]:
             # to every rule it suppressed real findings, because marker words
             # like "example" appear inside legitimate secret shapes such as
             # AKIAIOSFODNN7EXAMPLE.
-            if reason == "Hardcoded password" and (
-                _is_placeholder(line) or _is_test_artifact(path)
-            ):
-                continue
+            if reason.startswith("Hardcoded password"):
+                if _is_placeholder(line) or _is_test_artifact(path):
+                    continue
+                if reason.endswith("(unquoted)") and not _is_config_file(path):
+                    continue
             findings.append((line_no, line.rstrip(), reason))
             break  # One finding per line is enough
 

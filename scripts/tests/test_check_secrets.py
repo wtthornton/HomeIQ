@@ -92,6 +92,63 @@ class TestPasswordDetection:
         # how you end up with no scanner at all.
         assert not _scan(tmp_path, "config.yml", line), f"false positive: {line}"
 
+    @pytest.mark.parametrize(
+        "filename,line",
+        [
+            (".env", "MQTT_PASSWORD=Zt7pQm4wLx"),
+            (".env.production", "DB_PASSWORD=Zt7pQm4wLx"),
+            ("env.websocket-ingestion", "MQTT_PASSWORD=Zt7pQm4wLx"),
+            ("settings.ini", "password=Zt7pQm4wLx"),
+            ("app.conf", "password = Zt7pQm4wLx"),
+        ],
+    )
+    def test_unquoted_values_in_env_files_are_caught(self, tmp_path, filename, line):
+        # The first password rule required a quoted value, so every one of these
+        # slipped past. admin-api's config writer emits `f"{key}={value}\n"` into
+        # a read-write bind mount, so this is the shape a credential written back
+        # through that route would actually take.
+        assert _scan(tmp_path, filename, line), f"missed unquoted: {filename} :: {line}"
+
+    @pytest.mark.parametrize(
+        "filename,line",
+        [
+            ("docker-compose.yml", "  MQTT_PASSWORD: Zt7pQm4wLx"),
+            ("config.yaml", "password: Zt7pQm4wLx"),
+            ("pyproject.toml", "password = Zt7pQm4wLx"),
+        ],
+    )
+    def test_unquoted_yaml_and_toml_are_a_deliberate_gap(self, tmp_path, filename, line):
+        # Characterisation, not aspiration. The unquoted rule is scoped to
+        # env/ini-shaped files on purpose: extending it to YAML flagged every CI
+        # workflow's throwaway service-container password
+        # (`POSTGRES_PASSWORD: homeiq_test`), and a hook that blocks unrelated
+        # workflow edits gets switched off. YAML and TOML conventionally quote
+        # their values, which the quoted rule above already covers.
+        #
+        # If you widen `_is_config_file`, this test fails — which is the point.
+        # Decide consciously and update it, rather than widening by accident.
+        assert not _scan(tmp_path, filename, line)
+
+    def test_the_quoted_rule_still_covers_yaml(self, tmp_path):
+        # The gap above is only the unquoted form.
+        assert _scan(tmp_path, "docker-compose.yml", '  MQTT_PASSWORD: "Zt7pQm4wLx"')
+
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "password=None",
+            "password = None",
+            "password: str",
+            "password: bool = False",
+            "self.password = get_password()",
+            "password = self._password",
+        ],
+    )
+    def test_unquoted_matching_does_not_fire_in_source_code(self, tmp_path, line):
+        # Unquoted matching is meaningless in code: a default, a type annotation
+        # and a call are all four-plus characters and none is a secret.
+        assert not _scan(tmp_path, "service.py", line), f"false positive: {line}"
+
 
 class TestPreExistingRulesStillWork:
     @pytest.mark.parametrize(
