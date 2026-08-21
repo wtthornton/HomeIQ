@@ -15,10 +15,16 @@ yarn-error.log*
 .yarn/install-state.gz
 
 # Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
+# NOTE the **/ prefixes: Docker matches .dockerignore patterns against the whole
+# path and a bare * does not cross a /, so `__pycache__/` alone excludes only a
+# top-level directory. Nested ones (domains/**/src/**/__pycache__) shipped into
+# every image -- 260 of them -- which is how a .pyc for a deleted module stayed
+# in the built image after its source was removed.
+**/__pycache__/
+**/*.py[cod]
+**/*.pyo
+**/*.pyd
+**/.pytest_cache/
 .Python
 *.so
 *.egg-info/

@@ -91,20 +91,43 @@ class TestNameIsNotADecisionInput:
         with pytest.raises(TypeError):
             svc.classify_device_by_metadata("d1", "Kitchen Light", "Signify", "LCT015")
 
-    def test_device_type_is_invariant_under_rename(self):
-        # Non-vacuous by construction: the expected value is pinned explicitly
-        # and asserted non-None, so this cannot pass by both sides being None.
+    def test_model_classification_is_deterministic(self):
+        # Named for what it actually proves. Rename-invariance is carried by the
+        # two signature tests above — a name cannot be passed, so it cannot be
+        # consulted. Calling twice with identical arguments would be a tautology
+        # if it were offered as the invariance proof; here it pins determinism,
+        # which is a separate and weaker property worth having.
         svc = DeviceClassifierService()
         model = "Hue White Ambiance Bulb"
 
-        before = svc.classify_device_by_metadata("d1", model)
-        # A rename changes only the name, which is not an input, so the call is
-        # byte-identical. That is the guarantee.
-        after = svc.classify_device_by_metadata("d1", model)
+        first = svc.classify_device_by_metadata("d1", model)
+        second = svc.classify_device_by_metadata("d1", model)
 
-        assert before["device_type"] == "light"
-        assert before["device_type"] is not None
-        assert after == before
+        assert first["device_type"] == "light"
+        assert second == first
+
+    @pytest.mark.parametrize(
+        "would_be_name,model",
+        [
+            # Real rows from this instance. Under the old rule the name and
+            # manufacturer were concatenated into the match string, so each of
+            # these classified as "light" — the first two are Hue *Room* groups.
+            ("Masters Closet", "Room"),
+            ("Driveway", "Room"),
+            ("Backyard", "Room"),
+            ("Kitchen Light", "Room"),
+        ],
+    )
+    def test_a_name_that_used_to_match_no_longer_can(self, would_be_name, model):
+        # The name is passed nowhere. Classification sees only the model, and
+        # "Room" is not a device type, so the answer is None however the device
+        # is named. This is the behaviour change stated as an assertion.
+        svc = DeviceClassifierService()
+        result = svc.classify_device_by_metadata("d1", model)
+        assert result["device_type"] is None, (
+            f"{would_be_name!r} classified as {result['device_type']!r} from "
+            f"model {model!r}; a room is not a light."
+        )
 
 
 # ---------------------------------------------------------------------------

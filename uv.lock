@@ -10,6 +10,7 @@ resolution-markers = [
 members = [
     "homeiq",
     "homeiq-data",
+    "homeiq-device-taxonomy",
     "homeiq-ha",
     "homeiq-memory",
     "homeiq-observability",
@@ -1190,6 +1191,11 @@ requires-dist = [
     { name = "tenacity", specifier = ">=8.2" },
 ]
 provides-extras = ["auth", "postgres", "openai"]
+
+[[package]]
+name = "homeiq-device-taxonomy"
+version = "1.0.0"
+source = { editable = "libs/homeiq-device-taxonomy" }
 
 [[package]]
 name = "homeiq-ha"
