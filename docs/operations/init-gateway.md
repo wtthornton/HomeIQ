@@ -301,3 +301,57 @@ running in the owner's UI. Nothing is logged and nothing has a default.
 2FA code, Roborock's emailed verification code — arrives *after* the first
 step. `run_config_flow` will reach that form and stop. Automating it means
 reading the owner's email, which is a separate decision and is not built.
+
+## The blocker catalogue — `GET /api/v1/init/blockers`
+
+Some things cannot be automated, and every HomeIQ install with similar hardware
+meets the same walls. Rather than leaving that knowledge in one operator's
+notes, it ships as a catalogue in
+`libs/homeiq-ha/src/homeiq_ha/agent/blockers.py` and is served from the init
+gateway.
+
+The endpoint returns two things:
+
+- **`catalogue`** — the shipped taxonomy. Twelve entries, each with what the
+  software detects, why the wall is structural, the manual step past it, and a
+  concrete example observed on a real install. Identical on every deployment,
+  and needs no Home Assistant call.
+- **`findings`** — this instance. One row per unclaimed integration naming the
+  catalogue entry that explains it, the evidence strength, the flow's first
+  step, and the exact `HOMEIQ_INTEGRATION_*` variables a person would need to
+  set.
+
+Findings are persisted to `devices.integration_blockers`, keyed on domain, so a
+dashboard can read them without re-probing. Rows for domains that are no longer
+blocked are deleted on refresh — otherwise the table becomes a list of things
+that were once true.
+
+```bash
+curl -s localhost:8024/api/v1/init/blockers            # probe + persist
+curl -s "localhost:8024/api/v1/init/blockers?refresh=false"   # read the table only
+```
+
+`refresh=true` (the default) probes config flows, which mutates. That is why
+this is a separate endpoint and not part of `/audit`.
+
+### The twelve kinds
+
+| Kind | Structural? |
+|---|---|
+| `oauth_external` | Yes — the vendor requires its own user agent |
+| `second_factor` | Partly — would require access to the owner's inbox |
+| `credentials_missing` | No — the owner has just not stated the fact yet |
+| `no_discovery_matcher` | Yes — the integration author made it manual-only |
+| `matcher_too_narrow` | No — upstream could add the missing prefix |
+| `hostname_glob_collision` | Yes — a name is not identity |
+| `weak_evidence_for_address_flow` | Yes — an OUI does not imply model support |
+| `yaml_only_integration` | Yes — there is no flow API to drive |
+| `custom_repository` | Yes — installing third-party code is the owner's call |
+| `randomized_mac` | Yes — privacy feature working correctly |
+| `not_observed` | No — a lease renewal or power-cycle fixes it |
+| `behind_bridge` | Yes — and harmless; these are already configured |
+
+Entries marked `resolvable: true` in the catalogue are ones a future release
+could plausibly automate. The rest are walls, and adding an entry is a claim
+that something is un-automatable — check it is not merely *unimplemented*
+first, because those are issues, not blockers.
