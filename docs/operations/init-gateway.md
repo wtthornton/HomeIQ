@@ -264,3 +264,40 @@ Signify→`hue` entirely. That is a name match wearing a better job title
   have the locally-administered bit set (phone privacy MACs). They have no
   IEEE assignment and are correctly reported as `Unknown`, not guessed at.
 - **Adoption is judged on registry MAC `connections`**, never on device names.
+
+### Letting HomeIQ do the adding (TAP-6403)
+
+The recipe configures an integration itself when two things hold:
+
+1. **The match is `STRICT`.** A `MAC` match says "this is TP-Link hardware",
+   not "the `tplink` integration supports it" — an RE815X range extender is not
+   a Kasa plug. A `HOSTNAME` match says less still: `flux_led`'s glob
+   `[hba][flk]*` cheerfully claims `HL_CAM4-…`, a camera. Neither may authorise
+   a write.
+2. **The flow's first step is fillable.** This is decided by *probing the flow*
+   — start it, read the rendered schema, abort it — never by guessing from the
+   manifest. Probing mutates, so it runs in `plan`/`apply` and never in `check`.
+
+A step is fillable when every required field is an address the agent already
+observed (`host`, `ip_address`, `address`, `ip`), or when the owner supplied
+the secrets.
+
+**Supplying secrets.** Set `HOMEIQ_INTEGRATION_<DOMAIN>_<FIELD>` in `.env`,
+uppercased with non-alphanumerics as underscores. Measured against the live
+instance on 2026-08-21:
+
+| Domain | First step | Variables to set |
+|---|---|---|
+| `tplink`, `flux_led` | form, `host` optional | none — the agent has the IP |
+| `ring` | form | `HOMEIQ_INTEGRATION_RING_USERNAME`, `…_PASSWORD` |
+| `roborock` | form | `HOMEIQ_INTEGRATION_ROBOROCK_USERNAME`, `…_REGION` |
+| `xbox` | **external** (login.live.com) | none possible — OAuth needs a browser |
+
+Credentials are all-or-nothing per domain: a half-filled form renders a
+validation error indistinguishable from a wrong password, and leaves a flow
+running in the owner's UI. Nothing is logged and nothing has a default.
+
+**What this does not solve.** A second factor delivered out of band — Ring's
+2FA code, Roborock's emailed verification code — arrives *after* the first
+step. `run_config_flow` will reach that form and stop. Automating it means
+reading the owner's email, which is a separate decision and is not built.

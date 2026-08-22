@@ -46,12 +46,16 @@ as the other observation recipes in :mod:`.diagnostics`.
 
 from __future__ import annotations
 
+from contextlib import suppress
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from .matchers import Candidate, ManifestMatchers
+from .flow_credentials import credentials_for
+from .matchers import Candidate, ManifestMatchers, MatchStrength
 from .recipe import (
     PHASE_INTEGRATIONS,
     ApplyResult,
+    Change,
     CheckResult,
     CheckStatus,
     Plan,
@@ -63,6 +67,61 @@ if TYPE_CHECKING:
     from homeiq_ha.client import HAClient
 
     from .netobserve import NetworkObserver, ObservedHost
+
+
+#: Form fields the agent can fill from what it already observed. These name a
+#: network location, not a secret: the fingerprint store knows the device's IP
+#: because Zeek watched it take a DHCP lease.
+_SATISFIABLE_FIELDS = frozenset({"host", "ip_address", "address", "ip"})
+
+
+@dataclass(frozen=True)
+class FlowProbe:
+    """What a config flow's first step actually asks for.
+
+    Obtained by starting the flow, reading its rendered schema, and aborting —
+    never by inferring from the manifest. ``iot_class`` does not answer this:
+    Roborock is ``local_polling`` and still opens with username + region.
+    """
+
+    domain: str
+    kind: str
+    required: tuple[str, ...] = ()
+
+    @property
+    def automatable(self) -> bool:
+        """True when every required field is one the agent can fill itself."""
+        return self.kind == "form" and all(f in _SATISFIABLE_FIELDS for f in self.required)
+
+    def describe(self) -> str:
+        if self.kind != "form":
+            return f"{self.domain}: {self.kind} step — needs a browser, cannot be automated"
+        if self.automatable:
+            return f"{self.domain}: form, no secrets required"
+        return f"{self.domain}: form requires {', '.join(self.required)}"
+
+
+async def probe_flow(ha: HAClient, domain: str) -> FlowProbe:
+    """Start ``domain``'s config flow, read its first step, and abort it.
+
+    Aborting is in a ``finally`` because a flow left running shows up as a
+    pending discovery in the owner's UI. This mutates, so it belongs in
+    ``plan``/``apply`` and must never be called from ``check``.
+    """
+    step = await ha.rest.start_config_flow(domain)
+    flow_id = step.get("flow_id")
+    try:
+        kind = ha.rest.classify_flow_step(step)
+        required = tuple(
+            str(field["name"])
+            for field in step.get("data_schema") or []
+            if field.get("required") and field.get("name")
+        )
+        return FlowProbe(domain, kind, required)
+    finally:
+        if flow_id:
+            with suppress(Exception):
+                await ha.rest.abort_config_flow(flow_id)
 
 
 class UnclaimedDevicesRecipe(Recipe):
@@ -204,9 +263,11 @@ class UnclaimedDevicesRecipe(Recipe):
 
         if by_domain:
             lines.append(
-                "Add these in Settings > Devices & Services > Add Integration. "
-                "Each config flow may ask for an account; the agent does not "
-                "attempt them:"
+                "HomeIQ can configure these for you once it has the account "
+                "details. Set the matching HOMEIQ_INTEGRATION_* variables in "
+                ".env and run POST /api/v1/init/converge; anything still "
+                "listed after that needs a browser (OAuth) and cannot be "
+                "automated at all:"
             )
             for domain, group in sorted(by_domain.items()):
                 where = ", ".join(_where(c.host) for c in group)
@@ -250,14 +311,94 @@ class UnclaimedDevicesRecipe(Recipe):
             human_action=self._human_action(unclaimed, unmatched),
         )
 
-    async def plan(self, _ha: HAClient) -> Plan:
-        return Plan(())
+    async def _fillable(self, ha: HAClient) -> list[tuple[Candidate, dict[str, str]]]:
+        """Candidates whose config flow the agent can complete, with the input.
 
-    async def apply(self, _ha: HAClient) -> ApplyResult:
-        return ApplyResult((), "report-only")
+        Two ways a flow becomes fillable: it needs nothing but an address the
+        agent already observed, or the owner supplied its secrets through
+        :mod:`.flow_credentials`. Probing starts real flows, so this is only
+        reachable from ``plan`` and ``apply``.
+        """
+        unclaimed, _ = await self._survey(ha)
+        # Filter before probing: a HOSTNAME match can never be written, and
+        # probing starts a real flow on the instance.
+        usable = [c for c in unclaimed if c.strength is not MatchStrength.HOSTNAME]
+        ready: list[tuple[Candidate, dict[str, str]]] = []
 
-    async def verify(self, _ha: HAClient) -> VerifyResult:
-        return VerifyResult(True, "report-only")
+        for candidate in _unique_by_domain(usable):
+            probe = await probe_flow(ha, candidate.domain)
+            user_input = self._input_for(candidate, probe)
+            if user_input is not None:
+                ready.append((candidate, user_input))
+        return ready
+
+    @staticmethod
+    def _input_for(candidate: Candidate, probe: FlowProbe) -> dict[str, str] | None:
+        """The form input to submit, or ``None`` when the agent cannot fill it.
+
+        The evidence bar depends on what the flow is claiming:
+
+        **Address flows** (every required field is a host/IP) write the match
+        itself into Home Assistant, so a wrong match creates a wrong device.
+        These need ``STRICT`` — Home Assistant's own bar. A ``MAC`` match says
+        "this is TP-Link hardware", not "``tplink`` supports it"; an RE815X
+        range extender is not a Kasa plug.
+
+        **Account flows** claim the owner's *account*, and the integration then
+        enumerates its own devices from the vendor cloud. The observed device
+        is only the trigger, so protocol-native ``MAC`` evidence suffices.
+
+        ``HOSTNAME`` qualifies for neither: ``flux_led``'s glob ``[hba][flk]*``
+        claims ``HL_CAM4-…``, a camera, and a rename would erase the
+        "evidence" entirely (.claude/rules/friendly-names.md).
+        """
+        if probe.kind != "form":
+            return None  # external/progress — needs a browser
+        if candidate.strength is MatchStrength.HOSTNAME:
+            return None
+
+        if probe.automatable:
+            if candidate.strength is not MatchStrength.STRICT or not candidate.host.ip:
+                return None
+            # Seed the address even when the field is optional: the agent knows
+            # the IP and the integration's own rediscovery may not.
+            return dict.fromkeys(probe.required, candidate.host.ip) or {"host": candidate.host.ip}
+        return credentials_for(candidate.domain, probe.required)
+
+    async def plan(self, ha: HAClient) -> Plan:
+        return Plan(
+            tuple(
+                Change("configure integration", c.domain, after=c.host.ip or "loaded")
+                for c, _ in await self._fillable(ha)
+            )
+        )
+
+    async def apply(self, ha: HAClient) -> ApplyResult:
+        ready = await self._fillable(ha)
+        if not ready:
+            return ApplyResult((), "nothing fillable: needs owner credentials or a browser")
+
+        changed: list[Change] = []
+        for candidate, user_input in ready:
+            await ha.rest.run_config_flow(candidate.domain, [user_input])
+            changed.append(
+                Change(
+                    "configure integration", candidate.domain, after=candidate.host.ip or "loaded"
+                )
+            )
+        return ApplyResult(tuple(changed), f"configured {len(changed)} integration(s)")
+
+    async def verify(self, ha: HAClient) -> VerifyResult:
+        """Re-read config entries rather than trusting what apply returned."""
+        entries = await ha.rest.get_config_entries() or []
+        loaded = {e.get("domain") for e in entries if e.get("state") == "loaded"}
+        unclaimed, _ = await self._survey(ha)
+        remaining = sorted({c.domain for c in unclaimed})
+        return VerifyResult(
+            True,
+            f"{len(remaining)} integration(s) still unclaimed: {remaining}",
+            {"loaded_domains": sorted(loaded), "still_unclaimed": remaining},
+        )
 
 
 def _identified_vendor(host: ObservedHost) -> str:
@@ -276,4 +417,19 @@ def _where(host: ObservedHost) -> str:
     return f"{host.hostname or host.mac} ({host.ip or 'no lease seen'})"
 
 
-__all__ = ["UnclaimedDevicesRecipe"]
+def _unique_by_domain(candidates: list[Candidate]) -> list[Candidate]:
+    """One candidate per domain, keeping the strongest evidence.
+
+    A config flow runs per integration, not per device, so several observed
+    devices collapse to one. Taking whichever happened to come first
+    under-reported Ring as HOSTNAME when a second Ring device matched by OUI.
+    """
+    best: dict[str, Candidate] = {}
+    for candidate in candidates:
+        current = best.get(candidate.domain)
+        if current is None or candidate.strength > current.strength:
+            best[candidate.domain] = candidate
+    return list(best.values())
+
+
+__all__ = ["FlowProbe", "UnclaimedDevicesRecipe", "probe_flow"]
