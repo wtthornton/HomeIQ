@@ -87,6 +87,15 @@ action.
 
 ## The SSH write path to `/config`
 
+> **Changing for the appliance (TAP-6485).** The shipped appliance runs HA
+> Container with no Supervisor, so `core_ssh` does not exist there. HomeIQ and HA
+> are containers in one compose project and `/config` is a shared volume, so the
+> write path becomes a local filesystem backend (`LocalTarget`) rather than an SSH
+> session. The backup-before-write contract below is preserved exactly. This
+> section describes the SSH backend, which remains the path for an external
+> Supervised instance. See
+> [`../architecture/adr-appliance-packaging.md`](../architecture/adr-appliance-packaging.md).
+
 Recipes that must edit files on the HA host (currently `zha.aqara_fp1e_quirk`)
 reach it through the **Terminal & SSH (`core_ssh`) add-on**.
 `host_files.SSHHostFiles` shells out to `ssh`; there is no SSH client library
@@ -143,6 +152,11 @@ re-interview. The interview truncates because the sensor sleeps partway
 through, which is why keeping it awake is the operative step.
 
 ## Supervisor logs
+
+> **Not available on the appliance.** The shipped instance is HA Container with
+> no Supervisor, so `/api/hassio/*` does not exist there and this whole path is
+> inapplicable. Container logs come from Docker instead. The section stands for an
+> external Supervised instance.
 
 The WS `supervisor/api` passthrough cannot transport text logs (HA core
 JSON-decodes every Supervisor response — log endpoints return `text/plain`
@@ -282,15 +296,24 @@ A step is fillable when every required field is an address the agent already
 observed (`host`, `ip_address`, `address`, `ip`), or when the owner supplied
 the secrets.
 
-**Supplying secrets.** Set `HOMEIQ_INTEGRATION_<DOMAIN>_<FIELD>` in `.env`,
-uppercased with non-alphanumerics as underscores. Measured against the live
-instance on 2026-08-21:
+**Supplying secrets.**
 
-| Domain | First step | Variables to set |
+> **Reversed 2026-08-23 — do not follow the env-var instruction below.** HomeIQ
+> is a consumer product; a customer has a browser and no shell, so an env var is
+> an unshipped feature. TAP-6460 removes the `HOMEIQ_INTEGRATION_*` path and
+> TAP-6469 replaces it: credentials are collected in the running app, handed
+> straight to the Home Assistant config flow, and never persisted by HomeIQ. The
+> field names in the table are still correct — only the delivery mechanism
+> changed. See
+> [`../architecture/adr-appliance-packaging.md`](../architecture/adr-appliance-packaging.md).
+
+Fields required per domain, measured against the live instance on 2026-08-21:
+
+| Domain | First step | Fields the customer supplies |
 |---|---|---|
 | `tplink`, `flux_led` | form, `host` optional | none — the agent has the IP |
-| `ring` | form | `HOMEIQ_INTEGRATION_RING_USERNAME`, `…_PASSWORD` |
-| `roborock` | form | `HOMEIQ_INTEGRATION_ROBOROCK_USERNAME`, `…_REGION` |
+| `ring` | form | `username` (an email), `password` |
+| `roborock` | form | `username` (an email), `region` |
 | `xbox` | **external** (login.live.com) | none possible — OAuth needs a browser |
 
 Credentials are all-or-nothing per domain: a half-filled form renders a
@@ -332,8 +355,8 @@ The endpoint returns two things:
   and needs no Home Assistant call.
 - **`findings`** — this instance. One row per unclaimed integration naming the
   catalogue entry that explains it, the evidence strength, the flow's first
-  step, and the exact `HOMEIQ_INTEGRATION_*` variables a person would need to
-  set.
+  step, and the exact config-flow fields the customer would need to supply.
+  (`required_fields` replaces the former `missing_env_vars` — TAP-6462.)
 
 Findings are persisted to `devices.integration_blockers`, keyed on domain, so a
 dashboard can read them without re-probing. Rows for domains that are no longer

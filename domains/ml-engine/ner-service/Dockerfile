@@ -5,9 +5,16 @@ WORKDIR /app
 
 RUN pip install --upgrade pip
 
-# Install shared libraries
+# Install shared libraries. homeiq-observability declares homeiq-data[auth] as a
+# dependency (TAP-6037), so both local paths must be in one pip invocation —
+# installing observability alone makes pip look for homeiq-data on PyPI, where it
+# does not exist, and the build fails. Same grouping as openvino-service and
+# rag-service.
 COPY libs/ /tmp/libs/
-RUN pip install --no-cache-dir --user /tmp/libs/homeiq-observability/
+RUN pip install --no-cache-dir --user \
+    /tmp/libs/homeiq-observability/ \
+    /tmp/libs/homeiq-data/ \
+    /tmp/libs/homeiq-resilience/
 
 # Install dependencies
 COPY domains/ml-engine/ner-service/requirements-prod.txt .
