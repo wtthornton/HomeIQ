@@ -91,8 +91,10 @@ CATALOGUE: tuple[Blocker, ...] = (
         ),
         workaround=(
             "Supply the credentials via HOMEIQ_INTEGRATION_* so the flow gets past "
-            "step one, then enter the code when prompted. One interaction rather "
-            "than the whole wizard."
+            "step one. The flow then parks in the human-decision queue with its "
+            "flow_id preserved — answer it at /api/v1/init/flow/{flow_id}. One "
+            "interaction rather than the whole wizard, and converge is not halted "
+            "while it waits."
         ),
         resolvable=True,
         example="ring 2FA code; roborock emailed verification code",

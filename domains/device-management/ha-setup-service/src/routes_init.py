@@ -314,7 +314,7 @@ async def _persist_blockers(rows: list[dict[str, Any]]) -> None:
 
 
 @init_router.get("/blockers")
-async def blockers(refresh: bool = True) -> dict[str, Any]:
+async def blockers(refresh: bool = False) -> dict[str, Any]:
     """What HomeIQ cannot configure on this instance, and what to do instead.
 
     Returns two things. ``catalogue`` is the shipped taxonomy — every reason
@@ -326,8 +326,14 @@ async def blockers(refresh: bool = True) -> dict[str, Any]:
     person would have to set. Producing it probes config flows (start, read,
     abort), which mutates, so it is deliberately NOT part of ``/audit``.
 
-    Pass ``refresh=false`` to read the last persisted findings without touching
-    Home Assistant — useful for a dashboard that polls.
+    **Reads the stored table by default.** Producing fresh findings starts and
+    aborts one config flow per candidate integration, so a dashboard polling
+    this endpoint would churn flows against Home Assistant every tick. Pass
+    ``refresh=true`` to re-probe — the audit and converge paths do that anyway.
+
+    The one exception is a cold table: with nothing stored yet a bare call
+    would answer "no blockers", which is indistinguishable from "everything is
+    configured". So an empty table falls through to a probe, once.
     """
     catalogue = [
         {
@@ -343,7 +349,10 @@ async def blockers(refresh: bool = True) -> dict[str, Any]:
     ]
 
     if not refresh:
-        return {"catalogue": catalogue, "findings": await _stored_blockers(), "refreshed": False}
+        stored = await _stored_blockers()
+        if stored:
+            return {"catalogue": catalogue, "findings": stored, "refreshed": False}
+        logger.info("blocker table is empty; probing once rather than reporting none")
 
     recipe = UnclaimedDevicesRecipe(observer_from_env())
     try:

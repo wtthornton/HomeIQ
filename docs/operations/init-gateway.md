@@ -297,10 +297,24 @@ Credentials are all-or-nothing per domain: a half-filled form renders a
 validation error indistinguishable from a wrong password, and leaves a flow
 running in the owner's UI. Nothing is logged and nothing has a default.
 
-**What this does not solve.** A second factor delivered out of band — Ring's
-2FA code, Roborock's emailed verification code — arrives *after* the first
-step. `run_config_flow` will reach that form and stop. Automating it means
-reading the owner's email, which is a separate decision and is not built.
+**The second factor.** A code delivered out of band — Ring's 2FA, Roborock's
+emailed verification — arrives *after* the first step. That form is a **human
+gate, not an error**: `run_config_flow` raises `HAHumanGateRequired` carrying
+the step and `flow_id`, the flow is deliberately **left running**, and the
+owner answers it at `/api/v1/init/flow/{flow_id}`.
+
+That distinction is load-bearing. `HAFlowError` propagates out of `apply` as a
+plain failure, and `engine` halts the whole converge run on the first failed
+recipe (`if not outcome.ok: return report`). Treating a missing 2FA code as an
+error would therefore abandon every later recipe *and* strand the flow in the
+owner's UI. As a gate it becomes `BLOCKED_ON_HUMAN`, which the engine records
+and steps over.
+
+Flows that nothing can resume — an unsupported step type — are torn down
+instead, so they leave no pending discovery behind.
+
+Reading the code out of the owner's email would remove the last interaction.
+That is a much larger authority than "add an integration" and is not built.
 
 ## The blocker catalogue — `GET /api/v1/init/blockers`
 
