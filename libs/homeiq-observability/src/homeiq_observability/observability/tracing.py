@@ -61,17 +61,20 @@ def setup_tracing(service_name: str, otlp_endpoint: str | None = None) -> bool:
 
         provider = TracerProvider(resource=resource)
 
-        if otlp_endpoint:
-            otlp_exporter = OTLPSpanExporter(endpoint=f"{otlp_endpoint}/v1/traces")
+        # Export is opt-in. With no endpoint configured there is no collector to
+        # send to, and installing an exporter anyway makes every service retry a
+        # dead host on a background thread forever — noise that looks like a
+        # failure and is not one. The provider is still set so in-process
+        # instrumentation and correlation IDs keep working.
+        endpoint = otlp_endpoint or os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+        if endpoint:
+            otlp_exporter = OTLPSpanExporter(endpoint=f"{endpoint}/v1/traces")
             provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
-            logger.info("Tracing configured with OTLP HTTP endpoint: %s", otlp_endpoint)
+            logger.info("Tracing configured with OTLP HTTP endpoint: %s", endpoint)
         else:
-            default_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://jaeger:4318")
-            otlp_exporter = OTLPSpanExporter(endpoint=f"{default_endpoint}/v1/traces")
-            provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
             logger.info(
-                "Tracing configured with default OTLP HTTP endpoint: %s",
-                default_endpoint,
+                "No OTLP endpoint configured -- tracing active, export disabled for %s",
+                service_name,
             )
 
         trace.set_tracer_provider(provider)

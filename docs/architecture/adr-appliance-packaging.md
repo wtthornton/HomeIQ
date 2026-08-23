@@ -119,6 +119,13 @@ and that dissolves the tension between "support can recover it" and "nobody can
 steal it". Support rotates and re-provisions; there is no read path. That is also
 auditable in a way that an engineer reading a value is not.
 
+> **Rotation is not being built now (owner, 2026-08-23).** What this section
+> settles is the *shape*: no read path, and secrets chosen so that regeneration
+> is always possible. Implementing a rotation mechanism is deferred and is not in
+> scope for TAP-6484 or TAP-6490. The v1 requirement is only that first-boot
+> generation produces per-install values and stores them where a later rotation
+> path could reach them — not that the path exists.
+
 - One generated secrets file on a dedicated volume, `0600`, owned by the service
   user. Never in an image layer, never in the compose bundle, injected at
   container start.

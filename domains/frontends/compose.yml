@@ -34,6 +34,11 @@ services:
         reservations:
           memory: 192M
           cpus: '0.5'
+    # Operator tooling, not customer surface. Gated out of the production
+    # profile for the appliance (TAP-5283 footprint, TAP-6490 packaging):
+    # start with --profile observability during development.
+    profiles:
+      - observability
 
   observability-dashboard:
     build:
@@ -79,6 +84,11 @@ services:
         max-size: "10m"
         max-file: "3"
         labels: "service=observability-dashboard,group=frontends,environment=production"
+    # Operator tooling, not customer surface. Gated out of the production
+    # profile for the appliance (TAP-5283 footprint, TAP-6490 packaging):
+    # start with --profile observability during development.
+    profiles:
+      - observability
 
   ai-automation-ui:
     build:

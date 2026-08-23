@@ -120,7 +120,6 @@ services:
       - RAG_CORS_ORIGINS=http://localhost:3000,http://localhost:3001
       - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq
       - DATABASE_SCHEMA=rag
-      - OTLP_ENDPOINT=http://jaeger:4317
     volumes:
       - ./rag-service/data:/app/data
     networks:

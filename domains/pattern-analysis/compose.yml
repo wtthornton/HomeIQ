@@ -23,7 +23,6 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - MQTT_BROKER=${MQTT_BROKER:-}
       - MQTT_PORT=${MQTT_PORT:-1883}
-      - OTLP_ENDPOINT=http://jaeger:4317
     volumes:
       - ai_automation_data:/app/data
     networks:
@@ -84,7 +83,6 @@ services:
       - WS_RECONNECT_DELAY=${WS_RECONNECT_DELAY:-5.0}
       - CAPABILITY_GRAPH_REFRESH_INTERVAL=${CAPABILITY_GRAPH_REFRESH_INTERVAL:-300}
       - CAPABILITY_GRAPH_CACHE_TTL=${CAPABILITY_GRAPH_CACHE_TTL:-600}
-      - OTLP_ENDPOINT=http://jaeger:4317
     volumes:
       - api_automation_edge_data:/app/data
     # Cross-domain: depends on core-platform/influxdb, core-platform/data-api
