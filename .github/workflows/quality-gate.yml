@@ -63,6 +63,13 @@ jobs:
           python -m pip install --quiet pyyaml
           python scripts/check-container-budget.py
 
+      # TAP-6483: vendored HA components do not self-update, so the lock file is
+      # the only record of what the appliance ships. Static mode needs no Docker
+      # and catches the common drift: a version bumped in one place only, or the
+      # HA pin slipping back to a moving tag.
+      - name: HA component manifest matches the Dockerfile (TAP-6483)
+        run: python scripts/check-ha-component-manifest.py
+
       # Alert rules are only parsed when Prometheus loads them, so a broken
       # expression silently stops every alert in the file from evaluating. The
       # unit tests also assert each alert fires on the condition it names.
@@ -70,3 +77,61 @@ jobs:
       # involved and this runs on a hosted runner.
       - name: prometheus alert rules valid and unit-tested
         run: bash scripts/check-prometheus-rules.sh
+
+  # TAP-6483: the acceptance criterion is "CI fails when the manifest and the
+  # BUILT IMAGE disagree". The static step in regression-checks only reconciles
+  # the lock file against the Dockerfile — it cannot see what actually landed in
+  # the image, and it never evaluates `must_not_contain`, so on its own it could
+  # not catch HACS reappearing. This job builds the image and runs the deep check.
+  #
+  # No TappsMCP involved: docker build plus a stdlib Python script, so it runs on
+  # a hosted runner. Gated on changed paths with plain git because an HA image
+  # build is not free — and deliberately NOT behind continue-on-error: a gate
+  # that cannot fail reads as coverage while providing none.
+  ha-image-manifest:
+    name: HA image matches its manifest (TAP-6483)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: does this change touch the HA image?
+        id: changed
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="origin/${{ github.base_ref }}"
+          else
+            base="${{ github.event.before }}"
+          fi
+          # A first push or a missing base ref means we cannot diff; build rather
+          # than silently skip, so the gate never passes by accident.
+          if ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            echo "touched=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if git diff --name-only "$base"...HEAD | grep -qE \
+            '^(domains/core-platform/home-assistant/|infrastructure/ha-components\.lock\.json|scripts/check-ha-component-manifest\.py|custom_components/homeiq/|libs/homeiq-ha/src/homeiq_ha/agent/quirks/)'; then
+            echo "touched=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "touched=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: unit tests for the checker
+        if: steps.changed.outputs.touched == 'true'
+        run: |
+          python -m pip install --quiet pytest
+          python -m pytest tests/test_check_ha_component_manifest.py -q
+
+      - name: build the pre-provisioned image
+        if: steps.changed.outputs.touched == 'true'
+        run: |
+          docker build \
+            -f domains/core-platform/home-assistant/Dockerfile \
+            -t homeiq/home-assistant:ci .
+
+      # The deep check: component versions actually in the image, the quirk at
+      # its installed_to path, no unlocked component, and no HACS artifact.
+      - name: manifest matches the built image
+        if: steps.changed.outputs.touched == 'true'
+        run: python scripts/check-ha-component-manifest.py --image homeiq/home-assistant:ci

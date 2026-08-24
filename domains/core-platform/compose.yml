@@ -684,6 +684,57 @@ services:
 
   # --- Test profile services ---
 
+  # The pre-provisioned appliance image (TAP-6483). Powercalc, Team Tracker,
+  # custom_components/homeiq and the Aqara FP1E ZHA quirk are baked in at build
+  # time; HACS is absent by construction.
+  #
+  # `build:` AND `image:` are both set on purpose. With `build:` alone compose
+  # invents its own tag and a separately built image is never consulted — the
+  # built-is-not-loaded trap. Pinning the tag means
+  # `scripts/check-ha-component-manifest.py --image homeiq/home-assistant:2026.8.3`
+  # inspects exactly the artifact this service runs.
+  #
+  # No volume is mounted over /config: that would mask the baked components with
+  # whatever the volume already holds. Only .storage is persisted — where HA
+  # writes auth, registries and config entries.
+  home-assistant:
+    build:
+      context: ../..
+      dockerfile: domains/core-platform/home-assistant/Dockerfile
+    image: homeiq/home-assistant:2026.8.3
+    container_name: homeiq-home-assistant
+    restart: unless-stopped
+    ports:
+      - "8123:8123"
+    volumes:
+      - ha_storage:/config/.storage
+    environment:
+      - TZ=${TZ:-America/Los_Angeles}
+    networks:
+      - homeiq-network
+    profiles:
+      # NOT production, deliberately and temporarily. The image is built and
+      # verified but nothing ships it yet — the installer design (TAP-6490) is
+      # still open. Whoever wires the installer must move this into the
+      # production profile AND raise the ceiling in
+      # infrastructure/container-budget.json; the ratchet is not being dodged,
+      # it is being deferred until this service actually ships.
+      - appliance
+    healthcheck:
+      # /manifest.json, not /api/. HA answers /api/ with 401 without a bearer
+      # token and `curl -f` treats 401 as failure, so an /api/ check can never
+      # pass on a correctly running instance.
+      test: ["CMD", "curl", "-f", "http://localhost:8123/manifest.json"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+
   home-assistant-test:
     image: ghcr.io/home-assistant/home-assistant:stable
     container_name: homeiq-ha-test
@@ -700,7 +751,9 @@ services:
     profiles:
       - test
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8123/api/"]
+      # /api/ answers 401 without a bearer token and `curl -f` fails on it, so
+      # the old /api/ check could never pass. /manifest.json needs no auth.
+      test: ["CMD", "curl", "-f", "http://localhost:8123/manifest.json"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -792,6 +845,7 @@ volumes:
   data_retention_backups:
   prometheus_data:
   grafana_data:
+  ha_storage:
   ha_test_config:
   ha_test_data:
 

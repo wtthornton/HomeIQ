@@ -46,14 +46,20 @@ with no HACS present, plus a manifest CI enforces.
 
 All of the following pasted as command output in the transcript:
 
-1. `docker run` of the built image reaches a serving state — `curl -f http://localhost:8123/api/`
-   returns HTTP 200, output pasted.
+1. `docker run` of the built image reaches a serving state — `curl` of
+   `/manifest.json` returns HTTP 200, output pasted. **Not `/api/`:** HA answers
+   `/api/` with 401 and `/` with 302 without a bearer token, and `curl -f` fails
+   on 401, so an `/api/` check can never pass on a correctly running instance.
+   (Corrected 2026-08-23 after the first run; the original clause was
+   unreachable — a cap that fires on correct behavior.)
 2. `docker run --rm --entrypoint ls <image> /config/custom_components/` lists **exactly the
    4 enumerated components** — `homeiq`, `powercalc`, `teamtracker`, and the Aqara FP1E
    quirk path — and **4 of 4 is the enumerated total**; a run showing fewer is a FAIL, not
    a pass. (Count must not shrink: the goal is unreachable by deleting a component.)
-3. The same listing contains **no** `hacs` directory, and `grep -ri hacs` over the image's
-   `/config` returns nothing.
+3. The same listing contains **no** `hacs` directory — a *structural* check.
+   **Not a substring grep:** `grep -ri hacs` matches the Hungarian word "hacsak"
+   in a Powercalc translation and would fail a correct image. (Corrected
+   2026-08-23 after the first run.)
 4. The pinned HA version in the Dockerfile is a concrete release `>= 2026.8.0`, never
    `stable` — `grep -n 'FROM ghcr.io/home-assistant' <dockerfile>` pasted.
 5. `python scripts/check-ha-component-manifest.py` exits 0 against the built image, and
@@ -69,10 +75,10 @@ All of the following pasted as command output in the transcript:
 | VAL-002 | `/config/custom_components/` contains `homeiq` | SG3 | `docker run --entrypoint ls` |
 | VAL-003 | `/config/custom_components/` contains `powercalc` | SG3 | same |
 | VAL-004 | `/config/custom_components/` contains `teamtracker` | SG3 | same |
-| VAL-005 | The Aqara FP1E quirk is present and importable by HA | SG3 | `ls` + HA log free of quirk-load errors |
-| VAL-006 | No HACS artifact anywhere in the shipped image | SG3 | `ls` + `grep -ri hacs` |
+| VAL-005 | The FP1E quirk is at `/config/custom_zha_quirks/` and the seed points `zha.custom_quirks_path` there | SG3 | `ls` + `cat configuration.yaml` |
+| VAL-006 | No structural HACS artifact in the shipped image | SG3 | `test -e /config/custom_components/hacs` (structural, not substring grep) |
 | VAL-007 | Manifest records the HA pin + every vendored component version, and CI fails on disagreement | SG4 | `check-ha-component-manifest.py` pass **and** perturbed-fail |
-| VAL-008 | Container starts and serves the API with the seeded config | SG5 | `curl -f .../api/` HTTP 200 |
+| VAL-008 | Container starts and serves with the seeded config | SG5 | `curl /manifest.json` HTTP 200 + docker healthcheck `healthy` |
 
 Coverage: 8 IDs, each claimed exactly once. Done-when requires all 8 green.
 
@@ -248,6 +254,11 @@ each in SG1 before depending on it.
   `domains/data-collectors/compose.yml:345` is `image: homeiq/zeek:latest`. Out of scope
   here; note it rather than fixing it, and do not let the false claim justify a wider diff.
   Confirm by: `grep -rn 'image:.*:stable\|image:.*:latest' --include='compose*.yml' .`
+- **The FP1E quirk is not a custom_component** (ticket AC2 lists all four under
+  `/config/custom_components/`) — **FALSE.** A ZHA quirk loads only from the
+  directory named by `zha.custom_quirks_path`; it belongs in
+  `/config/custom_zha_quirks/`. Placing it in `custom_components/` would load
+  nothing. Confirm by: `libs/homeiq-ha/src/homeiq_ha/agent/zha_quirks.py:64`.
 - **Line anchors drifted.** The fixture is at `compose.yml:687-712`, not the `668-688` the
   ticket cites. Re-anchor before editing.
 
