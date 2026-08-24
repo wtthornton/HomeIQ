@@ -18,6 +18,7 @@ from src.config import get_settings  # noqa: E402
 from src.database import Base  # noqa: E402
 from src.models import (  # noqa: E402, F401
     EnvironmentHealth,
+    IntegrationBlocker,
     IntegrationHealth,
     PerformanceMetric,
     SetupWizardSession,
@@ -25,6 +26,13 @@ from src.models import (  # noqa: E402, F401
 
 # --- Service-specific configuration ---
 SCHEMA_NAME = os.getenv("DATABASE_SCHEMA", "devices")
+
+# This service shares the `devices` schema with zeek-network-service, which has
+# its own migration chain and is already at its revision 004 in the default
+# `alembic_version` table. Sharing that table would make alembic look for
+# *this* chain's revision 004, fail to find it, and refuse to run. Each service
+# therefore owns a version table named after itself.
+VERSION_TABLE = "alembic_version_ha_setup"
 settings = get_settings()
 
 # Resolve database URL from environment
@@ -36,9 +44,14 @@ config = context.config
 # Override sqlalchemy.url from settings so Alembic uses the same database
 config.set_main_option("sqlalchemy.url", _database_url)
 
-# Set up loggers from alembic.ini
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+# When the service runs migrations in-process at startup, re-running
+# fileConfig() would reset the root logger and silence every logger created
+# before it — including uvicorn's and the service's own structured logging,
+# which then goes quiet for the rest of the process's life. The caller sets
+# ``configure_logger`` False; the alembic CLI leaves it unset and still gets
+# the ini's logging config.
+if config.config_file_name is not None and config.attributes.get("configure_logger", True):
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # Set target metadata from models
 target_metadata = Base.metadata
@@ -53,6 +66,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         schema_name=SCHEMA_NAME,
         database_url=url,
+        version_table=VERSION_TABLE,
     )
 
 
@@ -65,6 +79,7 @@ def run_migrations_online() -> None:
         target_metadata=target_metadata,
         schema_name=SCHEMA_NAME,
         database_url=url,
+        version_table=VERSION_TABLE,
     )
 
 

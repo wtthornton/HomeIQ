@@ -23,6 +23,7 @@ from .database import init_db
 from .health_service import HealthMonitoringService
 from .http_client import close_http_session
 from .integration_checker import IntegrationHealthChecker
+from .migrations import run_migrations
 from .monitoring_service import ContinuousHealthMonitor
 from .optimization_engine import PerformanceAnalysisEngine, RecommendationEngine
 from .routes_health import health_router
@@ -55,12 +56,22 @@ _continuous_monitor: ContinuousHealthMonitor | None = None
 
 
 async def _startup_db() -> None:
-    """Initialize database on startup."""
+    """Initialize the database and bring this service's tables to head.
+
+    The migration runs before anything serves. Its result is recorded on
+    ``app.state.schema_ready`` so callers can be told the store is unavailable
+    rather than persisting into a table that does not exist and reporting
+    success — the failure mode TAP-6492 exists to close.
+    """
     db_ok = await init_db()
     if db_ok:
         logger.info("Database initialized")
     else:
         logger.warning("Database unavailable - starting in degraded mode")
+
+    app.state.schema_ready = await run_migrations() if db_ok else False
+    if not app.state.schema_ready:
+        logger.warning("Schema not at head - persistence endpoints will report degraded")
 
 
 async def _startup_services() -> None:
