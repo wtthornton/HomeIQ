@@ -89,12 +89,15 @@ authorises a write.
   transcript means it lands in conversation history, which is a different and
   larger security decision than this ADR should make. Secrets travel a separate
   deterministic path and never enter a prompt, a node payload, or a ledger.
-  (Corrected 2026-08-23: this bullet previously said secrets reach the agent
-  through `HOMEIQ_INTEGRATION_*` in `.env`. TAP-6460 is removing that path, and
+  **HomeIQ persists no integration credential.** The customer's value is handed
+  to the Home Assistant config flow in the request that supplied it and is not
+  written down; Home Assistant owns it from then on. Nothing is encrypted at
+  rest because nothing is at rest.
+  (Corrected 2026-08-23: this bullet previously routed secrets through a
+  build-time environment variable. TAP-6460 removed that path and
   [`adr-appliance-packaging.md`](adr-appliance-packaging.md) replaces it — the
   eleven deployment keys are generated on first boot, and customer-supplied
-  integration credentials are collected in the running app and handed straight
-  to a Home Assistant config flow without being stored.)
+  integration credentials are collected in the running app.)
 - **The audit is not instant.** A full run walks ~30 recipes and ~1200
   manifests. The chat must show progress rather than block, and should prefer
   the stored blocker table for anything conversational.
