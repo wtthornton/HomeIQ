@@ -1,83 +1,88 @@
 # Session handoff
 
-**Updated:** 2026-08-23T21:08:51Z
-
-## Why the next session exists
-
-Owner wants to **change something in the plan and discuss architecture**. The
-backlog below is filed but unstarted, so nothing is expensive to revisit. Treat
-every decision here as open for challenge.
+**Updated:** 2026-08-24T00:46:00Z
 
 ## Where things stand
 
-- Branch `feat/unclaimed-device-discovery`, PR #125, **6 commits, unmerged**.
-- Deployed and verified live: `homeiq-setup-service`, `homeiq-zeek-network-service`.
-- **20 Linear issues filed, TAP-6460 to TAP-6481** (5 epics, 15 stories), all
-  validated 98-100, assigned to Claude Agent, `blockedBy` wired. None started.
+`master` is at **`4ed6d769`**. Five PRs merged (#125–#129), **none open**, tree
+clean. Production services **48 → 42**; ratchet updated in
+`infrastructure/container-budget.json` (fails in both directions).
 
-## What shipped and works
+Live stack **unchanged** — compose was edited, containers were not restarted.
+The six observability containers still run. Restarting is also what unblocks an
+honest memory re-measurement.
 
-`integrations.unclaimed_devices` recipe: finds LAN devices no HA integration
-owns. Reads HA's own dhcp matchers via `integration/descriptions` +
-`manifest/get`, so no vendor table in HomeIQ to rot. Blocker catalogue (12
-entries) in `homeiq_ha.agent.blockers`, served at `GET /api/v1/init/blockers`,
-persisted to `devices.integration_blockers`.
+## Decisions — see `docs/architecture/adr-appliance-packaging.md`
 
-Fixed 4 upstream bugs that had kept `devices.network_device_fingerprints` empty
-since first deploy while `/health` said healthy: alembic never invoked; raw
-asyncpg given a SQLAlchemy DSN; DHCP parser read the wrong field (92% of records
-dropped); alembic's `fileConfig` silenced all logging. Store now: 54 devices,
-45 vendors resolved.
+1. **HomeIQ owns a headless HA**, pre-provisioned at build time. HACS is
+   build-time only; no Supervisor. `AddonRecipe` was the sole caller of
+   `ws.supervisor_api`, and every add-on existed to install software or let a
+   human edit files.
+2. **One shared HA credential, generated per install** via HA's onboarding API.
+   Shared ≠ constant; only the first was wanted. **Rotation is deferred**
+   (owner) — shape settled, mechanism not being built.
+3. **Installer + pinned compose bundle**, not one fused image: Zeek's `NET_RAW`
+   + host networking would otherwise cover HA and litellm's provider key.
+4. **Zeek ships opt-in**, default off. `hacs.json` removed, HACS distribution
+   deferred.
 
-## Decisions to re-examine
+## Shipped
 
-1. **B2C, runtime config.** Customers configure in-app via a wizard. `.env` is
-   for deployment values only. This invalidated the env-var credential path I
-   shipped; TAP-6460 rips it out.
-2. **Store nothing.** Customer credentials drive the HA config flow immediately;
-   HA owns them after. No encryption key, no secrets at rest. Exception:
-   TAP-6481 (OPENAI/WEATHER keys) has no downstream owner and must persist.
-3. **REVERSED 2026-08-23 — HomeIQ owns a headless HA.** Guided paste is dead;
-   so is the add-on/OAuth question. The appliance ships its own pre-provisioned
-   HA that the customer never opens, and the shared credential is minted on
-   first boot. (The "63 services" figure was also wrong: the measured count is
-   **48 production services / 7,406 MiB**, per `infrastructure/container-budget.json`.)
-   Recorded in `docs/architecture/adr-appliance-packaging.md`.
-4. **AF-first shape:** gene proposes, `kind: gate` asks the human, dumb relay
-   executes — mirrors `device-onboard.yaml` ("the chokepoint is the TOOL
-   GRANT"). Credentials never enter a node payload, prompt, or ledger.
+Appliance ADR + 6 corrected docs (`ha-init-agent-design.md` superseded).
+**ner-service 16.3 GB → 3.39 GB** (missing CPU wheel index) — the rebuild also
+proved it **could not build at all**; only Dockerfile of 39 with an incomplete
+lib closure. Observability tier gated behind an `observability` profile;
+tracing export now opt-in. **Epic TAP-6460 closed** (6461/6462/6463 + 6492).
+TAP-6492: ha-setup-service had no migration chain; 001 now creates all five
+tables and runs at startup.
 
-## Constraints any redesign must respect
+## Next (P0)
 
-- `iot_class` does NOT indicate credential need. Roborock is `local_polling`
-  and still needs a cloud account. Only probing the flow answers it.
-- A config-flow form with no input is a **human gate, not an error**. Wrong
-  exception type halts the whole converge (`engine.py`: `if not outcome.ok:
-  return report`).
-- Evidence bar splits by flow kind: address flows need STRICT (writes the match
-  itself); account flows accept MAC (integration enumerates from cloud);
-  HOSTNAME never authorises a write.
-- Repo is **public**. MACs in tests/docs keep the real IEEE OUI with synthetic
-  last-3-octets.
+**TAP-6464 — Provision and own the HA instance HomeIQ ships.** Urgent, 7
+stories, none started. Start **TAP-6483** (pre-provisioned image): testable
+today against the `home-assistant-test` fixture, unblocks 6484/6485/6486.
 
-## Known gaps, not mine
+Then TAP-6469 → TAP-6474 → TAP-6478. TAP-6490 (installer) last — blocked by
+TAP-6464 and TAP-5283.
 
-7 HA discovery flows awaiting a click (apple_tv x3, androidtv_remote x2,
-denonavr, homekit_controller). `heos` entry is `state=not_loaded`. A third Ring
-(`b0:09:da`) is in ARP but sent no address-bearing DHCP record.
+## Open, not blocking
 
-## Open question I raised last — RESOLVED 2026-08-23
+1. **Zeek retention** — opt-in says whether, not what is kept or how long.
+   Blocks the wizard step only.
+2. **Does tapps-brain ship?** AgentForge degrades fine when it is unreachable,
+   but its compose has a required-value token and an external network owned by
+   tapps-brain, so it ships unless someone does the escape-hatch work.
+3. TAP-6490's 4 stories are described but **deliberately not filed** — the
+   installer design is open.
 
-Whether to tell the customer to click into HA's Security page or deep-link
-`/profile/security`. **Neither.** The question lost its subject: there is no
-customer-facing HA, so there is no credential for a customer to fetch.
+## Traps
 
-## Open questions that remain
+- **CI reds carry no signal.** `E2E & Integration Tests` and `CI — ML Engine`
+  are red on master head; `Docker Build and Test` / `Docker Test` are 12/12 red
+  on every branch, never green. Security Scan = Trivy missing
+  `scan-<svc>:latest`, infrastructure not findings. **Always diff reds against
+  master head.**
+- **Linear auto-closes on PR merge regardless of acceptance.** TAP-6461 and
+  TAP-6463 both closed with criteria unmet. Re-run acceptance against `master`.
+- `pytest libs/` from root → 28 collection errors (`tests.conftest` collision),
+  pre-existing on master. CI runs per-lib and is green.
+- **Stacked PRs do not auto-retarget** if the base branch still exists. #126
+  merged into its base, not master; fixed by retargeting via REST (`gh pr edit`
+  fails on a Projects-classic GraphQL deprecation).
+- `devices` schema is shared by two services with separate alembic chains; each
+  needs its own `version_table`.
 
-1. **Zeek retention.** Opt-in answers *whether* traffic is captured, not what is
-   kept, for how long, or whether the customer can see and erase it. Blocks the
-   wizard step, not the packaging.
-2. **Where the appliance secret store lives**, and whether support can read it.
-   A store nobody can read is also a store nobody can recover.
-3. **Whether tapps-brain ships at all** — per-appliance it is an empty brain with
-   no federation.
+## Verify first
+
+```bash
+git log --oneline -1                       # 4ed6d769
+grep -rn HOMEIQ_INTEGRATION . --exclude-dir=.git   # zero
+python3 scripts/check-container-budget.py  # OK: 42 production services
+python -m pytest libs/homeiq-ha/tests/ -q  # 414 passed
+```
+
+## Success criterion
+
+TAP-6483 merged: pinned HA image carrying Powercalc, Team Tracker and the Aqara
+quirk in `/config/custom_components/`, no HACS at runtime, and a checked-in
+vendored-component version manifest CI verifies.
