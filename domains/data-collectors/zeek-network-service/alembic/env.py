@@ -15,8 +15,14 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 config = context.config
 
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+# When the service runs migrations in-process at startup, re-running
+# fileConfig() would reset the root logger and silence every logger created
+# before it — including uvicorn's and the service's own structured logging,
+# which then goes quiet for the rest of the process's life. The caller sets
+# ``configure_logger`` False; the alembic CLI leaves it unset and still gets
+# the ini's logging config.
+if config.config_file_name is not None and config.attributes.get("configure_logger", True):
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # Override sqlalchemy.url from environment if available. The service only
 # ships asyncpg, so migrations run on the async engine like data-api's do —

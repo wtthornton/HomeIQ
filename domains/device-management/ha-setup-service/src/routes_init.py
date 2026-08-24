@@ -17,6 +17,8 @@ from fastapi.responses import FileResponse
 from homeiq_ha.agent import HAInitAgent
 from homeiq_ha.agent.answers import Answers, apply_answers
 from homeiq_ha.agent.backup import backup_taker
+from homeiq_ha.agent.blockers import CATALOGUE, describe
+from homeiq_ha.agent.netobserve import observer_from_env
 from homeiq_ha.agent.recipes import default_recipes
 from homeiq_ha.agent.triage import DEFAULT_TRIAGE_STORE_PATH, LaterStore, apply_decision
 from homeiq_ha.agent.triggers import (
@@ -25,6 +27,7 @@ from homeiq_ha.agent.triggers import (
     open_permit_window,
     start_hacs,
 )
+from homeiq_ha.agent.unclaimed import UnclaimedDevicesRecipe
 from homeiq_ha.agent.wizard import build_queue
 from homeiq_ha.client import HAClient
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
@@ -224,6 +227,148 @@ async def audit() -> dict[str, Any]:
         logger.exception("init audit failed")
         raise HTTPException(status_code=502, detail=f"audit failed: {exc}") from exc
     return _serialize(report)
+
+
+async def _stored_blockers() -> list[dict[str, Any]]:
+    """Last persisted findings, or [] when nothing has been surveyed yet."""
+    from sqlalchemy import select
+
+    from .database import db
+    from .models import IntegrationBlocker
+
+    try:
+        async with db.get_db() as session:
+            rows = (await session.execute(select(IntegrationBlocker))).scalars().all()
+    except Exception:
+        # A dashboard polling this must not 500 because Postgres blipped; an
+        # empty list here is honest — it says "nothing stored", and the caller
+        # can refresh=true to go and look.
+        logger.exception("reading stored blockers failed")
+        return []
+
+    return [
+        {
+            "domain": row.domain,
+            "title": row.title,
+            "blocker": row.blocker_kind,
+            "evidence": row.evidence,
+            "flow_step": row.flow_step,
+            "required_fields": row.required_fields or [],
+            "missing_env_vars": row.missing_env_vars or [],
+            "devices": row.devices or [],
+            "first_seen": row.first_seen.isoformat() if row.first_seen else None,
+            "last_seen": row.last_seen.isoformat() if row.last_seen else None,
+        }
+        for row in rows
+    ]
+
+
+async def _persist_blockers(rows: list[dict[str, Any]]) -> None:
+    """Upsert findings by domain, and drop domains that are no longer blocked.
+
+    Deleting the absent ones matters: a domain that got configured should stop
+    appearing, or the table becomes a list of things that were once true.
+    """
+    from datetime import UTC, datetime
+
+    from sqlalchemy import delete
+    from sqlalchemy.dialects.postgresql import insert
+
+    from .database import db
+    from .models import IntegrationBlocker
+
+    now = datetime.now(UTC)
+    domains = [row["domain"] for row in rows]
+
+    try:
+        async with db.get_db() as session:
+            for row in rows:
+                values = {
+                    "domain": row["domain"],
+                    "title": row["title"],
+                    "blocker_kind": row["blocker"],
+                    "evidence": row["evidence"],
+                    "flow_step": row["flow_step"],
+                    "required_fields": row["required_fields"],
+                    "missing_env_vars": row["missing_env_vars"],
+                    "devices": row["devices"],
+                    "last_seen": now,
+                }
+                await session.execute(
+                    insert(IntegrationBlocker)
+                    .values(**values, first_seen=now)
+                    .on_conflict_do_update(
+                        index_elements=["domain"],
+                        set_={k: v for k, v in values.items() if k != "domain"},
+                    )
+                )
+            stale = delete(IntegrationBlocker)
+            if domains:
+                stale = stale.where(IntegrationBlocker.domain.not_in(domains))
+            await session.execute(stale)
+            await session.commit()
+    except Exception:
+        # Persistence is a convenience for dashboards; the survey result is
+        # already being returned to the caller either way.
+        logger.exception("persisting blockers failed")
+
+
+@init_router.get("/blockers")
+async def blockers(refresh: bool = False) -> dict[str, Any]:
+    """What HomeIQ cannot configure on this instance, and what to do instead.
+
+    Returns two things. ``catalogue`` is the shipped taxonomy — every reason
+    automation stops, why it is structural, and the manual step past it. It is
+    the same on every install and needs no Home Assistant call.
+
+    ``findings`` is this instance: one row per unclaimed integration with the
+    catalogue entry that explains it, plus the exact environment variables a
+    person would have to set. Producing it probes config flows (start, read,
+    abort), which mutates, so it is deliberately NOT part of ``/audit``.
+
+    **Reads the stored table by default.** Producing fresh findings starts and
+    aborts one config flow per candidate integration, so a dashboard polling
+    this endpoint would churn flows against Home Assistant every tick. Pass
+    ``refresh=true`` to re-probe — the audit and converge paths do that anyway.
+
+    The one exception is a cold table: with nothing stored yet a bare call
+    would answer "no blockers", which is indistinguishable from "everything is
+    configured". So an empty table falls through to a probe, once.
+    """
+    catalogue = [
+        {
+            "kind": entry.kind.value,
+            "title": entry.title,
+            "detection": entry.detection,
+            "why": entry.why,
+            "workaround": entry.workaround,
+            "resolvable": entry.resolvable,
+            "example": entry.example,
+        }
+        for entry in CATALOGUE
+    ]
+
+    if not refresh:
+        stored = await _stored_blockers()
+        if stored:
+            return {"catalogue": catalogue, "findings": stored, "refreshed": False}
+        logger.info("blocker table is empty; probing once rather than reporting none")
+
+    recipe = UnclaimedDevicesRecipe(observer_from_env())
+    try:
+        async with HAClient.from_env() as ha:
+            rows = await recipe.blockers(ha)
+    except Exception as exc:
+        logger.exception("blocker survey failed")
+        raise HTTPException(status_code=502, detail=f"blocker survey failed: {exc}") from exc
+
+    for row in rows:
+        entry = describe(row["blocker"]) if row["blocker"] else None
+        row["why"] = entry.why if entry else None
+        row["workaround"] = entry.workaround if entry else None
+
+    await _persist_blockers(rows)
+    return {"catalogue": catalogue, "findings": rows, "refreshed": True}
 
 
 @init_router.get("/queue")

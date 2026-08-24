@@ -8,6 +8,7 @@ they are WebSocket-only, see :mod:`homeiq_ha.client.ws`.
 from __future__ import annotations
 
 import logging
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
@@ -169,11 +170,25 @@ class HARestClient:
         ``steps`` supplies the user input for each successive form, in order.
 
         Raises:
-            HAHumanGateRequired: the flow reached an ``external`` or
-                ``progress`` step. The exception carries the URL and any
-                ``description_placeholders`` (HACS puts its GitHub device code
-                there) so the caller can prompt a person and resume.
-            HAFlowError: the flow aborted, or ran out of supplied input.
+            HAHumanGateRequired: the flow needs a person — either an
+                ``external`` / ``progress`` step Home Assistant refuses to let
+                a client advance, or a form whose input was not supplied
+                (a 2FA code, a mailed verification code). **The flow is left
+                running** in all these cases, because the whole point is that
+                someone completes it via ``/api/v1/init/flow/{flow_id}``. The
+                exception carries the step, so the queue can render the
+                remaining fields and the URL or device code.
+            HAFlowError: the flow aborted, or reached a step this client
+                cannot drive. The flow is torn down first, since nothing can
+                resume it.
+
+        A form that runs out of input is a **human gate, not an error**. Getting
+        that wrong is expensive: ``HAFlowError`` propagates out of a recipe's
+        ``apply`` as a plain failure, and ``engine`` halts the entire converge
+        run on the first failed recipe (`if not outcome.ok: return report`).
+        One missing 2FA code would therefore abandon every later recipe *and*
+        strand the flow. As a gate it becomes ``BLOCKED_ON_HUMAN``, which the
+        engine records and steps over.
         """
         step = await self.start_config_flow(domain, **context)
         remaining = list(steps)
@@ -183,6 +198,7 @@ class HARestClient:
             logger.debug("config flow %s step: %s", domain, redact(step))
 
             if step_type in _HUMAN_GATED:
+                # Left running on purpose: the resume route needs this flow_id.
                 raise HAHumanGateRequired(
                     f"{domain} config flow needs a person at a {step_type!r} step",
                     step,
@@ -192,21 +208,26 @@ class HARestClient:
                 return step
 
             if step_type == "abort":
+                # Home Assistant already tore this one down.
                 raise HAFlowError(
                     f"{domain} config flow aborted: {step.get('reason', 'unknown')}",
                     step,
                 )
 
             if step_type not in _ADVANCEABLE:
+                await self._discard_flow(step)
                 raise HAFlowError(
                     f"{domain} config flow returned an unsupported step type {step_type!r}",
                     step,
                 )
 
             if not remaining:
-                raise HAFlowError(
+                # Also left running: this is exactly the 2FA case, and the
+                # owner answers it through the human-decision queue.
+                raise HAHumanGateRequired(
                     f"{domain} config flow needs input for step "
-                    f"{step.get('step_id')!r} but none was supplied",
+                    f"{step.get('step_id')!r} that was not supplied — "
+                    f"answer it at /api/v1/init/flow/{step.get('flow_id')}",
                     step,
                 )
 
@@ -214,3 +235,11 @@ class HARestClient:
             if not flow_id:
                 raise HAFlowError(f"{domain} config flow step has no flow_id", step)
             step = await self.advance_config_flow(str(flow_id), remaining.pop(0))
+
+    async def _discard_flow(self, step: dict[str, Any]) -> None:
+        """Abort a flow nothing can resume, so it leaves no pending discovery."""
+        flow_id = step.get("flow_id")
+        if not flow_id:
+            return
+        with suppress(Exception):
+            await self.abort_config_flow(str(flow_id))

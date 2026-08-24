@@ -204,6 +204,10 @@ class HumanGateRecipe(Recipe):
         ("config/entity_registry/remove", False),
         ("config/label_registry/delete", False),
         ("backup/config/update", False),
+        # The discovery-matcher reads behind integrations.unclaimed_devices.
+        ("integration/descriptions", True),
+        ("manifest/get", True),
+        ("manifest/list", True),
     ],
 )
 def test_read_command_classification(command, expected):

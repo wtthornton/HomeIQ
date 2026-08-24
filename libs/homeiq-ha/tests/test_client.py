@@ -285,9 +285,14 @@ class FakeRest(HARestClient):
         super().__init__("http://ha.test", "secret-token")
         self._steps = list(steps)
         self.calls: list[tuple[str, str]] = []
+        #: flow_ids this client asked Home Assistant to tear down.
+        self.aborted: list[str] = []
 
     async def request(self, method: str, path: str, **_kwargs: Any) -> Any:
         self.calls.append((method, path))
+        if method == "DELETE" and "/flow/" in path:
+            self.aborted.append(path.rsplit("/", 1)[-1])
+            return None
         return self._steps.pop(0)
 
 
@@ -342,10 +347,45 @@ async def test_abort_raises_flow_error():
 
 
 @pytest.mark.asyncio
-async def test_running_out_of_input_is_an_error_not_a_silent_stop():
-    rest = FakeRest([{"type": "form", "flow_id": "f1", "step_id": "user"}])
-    with pytest.raises(HAFlowError, match="none was supplied"):
+async def test_running_out_of_input_is_a_human_gate_not_a_failure():
+    """A form with no supplied input is exactly the 2FA case.
+
+    It must raise the human gate, not a bare HAFlowError: the engine halts the
+    whole converge run on the first failed recipe, so a missing 2FA code would
+    abandon every later recipe. As a gate it becomes BLOCKED_ON_HUMAN and the
+    engine steps over it. HAHumanGateRequired subclasses HAFlowError, so this
+    is still not a silent stop.
+    """
+    rest = FakeRest([{"type": "form", "flow_id": "f1", "step_id": "2fa"}])
+
+    with pytest.raises(HAHumanGateRequired) as excinfo:
+        await rest.run_config_flow("ring", [])
+
+    assert "'2fa'" in str(excinfo.value)
+    assert "/api/v1/init/flow/f1" in str(excinfo.value)
+    assert isinstance(excinfo.value, HAFlowError)
+
+
+@pytest.mark.asyncio
+async def test_a_flow_awaiting_human_input_is_left_running():
+    """The resume route needs the flow alive; aborting it would strand the owner."""
+    rest = FakeRest([{"type": "form", "flow_id": "f1", "step_id": "2fa"}])
+
+    with pytest.raises(HAHumanGateRequired):
+        await rest.run_config_flow("ring", [])
+
+    assert "f1" not in getattr(rest, "aborted", [])
+
+
+@pytest.mark.asyncio
+async def test_an_undriveable_step_tears_the_flow_down():
+    """Nothing can resume an unsupported step, so it must not linger in the UI."""
+    rest = FakeRest([{"type": "banana", "flow_id": "f9", "step_id": "user"}])
+
+    with pytest.raises(HAFlowError, match="unsupported step type"):
         await rest.run_config_flow("nws", [])
+
+    assert "f9" in getattr(rest, "aborted", [])
 
 
 def test_classify_flow_step_defaults_to_form():

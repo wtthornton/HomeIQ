@@ -25,6 +25,13 @@ COPY domains/data-collectors/zeek-network-service/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir --user -r requirements.txt
 
+# Build the IEEE OUI dataset (~577 KB gz, ~53.7k assignments). The curated
+# fallback in oui_lookup.py resolved 0 of 54 devices on the reference network,
+# so vendor identity depends on this step. It fails the build rather than
+# shipping a dataset that silently resolves nothing.
+COPY domains/data-collectors/zeek-network-service/scripts/fetch_ieee_oui.py ./scripts/
+RUN python scripts/fetch_ieee_oui.py /app/data/ieee-oui.tsv.gz
+
 # Production stage
 FROM python:3.12-alpine AS production
 
@@ -45,6 +52,7 @@ COPY --from=builder /root/.local /home/appuser/.local
 
 # Copy application code
 COPY --chown=appuser:appgroup domains/data-collectors/zeek-network-service/src ./src
+COPY --from=builder --chown=appuser:appgroup /app/data ./data
 
 # Copy Alembic config
 COPY --chown=appuser:appgroup domains/data-collectors/zeek-network-service/alembic.ini .

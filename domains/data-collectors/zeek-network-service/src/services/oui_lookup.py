@@ -1,15 +1,39 @@
-"""MAC OUI vendor lookup from IEEE database.
+"""MAC OUI vendor lookup from the IEEE registry.
 
-Resolves the first 3 octets of a MAC address to a manufacturer name
-using a bundled dictionary of common IoT/networking vendors. Falls back
-to "Unknown" for unrecognized OUIs.
+Resolves a MAC address to its manufacturer using the full IEEE dataset built
+into the image by ``scripts/fetch_ieee_oui.py``, falling back to the curated
+dictionary below when that file is absent.
+
+**Longest prefix wins.** IEEE subdivides 24-bit MA-L blocks into 28-bit MA-M
+and 36-bit MA-S assignments held by *different* companies, so a lookup that
+only ever reads 3 octets reports the block holder rather than the actual
+vendor. :meth:`OUILookup.lookup` therefore probes 36, then 28, then 24 bits.
+
+The curated fallback is kept because it is better than nothing on an air-gapped
+build, but it is not adequate on its own: it resolved **0 of 54** devices on
+the reference network, which is how three Ring and five Amazon devices sat
+unidentified. Vendor identity is the one signal that survives a rename
+(see .claude/rules/friendly-names.md), so an unresolved OUI is not a cosmetic
+gap — it removes the only durable evidence there is.
 """
 
 from __future__ import annotations
 
+import gzip
+from pathlib import Path
+
 from homeiq_observability.logging_config import setup_logging
 
 logger = setup_logging("zeek-oui-lookup")
+
+#: Built at image build time. Absent on a build that skipped the fetch step.
+IEEE_DATASET_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "ieee-oui.tsv.gz"
+
+#: Hex-digit lengths to probe, longest first: MA-S (36-bit), MA-M (28-bit),
+#: MA-L (24-bit).
+_PREFIX_LENGTHS = (9, 7, 6)
+
+UNKNOWN_VENDOR = "Unknown"
 
 # Common IoT and networking vendor OUI prefixes (uppercase, colon-separated).
 # This is a curated subset covering the most common smart home devices.
@@ -173,22 +197,54 @@ _OUI_DATABASE: dict[str, str] = {
 }
 
 
-class OUILookup:
-    """Look up device vendor from MAC address using OUI prefix."""
+def _load_ieee_dataset(path: Path) -> dict[str, str]:
+    """Read the gzipped ``ASSIGNMENT<TAB>ORGANIZATION`` dataset."""
+    entries: dict[str, str] = {}
+    with gzip.open(path, "rt", encoding="utf-8") as handle:
+        for line in handle:
+            assignment, _, organization = line.rstrip("\n").partition("\t")
+            if assignment and organization:
+                entries[assignment] = organization
+    return entries
 
-    def __init__(self) -> None:
-        self._db = _OUI_DATABASE
-        logger.info("OUI database loaded with %d entries", len(self._db))
+
+def _curated_fallback() -> dict[str, str]:
+    """The colon-formatted curated dict, re-keyed to bare hex for lookup."""
+    return {prefix.replace(":", ""): vendor for prefix, vendor in _OUI_DATABASE.items()}
+
+
+class OUILookup:
+    """Look up a device vendor from its MAC address."""
+
+    def __init__(self, dataset_path: Path | None = None) -> None:
+        path = dataset_path or IEEE_DATASET_PATH
+        try:
+            self._db = _load_ieee_dataset(path)
+            self.source = "ieee"
+        except (OSError, EOFError, gzip.BadGzipFile) as exc:
+            self._db = _curated_fallback()
+            self.source = "curated-fallback"
+            logger.warning(
+                "IEEE OUI dataset unavailable at %s (%s); falling back to %d curated "
+                "prefixes. Most devices will not resolve — rebuild the image so "
+                "scripts/fetch_ieee_oui.py runs.",
+                path,
+                exc,
+                len(self._db),
+            )
+        else:
+            logger.info("IEEE OUI dataset loaded with %d assignments", len(self._db))
 
     def lookup(self, mac_address: str) -> str:
-        """Return vendor name for a MAC address, or 'Unknown'.
+        """Return the vendor name for a MAC address, or ``"Unknown"``.
 
         Args:
-            mac_address: MAC in any format (AA:BB:CC:DD:EE:FF or aa-bb-cc-dd-ee-ff).
-
-        Returns:
-            Vendor name string.
+            mac_address: MAC in any common format — ``AA:BB:CC:DD:EE:FF``,
+                ``aa-bb-cc-dd-ee-ff``, or bare hex.
         """
-        normalized = mac_address.upper().replace("-", ":")
-        prefix = normalized[:8]  # First 3 octets: "AA:BB:CC"
-        return self._db.get(prefix, "Unknown")
+        digits = mac_address.upper().replace(":", "").replace("-", "").replace(".", "")
+        for length in _PREFIX_LENGTHS:
+            vendor = self._db.get(digits[:length])
+            if vendor:
+                return vendor
+        return UNKNOWN_VENDOR

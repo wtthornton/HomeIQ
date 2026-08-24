@@ -84,3 +84,35 @@ class SetupWizardSession(Base):
 
     def __repr__(self):
         return f"<SetupWizardSession(id={self.session_id}, type={self.integration_type}, status={self.status})>"
+
+
+class IntegrationBlocker(Base):
+    """A reason one integration on THIS instance is not configured automatically.
+
+    Refreshed whenever ``GET /api/v1/init/blockers`` runs. The taxonomy itself
+    lives in ``homeiq_ha.agent.blockers.CATALOGUE`` and ships with the code;
+    this table records which entries a given install is actually hitting, so a
+    dashboard or support conversation can read it without re-probing Home
+    Assistant's config flows.
+
+    Keyed on ``domain`` because a config flow is per integration, not per
+    device — several observed devices collapse to one row.
+    """
+
+    __tablename__ = "integration_blockers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    domain = Column(String, nullable=False, unique=True, index=True)
+    title = Column(String, nullable=False)
+    # Null means nothing is blocking it — the flow is fillable right now.
+    blocker_kind = Column(String, index=True)
+    evidence = Column(String, nullable=False)  # STRICT | MAC | HOSTNAME
+    flow_step = Column(String, nullable=False)  # form | external | progress
+    required_fields = Column(JSON, nullable=False, default=list)
+    missing_env_vars = Column(JSON, nullable=False, default=list)
+    devices = Column(JSON, nullable=False, default=list)
+    first_seen = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    last_seen = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    def __repr__(self):
+        return f"<IntegrationBlocker(domain={self.domain}, blocker={self.blocker_kind})>"

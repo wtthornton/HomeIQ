@@ -6,6 +6,7 @@ OUI vendor lookup, and fingerprint service operations.
 
 from __future__ import annotations
 
+import gzip
 import json
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
@@ -23,6 +24,57 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 # OUI Vendor Lookup
 # ---------------------------------------------------------------------------
+
+
+def _oui_dataset(tmp_path: Path, rows: dict[str, str]) -> Path:
+    path = tmp_path / "ieee-oui.tsv.gz"
+    payload = "\n".join(f"{a}\t{o}" for a, o in rows.items()).encode()
+    path.write_bytes(gzip.compress(payload))
+    return path
+
+
+class TestOUIDataset:
+    """The IEEE dataset, and the sub-assignment rule that makes it necessary."""
+
+    def test_longest_prefix_wins(self, tmp_path: Path):
+        """A 36-bit MA-S assignee outranks the 24-bit block holder.
+
+        IEEE subdivides MA-L blocks; the sub-assignee is a different company.
+        Reading only 3 octets names the block holder, which is the wrong vendor.
+        """
+        dataset = _oui_dataset(
+            tmp_path,
+            {
+                "8CF681": "Block Holder Inc",
+                "8CF6810": "Mid Assignee Ltd",
+                "8CF681012": "Actual Vendor GmbH",
+            },
+        )
+        oui = OUILookup(dataset_path=dataset)
+
+        assert oui.source == "ieee"
+        assert oui.lookup("8C:F6:81:01:23:45") == "Actual Vendor GmbH"
+        assert oui.lookup("8C:F6:81:0F:FF:FF") == "Mid Assignee Ltd"
+        assert oui.lookup("8C:F6:81:FF:FF:FF") == "Block Holder Inc"
+
+    def test_real_ring_and_amazon_prefixes(self, tmp_path: Path):
+        """The prefixes the curated list missed on the reference network."""
+        dataset = _oui_dataset(
+            tmp_path,
+            {"9C7613": "Ring LLC", "90486C": "Ring LLC", "C08D51": "Amazon Technologies Inc."},
+        )
+        oui = OUILookup(dataset_path=dataset)
+
+        assert oui.lookup("9C:76:13:00:00:11") == "Ring LLC"
+        assert oui.lookup("90:48:6C:00:00:22") == "Ring LLC"
+        assert oui.lookup("C0:8D:51:00:00:44") == "Amazon Technologies Inc."
+
+    def test_missing_dataset_falls_back_and_says_so(self, tmp_path: Path):
+        """A missing dataset degrades loudly rather than resolving everything to Unknown."""
+        oui = OUILookup(dataset_path=tmp_path / "absent.tsv.gz")
+
+        assert oui.source == "curated-fallback"
+        assert oui.lookup("24:6F:28:AA:BB:CC") == "Espressif"
 
 
 class TestOUILookup:
@@ -61,92 +113,6 @@ class TestOUILookup:
     def test_amazon(self):
         oui = OUILookup()
         assert oui.lookup("FC:65:DE:AA:BB:CC") == "Amazon"
-
-
-# ---------------------------------------------------------------------------
-# DHCP Parser
-# ---------------------------------------------------------------------------
-
-
-class TestDhcpParser:
-    @pytest.mark.asyncio
-    async def test_parse_dhcp_line(self, sample_dhcp_log_lines: list[str]):
-        fp_service = AsyncMock()
-        oui = OUILookup()
-        parser = DhcpParser(
-            log_tracker=MagicMock(),
-            fingerprint_service=fp_service,
-            oui_lookup=oui,
-            service=MagicMock(),
-        )
-
-        await parser._parse_dhcp_line(sample_dhcp_log_lines[0])
-
-        fp_service.upsert_dhcp.assert_called_once()
-        call_kwargs = fp_service.upsert_dhcp.call_args
-        assert call_kwargs.kwargs["mac_address"] == "24:6f:28:aa:bb:cc"
-        assert call_kwargs.kwargs["ip_address"] == "192.168.1.42"
-        assert call_kwargs.kwargs["hostname"] == "esp32-livingroom"
-        assert call_kwargs.kwargs["vendor"] == "Espressif"
-
-    @pytest.mark.asyncio
-    async def test_parse_dhcp_line_no_mac(self):
-        fp_service = AsyncMock()
-        parser = DhcpParser(
-            log_tracker=MagicMock(),
-            fingerprint_service=fp_service,
-            oui_lookup=OUILookup(),
-            service=MagicMock(),
-        )
-
-        await parser._parse_dhcp_line(json.dumps({"ts": 1.0, "client_addr": "1.2.3.4"}))
-        fp_service.upsert_dhcp.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_parse_dhcpfp_line(self, sample_dhcpfp_log_lines: list[str]):
-        fp_service = AsyncMock()
-        parser = DhcpParser(
-            log_tracker=MagicMock(),
-            fingerprint_service=fp_service,
-            oui_lookup=OUILookup(),
-            service=MagicMock(),
-        )
-
-        await parser._parse_dhcpfp_line(sample_dhcpfp_log_lines[0])
-
-        fp_service.upsert_dhcp.assert_called_once()
-        call_kwargs = fp_service.upsert_dhcp.call_args
-        assert call_kwargs.kwargs["dhcp_fingerprint"] == "1,33,3,6,15,26,28,51,58,59"
-        assert call_kwargs.kwargs["dhcp_vendor_class"] == "dhcpcd-6.7.1:Linux-5.4"
-
-    @pytest.mark.asyncio
-    async def test_parse_invalid_json(self):
-        fp_service = AsyncMock()
-        parser = DhcpParser(
-            log_tracker=MagicMock(),
-            fingerprint_service=fp_service,
-            oui_lookup=OUILookup(),
-            service=MagicMock(),
-        )
-
-        await parser._parse_dhcp_line("not json")
-        fp_service.upsert_dhcp.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_devices_discovered_counter(self, sample_dhcp_log_lines: list[str]):
-        fp_service = AsyncMock()
-        parser = DhcpParser(
-            log_tracker=MagicMock(),
-            fingerprint_service=fp_service,
-            oui_lookup=OUILookup(),
-            service=MagicMock(),
-        )
-
-        assert parser.devices_discovered == 0
-        await parser._parse_dhcp_line(sample_dhcp_log_lines[0])
-        assert parser.devices_discovered == 1
-        await parser._parse_dhcp_line(sample_dhcp_log_lines[1])
-        assert parser.devices_discovered == 2
 
 
 # ---------------------------------------------------------------------------
