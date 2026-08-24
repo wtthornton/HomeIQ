@@ -1,61 +1,72 @@
-"""Owner-supplied config-flow credentials, read from the environment.
+"""Owner-supplied config-flow credentials, passed in by the caller.
 
 Most integrations worth adding open with an account form — Ring wants
 username + password, Roborock wants username + region. The agent must never
-invent those, but it also should not make the owner click through a UI when
-they have already said "you do it". So the owner puts each secret in one place
-once and the init agent fills the form.
+invent those, so they arrive as an argument from whoever is driving the run.
 
-Naming is mechanical: ``HOMEIQ_INTEGRATION_<DOMAIN>_<FIELD>``, both uppercased
-with non-alphanumerics as underscores. Ring's form therefore reads
+They are deliberately **not** read from the environment. HomeIQ ships to
+consumers who have a browser and no shell, so a design that asks someone to
+edit a file on the Docker host is an unshipped feature — and it asks them to
+put an account password next to a public git checkout. The runtime source is
+the setup wizard (TAP-6469); this module only decides whether what arrived is
+enough to fill a given form.
 
-    HOMEIQ_INTEGRATION_RING_USERNAME
-    HOMEIQ_INTEGRATION_RING_PASSWORD
-
-Nothing here has a default and nothing is logged. A field with no variable set
+Nothing here is stored and nothing is logged. A field with no supplied value
 is simply absent, which makes the flow un-fillable and leaves the integration
 reported rather than half-configured.
 """
 
 from __future__ import annotations
 
-import os
-import re
+from collections.abc import Mapping
 
-ENV_PREFIX = "HOMEIQ_INTEGRATION"
+#: Credentials for one domain, keyed by config-flow field name.
+DomainCredentials = Mapping[str, str]
 
-
-def env_var_for(domain: str, field: str) -> str:
-    """The environment variable that supplies ``field`` for ``domain``."""
-    part = re.sub(r"[^A-Za-z0-9]+", "_", f"{domain}_{field}").strip("_").upper()
-    return f"{ENV_PREFIX}_{part}"
+#: Credentials for several domains, keyed by integration domain.
+SuppliedCredentials = Mapping[str, DomainCredentials]
 
 
-def credentials_for(domain: str, fields: tuple[str, ...]) -> dict[str, str] | None:
+def credentials_for(
+    fields: tuple[str, ...],
+    supplied: DomainCredentials | None,
+) -> dict[str, str] | None:
     """Return every requested field, or ``None`` if any one is missing.
 
     All-or-nothing on purpose: submitting a form with half its fields filled
     makes Home Assistant render a validation error, which is indistinguishable
     from a wrong password and leaves a flow running in the owner's UI.
+
+    Args:
+        fields: The config-flow field names the form requires.
+        supplied: What the caller has for this domain, or ``None``.
     """
     if not fields:
         return {}
+    if not supplied:
+        return None
     values: dict[str, str] = {}
     for field in fields:
-        value = os.environ.get(env_var_for(domain, field), "").strip()
+        value = str(supplied.get(field) or "").strip()
         if not value:
             return None
         values[field] = value
     return values
 
 
-def missing_env_vars(domain: str, fields: tuple[str, ...]) -> list[str]:
-    """The variables a person would need to set for ``domain`` to be fillable."""
-    return [
-        env_var_for(domain, field)
-        for field in fields
-        if not os.environ.get(env_var_for(domain, field), "").strip()
-    ]
+def missing_fields(
+    fields: tuple[str, ...],
+    supplied: DomainCredentials | None,
+) -> list[str]:
+    """The field names still needed before ``fields`` can be submitted."""
+    if not supplied:
+        return list(fields)
+    return [field for field in fields if not str(supplied.get(field) or "").strip()]
 
 
-__all__ = ["ENV_PREFIX", "credentials_for", "env_var_for", "missing_env_vars"]
+__all__ = [
+    "DomainCredentials",
+    "SuppliedCredentials",
+    "credentials_for",
+    "missing_fields",
+]

@@ -1,63 +1,72 @@
-"""Tests for owner-supplied config-flow credentials."""
+"""Tests for owner-supplied config-flow credentials.
+
+Credentials arrive as a caller-supplied mapping. There is deliberately no
+environment-variable path: a consumer has a browser and no shell, so a design
+that asks someone to edit a file on the Docker host is an unshipped feature.
+"""
 
 from __future__ import annotations
 
-from homeiq_ha.agent.flow_credentials import (
-    credentials_for,
-    env_var_for,
-    missing_env_vars,
-)
-
-
-class TestEnvVarNaming:
-    def test_domain_and_field_are_uppercased(self):
-        assert env_var_for("ring", "username") == "HOMEIQ_INTEGRATION_RING_USERNAME"
-
-    def test_non_alphanumerics_collapse_to_underscores(self):
-        assert env_var_for("lg_thinq", "client-id") == "HOMEIQ_INTEGRATION_LG_THINQ_CLIENT_ID"
-
-    def test_no_trailing_underscore_from_punctuation(self):
-        assert env_var_for("foo.", ".bar") == "HOMEIQ_INTEGRATION_FOO_BAR"
+from homeiq_ha.agent.flow_credentials import credentials_for, missing_fields
 
 
 class TestCredentialsFor:
-    def test_returns_every_field_when_all_are_set(self, monkeypatch):
-        monkeypatch.setenv("HOMEIQ_INTEGRATION_RING_USERNAME", "owner@example.com")
-        monkeypatch.setenv("HOMEIQ_INTEGRATION_RING_PASSWORD", "hunter2")
+    def test_returns_every_field_when_all_are_supplied(self):
+        supplied = {"username": "owner@example.com", "password": "hunter2"}
 
-        assert credentials_for("ring", ("username", "password")) == {
+        assert credentials_for(("username", "password"), supplied) == {
             "username": "owner@example.com",
             "password": "hunter2",
         }
 
-    def test_all_or_nothing_when_one_is_missing(self, monkeypatch):
+    def test_ignores_fields_the_form_did_not_ask_for(self):
+        """The submitted input is the form's shape, not whatever was handed over."""
+        supplied = {"username": "owner@example.com", "password": "hunter2", "region": "us"}
+
+        assert credentials_for(("username", "password"), supplied) == {
+            "username": "owner@example.com",
+            "password": "hunter2",
+        }
+
+    def test_all_or_nothing_when_one_is_missing(self):
         """A half-filled form errors in a way indistinguishable from a bad password."""
-        monkeypatch.setenv("HOMEIQ_INTEGRATION_RING_USERNAME", "owner@example.com")
-        monkeypatch.delenv("HOMEIQ_INTEGRATION_RING_PASSWORD", raising=False)
+        assert credentials_for(("username", "password"), {"username": "owner@example.com"}) is None
 
-        assert credentials_for("ring", ("username", "password")) is None
+    def test_whitespace_only_counts_as_missing(self):
+        assert credentials_for(("username",), {"username": "   "}) is None
 
-    def test_whitespace_only_counts_as_missing(self, monkeypatch):
-        monkeypatch.setenv("HOMEIQ_INTEGRATION_RING_USERNAME", "   ")
-
-        assert credentials_for("ring", ("username",)) is None
+    def test_nothing_supplied_is_not_fillable(self):
+        assert credentials_for(("username",), None) is None
+        assert credentials_for(("username",), {}) is None
 
     def test_no_required_fields_yields_an_empty_mapping_not_none(self):
         """A flow needing nothing is fillable; None would read as 'cannot fill'."""
-        assert credentials_for("wled", ()) == {}
+        assert credentials_for((), None) == {}
+        assert credentials_for((), {"stray": "value"}) == {}
 
 
-class TestMissingEnvVars:
-    def test_names_exactly_what_a_person_must_set(self, monkeypatch):
-        monkeypatch.setenv("HOMEIQ_INTEGRATION_ROBOROCK_USERNAME", "owner@example.com")
-        monkeypatch.delenv("HOMEIQ_INTEGRATION_ROBOROCK_REGION", raising=False)
+class TestMissingFields:
+    def test_names_exactly_what_is_still_needed(self):
+        supplied = {"username": "owner@example.com"}
 
-        assert missing_env_vars("roborock", ("username", "region")) == [
-            "HOMEIQ_INTEGRATION_ROBOROCK_REGION"
+        assert missing_fields(("username", "region"), supplied) == ["region"]
+
+    def test_empty_when_everything_is_supplied(self):
+        supplied = {"username": "owner@example.com", "region": "us"}
+
+        assert missing_fields(("username", "region"), supplied) == []
+
+    def test_everything_is_missing_when_nothing_was_supplied(self):
+        assert missing_fields(("username", "region"), None) == ["username", "region"]
+        assert missing_fields(("username", "region"), {}) == ["username", "region"]
+
+    def test_whitespace_only_counts_as_missing(self):
+        assert missing_fields(("region",), {"region": "  "}) == ["region"]
+
+    def test_preserves_the_forms_field_order(self):
+        """The order is the form's, so a prompt can be built straight from it."""
+        assert missing_fields(("username", "password", "region"), None) == [
+            "username",
+            "password",
+            "region",
         ]
-
-    def test_empty_when_everything_is_set(self, monkeypatch):
-        monkeypatch.setenv("HOMEIQ_INTEGRATION_ROBOROCK_USERNAME", "owner@example.com")
-        monkeypatch.setenv("HOMEIQ_INTEGRATION_ROBOROCK_REGION", "us")
-
-        assert missing_env_vars("roborock", ("username", "region")) == []

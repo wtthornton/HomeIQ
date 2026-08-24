@@ -140,10 +140,15 @@ class TestFlowProbe:
         ha.rest.abort_config_flow.assert_awaited_once_with("abc123")
 
 
-def _recipe_with(hosts: list[ObservedHost], configured: list[str], matchers: ManifestMatchers):
+def _recipe_with(
+    hosts: list[ObservedHost],
+    configured: list[str],
+    matchers: ManifestMatchers,
+    credentials: dict[str, dict[str, str]] | None = None,
+):
     observer = MagicMock()
     observer.observed_hosts = AsyncMock(return_value=hosts)
-    recipe = UnclaimedDevicesRecipe(observer)
+    recipe = UnclaimedDevicesRecipe(observer, credentials=credentials)
 
     ha = MagicMock()
     ha.rest.get_config_entries = AsyncMock(return_value=[{"domain": d} for d in configured])
@@ -172,7 +177,8 @@ class TestCheck:
 
         assert result.status is CheckStatus.BLOCKED_ON_HUMAN
         assert "ring" in result.details["integrations"]
-        assert "HOMEIQ_INTEGRATION_*" in result.human_action
+        assert "account details" in result.human_action
+        assert "Enter them when HomeIQ asks" in result.human_action
         assert "192.168.1.40" in result.human_action
 
     @pytest.mark.asyncio
@@ -291,15 +297,16 @@ class TestApplyConfiguresOnlyWhatItCan:
         """The whole point: the owner sets the secret once, the agent does the rest."""
         host = ObservedHost("9C:76:13:00:00:11", "192.168.1.40", None, "Ring LLC")
         recipe, ha, load = _recipe_with(
-            [host], configured=[], matchers=self._strict("ring", "Ring", host)
+            [host],
+            configured=[],
+            matchers=self._strict("ring", "Ring", host),
+            credentials={"ring": {"username": "owner@example.com", "password": "hunter2"}},
         )
         monkeypatch.setattr(ManifestMatchers, "load", load)
         monkeypatch.setattr(
             "homeiq_ha.agent.unclaimed.probe_flow",
             AsyncMock(return_value=FlowProbe("ring", "form", ("username", "password"))),
         )
-        monkeypatch.setenv("HOMEIQ_INTEGRATION_RING_USERNAME", "owner@example.com")
-        monkeypatch.setenv("HOMEIQ_INTEGRATION_RING_PASSWORD", "hunter2")
         ha.rest.run_config_flow = AsyncMock()
 
         result = await recipe.apply(ha)
@@ -314,15 +321,16 @@ class TestApplyConfiguresOnlyWhatItCan:
         """Half a form renders a validation error indistinguishable from a bad password."""
         host = ObservedHost("9C:76:13:00:00:11", "192.168.1.40", None, "Ring LLC")
         recipe, ha, load = _recipe_with(
-            [host], configured=[], matchers=self._strict("ring", "Ring", host)
+            [host],
+            configured=[],
+            matchers=self._strict("ring", "Ring", host),
+            credentials={"ring": {"username": "owner@example.com"}},
         )
         monkeypatch.setattr(ManifestMatchers, "load", load)
         monkeypatch.setattr(
             "homeiq_ha.agent.unclaimed.probe_flow",
             AsyncMock(return_value=FlowProbe("ring", "form", ("username", "password"))),
         )
-        monkeypatch.setenv("HOMEIQ_INTEGRATION_RING_USERNAME", "owner@example.com")
-        monkeypatch.delenv("HOMEIQ_INTEGRATION_RING_PASSWORD", raising=False)
         ha.rest.run_config_flow = AsyncMock()
 
         result = await recipe.apply(ha)
@@ -334,14 +342,16 @@ class TestApplyConfiguresOnlyWhatItCan:
     async def test_never_drives_an_oauth_flow_even_with_credentials(self, monkeypatch):
         host = ObservedHost("68:6C:E6:00:00:DD", "192.168.1.101", "XBOX", "Microsoft")
         recipe, ha, load = _recipe_with(
-            [host], configured=[], matchers=self._strict("xbox", "Xbox", host)
+            [host],
+            configured=[],
+            matchers=self._strict("xbox", "Xbox", host),
+            credentials={"xbox": {"username": "someone"}},
         )
         monkeypatch.setattr(ManifestMatchers, "load", load)
         monkeypatch.setattr(
             "homeiq_ha.agent.unclaimed.probe_flow",
             AsyncMock(return_value=FlowProbe("xbox", "external", ())),
         )
-        monkeypatch.setenv("HOMEIQ_INTEGRATION_XBOX_USERNAME", "someone")
         ha.rest.run_config_flow = AsyncMock()
 
         await recipe.apply(ha)
@@ -396,15 +406,16 @@ class TestEvidenceBarByFlowKind:
         """Ring enumerates its own devices from the cloud; the match is only a trigger."""
         host = ObservedHost("9C:76:13:00:00:11", "192.168.1.40", None, "Ring LLC")
         recipe, ha, load = _recipe_with(
-            [host], configured=[], matchers=_matchers(ring=(RING_DHCP, "Ring", "cloud_polling"))
+            [host],
+            configured=[],
+            matchers=_matchers(ring=(RING_DHCP, "Ring", "cloud_polling")),
+            credentials={"ring": {"username": "owner@example.com", "password": "hunter2"}},
         )
         monkeypatch.setattr(ManifestMatchers, "load", load)
         monkeypatch.setattr(
             "homeiq_ha.agent.unclaimed.probe_flow",
             AsyncMock(return_value=FlowProbe("ring", "form", ("username", "password"))),
         )
-        monkeypatch.setenv("HOMEIQ_INTEGRATION_RING_USERNAME", "owner@example.com")
-        monkeypatch.setenv("HOMEIQ_INTEGRATION_RING_PASSWORD", "hunter2")
         ha.rest.run_config_flow = AsyncMock()
 
         result = await recipe.apply(ha)

@@ -85,10 +85,16 @@ authorises a write.
   words it can soften a blocker into a suggestion. Mitigation: render
   `human_action` verbatim; let the agent add context around it, never replace
   it.
-- **Credential capture is out of scope for v1.** Secrets reach the agent
-  through `HOMEIQ_INTEGRATION_*` in `.env`, not through a chat box. Accepting a
-  password in a chat transcript means it lands in conversation history, which
-  is a different and larger security decision than this ADR should make.
+- **Credential capture is out of scope for v1.** Accepting a password in a chat
+  transcript means it lands in conversation history, which is a different and
+  larger security decision than this ADR should make. Secrets travel a separate
+  deterministic path and never enter a prompt, a node payload, or a ledger.
+  (Corrected 2026-08-23: this bullet previously said secrets reach the agent
+  through `HOMEIQ_INTEGRATION_*` in `.env`. TAP-6460 is removing that path, and
+  [`adr-appliance-packaging.md`](adr-appliance-packaging.md) replaces it — the
+  eleven deployment keys are generated on first boot, and customer-supplied
+  integration credentials are collected in the running app and handed straight
+  to a Home Assistant config flow without being stored.)
 - **The audit is not instant.** A full run walks ~30 recipes and ~1200
   manifests. The chat must show progress rather than block, and should prefer
   the stored blocker table for anything conversational.

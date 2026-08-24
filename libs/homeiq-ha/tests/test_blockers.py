@@ -83,10 +83,9 @@ class TestClassifier:
         )
         assert kind is BlockerKind.NOT_OBSERVED
 
-    def test_account_flow_without_secrets_is_credentials_missing(self, monkeypatch):
-        monkeypatch.delenv("HOMEIQ_INTEGRATION_D_USERNAME", raising=False)
+    def test_account_flow_without_secrets_is_credentials_missing(self):
         kind = classify_blocker(
-            _candidate(MatchStrength.MAC), FlowProbe("d", "form", ("username",))
+            _candidate(MatchStrength.MAC), FlowProbe("d", "form", ("username",)), None
         )
         assert kind is BlockerKind.CREDENTIALS_MISSING
 
@@ -96,16 +95,18 @@ class TestClassifier:
             is None
         )
 
-    def test_nothing_blocks_an_account_flow_once_secrets_exist(self, monkeypatch):
-        monkeypatch.setenv("HOMEIQ_INTEGRATION_D_USERNAME", "owner@example.com")
+    def test_nothing_blocks_an_account_flow_once_secrets_exist(self):
         assert (
-            classify_blocker(_candidate(MatchStrength.MAC), FlowProbe("d", "form", ("username",)))
+            classify_blocker(
+                _candidate(MatchStrength.MAC),
+                FlowProbe("d", "form", ("username",)),
+                {"username": "owner@example.com"},
+            )
             is None
         )
 
-    def test_every_returned_kind_is_in_the_catalogue(self, monkeypatch):
+    def test_every_returned_kind_is_in_the_catalogue(self):
         """The classifier must never emit a kind the catalogue cannot explain."""
-        monkeypatch.delenv("HOMEIQ_INTEGRATION_D_USERNAME", raising=False)
         probes = [
             FlowProbe("d", "external", ()),
             FlowProbe("d", "progress", ()),
@@ -122,10 +123,10 @@ class TestClassifier:
 
 class TestBlockerRows:
     @pytest.mark.asyncio
-    async def test_row_names_the_env_vars_a_person_must_set(self, monkeypatch):
+    async def test_row_names_the_fields_a_person_must_supply(self, monkeypatch):
         from homeiq_ha.agent.matchers import ManifestMatchers
 
-        recipe = UnclaimedDevicesRecipe(MagicMock())
+        recipe = UnclaimedDevicesRecipe(MagicMock(), credentials={})
         host = ObservedHost("9C:76:13:00:00:11", "192.168.1.40", None, "Ring LLC")
         monkeypatch.setattr(
             UnclaimedDevicesRecipe,
@@ -136,15 +137,10 @@ class TestBlockerRows:
             "homeiq_ha.agent.unclaimed.probe_flow",
             AsyncMock(return_value=FlowProbe("ring", "form", ("username", "password"))),
         )
-        monkeypatch.delenv("HOMEIQ_INTEGRATION_RING_USERNAME", raising=False)
-        monkeypatch.delenv("HOMEIQ_INTEGRATION_RING_PASSWORD", raising=False)
         assert ManifestMatchers  # imported for symmetry with the recipe's deps
 
         [row] = await recipe.blockers(MagicMock())
 
         assert row["blocker"] == BlockerKind.CREDENTIALS_MISSING.value
-        assert row["missing_env_vars"] == [
-            "HOMEIQ_INTEGRATION_RING_USERNAME",
-            "HOMEIQ_INTEGRATION_RING_PASSWORD",
-        ]
+        assert row["required_fields"] == ["username", "password"]
         assert row["evidence"] == "MAC"
