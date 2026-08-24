@@ -224,26 +224,35 @@ class UnclaimedDevicesRecipe(Recipe):
             human_action=self._human_action(unclaimed, unmatched),
         )
 
-    async def _fillable(self, ha: HAClient) -> list[tuple[Candidate, dict[str, str]]]:
-        """Candidates whose config flow the agent can complete, with the input.
+    async def _fillable(
+        self, ha: HAClient
+    ) -> tuple[list[tuple[Candidate, dict[str, str]]], list[str]]:
+        """Candidates whose config flow the agent can complete, and those it cannot.
 
         Two ways a flow becomes fillable: it needs nothing but an address the
         agent already observed, or the owner supplied its secrets through
         :mod:`.flow_credentials`. Probing starts real flows, so this is only
         reachable from ``plan`` and ``apply``.
+
+        The second return value is the domains that were passed over, sorted.
+        Returning only the fillable ones is how a domain the agent could not
+        complete vanishes from the result with nothing said about it.
         """
         unclaimed, _ = await self._survey(ha)
         # Filter before probing: a HOSTNAME match can never be written, and
         # probing starts a real flow on the instance.
         usable = [c for c in unclaimed if c.strength is not MatchStrength.HOSTNAME]
         ready: list[tuple[Candidate, dict[str, str]]] = []
+        skipped: list[str] = []
 
         for candidate in _unique_by_domain(usable):
             probe = await probe_flow(ha, candidate.domain)
             user_input = self._input_for(candidate, probe)
             if user_input is not None:
                 ready.append((candidate, user_input))
-        return ready
+            else:
+                skipped.append(candidate.domain)
+        return ready, sorted(skipped)
 
     async def blockers(self, ha: HAClient) -> list[dict[str, Any]]:
         """One row per unclaimed domain: what blocks it, and what to set.
@@ -309,14 +318,14 @@ class UnclaimedDevicesRecipe(Recipe):
         return Plan(
             tuple(
                 Change("configure integration", c.domain, after=c.host.ip or "loaded")
-                for c, _ in await self._fillable(ha)
+                for c, _ in (await self._fillable(ha))[0]
             )
         )
 
     async def apply(self, ha: HAClient) -> ApplyResult:
-        ready = await self._fillable(ha)
+        ready, skipped = await self._fillable(ha)
         if not ready:
-            return ApplyResult((), "nothing fillable: needs owner credentials or a browser")
+            return ApplyResult((), self._skipped_summary("nothing fillable", skipped))
 
         changed: list[Change] = []
         for candidate, user_input in ready:
@@ -326,7 +335,23 @@ class UnclaimedDevicesRecipe(Recipe):
                     "configure integration", candidate.domain, after=candidate.host.ip or "loaded"
                 )
             )
-        return ApplyResult(tuple(changed), f"configured {len(changed)} integration(s)")
+        return ApplyResult(
+            tuple(changed),
+            self._skipped_summary(f"configured {len(changed)} integration(s)", skipped),
+        )
+
+    @staticmethod
+    def _skipped_summary(done: str, skipped: list[str]) -> str:
+        """Name what was passed over, so a partial apply cannot read as a full one.
+
+        Reporting only what succeeded is how a domain the agent could not fill
+        disappears from the result: "configured 2 integration(s)" says nothing
+        about the three it walked past, and the caller has no way to tell a
+        complete pass from a partial one.
+        """
+        if not skipped:
+            return done
+        return f"{done}; awaiting the owner for {', '.join(skipped)}"
 
     async def verify(self, ha: HAClient) -> VerifyResult:
         """Re-read config entries rather than trusting what apply returned."""

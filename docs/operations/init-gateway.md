@@ -300,11 +300,12 @@ the secrets.
 
 > **Reversed 2026-08-23 — do not follow the env-var instruction below.** HomeIQ
 > is a consumer product; a customer has a browser and no shell, so an env var is
-> an unshipped feature. TAP-6460 removes the `HOMEIQ_INTEGRATION_*` path and
-> TAP-6469 replaces it: credentials are collected in the running app, handed
-> straight to the Home Assistant config flow, and never persisted by HomeIQ. The
-> field names in the table are still correct — only the delivery mechanism
-> changed. See
+> an unshipped feature. TAP-6460 removed the build-time environment-variable
+> path and TAP-6469 replaces it: credentials are collected in the running app,
+> handed straight to the Home Assistant config flow, and **never persisted by
+> HomeIQ** — Home Assistant owns them once the flow completes, so there is no
+> HomeIQ-side secret to encrypt, rotate, or leak. The field names in the table
+> are still correct — only the delivery mechanism changed. See
 > [`../architecture/adr-appliance-packaging.md`](../architecture/adr-appliance-packaging.md).
 
 Fields required per domain, measured against the live instance on 2026-08-21:

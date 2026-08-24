@@ -315,6 +315,35 @@ class TestApplyConfiguresOnlyWhatItCan:
             "ring", [{"username": "owner@example.com", "password": "hunter2"}]
         )
         assert result.change_count == 1
+        assert "ring" not in result.summary
+
+    @pytest.mark.asyncio
+    async def test_apply_names_the_domains_it_could_not_fill(self, monkeypatch):
+        """A partial apply must not read like a complete one.
+
+        Reporting only what succeeded is how a domain the agent walked past
+        disappears from the result entirely.
+        """
+        host = ObservedHost("9C:76:13:00:00:11", "192.168.1.40", None, "Ring LLC")
+        recipe, ha, load = _recipe_with(
+            [host],
+            configured=[],
+            matchers=self._strict("ring", "Ring", host),
+            credentials=None,
+        )
+        monkeypatch.setattr(ManifestMatchers, "load", load)
+        monkeypatch.setattr(
+            "homeiq_ha.agent.unclaimed.probe_flow",
+            AsyncMock(return_value=FlowProbe("ring", "form", ("username", "password"))),
+        )
+        ha.rest.run_config_flow = AsyncMock()
+
+        result = await recipe.apply(ha)
+
+        ha.rest.run_config_flow.assert_not_awaited()
+        assert result.change_count == 0
+        assert "ring" in result.summary
+        assert "awaiting the owner" in result.summary
 
     @pytest.mark.asyncio
     async def test_partial_credentials_are_refused(self, monkeypatch):
