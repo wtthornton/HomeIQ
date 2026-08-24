@@ -103,13 +103,29 @@ HomeIQ: Created automation. Want to add conditions or additional actions?
 
 ## Quick Start
 
-### Prerequisites
+> **The distribution model is changing (2026-08-23).** HomeIQ is becoming an
+> appliance that **ships and owns its own headless Home Assistant** — the customer
+> never opens HA, and the shared HA credential is minted automatically on first
+> boot rather than pasted in. Delivery becomes an installer plus a pinned Compose
+> bundle, not a `git clone`. See
+> [`docs/architecture/adr-appliance-packaging.md`](docs/architecture/adr-appliance-packaging.md)
+> and TAP-6464.
+>
+> The instructions below are the **current developer setup**, which still expects
+> an external Home Assistant you already run. They stay accurate until the
+> appliance ships.
+
+### Prerequisites (developer setup)
 
 - [Home Assistant](https://www.home-assistant.io/) running on your local network
 - Intel NUC (or similar) with 8GB+ RAM, 20GB+ disk space
 - [Docker](https://www.docker.com/) and Docker Compose v2.0+
 
-### Installation
+> Current footprint: **48 production services, ~7.4 GiB resident** — see
+> `infrastructure/container-budget.json`. TAP-5283 is collapsing that toward 12
+> services / 4 GiB, which is what makes the appliance distributable.
+
+### Installation (developer setup)
 
 ```bash
 # Clone the repository
@@ -219,7 +235,7 @@ HomeIQ runs **~58 application containers** (Docker Compose `--profile production
 | # | Domain | Services (production profile) | Purpose |
 |---|--------|------------------------------|---------|
 | 1 | **core-platform** | 12 | Data backbone — InfluxDB, PostgreSQL, data-api, websocket-ingestion, admin-api, health-dashboard, data-retention, homeiq-mcp, Prometheus, Grafana, Alertmanager, postgres-exporter |
-| 2 | **data-collectors** | 9 | Stateless fetchers + network — weather, smart-meter, sports, air-quality, electricity-pricing, calendar, log-aggregator, zeek, zeek-network-service |
+| 2 | **data-collectors** | 9 | Stateless fetchers + network — weather, smart-meter, sports, air-quality, electricity-pricing, calendar, log-aggregator, zeek, zeek-network-service. `zeek` needs `network_mode: host` with `NET_RAW`/`NET_ADMIN` for passive capture, and ships **opt-in, default off** on the appliance |
 | 3 | **ml-engine** | 5 | ML inference — OpenVINO, ML, NER, RAG, device-intelligence (`model-prep` is `development` one-shot) |
 | 4 | **automation-core** | 6 | Automation engine — ha-ai-agent, ai-automation, YAML validation, linter, trace service, ha-device-control |
 | 5 | **blueprints** | 4 | Blueprint discovery, indexing, ML recommendations |

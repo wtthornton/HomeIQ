@@ -987,6 +987,14 @@ docker compose logs | grep -i error
 
 ### Agent write path to Home Assistant `/config` (2026-08-18)
 
+> **Superseded for the appliance, 2026-08-23 (TAP-6485).** The shipped appliance
+> runs HA Container with **no Supervisor**, so `core_ssh` and the `supervisor/api`
+> passthrough described below do not exist there. HomeIQ and HA are containers in
+> one Compose project with `/config` as a shared volume, so the write path is a
+> local filesystem backend. The section below remains correct for an **external
+> Supervised** instance. See
+> [`../architecture/adr-appliance-packaging.md`](../architecture/adr-appliance-packaging.md).
+
 The recipes that edit `configuration.yaml` (TAP-5430) and the custom ZHA quirk drop
 (TAP-6018) need file access to the HA host. It is provisioned through the **Terminal &
 SSH (`core_ssh`) add-on**, driven from the Supervisor API — reachable with the existing
@@ -1055,6 +1063,11 @@ pretending the device is fixed.
 **Surviving a rebuild.** `/config/custom_zha_quirks/` is *not* in this repo's
 deployment artifacts and is *not* recreated by anything else — it lives on the HA
 host, which HomeIQ does not own. Two consequences:
+
+> **Reversed on the appliance (TAP-6483).** HomeIQ *does* own the HA instance
+> there, and the quirk is vendored into the image at build time, so it is
+> recreated by every deployment and cannot be lost to a `/config` wipe. The
+> paragraph below applies to an external instance.
 
 - A Home Assistant OS restore, a `/config` wipe, or a fresh HA install loses both
   the directory and the `zha:` key. Re-run the recipe; it is idempotent, and a

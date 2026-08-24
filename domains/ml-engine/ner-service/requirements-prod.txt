@@ -2,5 +2,11 @@ fastapi>=0.115.0,<1.0.0
 uvicorn>=0.30.0
 pydantic>=2.9.0
 aiohttp>=3.13.3,<4.0.0  # CVE-2025-69223..69230 fix; required by homeiq-observability
+# CPU-only PyTorch index. Without this, pip resolves the CUDA build and pulls the
+# full NVIDIA runtime onto a host with no GPU: the image measured 16.3 GB on
+# 2026-08-23, a third of the entire 48-service stack. Same line as
+# openvino-service/requirements.txt and model-prep/Dockerfile.
+--extra-index-url https://download.pytorch.org/whl/cpu
+
 transformers>=4.50.0,<5.0.0  # Epic 54: aligned
-torch>=2.5.0,<3.0.0  # Epic 54: aligned
+torch>=2.5.0,<3.0.0  # Epic 54: aligned — CPU-only

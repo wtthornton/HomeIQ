@@ -117,7 +117,7 @@ services:
       - API_KEY=${API_KEY:-}
       - CORS_ORIGINS=http://localhost:3000,http://localhost
       - DEPLOYMENT_MODE=${DEPLOYMENT_MODE:-production}
-      - OTLP_ENDPOINT=http://jaeger:4317
+      - OTLP_ENDPOINT=${HOMEIQ_OTLP_ENDPOINT:-}
       - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq
       - DATABASE_SCHEMA=core
@@ -200,7 +200,6 @@ services:
       - WEATHER_RATE_LIMIT_PER_MINUTE=${WEATHER_RATE_LIMIT_PER_MINUTE:-50}
       - WEATHER_RATE_LIMIT_PER_DAY=${WEATHER_RATE_LIMIT_PER_DAY:-900}
       - WEATHER_REQUEST_TIMEOUT=${WEATHER_REQUEST_TIMEOUT:-10}
-      - OTLP_ENDPOINT=http://jaeger:4317
     logging:
       driver: "json-file"
       options:
@@ -274,7 +273,7 @@ services:
       - DEVICE_INTELLIGENCE_API_KEY=${API_KEY:-}
       - AI_AUTOMATION_URL=http://ai-automation-service-new:8025
       - WEATHER_SERVICE_URL=http://weather-api:8009
-      - OTLP_ENDPOINT=http://jaeger:4317
+      - OTLP_ENDPOINT=${HOMEIQ_OTLP_ENDPOINT:-}
     depends_on:
       influxdb:
         condition: service_healthy
@@ -540,6 +539,11 @@ services:
         max-size: "10m"
         max-file: "3"
         labels: "service=alertmanager,group=core-platform,environment=production"
+    # Operator tooling, not customer surface. Gated out of the production
+    # profile for the appliance (TAP-5283 footprint, TAP-6490 packaging):
+    # start with --profile observability during development.
+    profiles:
+      - observability
 
   prometheus:
     image: prom/prometheus:v3.2.1
@@ -588,6 +592,11 @@ services:
         max-size: "10m"
         max-file: "3"
         labels: "service=prometheus,group=core-platform,environment=production"
+    # Operator tooling, not customer surface. Gated out of the production
+    # profile for the appliance (TAP-5283 footprint, TAP-6490 packaging):
+    # start with --profile observability during development.
+    profiles:
+      - observability
 
   grafana:
     image: grafana/grafana:11.5.2
@@ -628,6 +637,11 @@ services:
         max-size: "10m"
         max-file: "3"
         labels: "service=grafana,group=core-platform,environment=production"
+    # Operator tooling, not customer surface. Gated out of the production
+    # profile for the appliance (TAP-5283 footprint, TAP-6490 packaging):
+    # start with --profile observability during development.
+    profiles:
+      - observability
 
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:v0.17.0
@@ -662,6 +676,11 @@ services:
         max-size: "10m"
         max-file: "3"
         labels: "service=postgres-exporter,group=core-platform,environment=production"
+    # Operator tooling, not customer surface. Gated out of the production
+    # profile for the appliance (TAP-5283 footprint, TAP-6490 packaging):
+    # start with --profile observability during development.
+    profiles:
+      - observability
 
   # --- Test profile services ---
 

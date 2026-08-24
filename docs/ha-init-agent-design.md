@@ -1,6 +1,23 @@
 # HA Init/Setup Agent — Design & Priority Plan
 
-**Status:** Executed and live. The engine has converged the real instance repeatedly
+> **SUPERSEDED for the appliance, 2026-08-23.** This document describes converging
+> an **external, Supervised** Home Assistant that the customer owns. HomeIQ now
+> ships and owns a **headless HA Container** instance with no Supervisor, so every
+> add-on claim below is false for the shipped product: there is no Supervisor API,
+> no add-on store, no `core_ssh`, no `core_configurator`, and HACS is a build-time
+> tool that is not present at runtime. Powercalc, Team Tracker and the Aqara FP1E
+> quirk are vendored into `/config/custom_components/` at image build. The
+> long-lived token is minted automatically on first boot, not created by a person.
+>
+> Read [`docs/architecture/adr-appliance-packaging.md`](architecture/adr-appliance-packaging.md)
+> first. It records the decision, what it deletes, and what it costs.
+>
+> What in here is **still accurate**: the phase model and its ordering, the backup
+> gate, the check/plan/apply/verify recipe contract, the human-gate semantics, and
+> the reasoning about why nothing is auto-applied. Those survived the reversal
+> unchanged. The add-on and HACS mechanics did not.
+
+**Status:** Executed and live against the original external instance. The engine has converged the real instance repeatedly
 since 2026-08-11 through the init gateway (`:8024`, PR #82); the recipe set has grown
 past this document (20 audit outcomes as of 2026-08-13, including report-only Zigbee
 diagnostics and a coordinator watchdog). Treat the sections below as the founding
