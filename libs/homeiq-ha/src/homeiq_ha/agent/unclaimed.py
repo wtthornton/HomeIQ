@@ -49,7 +49,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from .blockers import classify_blocker
-from .flow_credentials import credentials_for, missing_env_vars
+from .flow_credentials import SuppliedCredentials, credentials_for
 from .flow_probe import FlowProbe, probe_flow
 from .matchers import Candidate, ManifestMatchers, MatchStrength
 from .recipe import (
@@ -83,8 +83,17 @@ class UnclaimedDevicesRecipe(Recipe):
     phase = PHASE_INTEGRATIONS
     description = "Every LAN device is claimed by a configured integration"
 
-    def __init__(self, observer: NetworkObserver | None = None) -> None:
+    def __init__(
+        self,
+        observer: NetworkObserver | None = None,
+        credentials: SuppliedCredentials | None = None,
+    ) -> None:
         self._observer = observer
+        # Per-domain config-flow credentials supplied by whoever drives the
+        # run. Empty by default: with no runtime source wired yet (TAP-6469),
+        # account flows correctly report CREDENTIALS_MISSING rather than
+        # appearing fillable.
+        self._credentials: SuppliedCredentials = credentials or {}
 
     @staticmethod
     async def _adopted_macs(ha: HAClient) -> set[str]:
@@ -133,46 +142,6 @@ class UnclaimedDevicesRecipe(Recipe):
                 unmatched.setdefault(_identified_vendor(host), []).append(host)
         return unclaimed, unmatched
 
-    @staticmethod
-    def _human_action(
-        blocked: list[Candidate], unmatched: dict[str, list[ObservedHost]] | None = None
-    ) -> str:
-        lines: list[str] = []
-
-        by_domain: dict[str, list[Candidate]] = {}
-        for candidate in blocked:
-            by_domain.setdefault(candidate.domain, []).append(candidate)
-
-        if by_domain:
-            lines.append(
-                "Add these in Settings > Devices & Services > Add Integration. "
-                "Each needs an account login the agent must not attempt:"
-            )
-            for domain, group in sorted(by_domain.items()):
-                where = ", ".join(_where(c.host) for c in group)
-                lines.append(f"  - {group[0].title} [{domain}]: {len(group)} device(s) — {where}")
-
-        if unmatched:
-            if lines:
-                lines.append("")
-            lines.append(
-                "These are on the network and identified by IEEE OUI, but NO installed "
-                "integration declares a dhcp/zeroconf/ssdp matcher for them, so Home "
-                "Assistant can never discover them on its own:"
-            )
-            lines.append(
-                "Whether an integration covers any of them is a judgement this "
-                "agent will not guess: a vendor's legal name is not its Home "
-                "Assistant brand name (Signify ships as 'Philips Hue', D&M as "
-                "'Denon'), and phones and laptops appear here with no "
-                "integration to add at all. Listed most devices first:"
-            )
-            for vendor, hosts in sorted(unmatched.items(), key=lambda t: (-len(t[1]), t[0])):
-                where = ", ".join(_where(h) for h in hosts)
-                lines.append(f"  - {vendor}: {len(hosts)} device(s) — {where}")
-
-        return "\n".join(lines)
-
     #: Returned when no sensor is wired up. Deliberately not SATISFIED.
     _NO_OBSERVER = CheckResult(
         CheckStatus.NOT_APPLICABLE,
@@ -209,10 +178,9 @@ class UnclaimedDevicesRecipe(Recipe):
         if by_domain:
             lines.append(
                 "HomeIQ can configure these for you once it has the account "
-                "details. Set the matching HOMEIQ_INTEGRATION_* variables in "
-                ".env and run POST /api/v1/init/converge; anything still "
-                "listed after that needs a browser (OAuth) and cannot be "
-                "automated at all:"
+                "details. Enter them when HomeIQ asks; anything still listed "
+                "after that needs a browser (OAuth) and cannot be automated "
+                "at all:"
             )
             for domain, group in sorted(by_domain.items()):
                 where = ", ".join(_where(c.host) for c in group)
@@ -286,7 +254,9 @@ class UnclaimedDevicesRecipe(Recipe):
         rows: list[dict[str, Any]] = []
         for candidate in sorted(_unique_by_domain(unclaimed), key=lambda c: c.domain):
             probe = await probe_flow(ha, candidate.domain)
-            kind = classify_blocker(candidate, probe)
+            kind = classify_blocker(
+                candidate, probe, self._credentials.get(candidate.domain)
+            )
             rows.append(
                 {
                     "domain": candidate.domain,
@@ -294,17 +264,18 @@ class UnclaimedDevicesRecipe(Recipe):
                     "blocker": kind.value if kind else None,
                     "evidence": candidate.strength.name,
                     "flow_step": probe.kind,
+                    # The form's own shape, always. Overloading this with "what
+                    # is still missing" would make it mean two different things
+                    # per branch: for an address flow the agent fills these
+                    # itself, so a reader treating them as "what the customer
+                    # must enter" would be wrong.
                     "required_fields": list(probe.required),
-                    "missing_env_vars": missing_env_vars(candidate.domain, probe.required)
-                    if probe.kind == "form" and not probe.automatable
-                    else [],
                     "devices": [_where(candidate.host)],
                 }
             )
         return rows
 
-    @staticmethod
-    def _input_for(candidate: Candidate, probe: FlowProbe) -> dict[str, str] | None:
+    def _input_for(self, candidate: Candidate, probe: FlowProbe) -> dict[str, str] | None:
         """The form input to submit, or ``None`` when the agent cannot fill it.
 
         The evidence bar depends on what the flow is claiming:
@@ -334,7 +305,7 @@ class UnclaimedDevicesRecipe(Recipe):
             # Seed the address even when the field is optional: the agent knows
             # the IP and the integration's own rediscovery may not.
             return dict.fromkeys(probe.required, candidate.host.ip) or {"host": candidate.host.ip}
-        return credentials_for(candidate.domain, probe.required)
+        return credentials_for(probe.required, self._credentials.get(candidate.domain))
 
     async def plan(self, ha: HAClient) -> Plan:
         return Plan(

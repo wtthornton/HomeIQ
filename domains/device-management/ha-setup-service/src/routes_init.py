@@ -254,7 +254,6 @@ async def _stored_blockers() -> list[dict[str, Any]]:
             "evidence": row.evidence,
             "flow_step": row.flow_step,
             "required_fields": row.required_fields or [],
-            "missing_env_vars": row.missing_env_vars or [],
             "devices": row.devices or [],
             "first_seen": row.first_seen.isoformat() if row.first_seen else None,
             "last_seen": row.last_seen.isoformat() if row.last_seen else None,
@@ -290,7 +289,6 @@ async def _persist_blockers(rows: list[dict[str, Any]]) -> None:
                     "evidence": row["evidence"],
                     "flow_step": row["flow_step"],
                     "required_fields": row["required_fields"],
-                    "missing_env_vars": row["missing_env_vars"],
                     "devices": row["devices"],
                     "last_seen": now,
                 }
@@ -322,9 +320,10 @@ async def blockers(refresh: bool = False) -> dict[str, Any]:
     the same on every install and needs no Home Assistant call.
 
     ``findings`` is this instance: one row per unclaimed integration with the
-    catalogue entry that explains it, plus the exact environment variables a
-    person would have to set. Producing it probes config flows (start, read,
-    abort), which mutates, so it is deliberately NOT part of ``/audit``.
+    catalogue entry that explains it, plus ``required_fields`` — the exact
+    config-flow fields the customer still has to supply, named as the form
+    names them. Producing it probes config flows (start, read, abort), which
+    mutates, so it is deliberately NOT part of ``/audit``.
 
     **Reads the stored table by default.** Producing fresh findings starts and
     aborts one config flow per candidate integration, so a dashboard polling

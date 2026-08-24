@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
-from .flow_credentials import credentials_for
+from .flow_credentials import DomainCredentials, credentials_for
 from .matchers import MatchStrength
 
 if TYPE_CHECKING:
@@ -90,9 +90,9 @@ CATALOGUE: tuple[Blocker, ...] = (
             "is a much larger authority than 'add an integration'."
         ),
         workaround=(
-            "Supply the credentials via HOMEIQ_INTEGRATION_* so the flow gets past "
-            "step one. The flow then parks in the human-decision queue with its "
-            "flow_id preserved — answer it at /api/v1/init/flow/{flow_id}. One "
+            "Enter the account details in HomeIQ so the flow gets past step one. "
+            "The flow then parks in the human-decision queue with its flow_id "
+            "preserved — answer it at /api/v1/init/flow/{flow_id}. One "
             "interaction rather than the whole wizard, and converge is not halted "
             "while it waits."
         ),
@@ -108,12 +108,13 @@ CATALOGUE: tuple[Blocker, ...] = (
             "a fact the owner has not stated yet."
         ),
         workaround=(
-            "Set HOMEIQ_INTEGRATION_<DOMAIN>_<FIELD> in .env for every required "
-            "field, then run POST /api/v1/init/converge. All-or-nothing per domain: "
-            "a half-filled form errors identically to a wrong password."
+            "Enter the account details in HomeIQ when it asks for them. "
+            "All-or-nothing per domain: a half-filled form errors identically "
+            "to a wrong password. HomeIQ hands them straight to Home Assistant "
+            "and keeps nothing."
         ),
         resolvable=True,
-        example="HOMEIQ_INTEGRATION_RING_USERNAME / _PASSWORD",
+        example="ring: username, password; roborock: username, region",
     ),
     Blocker(
         kind=BlockerKind.NO_DISCOVERY_MATCHER,
@@ -263,12 +264,20 @@ def describe(kind: BlockerKind | str) -> Blocker | None:
         return None
 
 
-def classify_blocker(candidate: Candidate, probe: FlowProbe) -> BlockerKind | None:
+def classify_blocker(
+    candidate: Candidate,
+    probe: FlowProbe,
+    supplied: DomainCredentials | None = None,
+) -> BlockerKind | None:
     """Which catalogue entry explains why this domain is not configured.
 
     ``None`` means nothing is blocking it — the flow is fillable now. Order
     matters: a hostname-only match is refused before its flow shape is even
     considered, because no flow shape would make a name safe.
+
+    ``supplied`` is what the caller holds for this domain. It defaults to
+    nothing, so a caller with no credentials to offer gets
+    ``CREDENTIALS_MISSING`` rather than a silent pass.
     """
     if probe.kind != "form":
         return BlockerKind.OAUTH_EXTERNAL
@@ -278,7 +287,7 @@ def classify_blocker(candidate: Candidate, probe: FlowProbe) -> BlockerKind | No
         if candidate.strength is not MatchStrength.STRICT:
             return BlockerKind.WEAK_EVIDENCE_FOR_ADDRESS_FLOW
         return None if candidate.host.ip else BlockerKind.NOT_OBSERVED
-    if credentials_for(candidate.domain, probe.required) is None:
+    if credentials_for(probe.required, supplied) is None:
         return BlockerKind.CREDENTIALS_MISSING
     return None
 
