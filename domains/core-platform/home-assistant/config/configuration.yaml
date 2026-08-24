@@ -1,0 +1,34 @@
+# Seed configuration for the HomeIQ pre-provisioned Home Assistant image.
+#
+# TAP-6483. Baked to /config/configuration.yaml at build time. Without this file
+# HA writes its own default on first boot and the `zha:` block below — the only
+# way to tell zhaquirks.setup() where the FP1E quirk lives — would never exist.
+#
+# Deliberately minimal: this is the floor an appliance boots from, not a
+# finished config. Runtime state (auth, registries, config entries) lives in
+# /config/.storage and is written by HA, never seeded here.
+
+default_config:
+
+# ZHA custom quirks. zhaquirks.setup() reads ONLY this path, and it is YAML-only
+# config — there is no UI equivalent. The Aqara FP1E (lumi.sensor_occupy.agl8)
+# has no upstream quirk claiming its model string, so without this the raw
+# 0xFCC0 cluster is exposed with no attribute definitions and no occupancy
+# entity. See libs/homeiq-ha/src/homeiq_ha/agent/quirks/aqara_fp1e.py.
+zha:
+  custom_quirks_path: /config/custom_zha_quirks
+
+# HomeIQ runs behind its own reverse proxy on the appliance; trust the Docker
+# bridge so client IPs survive the hop.
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 172.16.0.0/12
+    - 127.0.0.1
+
+logger:
+  default: info
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml

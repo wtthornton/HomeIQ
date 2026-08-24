@@ -1,0 +1,48 @@
+{
+  "$comment": [
+    "Checked-in record of what the pre-provisioned Home Assistant image ships (TAP-6483).",
+    "Vendored components no longer self-update, so without this file component drift",
+    "becomes invisible rather than merely slow. Enforced by",
+    "scripts/check-ha-component-manifest.py, wired into .github/workflows/quality-gate.yml.",
+    "Change a version here AND in domains/core-platform/home-assistant/Dockerfile, or CI fails."
+  ],
+  "home_assistant": {
+    "image": "ghcr.io/home-assistant/home-assistant",
+    "version": "2026.8.3",
+    "version_floor": "2026.8.0",
+    "floor_source": "custom_components/homeiq/manifest.json:min_ha_version",
+    "resolved_from": "https://version.home-assistant.io/stable.json"
+  },
+  "custom_components": [
+    {
+      "name": "powercalc",
+      "source": "github:bramstroker/homeassistant-powercalc",
+      "version": "1.25.1",
+      "dockerfile_arg": "POWERCALC_VERSION",
+      "note": "Upstream tarball ships a placeholder manifest version (0.1.1); the build stamps the release tag in, as HACS does at install time."
+    },
+    {
+      "name": "teamtracker",
+      "source": "github:vasqued2/ha-teamtracker",
+      "version": "0.18.1",
+      "dockerfile_arg": "TEAMTRACKER_VERSION"
+    },
+    {
+      "name": "homeiq",
+      "source": "in-repo:custom_components/homeiq",
+      "version": "0.1.0",
+      "note": "Version tracks custom_components/homeiq/manifest.json in this repo."
+    }
+  ],
+  "zha_quirks": [
+    {
+      "name": "aqara_fp1e.py",
+      "source": "in-repo:libs/homeiq-ha/src/homeiq_ha/agent/quirks/aqara_fp1e.py",
+      "installed_to": "/config/custom_zha_quirks/aqara_fp1e.py",
+      "note": "A ZHA quirk, NOT a custom_component. zhaquirks.setup() reads only the directory named by zha.custom_quirks_path, which the seeded configuration.yaml sets."
+    }
+  ],
+  "must_not_contain": [
+    "hacs"
+  ]
+}
