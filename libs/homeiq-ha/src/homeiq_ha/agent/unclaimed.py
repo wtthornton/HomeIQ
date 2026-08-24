@@ -254,9 +254,7 @@ class UnclaimedDevicesRecipe(Recipe):
         rows: list[dict[str, Any]] = []
         for candidate in sorted(_unique_by_domain(unclaimed), key=lambda c: c.domain):
             probe = await probe_flow(ha, candidate.domain)
-            kind = classify_blocker(
-                candidate, probe, self._credentials.get(candidate.domain)
-            )
+            kind = classify_blocker(candidate, probe, self._credentials.get(candidate.domain))
             rows.append(
                 {
                     "domain": candidate.domain,
