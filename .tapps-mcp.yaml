@@ -12,17 +12,22 @@ mcp_transport: http
 doctor_context_budget:
   skill_count_max: 45
 
-# Locally customized skill files — tapps_upgrade must not overwrite these.
-# The orchestration-prompt skill carries project-specific hardening added
-# 2026-08-01: standing-user-constraint encoding, a no-green-by-deletion rule
-# for Done-when, artifact-identity (built != loaded) checks, verifier-gets-the-
-# proof-command, an unverified-assumptions section, and this repo's hook gates
-# in the mechanism catalog. Drop an entry only after folding the change upstream.
-upgrade_skip_files:
-  - .claude/skills/orchestration-prompt/SKILL.md
-  - .claude/skills/orchestration-prompt/assets/prompt-template.md
-  - .claude/skills/orchestration-prompt/references/claude-feature-map.md
-  # Carries the rationale for why Dependabot auto-merge is disabled_manually
-  # here. Regenerating the stock file would drop that note and invite someone
-  # to re-enable unattended squash-merges to master.
-  - .github/workflows/dependabot-auto-merge.yml
+# upgrade_skip_files takes per-artifact TOKENS, not file paths. The valid set is
+# fixed (AGENTS.md, CLAUDE.md, TECH_STACK.md, .claude/settings.json,
+# .claude/hooks, .claude/agents, .claude/skills, .claude/rules/<name>.md,
+# .mcp.json, karpathy). Anything else is silently ignored and shows up only as
+# `unknown_skip_tokens` in the tapps_upgrade result payload.
+#
+# This list previously held four full FILE paths, none of which are valid
+# tokens, so none of them ever protected anything. Two upgrades quietly
+# rewrote the orchestration-prompt skill as a result: e94c6efe (3.12.68) and
+# cda2f904 (3.12.72), the latter taking SKILL.md 408 -> 363 lines. The fix on
+# 2026-08-23 was to fold that hardening upstream into the tapps-mcp template,
+# so an upgrade now DELIVERS it instead of removing it — which is why nothing
+# needs skipping here any more.
+#
+# If you ever do need to freeze a skill, the only lever is the whole-directory
+# token `.claude/skills`, which also freezes every other skill. Prefer folding
+# the change upstream. `.github/workflows/dependabot-auto-merge.yml` was also
+# listed; upgrade never writes that path, so the entry was inert.
+upgrade_skip_files: []
