@@ -262,7 +262,7 @@ async def _stored_blockers() -> list[dict[str, Any]]:
     ]
 
 
-async def _persist_blockers(rows: list[dict[str, Any]]) -> None:
+async def _persist_blockers(rows: list[dict[str, Any]]) -> bool:
     """Upsert findings by domain, and drop domains that are no longer blocked.
 
     Deleting the absent ones matters: a domain that got configured should stop
@@ -305,10 +305,14 @@ async def _persist_blockers(rows: list[dict[str, Any]]) -> None:
                 stale = stale.where(IntegrationBlocker.domain.not_in(domains))
             await session.execute(stale)
             await session.commit()
+            return True
     except Exception:
-        # Persistence is a convenience for dashboards; the survey result is
-        # already being returned to the caller either way.
+        # The survey result is returned to the caller either way, but the
+        # caller is told persistence failed rather than left to assume the
+        # stored table now matches. Swallowing this is how the store stayed
+        # empty while every response said 200 (TAP-6492).
         logger.exception("persisting blockers failed")
+        return False
 
 
 @init_router.get("/blockers")
@@ -366,8 +370,15 @@ async def blockers(refresh: bool = False) -> dict[str, Any]:
         row["why"] = entry.why if entry else None
         row["workaround"] = entry.workaround if entry else None
 
-    await _persist_blockers(rows)
-    return {"catalogue": catalogue, "findings": rows, "refreshed": True}
+    persisted = await _persist_blockers(rows)
+    return {
+        "catalogue": catalogue,
+        "findings": rows,
+        "refreshed": True,
+        # False means these findings are correct but were not stored, so a
+        # later non-refresh read will not see them.
+        "persisted": persisted,
+    }
 
 
 @init_router.get("/queue")

@@ -112,16 +112,6 @@ class IntegrationBlocker(Base):
     # collects, not for an environment variable — nothing here is set on the
     # host.
     required_fields = Column(JSON, nullable=False, default=list)
-    # Retained only to satisfy the live NOT NULL constraint while the column is
-    # retired (TAP-6462, expand/contract). Nothing reads it and nothing puts a
-    # meaningful value in it any more: both API payloads have dropped it, and
-    # inserts get the `[]` default. Dropping it needs a migration, and this
-    # service has no migration chain yet — alembic is copied into the image but
-    # never invoked, and `integration_blockers` has no reproducible creation
-    # path at all. Remove the column together with that fix, never before: the
-    # constraint has no server default, and Postgres checks NOT NULL before the
-    # ON CONFLICT arbiter, so an omission-upsert would abort the whole pass.
-    missing_env_vars = Column(JSON, nullable=False, default=list)
     devices = Column(JSON, nullable=False, default=list)
     first_seen = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     last_seen = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

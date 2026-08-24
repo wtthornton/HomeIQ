@@ -63,6 +63,7 @@ def run_migrations_offline(
     target_metadata,
     schema_name: str,
     database_url: str,
+    version_table: str = "alembic_version",
 ) -> None:
     """
     Run migrations in 'offline' mode (generates SQL without connecting).
@@ -71,12 +72,19 @@ def run_migrations_offline(
         target_metadata: SQLAlchemy MetaData with model definitions
         schema_name: PostgreSQL schema to target
         database_url: Database connection URL
+        version_table: Name of the Alembic version table. Services sharing one
+            schema must each pass their own, or alembic looks for one chain's
+            revisions in another chain's history and refuses to run. Mirrors
+            the parameter on :func:`run_async_migrations`, so a service that
+            isolates its version table online does not silently fall back to
+            the shared default when generating offline SQL.
     """
     context.configure(
         url=database_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        version_table=version_table,
         version_table_schema=schema_name,
         include_schemas=True,
     )
