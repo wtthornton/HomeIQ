@@ -67,7 +67,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.2",
-    "@vitest/ui": "^4.0.15",
+    "@vitest/ui": "^4.1.11",
     "babel-plugin-react-compiler": "^1.0.0",
     "eslint": "^9.17.0",
     "eslint-plugin-complexity": "^1.0.2",
@@ -82,6 +82,6 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.53.0",
     "vite": "^7.0.0",
-    "vitest": "^4.0.17"
+    "vitest": "^4.1.11"
   }
 }
