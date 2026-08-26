@@ -9,7 +9,7 @@ import pytest
 import pytest_asyncio
 from homeiq_ha.client.errors import HACommandError
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from src.api.hygiene_router import get_ha_client
 from src.config import Settings
 from src.core.database import get_db_session, initialize_database
@@ -103,6 +103,18 @@ async def setup_database(tmp_path_factory):
     yield
 
     app.dependency_overrides.clear()
+
+    # Tear down the rows this fixture inserted. Without this, "device-1" stays
+    # in the table after this module's tests finish and the next test file to
+    # insert a row with the same id (e.g. test_storage_api.py's real-DB paths)
+    # collides on the devices_pkey unique constraint.
+    async for session in get_db_session():
+        await session.execute(
+            delete(DeviceHygieneIssue).where(DeviceHygieneIssue.device_id == "device-1")
+        )
+        await session.execute(delete(Device).where(Device.id == "device-1"))
+        await session.commit()
+        break
 
 
 @pytest_asyncio.fixture

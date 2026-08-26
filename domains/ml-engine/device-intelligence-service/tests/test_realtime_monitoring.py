@@ -158,7 +158,7 @@ class TestWebSocketManager:
         stats = websocket_manager.get_connection_stats()
 
         assert "total_connections" in stats
-        assert "device_subscriptions" in stats
+        assert "total_device_subscriptions" in stats
         assert "connection_details" in stats
         assert stats["total_connections"] == 0  # No connections yet
 
@@ -340,10 +340,11 @@ class TestPerformanceCollector:
 
         aggregated = await performance_collector.get_device_performance_summary(device_id)
 
-        assert "avg_response_time" in aggregated
-        assert "max_response_time" in aggregated
-        assert "total_requests" in aggregated
-        assert aggregated["total_requests"] == 5
+        assert "response_time" in aggregated
+        assert "avg" in aggregated["response_time"]
+        assert "max" in aggregated["response_time"]
+        assert "total_measurements" in aggregated
+        assert aggregated["total_measurements"] == 5
 
     @pytest.mark.asyncio
     async def test_metrics_retention(self, performance_collector, sample_metrics):
@@ -357,8 +358,10 @@ class TestPerformanceCollector:
         old_time = datetime.now(UTC).replace(year=2020)
         performance_collector.metrics_history[device_id][0]["timestamp"] = old_time
 
-        # Trigger cleanup
-        await performance_collector._cleanup_old_metrics()
+        # Trigger a single cleanup pass. `_cleanup_old_metrics` itself is a
+        # `while True` background loop meant to run on a schedule, so tests
+        # drive the extracted single-pass helper instead of awaiting it directly.
+        await performance_collector._cleanup_once()
 
         # Old metrics should be removed
         assert len(performance_collector.metrics_history[device_id]) == 0
@@ -370,7 +373,7 @@ class TestPerformanceCollector:
         # Collect metrics
         asyncio.run(performance_collector.collect_device_metrics(device_id, sample_metrics))
 
-        stats = performance_collector.get_performance_statistics()
+        stats = performance_collector.get_stats()
 
         assert "total_devices_tracked" in stats
         assert "total_metrics_points" in stats

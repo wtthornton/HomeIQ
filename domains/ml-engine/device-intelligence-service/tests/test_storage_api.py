@@ -5,10 +5,12 @@ Tests for the storage API endpoints.
 """
 
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
+from src.api.storage import get_device_cache, get_device_service
+from src.main import app
 from src.models.database import Device, DeviceCapability, DeviceHealthMetric
 
 
@@ -58,50 +60,58 @@ def mock_health_metric():
 
 
 class TestStorageAPI:
-    """Test storage API endpoints."""
+    """Test storage API endpoints.
 
-    @patch("src.api.storage.get_device_service")
-    def test_get_devices(self, mock_get_service, client: TestClient, mock_device):
+    `get_device_service`/`get_device_cache` are FastAPI `Depends(...)`
+    callables: each route captures the function object at decoration time,
+    so `unittest.mock.patch` on the module attribute never reaches an
+    already-registered route. `app.dependency_overrides` is the mechanism
+    FastAPI provides for substituting a dependency at request time.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _clear_overrides(self):
+        yield
+        app.dependency_overrides.clear()
+
+    def test_get_devices(self, client: TestClient, mock_device):
         """Test get all devices endpoint."""
         mock_service = AsyncMock()
         mock_service.get_all_devices.return_value = [mock_device]
-        mock_get_service.return_value = mock_service
+        app.dependency_overrides[get_device_service] = lambda: mock_service
 
         response = client.get("/api/devices")
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 1
-        assert data[0]["id"] == "test-device-1"
+        assert data["count"] == 1
+        assert data["devices"][0]["device_id"] == "test-device-1"
 
-    @patch("src.api.storage.get_device_service")
-    def test_get_device_by_id(self, mock_get_service, client: TestClient, mock_device):
+    def test_get_device_by_id(self, client: TestClient, mock_device):
         """Test get device by ID endpoint."""
         mock_service = AsyncMock()
         mock_service.get_device_by_id.return_value = mock_device
-        mock_get_service.return_value = mock_service
+        app.dependency_overrides[get_device_service] = lambda: mock_service
 
         response = client.get("/api/devices/test-device-1")
         assert response.status_code == 200
         data = response.json()
-        assert data["id"] == "test-device-1"
+        assert data["device_id"] == "test-device-1"
 
-    @patch("src.api.storage.get_device_service")
-    def test_get_device_by_id_not_found(self, mock_get_service, client: TestClient):
+    def test_get_device_by_id_not_found(self, client: TestClient):
         """Test get device by ID endpoint when device not found."""
         mock_service = AsyncMock()
         mock_service.get_device_by_id.return_value = None
-        mock_get_service.return_value = mock_service
+        app.dependency_overrides[get_device_service] = lambda: mock_service
 
         response = client.get("/api/devices/nonexistent-device")
         assert response.status_code == 404
         assert "Device not found" in response.json()["detail"]
 
-    @patch("src.api.storage.get_device_service")
-    def test_get_device_capabilities(self, mock_get_service, client: TestClient, mock_capability):
+    def test_get_device_capabilities(self, client: TestClient, mock_capability):
         """Test get device capabilities endpoint."""
         mock_service = AsyncMock()
         mock_service.get_device_capabilities.return_value = [mock_capability]
-        mock_get_service.return_value = mock_service
+        app.dependency_overrides[get_device_service] = lambda: mock_service
 
         response = client.get("/api/devices/test-device-1/capabilities")
         assert response.status_code == 200
@@ -109,12 +119,11 @@ class TestStorageAPI:
         assert len(data) == 1
         assert data[0]["capability_name"] == "on_off"
 
-    @patch("src.api.storage.get_device_service")
-    def test_get_device_health(self, mock_get_service, client: TestClient, mock_health_metric):
+    def test_get_device_health(self, client: TestClient, mock_health_metric):
         """Test get device health metrics endpoint."""
         mock_service = AsyncMock()
         mock_service.get_device_health_metrics.return_value = [mock_health_metric]
-        mock_get_service.return_value = mock_service
+        app.dependency_overrides[get_device_service] = lambda: mock_service
 
         response = client.get("/api/devices/test-device-1/health")
         assert response.status_code == 200
@@ -122,12 +131,11 @@ class TestStorageAPI:
         assert len(data) == 1
         assert data[0]["metric_name"] == "response_time"
 
-    @patch("src.api.storage.get_device_service")
-    def test_get_devices_by_area(self, mock_get_service, client: TestClient, mock_device):
+    def test_get_devices_by_area(self, client: TestClient, mock_device):
         """Test get devices by area endpoint."""
         mock_service = AsyncMock()
         mock_service.get_devices_by_area.return_value = [mock_device]
-        mock_get_service.return_value = mock_service
+        app.dependency_overrides[get_device_service] = lambda: mock_service
 
         response = client.get("/api/devices/area/living_room")
         assert response.status_code == 200
@@ -135,12 +143,11 @@ class TestStorageAPI:
         assert len(data) == 1
         assert data[0]["area_id"] == "living_room"
 
-    @patch("src.api.storage.get_device_service")
-    def test_get_devices_by_integration(self, mock_get_service, client: TestClient, mock_device):
+    def test_get_devices_by_integration(self, client: TestClient, mock_device):
         """Test get devices by integration endpoint."""
         mock_service = AsyncMock()
         mock_service.get_devices_by_integration.return_value = [mock_device]
-        mock_get_service.return_value = mock_service
+        app.dependency_overrides[get_device_service] = lambda: mock_service
 
         response = client.get("/api/devices/integration/test_integration")
         assert response.status_code == 200
@@ -148,8 +155,7 @@ class TestStorageAPI:
         assert len(data) == 1
         assert data[0]["integration"] == "test_integration"
 
-    @patch("src.api.storage.get_device_service")
-    def test_get_device_stats(self, mock_get_service, client: TestClient):
+    def test_get_device_stats(self, client: TestClient):
         """Test get device statistics endpoint."""
         mock_service = AsyncMock()
         mock_service.get_device_stats.return_value = {
@@ -159,7 +165,7 @@ class TestStorageAPI:
             "average_health_score": 85.5,
             "total_capabilities": 15,
         }
-        mock_get_service.return_value = mock_service
+        app.dependency_overrides[get_device_service] = lambda: mock_service
 
         response = client.get("/api/stats")
         assert response.status_code == 200
@@ -167,21 +173,19 @@ class TestStorageAPI:
         assert data["total_devices"] == 5
         assert data["average_health_score"] == 85.5
 
-    @patch("src.api.storage.get_device_cache")
-    def test_invalidate_device_cache(self, mock_get_cache, client: TestClient):
+    def test_invalidate_device_cache(self, client: TestClient):
         """Test invalidate device cache endpoint."""
         mock_cache = AsyncMock()
-        mock_get_cache.return_value = mock_cache
+        app.dependency_overrides[get_device_cache] = lambda: mock_cache
 
         response = client.post("/api/cache/invalidate/test-device-1")
         assert response.status_code == 200
         assert "Cache invalidated" in response.json()["message"]
 
-    @patch("src.api.storage.get_device_cache")
-    def test_invalidate_all_caches(self, mock_get_cache, client: TestClient):
+    def test_invalidate_all_caches(self, client: TestClient):
         """Test invalidate all caches endpoint."""
         mock_cache = AsyncMock()
-        mock_get_cache.return_value = mock_cache
+        app.dependency_overrides[get_device_cache] = lambda: mock_cache
 
         response = client.post("/api/cache/invalidate-all")
         assert response.status_code == 200

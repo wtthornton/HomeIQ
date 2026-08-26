@@ -240,6 +240,27 @@ async def websocket_test_page():
     return HTMLResponse(content=html_content)
 
 
+@router.get("/health")
+async def get_websocket_health():
+    """Get WebSocket subsystem health status."""
+    try:
+        stats = websocket_manager.get_connection_stats()
+        return {
+            "service": "WebSocket Real-Time Monitoring",
+            "status": "operational",
+            "active_connections": stats.get("total_connections", 0),
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+    except Exception as e:
+        logger.error(f"Error getting websocket health: {e}")
+        return {
+            "service": "WebSocket Real-Time Monitoring",
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+
+
 @router.get("/stats")
 async def get_websocket_stats():
     """Get WebSocket connection statistics."""

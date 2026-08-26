@@ -3,13 +3,29 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 
 import pytest
+import pytest_asyncio
 from sqlalchemy import delete, select
 from src.clients.ha_client import HAArea, HADevice, HAEntity
-from src.core.database import get_db_session
-from src.models.database import DeviceHygieneIssue
+from src.config import Settings
+from src.core.database import get_db_session, initialize_database
+from src.models.database import Device, DeviceEntity, DeviceHygieneIssue
 from src.services.hygiene_analyzer import DeviceHygieneAnalyzer
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+
+@pytest_asyncio.fixture
+async def _initialized_app():
+    """Initialize the database connection this module's tests read/write
+    through. Named `_initialized_app` to match the fixture these tests were
+    already written against -- no FastAPI app is actually needed since the
+    analyzer is exercised directly against a session, not over HTTP."""
+    await initialize_database(Settings())
+    yield
 
 
 def _area(area_id: str, name: str) -> HAArea:
@@ -58,6 +74,48 @@ def _device(
         created_at=created_at or now,
         updated_at=now,
     )
+
+
+async def _seed_devices(session: AsyncSession, devices: list[HADevice]) -> None:
+    """Insert a Device row per HADevice so device_hygiene_issues.device_id can
+    satisfy its foreign key. The analyzer only reads HADevice/HAEntity value
+    objects -- it never sees these rows -- but persisting a
+    DeviceHygieneIssue for a device the `devices` table has never heard of is
+    a real FK violation, not a mock-vs-real-DB mismatch.
+    """
+    for device in devices:
+        session.add(
+            Device(
+                id=device.id,
+                name=device.name,
+                manufacturer=device.manufacturer,
+                model=device.model,
+                area_id=device.area_id,
+                integration=device.integration,
+            )
+        )
+    await session.commit()
+
+
+async def _seed_entities(session: AsyncSession, entities: list[HAEntity]) -> None:
+    """Insert a DeviceEntity row per HAEntity so device_hygiene_issues.entity_id
+    can satisfy its foreign key (the disabled_entity finding stores it)."""
+    for entity in entities:
+        session.add(
+            DeviceEntity(
+                entity_id=entity.entity_id,
+                device_id=entity.device_id,
+                name=entity.name,
+                original_name=entity.original_name,
+                platform=entity.platform,
+                domain=entity.domain,
+                disabled_by=entity.disabled_by,
+                entity_category=entity.entity_category,
+                has_entity_name=entity.has_entity_name,
+                unique_id=entity.unique_id,
+            )
+        )
+    await session.commit()
 
 
 def _entity(
@@ -117,9 +175,14 @@ async def test_analyzer_generates_and_persists_findings(_initialized_app):
         _entity("binary_sensor.placeholder_motion", "dev-3", disabled_by="user"),
     ]
 
+    device_ids = [d.id for d in devices]
+    entity_ids = [e.entity_id for e in entities]
     async for session in get_db_session():
         await session.execute(delete(DeviceHygieneIssue))
-        await session.commit()
+        await session.execute(delete(DeviceEntity).where(DeviceEntity.entity_id.in_(entity_ids)))
+        await session.execute(delete(Device).where(Device.id.in_(device_ids)))
+        await _seed_devices(session, devices)
+        await _seed_entities(session, entities)
 
         analyzer = DeviceHygieneAnalyzer(session)
         findings = await analyzer.analyze(devices, entities, [living_room])
@@ -140,6 +203,15 @@ async def test_analyzer_generates_and_persists_findings(_initialized_app):
             "pending_configuration",
             "disabled_entity",
         }.issubset(issue_types)
+
+        # This table has no per-test namespacing (issue_key is the only
+        # uniqueness), so a row left behind here would inflate the row count
+        # test_hygiene_router.py's test_list_issues_returns_data asserts on
+        # when the whole suite runs in one process.
+        await session.execute(delete(DeviceHygieneIssue))
+        await session.execute(delete(DeviceEntity).where(DeviceEntity.entity_id.in_(entity_ids)))
+        await session.execute(delete(Device).where(Device.id.in_(device_ids)))
+        await session.commit()
         break
 
 
@@ -152,9 +224,11 @@ async def test_analyzer_marks_resolved_when_issue_disappears(_initialized_app):
     ]
     entities = [_entity("light.hallway_light", "dev-1")]
 
+    device_ids = [d.id for d in devices_initial]
     async for session in get_db_session():
         await session.execute(delete(DeviceHygieneIssue))
-        await session.commit()
+        await session.execute(delete(Device).where(Device.id.in_(device_ids)))
+        await _seed_devices(session, devices_initial)
 
         analyzer = DeviceHygieneAnalyzer(session)
         await analyzer.analyze(devices_initial, entities, [living_room])
@@ -175,4 +249,10 @@ async def test_analyzer_marks_resolved_when_issue_disappears(_initialized_app):
         )
         issue = stored.scalar_one()
         assert issue.status == "resolved"
+
+        # See the comment in test_analyzer_generates_and_persists_findings:
+        # this table has no per-test namespacing.
+        await session.execute(delete(DeviceHygieneIssue))
+        await session.execute(delete(Device).where(Device.id.in_(device_ids)))
+        await session.commit()
         break

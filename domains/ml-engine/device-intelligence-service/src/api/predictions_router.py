@@ -17,6 +17,7 @@ from starlette.requests import Request
 from ..core.database import get_db_session
 from ..core.predictive_analytics import PredictiveAnalyticsEngine
 from ..core.repository import DeviceRepository
+from ..models.database import DeviceHealthMetric
 
 if TYPE_CHECKING:
     from ..scheduler.training_scheduler import TrainingScheduler
@@ -25,6 +26,57 @@ logger = logging.getLogger(__name__)
 
 # Create router
 router = APIRouter(prefix="/api/predictions", tags=["Predictions"])
+
+# Feature name -> the metric_name aliases DeviceHealthMetric rows may carry.
+# DeviceHealthMetric is a narrow EAV table (one row per device+metric_name),
+# not a wide table with a column per feature, so every reader needs to fold a
+# list of rows into a single feature dict before handing it to the engine.
+_FEATURE_METRIC_ALIASES: dict[str, list[str]] = {
+    "response_time": ["response_time", "latency", "delay"],
+    "error_rate": ["error_rate", "errors", "error_count"],
+    "battery_level": ["battery", "battery_level", "battery_percentage"],
+    "signal_strength": ["signal", "signal_strength", "rssi"],
+    "usage_frequency": ["usage", "usage_frequency", "activity"],
+    "temperature": ["temperature", "temp"],
+    "humidity": ["humidity", "hum"],
+    "restart_count": ["restart", "restart_count", "reboot"],
+    "connection_drops": ["connection_drops", "disconnects", "drop"],
+    "data_transfer_rate": ["data_rate", "transfer_rate", "throughput"],
+}
+
+_FEATURE_DEFAULTS: dict[str, float] = {
+    "response_time": 500.0,
+    "error_rate": 0.0,
+    "battery_level": 100.0,
+    "signal_strength": -60.0,
+    "usage_frequency": 0.5,
+    "temperature": 25.0,
+    "humidity": 50.0,
+    "uptime_hours": 1.0,
+    "restart_count": 0.0,
+    "connection_drops": 0.0,
+    "data_transfer_rate": 1000.0,
+}
+
+
+def _metrics_to_feature_dict(metrics: list[DeviceHealthMetric]) -> dict[str, Any]:
+    """Fold a device's EAV health-metric rows into the flat dict the analytics
+    engine expects. `metrics` is ordered most-recent-first (see
+    DeviceRepository.get_device_health_metrics), so the first value seen per
+    metric name is the latest one.
+    """
+    latest_by_name: dict[str, float] = {}
+    for metric in metrics:
+        name = metric.metric_name.lower()
+        latest_by_name.setdefault(name, metric.metric_value)
+
+    features = dict(_FEATURE_DEFAULTS)
+    for feature, aliases in _FEATURE_METRIC_ALIASES.items():
+        for alias in aliases:
+            if alias in latest_by_name:
+                features[feature] = latest_by_name[alias]
+                break
+    return features
 
 
 async def get_analytics_engine(request: Request) -> PredictiveAnalyticsEngine:
@@ -87,39 +139,7 @@ async def get_failure_predictions(
 
         for device in devices:
             metrics_list = await repository.get_device_health_metrics(session, device.id)
-            # Convert DeviceHealthMetric objects to dictionary format
-            if metrics_list:
-                # Use the most recent metric
-                latest_metric = metrics_list[0]
-                metrics = {
-                    "response_time": latest_metric.response_time or 0,
-                    "error_rate": latest_metric.error_rate or 0,
-                    "battery_level": latest_metric.battery_level or 0,
-                    "signal_strength": latest_metric.signal_strength or 0,
-                    "usage_frequency": latest_metric.usage_frequency or 0,
-                    "temperature": latest_metric.temperature or 0,
-                    "humidity": latest_metric.humidity or 0,
-                    "uptime_hours": latest_metric.uptime_hours or 0,
-                    "restart_count": latest_metric.restart_count or 0,
-                    "connection_drops": latest_metric.connection_drops or 0,
-                    "data_transfer_rate": latest_metric.data_transfer_rate or 0,
-                }
-            else:
-                # Default metrics if no data available
-                metrics = {
-                    "response_time": 0,
-                    "error_rate": 0,
-                    "battery_level": 0,
-                    "signal_strength": 0,
-                    "usage_frequency": 0,
-                    "temperature": 0,
-                    "humidity": 0,
-                    "uptime_hours": 0,
-                    "restart_count": 0,
-                    "connection_drops": 0,
-                    "data_transfer_rate": 0,
-                }
-            devices_metrics[device.id] = metrics
+            devices_metrics[device.id] = _metrics_to_feature_dict(metrics_list)
 
         predictions = await analytics_engine.predict_all_devices(devices_metrics)
 
@@ -165,21 +185,7 @@ async def get_device_failure_prediction(
         if not metrics_list:
             raise HTTPException(status_code=404, detail="Device metrics not found")
 
-        # Convert DeviceHealthMetric objects to dictionary format
-        latest_metric = metrics_list[0]
-        metrics = {
-            "response_time": latest_metric.response_time or 0,
-            "error_rate": latest_metric.error_rate or 0,
-            "battery_level": latest_metric.battery_level or 0,
-            "signal_strength": latest_metric.signal_strength or 0,
-            "usage_frequency": latest_metric.usage_frequency or 0,
-            "temperature": latest_metric.temperature or 0,
-            "humidity": latest_metric.humidity or 0,
-            "uptime_hours": latest_metric.uptime_hours or 0,
-            "restart_count": latest_metric.restart_count or 0,
-            "connection_drops": latest_metric.connection_drops or 0,
-            "data_transfer_rate": latest_metric.data_transfer_rate or 0,
-        }
+        metrics = _metrics_to_feature_dict(metrics_list)
         prediction = await analytics_engine.predict_device_failure(device_id, metrics)
 
         return prediction
@@ -203,7 +209,8 @@ async def get_maintenance_recommendations(
         recommendations = []
 
         for device in devices:
-            metrics = await repository.get_device_health_metrics(session, device.id)
+            metrics_list = await repository.get_device_health_metrics(session, device.id)
+            metrics = _metrics_to_feature_dict(metrics_list)
             prediction = await analytics_engine.predict_device_failure(device.id, metrics)
 
             if prediction.get("failure_probability", 0) > 30:  # > 30% failure risk

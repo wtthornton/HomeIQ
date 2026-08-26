@@ -803,7 +803,9 @@ class PredictiveAnalyticsEngine:
             recommendations.append("Replace or charge battery immediately")
 
         if metrics.get("error_rate", 0) > 0.1:
-            recommendations.append("Check device connectivity and configuration")
+            recommendations.append(
+                "High error rate detected - check device connectivity and configuration"
+            )
 
         if metrics.get("signal_strength", -50) < -70:
             recommendations.append("Reposition device for better signal strength")

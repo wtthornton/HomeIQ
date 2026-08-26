@@ -33,6 +33,22 @@ class DeviceData(BaseModel):
         extra = "allow"
 
 
+class DeviceRelationshipsRequest(DeviceData):
+    """Request body for /relationships. A plain second `list[...] | None`
+    parameter next to `device_data` forces FastAPI to require an embedded
+    body (`{"device_data": {...}, "all_devices": [...]}`), breaking the flat
+    single-JSON-body convention every other device-mappings endpoint uses.
+    Folding it onto the request model keeps the body flat."""
+
+    all_devices: list[dict[str, Any]] | None = None
+
+
+class DeviceContextRequest(DeviceData):
+    """Request body for /context -- see DeviceRelationshipsRequest."""
+
+    entities: list[dict[str, Any]] | None = None
+
+
 @router.post("/reload")
 async def reload_device_mappings() -> dict[str, Any]:
     """
@@ -153,20 +169,20 @@ async def get_device_type(device_id: str, device_data: DeviceData) -> dict[str, 
 
 @router.post("/{device_id}/relationships")
 async def get_device_relationships(
-    device_id: str, device_data: DeviceData, all_devices: list[dict[str, Any]] | None = None
+    device_id: str, request: DeviceRelationshipsRequest
 ) -> dict[str, Any]:
     """
     Get device relationships for a specific device.
 
     Args:
-        device_id: Device ID (must match device_data.device_id)
-        device_data: Device data dictionary
-        all_devices: Optional list of all devices for relationship discovery
+        device_id: Device ID (must match request.device_id)
+        request: Device data plus the optional list of all devices for
+            relationship discovery
 
     Returns:
         Dictionary with device relationships
     """
-    if device_data.device_id != device_id:
+    if request.device_id != device_id:
         raise HTTPException(
             status_code=400, detail="Device ID in path must match device_id in body"
         )
@@ -182,7 +198,7 @@ async def get_device_relationships(
 
     try:
         registry = get_registry()
-        device_dict = device_data.model_dump(exclude_none=True)
+        device_dict = request.model_dump(exclude={"all_devices"}, exclude_none=True)
 
         # Find handler for this device
         handler = registry.find_handler(device_dict)
@@ -197,7 +213,7 @@ async def get_device_relationships(
             }
         else:
             # Get relationships from handler
-            all_devices_list = all_devices or []
+            all_devices_list = request.all_devices or []
             relationships = handler.get_relationships(device_dict, all_devices_list)
             result = {
                 "device_id": device_id,
@@ -216,21 +232,19 @@ async def get_device_relationships(
 
 
 @router.post("/{device_id}/context")
-async def get_device_context(
-    device_id: str, device_data: DeviceData, entities: list[dict[str, Any]] | None = None
-) -> dict[str, Any]:
+async def get_device_context(device_id: str, request: DeviceContextRequest) -> dict[str, Any]:
     """
     Get enriched context for a specific device.
 
     Args:
-        device_id: Device ID (must match device_data.device_id)
-        device_data: Device data dictionary
-        entities: Optional list of entities associated with the device
+        device_id: Device ID (must match request.device_id)
+        request: Device data plus the optional list of entities associated
+            with the device
 
     Returns:
         Dictionary with enriched device context
     """
-    if device_data.device_id != device_id:
+    if request.device_id != device_id:
         raise HTTPException(
             status_code=400, detail="Device ID in path must match device_id in body"
         )
@@ -246,7 +260,7 @@ async def get_device_context(
 
     try:
         registry = get_registry()
-        device_dict = device_data.model_dump(exclude_none=True)
+        device_dict = request.model_dump(exclude={"entities"}, exclude_none=True)
 
         # Find handler for this device
         handler = registry.find_handler(device_dict)
@@ -261,7 +275,7 @@ async def get_device_context(
             }
         else:
             # Get enriched context from handler
-            entities_list = entities or []
+            entities_list = request.entities or []
             context = handler.enrich_context(device_dict, entities_list)
             result = {
                 "device_id": device_id,
