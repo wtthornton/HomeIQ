@@ -113,11 +113,26 @@ jobs:
         run: |
           docker compose --env-file .env.ci build --parallel
 
-      - name: Scan all images with Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'image'
-          scan-ref: 'docker-compose.yml'
-          format: 'table'
-          exit-code: '1'
-          severity: 'CRITICAL,HIGH'
+      - name: Set up Trivy CLI
+        uses: aquasecurity/setup-trivy@v0.3.1
+
+      - name: Scan all built images with Trivy
+        # The previous single trivy-action step passed scan-type: 'image' with
+        # scan-ref: 'docker-compose.yml' -- a filename, not an image reference,
+        # so Trivy tried to pull an image literally named "docker-compose.yml"
+        # ("unable to find the specified image"). trivy-action's image-ref also
+        # only ever accepts one image per step, which could never have covered
+        # all services anyway. `docker compose config --images` prints the
+        # actual tag each service just built under (verified locally: 39
+        # entries, no filenames), so loop the real Trivy CLI over that list.
+        run: |
+          set -euo pipefail
+          mapfile -t IMAGES < <(docker compose --env-file .env.ci config --images | sort -u)
+          echo "Scanning ${#IMAGES[@]} built images"
+          status=0
+          for img in "${IMAGES[@]}"; do
+            echo "::group::trivy image ${img}"
+            trivy image --exit-code 1 --severity CRITICAL,HIGH --format table "${img}" || status=1
+            echo "::endgroup::"
+          done
+          exit "${status}"
