@@ -1,0 +1,208 @@
+# ADR: The appliance secret store is two-tier, split on boot ordering
+
+**Status:** Accepted
+**Date:** 2026-08-26
+**Origin:** [TAP-6571](https://linear.app/tappscodingagents/issue/TAP-6571) —
+filed as "Decide the appliance secret store mechanism" after
+[TAP-6484](https://linear.app/tappscodingagents/issue/TAP-6484) produced a
+credential minter with nowhere to put its output.
+**Deciders:** HomeIQ owner + operating agent
+**Blocks resolved:** [TAP-6572](https://linear.app/tappscodingagents/issue/TAP-6572),
+[TAP-6573](https://linear.app/tappscodingagents/issue/TAP-6573)
+
+---
+
+## Context
+
+`HAOnboarder` mints a long-lived Home Assistant token on first boot
+(`libs/homeiq-ha/src/homeiq_ha/agent/onboarding.py`). It is complete, tested, and
+deliberately dormant: nothing constructs it, because a caller has to put the
+minted token *somewhere* and that somewhere had not been chosen. This ADR is that
+choice.
+
+The ticket framed it as picking *one* mechanism from five candidates: a file on
+disk, a Postgres table, a Docker secret, the AgentForge vault, systemd-creds. The
+framing does not survive contact with the compose file.
+
+### The keys are not one population
+
+`env.required` marks eleven keys `required` (lines 26-35 and line 48) plus twelve
+`conditional`. They divide cleanly by **when the value must already exist**:
+
+| Tier | Keys | Consumed by | Available |
+|---|---|---|---|
+| **Bootstrap** | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `INFLUXDB_TOKEN`, `API_KEY`, `GF_SECURITY_ADMIN_PASSWORD`, `JWT_SECRET_KEY` | infrastructure containers at init | **before** the stack starts |
+| **Runtime** | `HOME_ASSISTANT_TOKEN`/`HA_TOKEN`, `HA_HTTP_URL`, `HA_WS_URL`, `HOME_ASSISTANT_URL` | application services | **after** HA is up |
+| **Runtime (conditional)** | WattTime, Nabu Casa, MQTT, `OPENAI_API_KEY` — [TAP-6469](https://linear.app/tappscodingagents/issue/TAP-6469) | application services | when the customer enters them |
+
+Note that `HOME_ASSISTANT_TOKEN` and `HA_TOKEN` are one credential under two
+names, not two secrets (`domains/core-platform/compose.yml:262`).
+
+### The constraint that decides it
+
+`domains/core-platform/compose.yml:69` reads:
+
+```yaml
+- POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?required}
+```
+
+That line is consumed by the **Postgres container itself**. A Postgres table
+cannot hold the password Postgres needs in order to start. The same shape appears
+at `compose.yml:121-122`, where every service's `POSTGRES_URL` interpolates the
+password before any service is running.
+
+This is not a preference. It is an ordering constraint, and it eliminates two of
+the five candidates for tier 1 by construction.
+
+## Decision
+
+**Two stores, split on that boundary. Each tier uses the mechanism that can
+actually serve it.**
+
+### Tier 1 — bootstrap secrets: a root-owned file, generated once
+
+A first-boot script generates the six bootstrap values and writes them to
+`/var/lib/homeiq/.env`, owned `root:root`, mode `0600`, on a host path outside
+every container and outside the git checkout. The appliance start script passes
+`--env-file /var/lib/homeiq/.env`, so Compose's existing `${VAR:?required}`
+interpolation consumes it unchanged.
+
+Generation follows the convention already in `scripts/setup-secure-env.sh:55`
+(`openssl rand -hex 32`, with a `/dev/urandom` fallback).
+
+**This requires zero changes to `compose.yml`.** That is the main argument for it:
+the interpolation mechanism the whole stack already depends on keeps working, and
+the change surface is one script plus a start-script flag.
+
+Tier 1 also holds one key that is not in `env.required` today:
+`HOMEIQ_SECRET_DEK`, the data-encryption key for tier 2.
+
+### Tier 2 — runtime secrets: an encrypted Postgres table
+
+Runtime-minted and customer-entered credentials go in `core.appliance_secret`
+(the `core` schema already exists — `infrastructure/postgres/init-schemas.sql:7`):
+
+| Column | Type | Note |
+|---|---|---|
+| `key` | `text primary key` | e.g. `ha_token`, `watttime_password` |
+| `value` | `bytea not null` | AES-GCM ciphertext under `HOMEIQ_SECRET_DEK` |
+| `nonce` | `bytea not null` | per-write, never reused |
+| `updated_at` | `timestamptz not null` | rotation audit |
+
+Postgres is legitimate *here* precisely because tier 2 is read after the database
+is up. The ordering objection does not apply above the boundary.
+
+Values are never written to disk in plaintext and never re-injected into the
+environment. Services read them through the store at the point of use, so
+rotation does not require a stack restart — which is the property
+[TAP-6469](https://linear.app/tappscodingagents/issue/TAP-6469) needs, since it
+collects credentials in the running app.
+
+### Write on first boot, read on every subsequent boot
+
+**Tier 1.** The first-boot script tests for `/var/lib/homeiq/.env`. Absent, it
+generates every value and writes the file. Present, it does nothing — the file is
+the idempotency check, and it is never regenerated in place, because rewriting
+`POSTGRES_PASSWORD` after `postgres_data` has initialised locks the stack out of
+its own database.
+
+**Tier 2.** `HAOnboarder` already gates on HA's own onboarding state:
+`GET /api/onboarding` reports whether the `user` step is done, and HA refuses
+`POST /api/onboarding/users` afterwards. Its caller ([TAP-6572](https://linear.app/tappscodingagents/issue/TAP-6572))
+reads `core.appliance_secret` first; on a hit it uses the stored token and never
+calls HA, on a miss it onboards and writes the result. Second boot is a table
+read.
+
+### When the store is unavailable — named states, never a default
+
+There is no fallback to a shipped value. A silent fallback reintroduces exactly
+the constant-secret problem that generating these values exists to avoid, and it
+does it in the place nobody would look.
+
+| Condition | State | Behaviour |
+|---|---|---|
+| Tier 1 file missing or a key empty | preflight failure | `scripts/preflight-env.sh` already exits 1 naming the missing keys (`preflight-env.sh:15,76`). The stack does not start. |
+| `HOMEIQ_SECRET_DEK` missing but tier 2 rows exist | `SecretStoreUnsealed` | Fatal at startup. The rows are undecryptable; continuing would silently mint replacements and orphan the customer's real credentials. |
+| Postgres unreachable | `SecretStoreUnavailable` | Retry with backoff. Services depending on a tier-2 secret report **not ready** on `/ready` — the TAP-5903 split — rather than degrading to an anonymous client. |
+| Tier 2 row absent for a required key | `SecretNotProvisioned` | The capability is standby, surfaced on `/ready`. For `ha_token` specifically this is the normal pre-onboarding state, not an error. |
+
+`OnboardingError` with a named `OnboardingState` is the existing precedent, and it
+already carries the no-fallback rule in its docstring.
+
+### Survival across rebuild and upgrade
+
+| Operation | Tier 1 | Tier 2 |
+|---|---|---|
+| `docker compose build` | survives (host path) | survives |
+| `docker compose pull` + image upgrade | survives | survives (`postgres_data`) |
+| `docker compose up --force-recreate` | survives | survives |
+| `docker compose down` | survives | survives |
+| `docker compose down -v` | **survives** | **destroyed** |
+| host reimage | destroyed | destroyed |
+
+The asymmetry on `down -v` is the one sharp edge and is called out deliberately:
+tier 1 outlives tier 2, so after a `-v` the appliance holds a valid DEK and an
+empty table. That is a recoverable state — it re-onboards — but only because
+`HAOnboarder` checks HA's onboarding status rather than assuming a fresh
+instance. Any tier-2 secret that *cannot* be re-derived (customer-entered
+credentials) is lost and must be re-entered. Backup scope is therefore
+"`/var/lib/homeiq/.env` **and** a `postgres_data` dump, together or not at all" —
+either half alone restores nothing usable.
+
+## Options rejected
+
+**One Postgres table for everything.** Cannot hold `POSTGRES_PASSWORD`
+(`compose.yml:69`). Rejected on ordering, not on merit — it is the right store
+for tier 2 and is used there.
+
+**The AgentForge vault.** Same defect, one level up: `AGENTFORGE_API_KEY` is
+itself in the required set (`env.required:35`), so the vault cannot hold its own
+bootstrap credential. [TAP-5322](https://linear.app/tappscodingagents/issue/TAP-5322)
+moves only the model-provider key there and is still Backlog; it decides one key,
+not the mechanism. The vault remains available for tier-2 keys later without
+reopening this ADR.
+
+**Docker secrets.** The repo currently declares no `secrets:` block anywhere. On a
+single-node non-Swarm deploy they are bind-mounted files, so they offer nothing
+over the 0600 file while requiring every consumer to be rewritten from `${VAR}` to
+`*_FILE` — a form not all images support. It buys a rename and costs a
+stack-wide edit.
+
+**systemd-creds with TPM sealing.** The strongest at-rest encryption of the five,
+and rejected on recoverability: credentials are sealed to *that machine's* TPM, so
+restoring an appliance backup onto replacement hardware loses every secret
+unrecoverably. For a B2C appliance in someone's house, where hardware failure is
+a support event and not an outage, that trade is wrong. It also adds a host
+systemd + TPM2 dependency the image does not have, and still needs a shim to
+reach Compose interpolation.
+
+**A single file for all tiers.** The simplest option, and workable until
+[TAP-6469](https://linear.app/tappscodingagents/issue/TAP-6469): collecting
+credentials in the running app would mean the web application rewrites `.env` and
+bounces the stack for interpolation to re-read it. Rotating any credential
+becomes a full restart, and concurrent writes need file locking. Tier 2 exists to
+avoid that.
+
+## Consequences
+
+- `compose.yml` is unchanged. The change surface is a first-boot script, a
+  start-script `--env-file` flag, one migration, and a small accessor library.
+- Two mechanisms mean two failure modes to document and test. The table above is
+  the contract; each named state needs a test.
+- `HOMEIQ_SECRET_DEK` is a single point of failure for tier 2 by design. It is
+  covered by the joint backup rule above.
+- The appliance's threat model is an unattended device on a home LAN. Tier 1 at
+  `0600` assumes host root is not hostile; an attacker with root has the DEK and
+  therefore tier 2 as well. This ADR does not defend against host compromise, and
+  no option on the list except TPM sealing did — which is the trade named above.
+- [TAP-6572](https://linear.app/tappscodingagents/issue/TAP-6572) and
+  [TAP-6573](https://linear.app/tappscodingagents/issue/TAP-6573) are unblocked
+  and should be re-scoped against these two tiers.
+
+## See also
+
+- `docs/architecture/adr-appliance-packaging.md` — the appliance model this serves
+- `libs/homeiq-ha/src/homeiq_ha/agent/onboarding.py` — the tier-2 producer, and
+  its "generated rather than baked" rationale
+- `env.required` — the key manifest and the required/conditional split
+- `scripts/preflight-env.sh` — the tier-1 failure path, already implemented
