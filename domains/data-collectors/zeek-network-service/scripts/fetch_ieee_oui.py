@@ -1,7 +1,16 @@
 """Build the bundled IEEE OUI dataset used by :mod:`src.services.oui_lookup`.
 
-Run at image build time. Downloads the three IEEE MAC-block registries and
-normalizes them into one gzipped TSV of ``ASSIGNMENT<TAB>ORGANIZATION``.
+Downloads the three IEEE MAC-block registries and normalizes them into one
+gzipped TSV of ``ASSIGNMENT<TAB>ORGANIZATION``.
+
+This is a LOCAL REFRESH TOOL, not a build step: IEEE blocks datacenter/CI
+egress IPs, so running this from a GitHub-hosted (or any datacenter) runner
+fails with ``httpx.ConnectError: [Errno 111] Connection refused`` even
+though the same fetch succeeds from a developer machine. The Dockerfile
+COPYs the committed snapshot at ``data/ieee-oui.tsv.gz`` instead of running
+this script. To refresh the dataset: run this script locally (from a
+non-datacenter network), then commit the updated
+``domains/data-collectors/zeek-network-service/data/ieee-oui.tsv.gz``.
 
 Why all three registries, not just MA-L: IEEE subdivides 24-bit MA-L blocks
 into 28-bit MA-M and 36-bit MA-S assignments, and the sub-assignee is a
