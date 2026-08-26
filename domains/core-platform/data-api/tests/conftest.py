@@ -7,6 +7,7 @@ from urllib.parse import quote
 
 import pytest
 import pytest_asyncio
+from homeiq_data.auth import SIGNING_KEY_ENV
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 
@@ -75,6 +76,13 @@ def _load_add_service_src():
 
 add_service_src = _load_add_service_src()
 add_service_src(__file__)
+
+# Configure the JWT signing key the way compose configures it (TAP-6580).
+# data-api runs the shared homeiq_data AuthManager, which refuses to start
+# without ``ADMIN_API_JWT_SECRET`` rather than minting a per-process random
+# key. This runs at conftest import because ``src.main`` builds the service at
+# module scope, i.e. before any fixture can fire.
+os.environ.setdefault(SIGNING_KEY_ENV, "data-api-test-signing-key")
 
 """
 Shared pytest fixtures for Data API service tests

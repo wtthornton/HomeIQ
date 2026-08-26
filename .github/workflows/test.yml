@@ -93,7 +93,7 @@ jobs:
           INFLUXDB_PASSWORD=test_password_ci
           INFLUXDB_TOKEN=test_token
           POSTGRES_PASSWORD=homeiq_test
-          JWT_SECRET_KEY=test_jwt_secret_ci
+          ADMIN_API_JWT_SECRET=test_jwt_secret_ci
           ADMIN_PASSWORD=test_admin_password_ci
           HOMEIQ_MCP_READ_TOKENS=test_read_token_ci
           GF_SECURITY_ADMIN_PASSWORD=test_grafana_password_ci

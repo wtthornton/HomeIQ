@@ -115,6 +115,10 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - ENABLE_AUTH=true
       - API_KEY=${API_KEY:-}
+      # Same signing key as admin-api on purpose: both run the shared
+      # homeiq_data AuthManager, so a per-service key means each rejects the
+      # other's tokens (TAP-6580).
+      - ADMIN_API_JWT_SECRET=${ADMIN_API_JWT_SECRET:?required}
       - CORS_ORIGINS=http://localhost:3000,http://localhost
       - DEPLOYMENT_MODE=${DEPLOYMENT_MODE:-production}
       - OTLP_ENDPOINT=${HOMEIQ_OTLP_ENDPOINT:-}
@@ -264,9 +268,9 @@ services:
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?required}
-      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
-      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      - ADMIN_API_JWT_SECRET=${ADMIN_API_JWT_SECRET:?required}
+      - ADMIN_API_JWT_ALGORITHM=${ADMIN_API_JWT_ALGORITHM:-HS256}
+      - ADMIN_API_JWT_TTL=${ADMIN_API_JWT_TTL:-30}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:?required}
       - WEBSOCKET_INGESTION_URL=http://websocket-ingestion:8001
       - DATA_API_URL=http://data-api:8006

@@ -93,7 +93,7 @@ function Test-Configuration {
         "INFLUXDB_PASSWORD",
         "INFLUXDB_TOKEN",
         "WEATHER_API_KEY",
-        "JWT_SECRET_KEY",
+        "ADMIN_API_JWT_SECRET",
         "ADMIN_PASSWORD"
     )
     
