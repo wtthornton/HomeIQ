@@ -51,6 +51,12 @@ log_info "Ensuring homeiq-network exists..."
 "$SCRIPT_DIR/ensure-network.sh"
 echo ""
 
+# Ensure shared cross-domain volumes exist (homeiq_logs, ai_automation_data
+# -- see scripts/ensure-volumes.sh for why they're external: true)
+log_info "Ensuring shared volumes exist..."
+"$SCRIPT_DIR/ensure-volumes.sh"
+echo ""
+
 # Poll a health endpoint until it responds 200 or timeout
 wait_for_health() {
   local url="$1"

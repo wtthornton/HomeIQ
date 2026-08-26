@@ -841,11 +841,27 @@ services:
       - homeiq_logs:/var/log/homeiq
 
 # Core-platform volumes (shared across groups via external references)
+#
+# homeiq_logs is declared `external: true` here too -- identically to how
+# data-collectors/compose.yml and device-management/compose.yml already
+# declare it, and identically to how every domain declares homeiq-network
+# below. Compose v2.38.2's `include:` merge rejects two differing
+# declarations of the same top-level resource name ("volumes.homeiq_logs
+# conflicts with imported resource") even though it happily merges
+# byte-identical ones; the plain (non-external) form used to live only
+# here, so the root docker-compose.yml's merged model -- the one CI
+# resolves -- collided with the other two domains' copies. The physical
+# volume name is unchanged (${HOMEIQ_LOGS_VOLUME:-homeiq-core-platform_homeiq_logs}),
+# so no data is orphaned. It is now created out-of-band by
+# scripts/ensure-volumes.sh, the same way scripts/ensure-network.sh
+# pre-creates homeiq-network for the `external: true` networks entry.
 volumes:
   influxdb_data:
   influxdb_config:
   postgres_data:
   homeiq_logs:
+    external: true
+    name: ${HOMEIQ_LOGS_VOLUME:-homeiq-core-platform_homeiq_logs}
   data_retention_backups:
   prometheus_data:
   grafana_data:
