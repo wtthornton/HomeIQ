@@ -8,7 +8,6 @@ key must stop startup by name instead of quietly minting a random one.
 from __future__ import annotations
 
 import pytest
-
 from homeiq_data.auth import (
     SIGNING_KEY_ENV,
     AuthManager,
