@@ -9,10 +9,21 @@ on:
     - cron: '0 6 * * 1'
   workflow_dispatch: {}
 
+# Restrictive default for every job. Jobs that need more ask for it themselves.
+permissions:
+  contents: read
+
 jobs:
   scan-images:
     name: Security Scan Docker Images
     runs-on: ubuntu-latest
+    # github/codeql-action/upload-sarif writes to the code-scanning API. Without
+    # security-events:write that step fails with "Resource not accessible by
+    # integration" while the Trivy scan above it passes -- which reads as a
+    # vulnerability finding but is a token scope.
+    permissions:
+      contents: read
+      security-events: write
     strategy:
       matrix:
         service:
