@@ -52,12 +52,30 @@ USER_AGENT = "HomeIQ-zeek-network-service/1.0 (+https://github.com/wtthornton/Ho
 ALLOWED_ORIGIN = "https://standards-oui.ieee.org"
 
 
+#: This stage's base image is python:3.12-alpine (musl libc). musl's resolver
+#: doesn't do glibc's happy-eyeballs fallback: if getaddrinfo returns an AAAA
+#: record whose route is dead in the build sandbox, the connect fails fast
+#: with ECONNREFUSED instead of falling back to the working A record. That
+#: matches what a GitHub-hosted runner produced here (errno 111 at ~14s, not
+#: a 120s timeout). local_address="0.0.0.0" forces the socket to bind IPv4,
+#: which skips AAAA entirely; retries absorb any other one-off connect
+#: failure against this specific host.
+_TRANSPORT = httpx.HTTPTransport(local_address="0.0.0.0", retries=3)
+
+
 def _fetch(url: str, timeout: int = 120) -> str:
     if not url.startswith(f"{ALLOWED_ORIGIN}/"):
         raise ValueError(f"refusing to fetch {url!r}: not under {ALLOWED_ORIGIN}")
-    response = httpx.get(
-        url, headers={"User-Agent": USER_AGENT}, timeout=timeout, follow_redirects=True
-    )
+    try:
+        with httpx.Client(transport=_TRANSPORT, timeout=timeout, follow_redirects=True) as client:
+            response = client.get(url, headers={"User-Agent": USER_AGENT})
+    except httpx.ConnectError as exc:
+        raise RuntimeError(
+            f"could not connect to {url}: {exc}. Already forced IPv4 "
+            "(local_address='0.0.0.0') and retried 3x, so this is not the known "
+            "musl/IPv6 build-sandbox quirk -- the host may be actively refusing "
+            "this build environment's egress IP."
+        ) from exc
     response.raise_for_status()
     return response.text
 
