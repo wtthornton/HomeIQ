@@ -9,9 +9,10 @@ import pytest
 import pytest_asyncio
 from homeiq_ha.client.errors import HACommandError
 from homeiq_ha.registry_writer import UnknownTarget, WriteNotVerified
+from sqlalchemy import delete
 from src.config import Settings
 from src.core.database import get_db_session, initialize_database
-from src.models.database import DeviceHygieneIssue
+from src.models.database import Device, DeviceEntity, DeviceHygieneIssue
 from src.services.remediation_service import DeviceHygieneRemediationService
 
 #: What HA's config/device_registry/update command schema actually accepts. A
@@ -64,14 +65,36 @@ class FakeHaClient:
         return {"handler": handler}
 
 
-@pytest_asyncio.fixture(scope="module")
+@pytest_asyncio.fixture
 async def db_setup(tmp_path_factory):
+    # Function-scoped to match pytest.ini's `asyncio_default_fixture_loop_scope
+    # = function`: a module-scoped async fixture is created against a
+    # module-scoped event loop runner, which pytest-asyncio then refuses to
+    # hand to a function-scoped test (`ScopeMismatch`).
     data_dir = Path("./data")
     data_dir.mkdir(exist_ok=True)
     tmp_path_factory.mktemp("device-int") / "remediation.db"
     settings = Settings(DATABASE_URL="postgresql+asyncpg://homeiq:homeiq@localhost:5432/homeiq")
     await initialize_database(settings)
+
+    # DeviceHygieneIssue.device_id is a real FK to devices.id. This module's
+    # fixtures reference "device-1" -- own that row here rather than relying
+    # on another test module (e.g. test_hygiene_router.py) to have left one
+    # behind, which is exactly the kind of cross-file leak TAP-6308 flagged.
+    async for session in get_db_session():
+        session.add(Device(id="device-1", name="Kitchen Light", integration="hue"))
+        await session.commit()
+        break
+
     yield
+
+    async for session in get_db_session():
+        await session.execute(
+            delete(DeviceHygieneIssue).where(DeviceHygieneIssue.device_id == "device-1")
+        )
+        await session.execute(delete(Device).where(Device.id == "device-1"))
+        await session.commit()
+        break
 
 
 @pytest_asyncio.fixture
@@ -130,6 +153,20 @@ async def test_assign_area_requires_device_id(fresh_issue):
 async def test_enable_entity_updates_status(fresh_issue):
     fake_client = FakeHaClient()
     async for session in get_db_session():
+        # issue.entity_id is a real FK to device_entities.entity_id; own the
+        # row here rather than assigning an id nothing has inserted. Cascades
+        # away with the "device-1" Device row db_setup tears down.
+        session.add(
+            DeviceEntity(
+                entity_id="light.kitchen",
+                device_id="device-1",
+                platform="hue",
+                domain="light",
+                unique_id="uid-light.kitchen",
+            )
+        )
+        await session.commit()
+
         issue = await session.get(DeviceHygieneIssue, fresh_issue)
         issue.entity_id = "light.kitchen"
         issue.status = "open"

@@ -271,30 +271,37 @@ class PerformanceCollector:
         return comparison
 
     async def _cleanup_old_metrics(self):
-        """Clean up old metrics data."""
+        """Background loop: clean up old metrics data every hour."""
         while True:
             try:
                 await asyncio.sleep(3600)  # Run every hour
-
-                cutoff_time = datetime.now(UTC) - timedelta(hours=self.retention_hours)
-
-                for device_id in list(self.metrics_history.keys()):
-                    metrics = self.metrics_history[device_id]
-
-                    # Remove old metrics
-                    while metrics and metrics[0]["timestamp"] < cutoff_time:
-                        metrics.popleft()
-
-                    # Remove empty entries
-                    if not metrics:
-                        del self.metrics_history[device_id]
-                        if device_id in self.aggregated_metrics:
-                            del self.aggregated_metrics[device_id]
-
-                logger.debug("Cleaned up old metrics data")
-
+                await self._cleanup_once()
             except Exception as e:
                 logger.error(f"Error during metrics cleanup: {e}")
+
+    async def _cleanup_once(self):
+        """Run a single cleanup pass, removing metrics older than retention_hours.
+
+        Split out from `_cleanup_old_metrics` so a single pass can be triggered
+        (e.g. from a test) without awaiting the `while True` background loop,
+        which never returns on its own.
+        """
+        cutoff_time = datetime.now(UTC) - timedelta(hours=self.retention_hours)
+
+        for device_id in list(self.metrics_history.keys()):
+            metrics = self.metrics_history[device_id]
+
+            # Remove old metrics
+            while metrics and metrics[0]["timestamp"] < cutoff_time:
+                metrics.popleft()
+
+            # Remove empty entries
+            if not metrics:
+                del self.metrics_history[device_id]
+                if device_id in self.aggregated_metrics:
+                    del self.aggregated_metrics[device_id]
+
+        logger.debug("Cleaned up old metrics data")
 
     def get_stats(self) -> dict[str, Any]:
         """Get performance collector statistics."""

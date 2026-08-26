@@ -39,6 +39,42 @@ under data-api; only admin-api's live copy remains.
 prompt. Do not start from the body's tables — at least four of its diagnoses have been
 overtaken, and treating a fixed item as broken wastes a sub-goal.
 
+## Refresh 2026-08-26 (first-wave run) — ticket refs and live state, re-verified
+
+A first-wave pass re-checked the three tickets above against both Linear and a live
+`gh api .../check-runs` read (last 40 runs on master). Two of the three still say exactly
+what this prompt claims; one is stale in a way worth flagging for whoever closes it:
+
+1. **TAP-6308 — device-intelligence-service `dependency_overrides` bypass.** Confirmed
+   still accurate and still the single real red job (`ci / CI — device-intelligence-service`,
+   23 failed + 7 errors, matching the ticket's numbers exactly). **Fixed in this wave** —
+   see the PR this section's commit belongs to. Root causes were broader than the ticket's
+   five `## Where` lines suggested: the EAV-vs-wide-table bug recurred at three call sites in
+   `predictions_router.py` (only one was cited), the leaked `device-1` row also silently
+   propped up `test_remediation_service.py`'s fixtures (which never seeded its own Device
+   row), and two more independent bugs surfaced once the cited ones were fixed — a
+   WLED name-vs-entity_id segment-detection bug and a `device_mappings_router.py`
+   FastAPI body-embedding break. Do **not** re-run this ticket's fix; it is done.
+2. **TAP-6431 — integration-tests.yml, 33 failures.** Confirmed still accurate: `E2E &
+   Integration Tests` is red on every one of the last 8 runs on master (`gh run list`).
+   **Not touched in this wave** — see "left for later" in the executing session's report.
+3. **TAP-6103 — domain CI red on master.** **Stale.** The ticket's own body lists ruff/test
+   failures across ha-ai-agent-service, proactive-agent-service, data-api,
+   device-intelligence-service, and others — but a live check-runs read on 2026-08-26 shows
+   every `CI —` group workflow green on the current master HEAD (`90730d98`) except the one
+   TAP-6308 already covers. The ticket is still open in Linear (status: Backlog) but its
+   premise — "restored per-service jobs [are] red on master" — no longer holds for anything
+   TAP-6308 doesn't already own. Whoever next touches TAP-6103 should re-verify against a
+   live run before doing any work under it; do not treat its `## Where` list as current.
+
+**Frontends / Core Platform: not actually red.** A raw "last 40 runs" tally makes
+`CI — Frontends` and `CI — Core Platform` look like 1/2 and 2/3. Reading `conclusion` per
+commit (not just counting) shows the only non-`success` entries for both are `cancelled` —
+superseded by a later push in the same PR, the normal `concurrency: cancel-in-progress`
+behavior this workflow already sets (`reusable-group-ci.yml:26-28`), not a failure. The
+latest run of each, on the latest commit, is `success`. No fix needed; do not spend a
+sub-goal chasing this.
+
 ## Prerequisites / Wayfind gate
 
 - **Route clear?** **YES.** Every blocker below was empirically reproduced on 2026-08-10

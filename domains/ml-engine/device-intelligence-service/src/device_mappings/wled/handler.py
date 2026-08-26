@@ -79,6 +79,12 @@ class WLEDHandler(DeviceHandler):
         """
         Identify device type (master or segment).
 
+        Determined from the DEVICE's own name, not from scanning `entities`:
+        a WLED master legitimately owns per-segment light entities
+        (`light.office_wled_segment_1`) alongside its own, so treating "any
+        associated entity looks like a segment" as proof the *device* is a
+        segment misclassifies every master that has more than one segment.
+
         Args:
             device: Device dictionary
             entities: List of entities associated with the device
@@ -86,28 +92,18 @@ class WLEDHandler(DeviceHandler):
         Returns:
             DeviceType.MASTER or DeviceType.SEGMENT, or None if cannot determine
         """
-        # Check entities for segment pattern
-        for entity in entities:
-            entity_id = entity.get("entity_id", "")
-            if "_segment_" in entity_id.lower():
-                return DeviceType.SEGMENT
-
-        # Check device name/entity_id patterns
-        device_name = (device.get("name") or "").lower()
-        if "_segment_" in device_name:
+        # Device names are human-readable ("Office WLED Segment 1"), so
+        # normalize spaces to underscores before matching the slug pattern.
+        device_name_slug = (device.get("name") or "").lower().replace(" ", "_")
+        if "_segment_" in device_name_slug:
             return DeviceType.SEGMENT
 
-        # If we have entities, check if any are segments
-        # If no segments found and device is WLED, assume master
+        # Not identified as a segment by its own name -- if it's WLED at all
+        # (by manufacturer/model/name, or by an entity_id pattern when device
+        # metadata is thin), it's a master.
         if self.can_handle(device) or any(
             self.can_handle_entity(entity.get("entity_id", ""), device) for entity in entities
         ):
-            # Check if it's a segment by entity_id
-            for entity in entities:
-                entity_id = entity.get("entity_id", "")
-                if "_segment_" in entity_id.lower():
-                    return DeviceType.SEGMENT
-            # Not a segment, so it's a master
             return DeviceType.MASTER
 
         return None
@@ -131,7 +127,10 @@ class WLEDHandler(DeviceHandler):
         """
         relationships = []
         device_id = device.get("id", "")
-        device_name = (device.get("name") or "").lower()
+        # Device names are human-readable ("Office WLED Segment 1"); normalize
+        # spaces to underscores so the "_segment_" slug pattern actually
+        # matches instead of only ever matching an entity_id.
+        device_name = (device.get("name") or "").lower().replace(" ", "_")
 
         # Check if this is a segment (by device name or entity_id pattern)
         is_segment = "_segment_" in device_name
@@ -143,7 +142,7 @@ class WLEDHandler(DeviceHandler):
 
             # Look for master device with matching base name
             for other_device in all_devices:
-                other_name = (other_device.get("name") or "").lower()
+                other_name = (other_device.get("name") or "").lower().replace(" ", "_")
                 other_id = other_device.get("id", "")
 
                 # Master should have same base name and not be a segment
@@ -166,7 +165,7 @@ class WLEDHandler(DeviceHandler):
             base_name = device_name
 
             for other_device in all_devices:
-                other_name = (other_device.get("name") or "").lower()
+                other_name = (other_device.get("name") or "").lower().replace(" ", "_")
                 other_id = other_device.get("id", "")
 
                 # Segment should start with base name and contain "_segment_"
@@ -201,7 +200,7 @@ class WLEDHandler(DeviceHandler):
 
         if device_type == DeviceType.SEGMENT:
             # Find master for this segment
-            base_name = (device.get("name") or "").lower().split("_segment_")[0]
+            base_name = (device.get("name") or "").lower().replace(" ", "_").split("_segment_")[0]
             return f"{device_name} (WLED segment - part of {base_name} master)"
         elif device_type == DeviceType.MASTER:
             # Count segments
