@@ -30,6 +30,18 @@ Failures surface as :class:`OnboardingError` with a named
 :class:`OnboardingState`. There is deliberately no fallback to a default
 credential: a silent fallback would reintroduce the constant-secret problem the
 generation exists to avoid.
+
+Dormant: nothing calls this yet
+-------------------------------
+Nothing outside the tests constructs :class:`HAOnboarder`, and it is exported
+from no ``__init__``. That is deliberate, not an oversight. A production caller
+has to put the minted token *somewhere*, and the appliance secret store has not
+been chosen yet -- that decision is TAP-6571. Wiring a caller up before it lands
+would pick a storage mechanism by accident, in the one place nobody would think
+to look for the choice.
+
+TAP-6572 wires this into the boot path once TAP-6571 resolves. Until then the
+module is complete and tested but intentionally unreachable from production.
 """
 
 from __future__ import annotations
