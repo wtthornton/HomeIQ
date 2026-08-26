@@ -185,6 +185,7 @@ case "$COMMAND" in
   start)
     echo -e "${GREEN}[START]${NC} Starting $DOMAIN..."
     "$SCRIPT_DIR/ensure-network.sh"
+    "$SCRIPT_DIR/ensure-volumes.sh"
     docker compose -f "$COMPOSE_FILE" $ENV_FILE_FLAG --profile production up -d ${SERVICE:+"$SERVICE"}
     echo -e "${GREEN}[OK]${NC} $DOMAIN started."
     ;;
@@ -196,6 +197,7 @@ case "$COMMAND" in
   restart)
     echo -e "${YELLOW}[RESTART]${NC} Restarting $DOMAIN..."
     "$SCRIPT_DIR/ensure-network.sh"
+    "$SCRIPT_DIR/ensure-volumes.sh"
     docker compose -f "$COMPOSE_FILE" $ENV_FILE_FLAG --profile production down
     docker compose -f "$COMPOSE_FILE" $ENV_FILE_FLAG --profile production up -d ${SERVICE:+"$SERVICE"}
     echo -e "${GREEN}[OK]${NC} $DOMAIN restarted."

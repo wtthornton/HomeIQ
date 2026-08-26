@@ -25,12 +25,18 @@ COPY domains/data-collectors/zeek-network-service/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir --user -r requirements.txt
 
-# Build the IEEE OUI dataset (~577 KB gz, ~53.7k assignments). The curated
-# fallback in oui_lookup.py resolved 0 of 54 devices on the reference network,
-# so vendor identity depends on this step. It fails the build rather than
-# shipping a dataset that silently resolves nothing.
+# IEEE OUI dataset (~577 KB gz, ~53.7k assignments). The curated fallback in
+# oui_lookup.py resolved 0 of 54 devices on the reference network, so vendor
+# identity depends on this file being present and current.
+#
+# Vendored, not fetched at build time: IEEE blocks datacenter/CI egress IPs,
+# so a build-time `RUN` fetch here (the previous approach) fails on
+# GitHub-hosted runners with httpx.ConnectError: [Errno 111] Connection
+# refused, even though the same fetch succeeds from a developer machine.
+# scripts/fetch_ieee_oui.py remains in the repo as the documented refresh
+# tool -- see its docstring for the refresh procedure.
 COPY domains/data-collectors/zeek-network-service/scripts/fetch_ieee_oui.py ./scripts/
-RUN python scripts/fetch_ieee_oui.py /app/data/ieee-oui.tsv.gz
+COPY domains/data-collectors/zeek-network-service/data/ieee-oui.tsv.gz /app/data/ieee-oui.tsv.gz
 
 # Production stage
 FROM python:3.12-alpine AS production

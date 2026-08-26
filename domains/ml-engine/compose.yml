@@ -238,8 +238,21 @@ services:
         labels: "service=model-prep,group=ml-engine,environment=development"
 
 # ML-engine volumes
+#
+# ai_automation_data is declared `external: true` here too -- identically to
+# how automation-core/compose.yml and pattern-analysis/compose.yml already
+# declare it (both reference this same volume by name). Compose v2.38.2's
+# `include:` merge rejects two differing declarations of the same top-level
+# resource name ("volumes.ai_automation_data conflicts with imported
+# resource"), the same defect that hit homeiq_logs -- see
+# domains/core-platform/compose.yml for the full explanation. The physical
+# volume name is unchanged (${AI_AUTOMATION_DATA_VOLUME:-homeiq-ml-engine_ai_automation_data}),
+# so no data is orphaned. It is now created out-of-band by
+# scripts/ensure-volumes.sh.
 volumes:
   ai_automation_data:
+    external: true
+    name: ${AI_AUTOMATION_DATA_VOLUME:-homeiq-ml-engine_ai_automation_data}
   ai_automation_models:
   device_intelligence_data:
   device_intelligence_models:

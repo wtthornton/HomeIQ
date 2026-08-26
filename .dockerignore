@@ -55,6 +55,7 @@ models/
 !services/**/models/  # Allow service-specific models directories
 data/
 !services/**/data/  # Allow service-specific data directories (e.g., ha-simulator)
+!domains/data-collectors/zeek-network-service/data/ieee-oui.tsv.gz  # Vendored IEEE OUI snapshot (TAP-6577); IEEE blocks CI egress IPs, so the Dockerfile COPYs this instead of fetching it at build time
 # Database files (exclude everywhere except service data directories)
 *.db
 !services/**/data/**/*.db

@@ -106,6 +106,7 @@ switch ($Command) {
     "start" {
         Write-Host "[START] Starting $Domain..." -ForegroundColor Green
         & "$ScriptDir\ensure-network.ps1"
+        & "$ScriptDir\ensure-volumes.ps1"
         docker compose -f $ComposeFile @EnvFileArgs --profile production up -d
         Write-Host "[OK] $Domain started." -ForegroundColor Green
     }
@@ -117,6 +118,7 @@ switch ($Command) {
     "restart" {
         Write-Host "[RESTART] Restarting $Domain..." -ForegroundColor Yellow
         & "$ScriptDir\ensure-network.ps1"
+        & "$ScriptDir\ensure-volumes.ps1"
         docker compose -f $ComposeFile @EnvFileArgs --profile production restart
         Write-Host "[OK] $Domain restarted." -ForegroundColor Green
     }

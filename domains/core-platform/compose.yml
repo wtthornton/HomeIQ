@@ -115,6 +115,10 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - ENABLE_AUTH=true
       - API_KEY=${API_KEY:-}
+      # Same signing key as admin-api on purpose: both run the shared
+      # homeiq_data AuthManager, so a per-service key means each rejects the
+      # other's tokens (TAP-6580).
+      - ADMIN_API_JWT_SECRET=${ADMIN_API_JWT_SECRET:?required}
       - CORS_ORIGINS=http://localhost:3000,http://localhost
       - DEPLOYMENT_MODE=${DEPLOYMENT_MODE:-production}
       - OTLP_ENDPOINT=${HOMEIQ_OTLP_ENDPOINT:-}
@@ -264,9 +268,9 @@ services:
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?required}
-      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
-      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      - ADMIN_API_JWT_SECRET=${ADMIN_API_JWT_SECRET:?required}
+      - ADMIN_API_JWT_ALGORITHM=${ADMIN_API_JWT_ALGORITHM:-HS256}
+      - ADMIN_API_JWT_TTL=${ADMIN_API_JWT_TTL:-30}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:?required}
       - WEBSOCKET_INGESTION_URL=http://websocket-ingestion:8001
       - DATA_API_URL=http://data-api:8006
@@ -837,11 +841,27 @@ services:
       - homeiq_logs:/var/log/homeiq
 
 # Core-platform volumes (shared across groups via external references)
+#
+# homeiq_logs is declared `external: true` here too -- identically to how
+# data-collectors/compose.yml and device-management/compose.yml already
+# declare it, and identically to how every domain declares homeiq-network
+# below. Compose v2.38.2's `include:` merge rejects two differing
+# declarations of the same top-level resource name ("volumes.homeiq_logs
+# conflicts with imported resource") even though it happily merges
+# byte-identical ones; the plain (non-external) form used to live only
+# here, so the root docker-compose.yml's merged model -- the one CI
+# resolves -- collided with the other two domains' copies. The physical
+# volume name is unchanged (${HOMEIQ_LOGS_VOLUME:-homeiq-core-platform_homeiq_logs}),
+# so no data is orphaned. It is now created out-of-band by
+# scripts/ensure-volumes.sh, the same way scripts/ensure-network.sh
+# pre-creates homeiq-network for the `external: true` networks entry.
 volumes:
   influxdb_data:
   influxdb_config:
   postgres_data:
   homeiq_logs:
+    external: true
+    name: ${HOMEIQ_LOGS_VOLUME:-homeiq-core-platform_homeiq_logs}
   data_retention_backups:
   prometheus_data:
   grafana_data:

@@ -4,9 +4,26 @@ FROM zeek/zeek:8.1.1
 # Install community packages for device fingerprinting and ML features
 # Device fingerprinting packages
 # Removed: KYD, zeek-flowmeter (repos unavailable), hassh (incompatible with Zeek 8.1.1)
+#
+# Both packages are pinned to a git ref instead of floating on the default
+# branch HEAD -- an unpinned install breaks whenever upstream moves. ja4 in
+# particular is pinned to v0.18.8, NOT the newest tag (v1.0.0): v1.0.0
+# rewrote ja4 as a native C++20 plugin (build_command = cmake + make,
+# requirements: "C++20 compiler, CMake 3.15+"), and this base image
+# (zeek/zeek:8.1.1, Debian trixie) ships neither cmake nor a C++ compiler --
+# confirmed locally (`which cmake` / `which gcc g++ clang++` all fail in the
+# image). That is not a Zeek-version incompatibility; it is a missing build
+# toolchain that would need to be added to this image regardless of which
+# ja4 ref is chosen. v0.18.8 is the newest ja4 tag before that rewrite: a
+# pure Zeek-script package (script_dir = zeek, no build_command, depends
+# zeek >=5.0.0), which installs and loads cleanly against zeek 8.1.1 with
+# the toolchain this image already has.
+#
+# salesforce/ja3 has no tags at all -- pinned to its current master commit
+# so it stops floating too, on the same defect class.
 RUN zkg autoconfig --force && \
-    zkg install --force https://github.com/salesforce/ja3 && \
-    zkg install --force https://github.com/FoxIO-LLC/ja4
+    zkg install --force --version 502cc6395811c54743b0561419d61900a6df3ff7 https://github.com/salesforce/ja3 && \
+    zkg install --force --version v0.18.8 https://github.com/FoxIO-LLC/ja4
 
 # Copy custom Zeek configuration
 COPY domains/data-collectors/zeek-network-service/zeek-config/local.zeek /usr/local/zeek/share/zeek/site/local.zeek

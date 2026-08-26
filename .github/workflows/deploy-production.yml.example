@@ -36,7 +36,7 @@ jobs:
             "${{ secrets.WEATHER_API_KEY }}"
             "${{ secrets.INFLUXDB_PASSWORD }}"
             "${{ secrets.INFLUXDB_TOKEN }}"
-            "${{ secrets.JWT_SECRET_KEY }}"
+            "${{ secrets.ADMIN_API_JWT_SECRET }}"
           )
           
           missing_secrets=0
@@ -80,9 +80,9 @@ jobs:
           ENABLE_WEATHER_API=true
           
           # Authentication Configuration
-          JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
-          JWT_ALGORITHM=HS256
-          ACCESS_TOKEN_EXPIRE_MINUTES=30
+          ADMIN_API_JWT_SECRET=${{ secrets.ADMIN_API_JWT_SECRET }}
+          ADMIN_API_JWT_ALGORITHM=HS256
+          ADMIN_API_JWT_TTL=30
           ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD || 'change-me-in-secrets' }}
           
           # Logging Configuration
@@ -203,7 +203,7 @@ jobs:
 #   WEATHER_API_KEY           - OpenWeatherMap API key
 #   INFLUXDB_PASSWORD         - InfluxDB admin password
 #   INFLUXDB_TOKEN           - InfluxDB authentication token
-#   JWT_SECRET_KEY           - JWT signing secret (generate with: openssl rand -hex 32)
+#   ADMIN_API_JWT_SECRET           - JWT signing secret (generate with: openssl rand -hex 32)
 # 
 # Optional Secrets:
 #   HOME_ASSISTANT_URL        - Home Assistant URL (default: http://homeassistant.local:8123)

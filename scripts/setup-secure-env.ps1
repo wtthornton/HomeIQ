@@ -247,9 +247,9 @@ else {
 $content += @"
 
 # Authentication Configuration
-JWT_SECRET_KEY=$jwtSecret
-JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
+ADMIN_API_JWT_SECRET=$jwtSecret
+ADMIN_API_JWT_ALGORITHM=HS256
+ADMIN_API_JWT_TTL=30
 ADMIN_PASSWORD=$adminPassword
 ENABLE_AUTH=$enableAuth
 "@

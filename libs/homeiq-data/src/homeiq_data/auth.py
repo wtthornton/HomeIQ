@@ -3,7 +3,9 @@ Shared authentication manager for secured HomeIQ services.
 
 Implements API-key enforcement, optional JWT support, and basic session
 tracking that can be reused across admin-api, data-api, and other FastAPI
-services. Authentication can no longer be disabled through configuration.
+services. Authentication can no longer be disabled through configuration, and
+the JWT signing key must be supplied through ``ADMIN_API_JWT_SECRET`` — an
+absent key is a named startup failure, never a generated one.
 """
 
 from __future__ import annotations
@@ -13,6 +15,7 @@ import logging
 import os
 import secrets
 from datetime import UTC, datetime, timedelta
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +26,51 @@ from passlib.context import CryptContext
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
+
+SIGNING_KEY_ENV = "ADMIN_API_JWT_SECRET"
+
+
+class SigningKeyState(StrEnum):
+    """Named outcomes for signing-key resolution. Never a silent random default."""
+
+    ABSENT = "signing_key_absent"
+    BLANK = "signing_key_blank"
+
+
+class SigningKeyError(RuntimeError):
+    """Startup failed at a named signing-key state."""
+
+    def __init__(self, state: SigningKeyState, detail: str) -> None:
+        super().__init__(f"{state.value}: {detail}")
+        self.state = state
+        self.detail = detail
+
+
+def resolve_signing_key() -> str:
+    """Return the configured JWT signing key, or fail at a named state.
+
+    There is deliberately no fallback. A per-process random key makes every
+    token die on restart and makes two processes reject each other's tokens —
+    which presents as an expiry bug rather than as the missing configuration it
+    actually is. Compose gates the same name with ``:?required`` so the deploy
+    stops before a container ever reaches this call.
+
+    Raises:
+        SigningKeyError: the environment supplies no usable signing key.
+    """
+    raw = os.environ.get(SIGNING_KEY_ENV)
+    if raw is None:
+        raise SigningKeyError(
+            SigningKeyState.ABSENT,
+            f"{SIGNING_KEY_ENV} is not set — no signing key can be derived",
+        )
+    key = raw.strip()
+    if not key:
+        raise SigningKeyError(
+            SigningKeyState.BLANK,
+            f"{SIGNING_KEY_ENV} is set but empty",
+        )
+    return key
 
 
 class User(BaseModel):
@@ -53,6 +101,10 @@ class AuthManager:
             api_key: Static API key that must be presented as Bearer token.
             allow_anonymous: Intended for unit tests only; skips API key enforcement.
             users: Optional list of user definitions (dicts) for JWT/password auth.
+
+        Raises:
+            ValueError: no API key was supplied outside anonymous mode.
+            SigningKeyError: ``ADMIN_API_JWT_SECRET`` is absent or blank.
         """
 
         if not api_key and not allow_anonymous:
@@ -66,7 +118,7 @@ class AuthManager:
         self.security = HTTPBearer(auto_error=False)
         self.pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
-        self.secret_key = os.getenv("ADMIN_API_JWT_SECRET") or secrets.token_urlsafe(32)
+        self.secret_key = resolve_signing_key()
         self.algorithm = os.getenv("ADMIN_API_JWT_ALGORITHM", "HS256")
         self.access_token_expire_minutes = int(os.getenv("ADMIN_API_JWT_TTL", "30"))
 

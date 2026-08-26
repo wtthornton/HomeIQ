@@ -120,6 +120,12 @@ Write-Host "[INFO] Ensuring homeiq-network exists..." -ForegroundColor Cyan
 & "$ScriptDir\ensure-network.ps1"
 Write-Host ""
 
+# Ensure shared cross-domain volumes exist (homeiq_logs, ai_automation_data
+# -- see scripts/ensure-volumes.ps1 for why they're external: true)
+Write-Host "[INFO] Ensuring shared volumes exist..." -ForegroundColor Cyan
+& "$ScriptDir\ensure-volumes.ps1"
+Write-Host ""
+
 # 1. core-platform (critical)
 Start-Domain -DomainName "core-platform"
 
