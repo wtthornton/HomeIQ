@@ -44,6 +44,11 @@ independent verifier (paste evidence per ID).
 MUST include one clause where a count must NOT shrink (">= N tests collected",
 "36/36 of an enumerated total") — otherwise the goal is satisfiable by deletion.>
 
+**REQUIRED final clause (never delete this one):** the lessons-learned pass has run
+and `.claude/skills/orchestration-prompt/learnings.md` carries this run's transferable
+lessons, or the run states in one line that it produced none and why. Paste the appended
+bullets. A run that solved the problem and taught the harness nothing is only half done.
+
 ## Validation contract (before execution — software behavior only)
 <Skip for pure research/triage/docs. Write assertions BEFORE execution sub-goals.>
 
@@ -62,6 +67,10 @@ Coverage rule: every ID claimed exactly once; Done-when requires all IDs green.
 1. **(Software behavior) Finalize validation contract** — proof: contract table above complete + coverage check pasted
 2. <narrow, verifiable execution> — fulfills: <VAL-…> — proof: <ground-truth artifact>
 3. <…>
+N. **Lessons learned (REQUIRED — always the last sub-goal, never dropped when trimming).**
+   Run the pass in "Lessons learned" below and append to
+   `.claude/skills/orchestration-prompt/learnings.md`. — proof: the appended bullets pasted,
+   or one line saying nothing transferable came up and why.
 
 ## Plane map  (mechanism + literal dispatch parameters per chunk)
 <`effort` applies only inside a Workflow — the Agent tool has no effort parameter and
@@ -128,6 +137,7 @@ Next: /clear   then   /tapps-continue-session
 - Shift boundaries — checkpoint via handoff → clear → continue; caps are cumulative across shifts, never reset by a clear.
 - Scope: repos in play = <list>; reads fleet-wide, writes via owner.
 - Memory: recall wayfind resume + prior attempts at start; record structured handoff (incl. failures) at each checkpoint.
+- Lessons learned: the final sub-goal runs the "Lessons learned" pass and appends to `learnings.md`. It is REQUIRED and is the one sub-goal that survives any trim — a run that fixes the problem and teaches the harness nothing has paid full price for half the value. Mine what the verifier refuted first.
 - Harness compatibility: <gated tool calls → unlock/refresh steps; MCP standing nudges → adopted or overridden>.
 - Discipline: root-cause not workarounds; no green-by-suppression; right-sized; durable; match conventions; no scope creep.
 
@@ -154,6 +164,57 @@ section the runner treats every stated fact as equally solid and builds on sand.
 Name the cheap check that would settle each one, and require it before the fact is
 depended upon.>
 - <claim> — basis: <how it was derived> — confirm by: <the cheap check>
+
+## Lessons learned  (REQUIRED — runs once, at the end, before Run-as is reported done)
+
+Append to `.claude/skills/orchestration-prompt/learnings.md` (project-scoped; never
+bleed lessons across repos). This is the harness improving from its own runs — skipping
+it is how the same trap gets paid for twice.
+
+**Mine these four sources, in order. Do not summarize the run.**
+
+1. **What an independent verifier refuted** — the highest-value source by far. Anything
+   a verifier caught is, by construction, something you believed and got wrong.
+2. **What cost the most wall-clock or the most retries** — the wrong diagnosis, the
+   silent tool failure, the poll that looked like a different problem.
+3. **A premise that turned out false** — especially one this prompt itself asserted, or
+   one that pre-specified the shape of an answer the evidence would not fit.
+4. **Evidence that turned out not to prove what it seemed to** — a green check that did
+   not discriminate, a count that was satisfiable another way.
+
+**Each bullet must earn its line.** Bar:
+
+- **Transferable** — it would change behavior on a *different* task. "TAP-1234's fix was
+  X" is not a lesson; "a check absent from a commit is not evidence it passed" is.
+- **Concrete and falsifiable** — name the real artifact, number, or error string, so a
+  future reader can tell whether it still applies.
+- **Actionable** — where one exists, name the cheap command that detects the trap next
+  time. A lesson with a one-line detector is worth five without.
+- **Dated** — trailing `(YYYY-MM-DD)`, matching the existing house style.
+
+**Do NOT write:**
+
+- A narration of what the run did. That is the handoff's job, not this file's.
+- A one-off project fact (a ticket id, a port, a service's quirk). Those go to brain via
+  the Record step, or to a project memory file — not here.
+- A lesson already in the file. **Read it first**, and when a bullet nearly covers the
+  case, *sharpen the existing bullet* rather than appending a near-duplicate.
+- Filler to look thorough. **Zero lessons is a legitimate outcome** — say so in one line
+  and move on. Manufacturing a lesson corrupts the file exactly the way over-confessing
+  an error corrupts a correction.
+
+**Route each finding to the right home** — three destinations, do not conflate them:
+
+| Finding | Home |
+|---|---|
+| How to orchestrate / verify / diagnose better | `learnings.md` (this pass) |
+| This run's state, commands, failures, next step | brain, via the Loop's Record step |
+| A durable fact about this repo or the user's setup | a project memory file |
+
+**Keep the file readable.** It is read in full before every generation, so it is a
+context cost on every future run. If it exceeds ~120 bullets or ~40 KB, spend part of
+this pass merging overlapping bullets and deleting ones overtaken by a fixed tool or a
+changed codebase. Pruning a stale lesson is as valuable as adding a live one.
 
 ## Run-as
 <exact invocation, e.g.:>

@@ -85,6 +85,10 @@ and turn the security-scan red back to green by fixing its real cause.
    `uv run python -m pytest libs/homeiq-ha/tests/ -q` summary pasted.
 8. Every `VAL-*` ID below verified by an **independent verifier** subagent with a fresh
    context, evidence pasted per ID.
+9. **The lessons-learned pass has run** and `.claude/skills/orchestration-prompt/learnings.md`
+   carries this run's transferable lessons, with the appended bullets pasted — or one line
+   stating none came up and why. A run that goes green and teaches the harness nothing is
+   only half done.
 
 ## The verified diagnosis (established 2026-08-26 — do not re-derive, but DO re-confirm)
 
@@ -349,6 +353,24 @@ Next: /clear   then   /tapps-continue-session
   was wrong). — confirm by: `npm audit --json` in `domains/frontends/ai-automation-ui`.
 - *`docker compose build --parallel` fails for a nameable service.* — basis: the step
   name only; the log was not read. — confirm by: read that job's log before filing.
+
+## Lessons learned (REQUIRED — the last sub-goal, never dropped)
+
+Append this run's transferable lessons to
+`.claude/skills/orchestration-prompt/learnings.md`, dated, project-scoped.
+
+Mine, in order: **what a verifier refuted** (densest source — each item is something the
+loop believed and got wrong) · what cost the most retries · a premise that turned out
+false, including one this prompt asserted · evidence that did not prove what it seemed to.
+
+Bar: transferable to a *different* task, concrete enough to falsify later, and carrying
+the cheap detection command where one exists. Not a narration of the run — that is the
+handoff. Not a one-off project fact — that goes to brain or a project memory file. Not a
+near-duplicate — read the file first and sharpen the existing bullet instead.
+**Zero lessons is a legitimate outcome**, stated in one line; manufactured filler
+corrupts the file the way an invented error corrupts a correction.
+
+proof: the appended bullets pasted, or the one-line "none, because …".
 
 ## Run-as
 
