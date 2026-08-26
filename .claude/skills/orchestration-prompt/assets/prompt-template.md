@@ -72,9 +72,35 @@ N. **Lessons learned (REQUIRED — always the last sub-goal, never dropped when 
    `.claude/skills/orchestration-prompt/learnings.md`. — proof: the appended bullets pasted,
    or one line saying nothing transferable came up and why.
 
+## Orchestrator discipline  (REQUIRED — the top session coordinates, it does not work)
+<The default drift is for the orchestrator to absorb the "small" steps until the one
+context that cannot be recovered is full of work that belonged in a disposable one.>
+
+- **MAY:** read `git status`/`rev-parse`, fetch a single issue, read a subagent's
+  structured return, write the handoff, print SCORE, decide the next sub-goal.
+- **MUST NOT:** edit a file, run a build, trawl logs, or `Read` anything large. If about
+  to read a file > ~200 lines, **delegate it** — that read belongs to the agent acting on it.
+- **Token share target:** < 15 % of the run spent in this session. `orch-spend %` goes in
+  the SCORE line so drift is visible during the run, not in the postmortem.
+- **Never re-derive** in the orchestrator what a subagent established — read its return
+  value; the independent verifier is what re-checks, on purpose, in its own context.
+- <name any deliberate exception and why the file still never enters THIS context>
+
+## Parallelization plan  (what actually overlaps — and what only looks like it does)
+- **Lane A (background, dispatch at iteration 1):** <fully independent work — must not
+  queue behind unrelated lanes>
+- **Lane B (serial):** <ordered chain> — **order forced by:** <the shared derived state:
+  which set one writes that the next reads>
+- **Lane C:** <separate session / separate prompt run; its body must not enter this context>
+- **Parallel within a sub-goal:** verification fan-out, preflight probes, read-only triage.
+- **Never fan out:** code edits in one repo; any two agents writing the same file. If
+  genuine parallel edits are needed, `isolation: 'worktree'` — never bare concurrent writes.
+
 ## Plane map  (mechanism + literal dispatch parameters per chunk)
 <`effort` applies only inside a Workflow — the Agent tool has no effort parameter and
-inherits the session's. If a step's effort is load-bearing, run it in a Workflow.>
+inherits the session's. If a step's effort is load-bearing, run it in a Workflow.
+SELF-CHECK before shipping: every `—` in `agentType` is orchestrator work — are those
+rows only dispatch/verdict/checkpoint? An all-`—` `effort` column = no effort control.>
 
 | Step | Plane | Mechanism | agentType | model | effort | Notes |
 |------|-------|-----------|-----------|-------|--------|-------|
@@ -82,7 +108,10 @@ inherits the session's. If a step's effort is load-bearing, run it in a Workflow
 | <multi-file synthesis> | coordination | subagent | `Explore` | `sonnet` | `medium` | judgement about what matters |
 | <code change> | execution | dispatch to <repo> via PR | `general-purpose` | `sonnet` | `low` | **serial writes** — one repo at a time |
 | <hard/ambiguous fix> | execution | `/goal` drive | `general-purpose` | `opus` | `high` | load-bearing judgement |
-| <verify proof> | coordination | **verifier subagent (fresh context)** | `general-purpose` | **`opus`** | **`high`–`xhigh`** | creator ≠ verifier; refutes proof; a weak verifier defeats the pattern |
+| <verify: deterministic proof> | coordination | verifier subagent (fresh context) | `general-purpose` | `haiku` | `low` | exit code / count / string — it re-runs the command and cannot fake the output; read `observed_output`, never its conclusion |
+| <verify: comparative proof> | coordination | verifier subagent (fresh context) | `general-purpose` | `sonnet` | `medium` | must hold two states side by side |
+| <verify: semantic proof> | coordination | **verifier subagent (fresh context)** | `general-purpose` | **`opus`** | **`high`–`xhigh`** | is this a workaround? could it break a running deploy? judgement — where cheap models go confident-wrong |
+| <verify gating an irreversible step> | coordination | **verifier subagent (fresh context)** | `general-purpose` | **`opus`** | **`high`** | regardless of proof shape; non-negotiable |
 | <fix after fail> | execution | fresh worker on scoped fix sub-goal | `general-purpose` | `sonnet` | `low` | expected-fail loop; do not reopen whole feature |
 | <recurring check> | execution | Routine / `claude -p`+cron | `Explore` | `haiku` | `low` | human-gated |
 

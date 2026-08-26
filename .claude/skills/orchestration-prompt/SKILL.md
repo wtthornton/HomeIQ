@@ -132,8 +132,34 @@ frontier-model rates for mechanical work. Two planes (full catalog in
   parallel agents across coupled code — the documented worst fit.
 
 Give every chunk a **model tier**, not just a mechanism — run the harness cheap,
-spend the strong model only where judgement is load-bearing (independent verify is
-always frontier tier). Selector table: `references/claude-feature-map.md`.
+spend the strong model only where judgement is load-bearing. Selector table:
+`references/claude-feature-map.md`.
+
+**The top session orchestrates; it does not do the work.** Every emitted prompt must
+carry an *Orchestrator discipline* section stating this outright, because the default
+drift is for the orchestrator to absorb the "small" steps until its context — the one
+context that cannot be recovered — is full of work that belonged in a disposable one.
+The orchestrator dispatches, reads structured verdicts, and checkpoints. It does not
+edit files, run builds, trawl logs, or read large files. Give it a **token-share target
+(< 15 %)** and put a live `orch-spend %` in the SCORE line, so delegation drift is
+visible *during* the run rather than in the postmortem.
+
+Two mechanical detectors, both one glance at the Plane map you just wrote:
+
+- **Every `—` in the `agentType` column is work the orchestrator absorbs.** If those rows
+  outnumber the dispatch/verdict/checkpoint rows, the design is wrong — go back and
+  delegate them.
+- **An all-`—` `effort` column means you silently surrendered effort control**, since
+  `effort` is Workflow-only. Writing "no companion Workflow script" *is* writing "no
+  per-step effort" — defensible only if no step's effort is load-bearing, and
+  verification's always is.
+
+**Check for shared derived state before parallelizing.** Two chunks with disjoint file
+lists can still be coupled through a *set* one computes and the other consumes — and
+that coupling fails silently, because each half is internally consistent. Before putting
+two chunks in the same wave, ask: **what set does each one read that the other writes?**
+If one changes it, they are serial, and the prompt must say *which order and why* — or a
+future reader will helpfully "optimize" it back into a race.
 
 **Preflight the mechanism before you commit a chunk to it.** A mechanism that is
 listed is not a mechanism that works: a granted tool with no targets, a degraded
@@ -186,9 +212,28 @@ than raw transcripts — so iteration N isn't paying for iteration 1's tokens.
 Self-verification is the weakest link — the implementer has cost bias, a fresh
 context does not. A separate adversarial verifier is the single largest quality gain.
 
-- After Execute, spawn a **verifier subagent** (frontier tier, *fresh* context)
-  prompted to **refute** the proof: re-run the deterministic check rather than trust
-  the executor's narration. Default to "not done" on any doubt.
+- After Execute, spawn a **verifier subagent** (*fresh* context, tier per the table
+  below) prompted to **refute** the proof: re-run the deterministic check rather than
+  trust the executor's narration. Default to "not done" on any doubt.
+- **Tier the verifier by PROOF SHAPE, not by caution.** A uniform frontier-tier
+  verification pass is token waste that buys nothing on a proof an exit code already
+  settled — and it starves the checks that genuinely need judgement:
+
+  | Proof shape | Tier | Why |
+  |---|---|---|
+  | **Deterministic** — exit code, item count, string present/absent, test-count line | `haiku` / `low` | It re-runs the command; it **cannot fabricate an exit code**, and the raw output is the evidence. |
+  | **Comparative** — did the right thing change? same failure as before? | `sonnet` / `medium` | Must hold two states side by side. |
+  | **Semantic** — is this a workaround? is the failure mode correctly named? could this break a running deploy? | `opus` / `high`+ | Judgement — exactly where a cheap model returns confident-wrong. |
+  | **Anything gating an irreversible step** — merge, delete, force-push | `opus` / `high` | Regardless of shape. Non-negotiable. |
+
+  Reserve the saved budget for `high`/`xhigh` on the semantic checks, so the hard ones
+  get *more* judgement than a uniform pass would have afforded them.
+- **Make evidence structural, not requested.** When the fan-out runs in a Workflow, give
+  the verdict schema a required `observed_output` field and define an empty one as a FAIL
+  — that makes narration-instead-of-evidence impossible by construction rather than
+  merely discouraged. Add a `green_by_suppression` boolean so a verifier can flag "the
+  proof passed because what it measures was deleted". For any cheap-tier verdict, the
+  orchestrator reads `observed_output`, **never** the conclusion sentence.
 - **Hand the verifier the *proof command*, not the claim.** A fresh context cannot
   see the executor's work, so a narrative ("the endpoint now returns 200") invites it
   to reason about plausibility instead of running anything — self-verification in
@@ -261,7 +306,19 @@ re-verify-on-resume rule: `references/cold-start-and-verify.md`.
   or a token budget) so a stuck loop stops instead of burning quota.
 - **Independent verification** — the sub-goal's proof is confirmed by a verifier that
   did not produce the work (method §5), handed the *proof command* rather than the
-  claim, against ground truth.
+  claim, against ground truth, and **tiered by proof shape** rather than uniformly
+  frontier (method §5 table).
+- **Orchestrator discipline** — the emitted prompt carries a section stating that the
+  top session dispatches, reads verdicts, and checkpoints, and does **not** edit files,
+  run builds, trawl logs, or read large files. It names a token-share target (< 15 %)
+  and puts `orch-spend %` in the SCORE line. Check your own Plane map: `—` in
+  `agentType` is orchestrator work, an all-`—` `effort` column means no effort control
+  (method §3).
+- **Parallel where independent, serial where coupled** — independent lanes dispatch to
+  the background at iteration 1 rather than queueing behind unrelated work; verification
+  fan-outs, preflight probes, and read-only triage run parallel; code edits within a repo
+  never do. Before pairing two chunks in a wave, check for **shared derived state** — a
+  set one writes and the other reads (method §3).
 - **Standing user constraints** — every one restated as a Guardrail *and* an Autonomy
   hard-stop (method §0b); no Done-when clause is satisfiable by violating one.
 - **No green-by-deletion** — at least one Done-when clause is a count that must not

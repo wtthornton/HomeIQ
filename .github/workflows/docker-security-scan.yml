@@ -94,6 +94,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Create empty .env for CI
+        run: |
+          touch .env
+
       - name: Build all services
         run: |
           docker compose build --parallel
@@ -104,5 +108,5 @@ jobs:
           scan-type: 'image'
           scan-ref: 'docker-compose.yml'
           format: 'table'
-          exit-code: '0'
+          exit-code: '1'
           severity: 'CRITICAL,HIGH'
