@@ -94,13 +94,24 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Create empty .env for CI
-        run: |
-          touch .env
+      - name: Report Docker Compose version
+        run: docker compose version
+
+      - name: Materialize CI placeholder env
+        # docker-compose.yml's `include:` entries each declare `env_file: .env`
+        # literally (not `${...}`-interpolated), so the top-level `--env-file`
+        # CLI flag does not reach them -- verified locally: `docker compose
+        # --env-file .env.ci config` still failed with ".env: no such file"
+        # even though .env.ci carries every `:?required` value. Copying the
+        # committed, non-secret .env.ci placeholders to .env satisfies that
+        # literal reference so interpolation can resolve. Building images
+        # never needs real credentials -- only Compose's config-resolution
+        # step does.
+        run: cp .env.ci .env
 
       - name: Build all services
         run: |
-          docker compose build --parallel
+          docker compose --env-file .env.ci build --parallel
 
       - name: Scan all images with Trivy
         uses: aquasecurity/trivy-action@master
