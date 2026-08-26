@@ -280,6 +280,13 @@ re-verify-on-resume rule: `references/cold-start-and-verify.md`.
 - **Caps must not fire on *correct* behavior** — for every required-fail cap, ask "is
   there a legitimate correct run where this still fires?" Separate *broken* from
   *correct-empty* (the gate rightly held everything) or a correct negative scores red.
+- **Terminal lessons-learned pass** — every emitted prompt ends with a REQUIRED final
+  sub-goal that mines the run and appends to `learnings.md`, plus a Done-when clause
+  gating on it. Without a clause in Done-when it is advisory, and an autonomous loop
+  drops advisory work the moment the real goal goes green — which is exactly when the
+  lessons are freshest. It is the one sub-goal that survives trimming. Point it at what
+  an independent verifier *refuted* first: that is the run's densest source of
+  transferable lesson, because each item is something the loop believed and got wrong.
 - **No fan-out of coupled coding** — parallel agents editing related code cascade
   errors; keep code edits sequential, per repo.
 - **Context hygiene** — prune stale reads each iteration; targeted grep over full
@@ -361,9 +368,10 @@ no silent scope creep.
 3. Fill `assets/prompt-template.md` — keep only the sections the task needs. Always
    keep **Prerequisites / Wayfind gate**, the **"How to run (cold start)"** block, a
    **Sub-goal 0** for self-healing preconditions, the **Verify** step wired to an
-   independent verifier, and — when changing software behavior — a **Validation
-   contract** filled *before* execution sub-goals plus an **expected-fail fix loop**
-   with attempt cap.
+   independent verifier, the **Lessons learned** section with its REQUIRED final
+   sub-goal *and* its Done-when clause, and — when changing software behavior — a
+   **Validation contract** filled *before* execution sub-goals plus an
+   **expected-fail fix loop** with attempt cap.
 4. If any chunk is multi-stage parallel work, also write the companion
    `.claude/workflows/<slug>.js` (schema + `budget` + per-stage `model`/`effort`) and
    point Run-as at it. A single coupled item (N=1) is a `/goal` drive, not a Workflow.
@@ -377,11 +385,42 @@ no silent scope creep.
 
 ## Learn as you go (measured evolution)
 
-Before drafting, read `learnings.md` (project-scoped) and fold in relevant lessons.
-When a generation teaches a better pattern — or the user edits your output before
-running it — append a one-line lesson. Keep lessons **project-scoped**; never bleed
-them across repos. Treat this as a *measured* loop, not a scratchpad: the harness
-improves by observing its own runs. When a golden set (`evals/evals.json`) and a
-gated improvement loop (`SELF_IMPROVEMENT.md`) exist, promote a template change only
-when it shows measured lift against the evals — don't hand-tune blind.
+`learnings.md` (project-scoped) is written on **two** occasions. Both are required —
+the second one is the one that gets forgotten, and it is the richer of the two.
+
+**1. At generation time (you, writing the prompt).** Read `learnings.md` before
+drafting and fold in relevant lessons. When a generation teaches a better pattern — or
+the user edits your output before running it — append a one-line lesson.
+
+**2. At the end of every RUN of an emitted prompt.** The prompt itself must carry the
+terminal lessons-learned sub-goal and the Done-when clause that gates on it (see
+Guardrails and `assets/prompt-template.md`). Generation-time lessons capture what you
+learned *planning*; run-time lessons capture what the work actually cost — and those are
+the ones a fresh session cannot rediscover. If a run finished without them, the harness
+paid for the mistake and kept none of the value.
+
+Keep lessons **project-scoped**; never bleed them across repos.
+
+**What a lesson must be.** Transferable to a *different* task, concrete enough to
+falsify later, and where possible carrying the cheap command that detects the trap.
+Mine what an independent verifier **refuted** before anything else — a refuted claim is
+by construction something the loop believed and got wrong, which is the densest form of
+lesson available. Then what cost the most retries, then any premise that turned out
+false, then evidence that did not prove what it appeared to.
+
+**What a lesson is not.** A narration of the run (that is the handoff). A one-off
+project fact — a ticket id, a port, a service quirk — which belongs in brain or a
+project memory file. A near-duplicate of an existing bullet: read the file first and
+*sharpen the existing line* instead. And never filler — **zero lessons is a legitimate
+outcome**, stated in one line. A manufactured lesson corrupts this file the same way an
+invented error corrupts a correction.
+
+**Keep it readable.** This file is read in full before every generation, so every stale
+bullet is a tax on every future run. Past roughly 120 bullets or 40 KB, merge
+overlapping lines and delete ones overtaken by a fixed tool or a changed codebase.
+Pruning is part of the loop, not cleanup deferred forever.
+
+When a golden set (`evals/evals.json`) and a gated improvement loop
+(`SELF_IMPROVEMENT.md`) exist, promote a template change only when it shows measured
+lift against the evals — don't hand-tune blind.
 <!-- END: tapps-skill -->
