@@ -70,9 +70,9 @@ interpolation consumes it unchanged.
 Generation follows the convention already in `scripts/setup-secure-env.sh:55`
 (`openssl rand -hex 32`, with a `/dev/urandom` fallback).
 
-**This requires zero changes to `compose.yml`.** That is the main argument for it:
-the interpolation mechanism the whole stack already depends on keeps working, and
-the change surface is one script plus a start-script flag.
+**This requires zero changes to `domains/core-platform/compose.yml`.** That is the
+main argument for it: the interpolation mechanism the whole stack already depends
+on keeps working, and the change surface is one script plus a start-script flag.
 
 Tier 1 also holds one key that is not in `env.required` today:
 `HOMEIQ_SECRET_DEK`, the data-encryption key for tier 2.
@@ -185,8 +185,9 @@ avoid that.
 
 ## Consequences
 
-- `compose.yml` is unchanged. The change surface is a first-boot script, a
-  start-script `--env-file` flag, one migration, and a small accessor library.
+- `domains/core-platform/compose.yml` is unchanged. The change surface is a
+  first-boot script, a start-script `--env-file` flag, one migration, and a small
+  accessor library.
 - Two mechanisms mean two failure modes to document and test. The table above is
   the contract; each named state needs a test.
 - `HOMEIQ_SECRET_DEK` is a single point of failure for tier 2 by design. It is
