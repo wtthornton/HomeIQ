@@ -21,6 +21,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Production stage
 FROM python:3.12-alpine AS production
 
+RUN apk add --no-cache --upgrade openssl
+
 WORKDIR /app
 RUN apk add --no-cache curl
 RUN addgroup -g 1001 -S appgroup && \

@@ -1,5 +1,11 @@
 FROM zeek/zeek:8.1.1
 
+# Upgrade all Debian trixie packages to pick up security fixes already
+# published upstream (openssl, curl, expat, gnutls, krb5, nodejs/libnode,
+# python3.13, util-linux, jq, ssh2, ...) without waiting on a new
+# zeek/zeek base-image release (TAP-6622).
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
+
 # af_packet is now built into core (v8.1.0+) — no separate install needed
 # Install community packages for device fingerprinting and ML features
 # Device fingerprinting packages
