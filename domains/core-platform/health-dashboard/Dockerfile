@@ -42,6 +42,8 @@ RUN npm run build
 # Production stage
 FROM nginx:stable-alpine AS production
 
+RUN apk add --no-cache --upgrade openssl
+
 # Install curl for health checks and set timezone
 RUN apk add --no-cache curl tzdata
 

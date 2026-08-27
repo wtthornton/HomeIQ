@@ -1,0 +1,156 @@
+# Trivy ignore file for `scan-all` (TAP-6622).
+#
+# Every entry here was verified, at the time of writing, to have NO available
+# fix in the relevant package's distro/registry -- either upstream has stated
+# no patch is planned, or the fix requires a major-version bump of a
+# data-bearing third-party service that is explicitly out of scope for a CVE
+# patching pass. None of these CVEs are fixable in a first-party image; where
+# a CVE ID below also affects a first-party Alpine/Debian-slim/nginx-alpine
+# image (e.g. the openssl CVE), that image has already been patched via a
+# `RUN apk/apt-get ... upgrade` step in its Dockerfile, so this file only
+# matters for the third-party images that still carry it.
+#
+# Format: classic plain-text .trivyignore (one ID per line, `# reason` inline
+# comment). setup-trivy@v0.3.1 installs whatever Trivy release is `latest` at
+# CI run time (no pinned version in the workflow), so the plain-text schema is
+# used here for maximum compatibility -- it has been supported unchanged since
+# Trivy's first `--ignorefile` release, unlike the newer `.trivyignore.yaml`
+# per-entry schema which depends on a specific minimum Trivy version.
+#
+# Re-verify freshness before adding new entries: package registries and
+# distro security trackers update daily, and a CVE ignored here may gain a
+# fix later.
+
+# --- Upstream has stated no patch is planned ---
+CVE-2024-23342 # python-ecdsa: Minerva timing side-channel on P-256; no patched version exists (pure-Python ECDSA design limitation, confirmed via OSV.dev as of 2026-08)
+
+# --- Debian trixie/bookworm packages: no distro fix published yet (status affected/fix_deferred/will_not_fix) ---
+CVE-2026-12064 # curl/libcurl: schemeless URL + --proto-default sftp/scp skips SSH host verification; trixie status "vulnerable, no-dsa" per Debian security tracker
+CVE-2026-8286 # curl/libcurl: no fixed version in trixie/bookworm yet
+CVE-2026-8458 # curl/libcurl: no fixed version in trixie/bookworm yet
+CVE-2026-8927 # curl/libcurl: no fixed version in trixie/bookworm yet
+CVE-2026-6276 # curl/libcurl: no fixed version in bookworm yet (influxdb base)
+CVE-2026-41992 # gzip: no distro fix yet
+CVE-2026-54369 # libacl1: no distro fix yet
+CVE-2025-69720 # ncurses/libncursesw6/libtinfo6/ncurses-base/ncurses-bin: no distro fix yet
+CVE-2026-11822 # libsqlite3-0: SQLite FTS5 RCE, fix_deferred upstream/distro
+CVE-2026-11824 # libsqlite3-0: fix_deferred upstream/distro
+CVE-2025-7458 # libsqlite3-0: integer overflow, no distro fix yet (bookworm)
+CVE-2026-58050 # libssh2: no distro fix yet
+CVE-2026-7598 # libssh2: no distro fix yet (bookworm)
+CVE-2023-2953 # libldap-2.5-0: no distro fix yet (bookworm)
+CVE-2026-6653 # libxml2: fix_deferred (bookworm)
+CVE-2023-45853 # zlib1g: will_not_fix per distro (MiniZip is not part of the zlib API/security scope per upstream)
+CVE-2026-53613 # bsdutils/util-linux family: no fix yet on bookworm (already fixed on trixie by the apt-get upgrade in Dockerfile.zeek; only pgvector/pgvector:pg17 (bookworm) still carries it)
+CVE-2026-53615 # bsdutils/util-linux family: no fix yet on bookworm (same as above)
+CVE-2026-33630 # c-ares (libcares2): no distro fix yet
+CVE-2026-69184 # c-ares (libcares2): no distro fix yet
+CVE-2026-13149 # node-brace-expansion (npm, bundled in zeek/zeek base): no distro fix yet
+CVE-2026-14257 # node-brace-expansion: no distro fix yet
+CVE-2026-33750 # node-brace-expansion: no distro fix yet
+CVE-2026-45149 # node-brace-expansion: no distro fix yet
+CVE-2026-26996 # node-minimatch (npm, bundled): no distro fix yet
+CVE-2026-13697 # node-undici (npm, bundled): no distro fix yet
+CVE-2026-1525 # node-undici: no distro fix yet
+CVE-2026-12151 # node-undici: no distro fix yet
+CVE-2026-14643 # node-undici: no distro fix yet
+CVE-2026-1526 # node-undici: no distro fix yet
+CVE-2026-1528 # node-undici: no distro fix yet
+CVE-2026-22036 # node-undici: no distro fix yet
+CVE-2026-2229 # node-undici: no distro fix yet
+CVE-2026-6734 # node-undici: no distro fix yet
+CVE-2026-9697 # node-undici: no distro fix yet
+CVE-2026-48930 # libnode115/nodejs: no distro fix yet (zeek/zeek base ships Node.js for its own tooling)
+CVE-2026-48617 # libnode115/nodejs: no distro fix yet
+CVE-2026-48619 # libnode115/nodejs: no distro fix yet
+CVE-2026-48933 # libnode115/nodejs: no distro fix yet
+CVE-2026-48937 # libnode115/nodejs: no distro fix yet
+CVE-2026-56846 # libnode115/nodejs: no distro fix yet
+CVE-2026-56848 # libnode115/nodejs: no distro fix yet
+CVE-2026-58043 # libnode115/nodejs: no distro fix yet
+CVE-2026-11940 # libpython3.13: no distro fix yet
+CVE-2026-15308 # libpython3.13: no distro fix yet
+CVE-2026-7210 # libpython3.13: no distro fix yet
+CVE-2026-42284 # python3-git (GitPython, bundled in zeek/zeek base for zkg): no distro fix yet
+CVE-2026-42215 # python3-git: no distro fix yet
+CVE-2026-44243 # python3-git: no distro fix yet
+CVE-2026-44244 # python3-git: no distro fix yet
+CVE-2026-67322 # python3-git: no distro fix yet
+CVE-2026-67323 # python3-git: no distro fix yet
+CVE-2026-67324 # python3-git: no distro fix yet
+CVE-2026-67325 # python3-git: no distro fix yet
+CVE-2026-73620 # python3-git: no distro fix yet
+CVE-2026-73622 # python3-git: no distro fix yet
+CVE-2026-73623 # python3-git: no distro fix yet
+CVE-2026-73624 # python3-git: no distro fix yet
+CVE-2026-73625 # python3-git: no distro fix yet
+
+# --- perl-base family: fix_deferred/affected across all Debian releases scanned ---
+CVE-2026-13221 # perl-base/libperl/perl/perl-modules: regex processing; distro status "affected" (no upstream point release yet)
+CVE-2026-42496 # perl family: fix_deferred
+CVE-2026-42497 # perl family: fix_deferred (perl-Archive-Tar arbitrary file write)
+CVE-2026-48962 # perl family: affected, no fix yet
+CVE-2026-57432 # perl family: affected, no fix yet
+CVE-2026-57433 # perl family: affected, no fix yet
+CVE-2026-8376 # perl family: affected, no fix yet
+CVE-2026-9538 # perl family: fix_deferred
+
+# --- wget: no distro fix yet ---
+CVE-2026-58471 # wget: heap buffer overflow in convert_fname(); trixie/sid both still "vulnerable", Debian bug 1141689 open, marked no-dsa (minor issue)
+CVE-2026-58472 # wget: companion CVE from the same disclosure, same no-dsa/unfixed status
+
+# --- openssl/libssl3: FIXED in every first-party image (Dockerfile `apk add --upgrade openssl` /
+#     `apt-get install --only-upgrade openssl libssl3t64`); this entry only matters for the two
+#     pulled third-party images below, which we do not build and cannot patch in place ---
+CVE-2026-14456 # openssl/libssl3: unpatched in influxdb:2.8.0 (bookworm) and pgvector/pgvector:pg17 (bookworm); already fixed in every first-party image's Dockerfile
+
+# --- influxdb:2.8.0 / pgvector/pgvector:pg17: third-party data-bearing images, pulled as `image:`
+#     (not built from a Dockerfile we own). Both are already pinned to the newest available
+#     non-major tag (InfluxDB 2.8.0 is the final OSS 2.x release -- no 2.8.1+ exists on Docker
+#     Hub; pgvector/pgvector:pg17 already floats to 0.8.6, the newest pg17-compatible build).
+#     Fixing these requires a major upgrade of a data-bearing service (InfluxDB 3.x, or a
+#     pgvector Postgres-major bump / base-OS swap), which is a data-migration project explicitly
+#     out of scope for TAP-6622. Tracked outside TAP-6622.
+CVE-2024-24790 # stdlib (embedded in influxdb's compiled Go binaries): fix requires major upgrade of data-bearing third-party image
+CVE-2024-34156 # stdlib: fix requires major upgrade of data-bearing third-party image
+CVE-2024-45338 # golang.org/x/net: fix requires major upgrade of data-bearing third-party image
+CVE-2025-22868 # golang.org/x/oauth2: fix requires major upgrade of data-bearing third-party image
+CVE-2025-47913 # golang.org/x/crypto: fix requires major upgrade of data-bearing third-party image
+CVE-2025-61726 # stdlib: fix requires major upgrade of data-bearing third-party image
+CVE-2025-61729 # stdlib: fix requires major upgrade of data-bearing third-party image
+CVE-2025-68121 # stdlib: fix requires major upgrade of data-bearing third-party image
+CVE-2026-25679 # stdlib: fix requires major upgrade of data-bearing third-party image
+CVE-2026-25681 # golang.org/x/net: fix requires major upgrade of data-bearing third-party image
+CVE-2026-27136 # golang.org/x/net: fix requires major upgrade of data-bearing third-party image
+CVE-2026-27145 # stdlib: fix requires major upgrade of data-bearing third-party image
+CVE-2026-32280 # stdlib: fix requires major upgrade of data-bearing third-party image
+CVE-2026-32281 # stdlib: fix requires major upgrade of data-bearing third-party image
+CVE-2026-32283 # stdlib: fix requires major upgrade of data-bearing third-party image
+CVE-2026-32285 # github.com/buger/jsonparser: fix requires major upgrade of data-bearing third-party image
+CVE-2026-33186 # google.golang.org/grpc: fix requires major upgrade of data-bearing third-party image
+CVE-2026-33811 # stdlib: fix requires major upgrade of data-bearing third-party image
+CVE-2026-33814 # stdlib/golang.org/x/net: fix requires major upgrade of data-bearing third-party image
+CVE-2026-33818 # stdlib: fix requires major upgrade of data-bearing third-party image
+CVE-2026-39820 # stdlib: fix requires major upgrade of data-bearing third-party image
+CVE-2026-39821 # stdlib/golang.org/x/net: fix requires major upgrade of data-bearing third-party image
+CVE-2026-39822 # stdlib: fix requires major upgrade of data-bearing third-party image
+CVE-2026-39828 # golang.org/x/crypto: fix requires major upgrade of data-bearing third-party image
+CVE-2026-39829 # golang.org/x/crypto: fix requires major upgrade of data-bearing third-party image
+CVE-2026-39830 # golang.org/x/crypto: fix requires major upgrade of data-bearing third-party image
+CVE-2026-39831 # golang.org/x/crypto: fix requires major upgrade of data-bearing third-party image
+CVE-2026-39832 # golang.org/x/crypto: fix requires major upgrade of data-bearing third-party image
+CVE-2026-39835 # golang.org/x/crypto: fix requires major upgrade of data-bearing third-party image
+CVE-2026-39836 # stdlib: fix requires major upgrade of data-bearing third-party image
+CVE-2026-42499 # stdlib: fix requires major upgrade of data-bearing third-party image
+CVE-2026-42504 # stdlib: fix requires major upgrade of data-bearing third-party image
+CVE-2026-42508 # golang.org/x/crypto: fix requires major upgrade of data-bearing third-party image
+CVE-2026-46595 # golang.org/x/crypto: fix requires major upgrade of data-bearing third-party image
+CVE-2026-46597 # golang.org/x/crypto: fix requires major upgrade of data-bearing third-party image
+CVE-2026-46600 # golang.org/x/net: fix requires major upgrade of data-bearing third-party image
+CVE-2026-56852 # golang.org/x/text: fix requires major upgrade of data-bearing third-party image
+CVE-2026-56853 # stdlib: fix requires major upgrade of data-bearing third-party image
+CVE-2026-56858 # stdlib: fix requires major upgrade of data-bearing third-party image
+CVE-2026-56859 # stdlib: fix requires major upgrade of data-bearing third-party image
+CVE-2026-56860 # stdlib: fix requires major upgrade of data-bearing third-party image
+CVE-2026-56862 # stdlib: fix requires major upgrade of data-bearing third-party image
+GHSA-hrxh-6v49-42gf # google.golang.org/grpc xDS RBAC/HTTP2 advisory: fix requires major upgrade of data-bearing third-party image
