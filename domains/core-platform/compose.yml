@@ -740,7 +740,23 @@ services:
           cpus: '1.0'
 
   home-assistant-test:
-    image: ghcr.io/home-assistant/home-assistant:stable
+    # Pinned to the same shipped appliance image as `home-assistant` above
+    # (TAP-6623), not the moving `:stable` tag — a fixture that silently
+    # upgrades under CI does not test what the appliance actually ships.
+    # `build:` AND `image:` are both set for the same reason documented on
+    # `home-assistant` above: with `build:` alone compose invents its own tag
+    # and the locally built image is never consulted.
+    #
+    # `ha_test_config` is a named volume mounted over /config. On a fresh
+    # (never-used) volume, Docker populates it from the image's /config on
+    # first start, so the baked custom_components/homeiq, Powercalc, Team
+    # Tracker and the seeded configuration.yaml are present at first boot.
+    # An existing volume left over from a prior `:stable` run will NOT be
+    # repopulated — always `down -v` this profile before switching images.
+    build:
+      context: ../..
+      dockerfile: domains/core-platform/home-assistant/Dockerfile
+    image: homeiq/home-assistant:2026.8.3
     container_name: homeiq-ha-test
     restart: unless-stopped
     ports:
