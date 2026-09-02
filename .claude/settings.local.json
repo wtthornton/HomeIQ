@@ -107,7 +107,6 @@
     ],
     "deny": [],
     "ask": [],
-    "defaultMode": "bypassPermissions",
     "additionalDirectories": [
       "/home/wtthornton/code/HomeIQ",
       "/home/wtthornton/code/HomeIQ/.git/hooks",
