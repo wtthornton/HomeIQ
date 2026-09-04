@@ -41,6 +41,8 @@ COPY domains/data-collectors/zeek-network-service/data/ieee-oui.tsv.gz /app/data
 # Production stage
 FROM python:3.12-alpine AS production
 
+RUN apk add --no-cache --upgrade openssl
+
 WORKDIR /app
 
 # Install runtime dependencies

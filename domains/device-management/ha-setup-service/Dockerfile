@@ -26,6 +26,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Production stage
 FROM python:3.12-alpine
 
+RUN apk add --no-cache --upgrade openssl
+
 # openssh-client backs the init agent's write path to the HA host's /config
 # (host_files.SSHHostFiles shells out to `ssh` against the core_ssh add-on).
 # Without it the FP1E quirk recipe could never do more than report

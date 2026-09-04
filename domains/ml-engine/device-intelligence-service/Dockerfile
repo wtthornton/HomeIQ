@@ -42,6 +42,8 @@ RUN pip install --no-cache-dir --user \
 # Production stage - minimal runtime image
 FROM python:3.12-slim
 
+RUN apt-get update && apt-get install -y --no-install-recommends --only-upgrade openssl libssl3t64 && rm -rf /var/lib/apt/lists/*
+
 # Install runtime dependencies only (cache apt packages)
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \

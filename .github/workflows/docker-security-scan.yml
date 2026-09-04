@@ -132,7 +132,7 @@ jobs:
           status=0
           for img in "${IMAGES[@]}"; do
             echo "::group::trivy image ${img}"
-            trivy image --exit-code 1 --severity CRITICAL,HIGH --format table "${img}" || status=1
+            trivy image --exit-code 1 --severity CRITICAL,HIGH --ignorefile "${GITHUB_WORKSPACE}/.trivyignore" --format table "${img}" || status=1
             echo "::endgroup::"
           done
           exit "${status}"

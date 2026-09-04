@@ -24,6 +24,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Production stage
 FROM python:3.12-slim
 
+RUN apt-get update && apt-get install -y --no-install-recommends --only-upgrade openssl libssl3t64 && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl && \
