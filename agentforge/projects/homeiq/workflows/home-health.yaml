@@ -278,6 +278,8 @@ nodes:
 
 output: digest
 
-triggers:
-  - type: schedule
-    cron: "0 7 * * *"
+triggers: []
+  # Disabled (TAP-7134): homeiq-hiq-notify errors on every one of 209 invocations
+  # driven by this workflow's off-fleet, non-production traffic.
+  # - type: schedule
+  #   cron: "0 7 * * *"

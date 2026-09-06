@@ -134,12 +134,13 @@ nodes:
 
 output: triage
 
-triggers:
-  # Event trigger on derived topic (TAP-5431): fires when anomaly is detected
-  # and queued for triage. Debounce is handled by the parent detector at source.
-  - type: event
-    topic: homeiq.anomaly.detected
-  # Fallback schedule every 6 hours to catch detectors that may be offline
-  # or miss an event. Ensures anomalies don't go unreviewed if event missed.
-  - type: schedule
-    cron: "0 */6 * * *"
+triggers: []
+  # Disabled (TAP-7134): homeiq-hiq-notify errors on every one of 209 invocations
+  # driven by this workflow's off-fleet, non-production traffic. Both halves
+  # disabled deliberately, not just the schedule fallback: nothing in this repo
+  # publishes to topic homeiq.anomaly.detected (verified via repo-wide grep), so
+  # the event trigger was already dead weight, not a live production path.
+  # - type: event
+  #   topic: homeiq.anomaly.detected
+  # - type: schedule
+  #   cron: "0 */6 * * *"
