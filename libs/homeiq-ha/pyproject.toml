@@ -21,6 +21,11 @@ dependencies = [
     # (TAP-6066).
     "jsonschema>=4.17",
     "pydantic>=2.0",
+    # secrets/store.py imports cryptography.hazmat AESGCM at module level for the
+    # tier-2 appliance secret store (TAP-6572). The floor matches the one
+    # domains/pattern-analysis/api-automation-edge/requirements.txt already
+    # carries: <49.0.0 is vulnerable to the CVE set patched under TAP-6622.
+    "cryptography>=49.0.0",
 ]
 
 [tool.pytest.ini_options]
