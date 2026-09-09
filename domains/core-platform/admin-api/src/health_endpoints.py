@@ -362,10 +362,79 @@ class HealthEndpoints:
                     detail="Failed to get health metrics",
                 ) from e
 
+    async def _check_one_service(
+        self,
+        session: aiohttp.ClientSession,
+        service_name: str,
+        service_url: str,
+        health_path: str,
+    ) -> ServiceHealth:
+        """Check health of a single service using a shared session."""
+        try:
+            start_time = datetime.now()
+            async with session.get(f"{service_url}{health_path}") as response:
+                response_time = (datetime.now() - start_time).total_seconds() * 1000
+
+                if response.status == 200:
+                    try:
+                        data = await response.json()
+                    except (aiohttp.ContentTypeError, ValueError):
+                        # Non-JSON response (e.g. nginx plain text) — treat 200 as healthy
+                        data = {"status": "healthy"}
+                    # Detect false-positive "healthy" from services that aren't functional
+                    reported_status = data.get("status", "unknown")
+                    creds_configured = data.get("credentials_configured")
+                    svc_success_rate = data.get("success_rate")
+                    status_detail = data.get("status_detail")
+
+                    # Override "healthy" when service clearly isn't functional
+                    if reported_status == "healthy":
+                        if creds_configured is False:
+                            reported_status = "degraded"
+                            status_detail = status_detail or "credentials_missing"
+                        elif (
+                            svc_success_rate is not None
+                            and svc_success_rate == 0
+                            and data.get("total_fetches", 0) > 0
+                        ):
+                            reported_status = "degraded"
+                            status_detail = status_detail or "all_fetches_failed"
+
+                    return ServiceHealth(
+                        name=service_name,
+                        status=reported_status,
+                        last_check=datetime.now().isoformat(),  # Convert to ISO string
+                        response_time_ms=response_time,
+                        status_detail=status_detail,
+                        credentials_configured=creds_configured,
+                        success_rate=svc_success_rate,
+                    )
+                return ServiceHealth(
+                    name=service_name,
+                    status="unhealthy",
+                    last_check=datetime.now().isoformat(),  # Convert to ISO string
+                    response_time_ms=response_time,
+                    error_message=f"HTTP {response.status}",
+                )
+
+        except TimeoutError:
+            return ServiceHealth(
+                name=service_name,
+                status="unhealthy",
+                last_check=datetime.now().isoformat(),  # Convert to ISO string
+                error_message="Timeout",
+            )
+        except Exception as e:
+            logger.error("Error checking %s: %s", service_name, e, exc_info=True)
+            return ServiceHealth(
+                name=service_name,
+                status="unhealthy",
+                last_check=datetime.now().isoformat(),  # Convert to ISO string
+                error_message=str(e),
+            )
+
     async def _check_services(self) -> dict[str, ServiceHealth]:
         """Check health of all services"""
-        services_health = {}
-
         # Custom health paths for services that don't use /health
         custom_health_paths = {
             "rule-recommendation-ml": "/api/v1/health",
@@ -375,77 +444,25 @@ class HealthEndpoints:
             "Checking %d services: %s", len(self.service_urls), list(self.service_urls.keys())
         )
 
-        for service_name, service_url in self.service_urls.items():
-            logger.debug("Checking service: %s at %s", service_name, service_url)
-            try:
-                start_time = datetime.now()
-
-                # Get custom health path or use default /health
-                health_path = custom_health_paths.get(service_name, "/health")
-
-                # Standard health check for internal services
-                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=2)) as session:  # noqa: SIM117
-                    async with session.get(f"{service_url}{health_path}") as response:
-                        response_time = (datetime.now() - start_time).total_seconds() * 1000
-
-                        if response.status == 200:
-                            try:
-                                data = await response.json()
-                            except (aiohttp.ContentTypeError, ValueError):
-                                # Non-JSON response (e.g. nginx plain text) — treat 200 as healthy
-                                data = {"status": "healthy"}
-                            # Detect false-positive "healthy" from services that aren't functional
-                            reported_status = data.get("status", "unknown")
-                            creds_configured = data.get("credentials_configured")
-                            svc_success_rate = data.get("success_rate")
-                            status_detail = data.get("status_detail")
-
-                            # Override "healthy" when service clearly isn't functional
-                            if reported_status == "healthy":
-                                if creds_configured is False:
-                                    reported_status = "degraded"
-                                    status_detail = status_detail or "credentials_missing"
-                                elif (
-                                    svc_success_rate is not None
-                                    and svc_success_rate == 0
-                                    and data.get("total_fetches", 0) > 0
-                                ):
-                                    reported_status = "degraded"
-                                    status_detail = status_detail or "all_fetches_failed"
-
-                            services_health[service_name] = ServiceHealth(
-                                name=service_name,
-                                status=reported_status,
-                                last_check=datetime.now().isoformat(),  # Convert to ISO string
-                                response_time_ms=response_time,
-                                status_detail=status_detail,
-                                credentials_configured=creds_configured,
-                                success_rate=svc_success_rate,
-                            )
-                        else:
-                            services_health[service_name] = ServiceHealth(
-                                name=service_name,
-                                status="unhealthy",
-                                last_check=datetime.now().isoformat(),  # Convert to ISO string
-                                response_time_ms=response_time,
-                                error_message=f"HTTP {response.status}",
-                            )
-
-            except TimeoutError:
-                services_health[service_name] = ServiceHealth(
-                    name=service_name,
-                    status="unhealthy",
-                    last_check=datetime.now().isoformat(),  # Convert to ISO string
-                    error_message="Timeout",
+        # Checked one-at-a-time before, so 20+ unreachable data-collector
+        # services (not started outside the full stack) serialized their
+        # timeouts into a multi-second response — long enough to blow past a
+        # caller's own UI-render timeout. A single shared session runs every
+        # check concurrently instead.
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=2)) as session:
+            results = await asyncio.gather(
+                *(
+                    self._check_one_service(
+                        session,
+                        service_name,
+                        service_url,
+                        custom_health_paths.get(service_name, "/health"),
+                    )
+                    for service_name, service_url in self.service_urls.items()
                 )
-            except Exception as e:
-                logger.error("Error checking %s: %s", service_name, e, exc_info=True)
-                services_health[service_name] = ServiceHealth(
-                    name=service_name,
-                    status="unhealthy",
-                    last_check=datetime.now().isoformat(),  # Convert to ISO string
-                    error_message=str(e),
-                )
+            )
+
+        services_health = dict(zip(self.service_urls.keys(), results, strict=True))
 
         logger.debug(
             "Returning %d service health results: %s",
