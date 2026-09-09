@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 from homeiq_ha.client.errors import HAClientError, HAFlowError
 
 from .core_restart import restart_core
+from .powercalc_support import compute_coverage, flow_label, is_number, live_light_names
 from .recipe import (
     PHASE_HACS,
     ApplyResult,
@@ -37,15 +38,6 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from homeiq_ha.client import HAClient
-
-
-#: Domains whose entities can carry a physical electrical load. A ``switch``
-#: only qualifies as an outlet — HA models a smart plug as
-#: ``device_class: outlet`` and a configuration toggle as ``switch`` or none,
-#: and this home's 65 switches are entirely the latter (Inovelli device
-#: parameters, WLED effect toggles, sensor enables). Metering a toggle is not
-#: a gap to close; there is no load behind it.
-_LOAD_DOMAINS = ("light", "media_player")
 
 
 class PowercalcRecipe(Recipe):
@@ -110,146 +102,21 @@ class PowercalcRecipe(Recipe):
         """
         powered = await self._power_entities(ha)
         states = {s.get("entity_id"): s.get("state") for s in await ha.rest.get_states()}
-        return powered, [eid for eid in powered if _is_number(states.get(eid))]
+        return powered, [eid for eid in powered if is_number(states.get(eid))]
 
     async def _coverage(self, ha: Any) -> dict[str, Any]:
         """Which metering-eligible loads carry a power reading, and which do not.
 
-        The join from a power sensor to the load it measures is the entity
-        registry's ``device_id`` — never the entity_id string. Powercalc names
-        its sensor after the source's *friendly name*
-        (``light.stairs_bottom_of_stairs`` -> ``sensor.bottom_of_stairs_power``),
-        so a string match silently misses; and a name-keyed join would break on
-        a rename besides (``.claude/rules/friendly-names.md``).
-
-        Any power sensor counts, not only Powercalc's: an Inovelli VZM31-SN
-        reports real metering over ZHA, and a metered load is covered no matter
-        which integration provides the number.
-
-        Two exclusions carry a stated reason rather than silently shrinking the
-        denominator:
-
-        * **group entities** — a light group's power is the sum of its members,
-          so metering the group double-counts every member.
-        * **non-outlet switches** — configuration toggles, not loads. HA models
-          a smart plug as ``device_class: outlet``.
+        Fetches the three HA reads the classification needs (entity states,
+        entity registry, device registry) and delegates every classification
+        decision to :func:`~.powercalc_support.compute_coverage`, which is
+        pure and independently testable — see its docstring for the join
+        keys, exclusion reasons, and cross-integration dedup this performs.
         """
         registry = await ha.ws.send_command("config/entity_registry/list") or []
-        device_of = {
-            str(e.get("entity_id")): e.get("device_id") for e in registry if e.get("entity_id")
-        }
         states = await ha.rest.get_states() or []
-
-        metered_devices = {
-            device_of.get(str(s.get("entity_id")))
-            for s in states
-            if (s.get("attributes") or {}).get("device_class") == "power"
-            and _is_number(s.get("state"))
-            and device_of.get(str(s.get("entity_id")))
-        }
-
-        # One physical device can appear as several Home Assistant devices, one
-        # per integration that found it. A Samsung TV is discovered by samsungtv,
-        # dlna_dmr and cast at once, so a per-entity count meters it up to three
-        # times — the same double-count a light group commits, arriving from the
-        # other direction.
-        #
-        # The MAC is what settles it. It is protocol-native identity: burned into
-        # the NIC, shared by every integration that reaches the same hardware, and
-        # unmoved by a rename. Matching on the identical *names* those
-        # integrations report would be a name match wearing a better job title.
         devices_registry = await ha.ws.send_command("config/device_registry/list") or []
-        mac_of_device: dict[str, str] = {}
-        for device in devices_registry:
-            for kind, value in device.get("connections") or []:
-                if kind == "mac" and value:
-                    mac_of_device[str(device.get("id"))] = str(value).lower()
-                    break
-
-        eligible: set[str] = set()
-        excluded: dict[str, list[str]] = {
-            "group_entity_sums_its_members": [],
-            "switch_is_a_config_toggle_not_a_load": [],
-            "no_device_in_the_entity_registry": [],
-            "same_physical_device_already_counted": [],
-        }
-        for state in states:
-            entity_id = str(state.get("entity_id", ""))
-            domain, _, _ = entity_id.partition(".")
-            attributes = state.get("attributes") or {}
-            if domain in _LOAD_DOMAINS:
-                if attributes.get("entity_id"):
-                    excluded["group_entity_sums_its_members"].append(entity_id)
-                    continue
-            elif domain == "switch":
-                if attributes.get("device_class") != "outlet":
-                    excluded["switch_is_a_config_toggle_not_a_load"].append(entity_id)
-                    continue
-            else:
-                continue
-            if not device_of.get(entity_id):
-                excluded["no_device_in_the_entity_registry"].append(entity_id)
-                continue
-            eligible.add(entity_id)
-
-        # Collapse entities whose devices share a MAC down to one representative,
-        # chosen deterministically so the count does not move between runs.
-        by_mac: dict[str, list[str]] = {}
-        for entity_id in sorted(eligible):
-            mac = mac_of_device.get(str(device_of.get(entity_id)))
-            if mac:
-                by_mac.setdefault(mac, []).append(entity_id)
-        for mac_group in by_mac.values():
-            for duplicate in mac_group[1:]:
-                eligible.discard(duplicate)
-                excluded["same_physical_device_already_counted"].append(duplicate)
-
-        # A physical device is metered if ANY of its Home Assistant devices is —
-        # the reading belongs to the hardware, not to the integration that
-        # happened to surface it.
-        metered_macs = {
-            mac_of_device[device_id] for device_id in metered_devices if device_id in mac_of_device
-        }
-        covered = {
-            eid
-            for eid in eligible
-            if device_of.get(eid) in metered_devices
-            or mac_of_device.get(str(device_of.get(eid))) in metered_macs
-        }
-
-        # Why each uncovered load is uncovered. A bare list of 30 entity ids
-        # says "something is wrong somewhere"; these say which of them a person
-        # could act on, and how. The three causes need different actions and
-        # only one of them is a software problem.
-        state_of = {str(s.get("entity_id")): str(s.get("state")) for s in states}
-        reasons: dict[str, str] = {}
-        for entity_id in sorted(eligible - covered):
-            state = state_of.get(entity_id, "unknown")
-            if state == "unavailable":
-                reasons[entity_id] = (
-                    "the load itself is unavailable — a sensor cannot read a device "
-                    "that is not reachable, so this clears when the device is powered"
-                )
-            elif entity_id.startswith("media_player."):
-                reasons[entity_id] = (
-                    "no Powercalc profile for this media player; it needs a manually "
-                    "stated wattage, which is a fact about the hardware"
-                )
-            else:
-                reasons[entity_id] = (
-                    "Powercalc raised no discovery flow that closes on defaults — "
-                    "typically a profile asking for supply voltage, which is a fact "
-                    "about the installation rather than the device"
-                )
-
-        for entity_ids in excluded.values():
-            entity_ids.sort()
-        return {
-            "eligible": eligible,
-            "covered": covered,
-            "excluded": excluded,
-            "uncovered_reasons": reasons,
-        }
+        return compute_coverage(states, registry, devices_registry)
 
     async def check(self, ha: HAClient) -> CheckResult:
         entry = await self._loaded_entry(ha)
@@ -445,19 +312,10 @@ class PowercalcRecipe(Recipe):
         The discovery title is ``"<light name> - <manufacturer>"``; the
         light half matches the light entity's friendly_name.
         """
-        live_names = {
-            (state.get("attributes") or {}).get("friendly_name")
-            for state in await ha.rest.get_states()
-            if str(state.get("entity_id", "")).startswith("light.")
-            and state.get("state") not in ("unavailable", "unknown")
-        }
-        labelled = []
-        for flow in flows:
-            title = (flow.get("context") or {}).get("title_placeholders") or {}
-            label = str(title.get("name") or flow["flow_id"])
-            alive = label.rsplit(" - ", 1)[0].strip() in live_names
-            labelled.append((not alive, flow, label))
-        labelled.sort(key=lambda item: item[0])
+        live_names = live_light_names(await ha.rest.get_states())
+        labelled = sorted(
+            (flow_label(flow, live_names) for flow in flows), key=lambda item: item[0]
+        )
         return [(flow, label) for _, flow, label in labelled]
 
     async def _power_reports_a_number(self, ha: Any) -> bool:
@@ -598,14 +456,6 @@ class PowercalcRecipe(Recipe):
             else f"power sensor(s) {powered} exist but none reports a number",
             {"entity_ids": powered, "reporting": reporting},
         )
-
-
-def _is_number(value: Any) -> bool:
-    try:
-        float(value)
-    except (TypeError, ValueError):
-        return False
-    return True
 
 
 __all__ = ["PowercalcRecipe"]

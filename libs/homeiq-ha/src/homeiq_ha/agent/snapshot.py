@@ -27,6 +27,13 @@ from typing import TYPE_CHECKING, Any
 
 from .backup import wait_until_idle
 from .recipe import Change
+from .snapshot_diff import (
+    CORE_CONFIG_FIELDS,
+    DEVICE_FIELDS,
+    ENTITY_FIELDS,
+    agent_ids,
+    compute_diff,
+)
 
 if TYPE_CHECKING:
     from homeiq_ha.client import HAClient
@@ -37,15 +44,6 @@ REGISTRY_KEYS: dict[str, str] = {
     "floor_registry": "floor_id",
     "label_registry": "label_id",
 }
-
-#: Core config fields the agent's recipes can change.
-CORE_CONFIG_FIELDS = ("currency", "country", "time_zone", "language")
-
-#: Device registry fields the agent's recipes can change.
-DEVICE_FIELDS = ("area_id", "name_by_user", "labels", "disabled_by")
-
-#: Entity registry fields the agent's recipes can change.
-ENTITY_FIELDS = ("area_id", "name", "icon", "labels", "hidden_by", "disabled_by")
 
 
 @dataclass
@@ -76,16 +74,6 @@ class Snapshot:
             f"entities={len(self.entities)} config_entries={len(self.config_entries)} "
             f"backups={len(self.backup_ids)}"
         )
-
-
-def _agent_ids(source: dict[str, Any]) -> list[str]:
-    """Backup destinations, normalised so a missing key equals none configured.
-
-    Baselines captured before destinations were tracked have no ``agent_ids``
-    key at all; treating that as ``[]`` keeps them comparable instead of
-    reporting a permanent difference that no restore could ever clear.
-    """
-    return [str(agent) for agent in source.get("agent_ids") or ()]
 
 
 def _project(entry: dict[str, Any], fields: tuple[str, ...]) -> dict[str, Any]:
@@ -129,7 +117,7 @@ async def capture(ha: HAClient) -> Snapshot:
         "retention": config.get("retention"),
         # Destinations are written by the backup-schedule recipe, so restore
         # has to be able to put them back too.
-        "agent_ids": _agent_ids(config.get("create_backup") or {}),
+        "agent_ids": agent_ids(config.get("create_backup") or {}),
         # Whether a key exists, never the key itself.
         "encryption_key_set": bool((config.get("create_backup") or {}).get("password")),
     }
@@ -145,74 +133,12 @@ async def capture(ha: HAClient) -> Snapshot:
 async def diff(ha: HAClient, baseline: Snapshot) -> list[Change]:
     """Report how the live instance differs from ``baseline``. Read-only.
 
-    An empty list is the assertion that a restore worked.
+    An empty list is the assertion that a restore worked. The comparison
+    itself is pure and lives in :func:`~.snapshot_diff.compute_diff`, which
+    is independently testable without a simulator.
     """
     current = await capture(ha)
-    changes: list[Change] = []
-
-    for kind in ("areas", "floors", "labels"):
-        before: dict[str, Any] = getattr(baseline, kind)
-        after: dict[str, Any] = getattr(current, kind)
-        for key in after.keys() - before.keys():
-            name = after[key].get("name", key)
-            changes.append(Change("added", f"{kind}:{name}", after=key))
-        for key in before.keys() - after.keys():
-            name = before[key].get("name", key)
-            changes.append(Change("removed", f"{kind}:{name}", before=key))
-
-    for kind, fields in (("devices", DEVICE_FIELDS), ("entities", ENTITY_FIELDS)):
-        before = getattr(baseline, kind)
-        after = getattr(current, kind)
-        for key in before.keys() & after.keys():
-            for name in fields:
-                if before[key].get(name) != after[key].get(name):
-                    changes.append(
-                        Change(
-                            "changed",
-                            f"{kind}:{key}.{name}",
-                            before[key].get(name),
-                            after[key].get(name),
-                        )
-                    )
-
-    for entry_id in current.config_entries.keys() - baseline.config_entries.keys():
-        domain = current.config_entries[entry_id]
-        changes.append(Change("added", f"config_entry:{domain}", after=entry_id))
-    for entry_id in baseline.config_entries.keys() - current.config_entries.keys():
-        domain = baseline.config_entries[entry_id]
-        changes.append(Change("removed", f"config_entry:{domain}", before=entry_id))
-
-    for name in CORE_CONFIG_FIELDS:
-        if baseline.core_config.get(name) != current.core_config.get(name):
-            changes.append(
-                Change(
-                    "changed",
-                    f"core_config.{name}",
-                    baseline.core_config.get(name),
-                    current.core_config.get(name),
-                )
-            )
-
-    for name in ("schedule", "retention"):
-        if baseline.backup_config.get(name) != current.backup_config.get(name):
-            changes.append(
-                Change(
-                    "changed",
-                    f"backup_config.{name}",
-                    baseline.backup_config.get(name),
-                    current.backup_config.get(name),
-                )
-            )
-
-    before_agents = _agent_ids(baseline.backup_config)
-    after_agents = _agent_ids(current.backup_config)
-    if before_agents != after_agents:
-        changes.append(Change("changed", "backup_config.agent_ids", before_agents, after_agents))
-
-    for backup_id in set(current.backup_ids) - set(baseline.backup_ids):
-        changes.append(Change("added", f"backup:{backup_id}", after=backup_id))
-
-    return changes
+    return compute_diff(baseline, current)
 
 
 class RestoreIncomplete(RuntimeError):
@@ -224,6 +150,106 @@ class RestoreIncomplete(RuntimeError):
             + "; ".join(c.describe() for c in remaining[:5])
         )
         self.remaining = remaining
+
+
+async def _delete_and_recreate_registries(
+    ha: HAClient, baseline: Snapshot, current: Snapshot
+) -> list[Change]:
+    """Registry entries that appeared -> delete; ones that vanished -> recreate.
+
+    Runs before :func:`_revert_field_drift`, so an area being removed does
+    not leave devices pointing at an id that no longer exists.
+    """
+    reverted: list[Change] = []
+    for kind, registry, id_field in (
+        ("labels", "label_registry", "label_id"),
+        ("floors", "floor_registry", "floor_id"),
+        ("areas", "area_registry", "area_id"),
+    ):
+        before: dict[str, Any] = getattr(baseline, kind)
+        after: dict[str, Any] = getattr(current, kind)
+        for key in after.keys() - before.keys():
+            await ha.ws.send_command(f"config/{registry}/delete", **{id_field: key})
+            name = after[key].get("name", key)
+            reverted.append(Change("delete", f"{kind}:{name}"))
+        for key in before.keys() - after.keys():
+            await ha.ws.send_command(f"config/{registry}/create", name=before[key].get("name"))
+            reverted.append(Change("recreate", f"{kind}:{before[key].get('name', key)}"))
+    return reverted
+
+
+async def _revert_field_drift(ha: HAClient, baseline: Snapshot, current: Snapshot) -> list[Change]:
+    """Field-level reverts on devices and entities."""
+    reverted: list[Change] = []
+    for kind, registry, id_field, fields in (
+        ("devices", "device_registry", "device_id", DEVICE_FIELDS),
+        ("entities", "entity_registry", "entity_id", ENTITY_FIELDS),
+    ):
+        before = getattr(baseline, kind)
+        after = getattr(current, kind)
+        for key in before.keys() & after.keys():
+            drift = {
+                name: before[key].get(name)
+                for name in fields
+                if before[key].get(name) != after[key].get(name)
+            }
+            if drift:
+                await ha.ws.send_command(f"config/{registry}/update", **{id_field: key}, **drift)
+                reverted.append(Change("revert", f"{kind}:{key}", after=list(drift)))
+    return reverted
+
+
+async def _remove_added_config_entries(
+    ha: HAClient, baseline: Snapshot, current: Snapshot
+) -> list[Change]:
+    """Config entries that appeared since ``baseline`` -> remove."""
+    reverted: list[Change] = []
+    for entry_id in current.config_entries.keys() - baseline.config_entries.keys():
+        domain = current.config_entries[entry_id]
+        await ha.rest.request("DELETE", f"/api/config/config_entries/entry/{entry_id}")
+        reverted.append(Change("delete", f"config_entry:{domain}"))
+    return reverted
+
+
+async def _revert_core_config(ha: HAClient, baseline: Snapshot, current: Snapshot) -> list[Change]:
+    core_drift = {
+        name: baseline.core_config.get(name)
+        for name in CORE_CONFIG_FIELDS
+        if baseline.core_config.get(name) != current.core_config.get(name)
+    }
+    if not core_drift:
+        return []
+    await ha.ws.send_command("config/core/update", fields=core_drift)
+    return [Change("revert", "core_config", after=list(core_drift))]
+
+
+async def _revert_backup_config(
+    ha: HAClient, baseline: Snapshot, current: Snapshot
+) -> list[Change]:
+    """Destinations live under ``create_backup`` in the update payload, not at
+    the top level like schedule and retention.
+    """
+    backup_drift: dict[str, Any] = {
+        name: baseline.backup_config.get(name)
+        for name in ("schedule", "retention")
+        if baseline.backup_config.get(name) != current.backup_config.get(name)
+    }
+    if agent_ids(baseline.backup_config) != agent_ids(current.backup_config):
+        backup_drift["create_backup"] = {"agent_ids": agent_ids(baseline.backup_config)}
+    if not backup_drift:
+        return []
+    await ha.ws.send_command("backup/config/update", fields=backup_drift)
+    return [Change("revert", "backup_config", after=list(backup_drift))]
+
+
+async def _delete_added_backups(
+    ha: HAClient, baseline: Snapshot, current: Snapshot
+) -> list[Change]:
+    reverted: list[Change] = []
+    for backup_id in set(current.backup_ids) - set(baseline.backup_ids):
+        await ha.ws.send_command("backup/delete", fields={"backup_id": backup_id})
+        reverted.append(Change("delete", f"backup:{backup_id}"))
+    return reverted
 
 
 async def restore(ha: HAClient, baseline: Snapshot, *, strict: bool = True) -> list[Change]:
@@ -240,76 +266,19 @@ async def restore(ha: HAClient, baseline: Snapshot, *, strict: bool = True) -> l
     baseline is recreated by name and receives a **new id**. Anything that
     referenced the old id will not be reattached. The agent's recipes only ever
     create these, so this path is defensive rather than routine.
+
+    Each category of drift is reverted by its own module-level helper above,
+    in the order that keeps a removed area from leaving devices pointing at
+    an id that no longer exists.
     """
     current = await capture(ha)
     reverted: list[Change] = []
-
-    # Registry entries that appeared -> delete. Do these before restoring
-    # device/entity fields, so an area being removed does not leave devices
-    # pointing at an id that no longer exists.
-    for kind, registry, id_field in (
-        ("labels", "label_registry", "label_id"),
-        ("floors", "floor_registry", "floor_id"),
-        ("areas", "area_registry", "area_id"),
-    ):
-        before: dict[str, Any] = getattr(baseline, kind)
-        after: dict[str, Any] = getattr(current, kind)
-        for key in after.keys() - before.keys():
-            await ha.ws.send_command(f"config/{registry}/delete", **{id_field: key})
-            name = after[key].get("name", key)
-            reverted.append(Change("delete", f"{kind}:{name}"))
-        for key in before.keys() - after.keys():
-            await ha.ws.send_command(f"config/{registry}/create", name=before[key].get("name"))
-            reverted.append(Change("recreate", f"{kind}:{before[key].get('name', key)}"))
-
-    # Field-level reverts on devices and entities.
-    for kind, registry, id_field, fields in (
-        ("devices", "device_registry", "device_id", DEVICE_FIELDS),
-        ("entities", "entity_registry", "entity_id", ENTITY_FIELDS),
-    ):
-        before = getattr(baseline, kind)
-        after = getattr(current, kind)
-        for key in before.keys() & after.keys():
-            drift = {
-                name: before[key].get(name)
-                for name in fields
-                if before[key].get(name) != after[key].get(name)
-            }
-            if drift:
-                await ha.ws.send_command(f"config/{registry}/update", **{id_field: key}, **drift)
-                reverted.append(Change("revert", f"{kind}:{key}", after=list(drift)))
-
-    # Config entries that appeared -> remove.
-    for entry_id in current.config_entries.keys() - baseline.config_entries.keys():
-        domain = current.config_entries[entry_id]
-        await ha.rest.request("DELETE", f"/api/config/config_entries/entry/{entry_id}")
-        reverted.append(Change("delete", f"config_entry:{domain}"))
-
-    core_drift = {
-        name: baseline.core_config.get(name)
-        for name in CORE_CONFIG_FIELDS
-        if baseline.core_config.get(name) != current.core_config.get(name)
-    }
-    if core_drift:
-        await ha.ws.send_command("config/core/update", fields=core_drift)
-        reverted.append(Change("revert", "core_config", after=list(core_drift)))
-
-    backup_drift: dict[str, Any] = {
-        name: baseline.backup_config.get(name)
-        for name in ("schedule", "retention")
-        if baseline.backup_config.get(name) != current.backup_config.get(name)
-    }
-    # Destinations live under create_backup in the update payload, not at the
-    # top level like schedule and retention.
-    if _agent_ids(baseline.backup_config) != _agent_ids(current.backup_config):
-        backup_drift["create_backup"] = {"agent_ids": _agent_ids(baseline.backup_config)}
-    if backup_drift:
-        await ha.ws.send_command("backup/config/update", fields=backup_drift)
-        reverted.append(Change("revert", "backup_config", after=list(backup_drift)))
-
-    for backup_id in set(current.backup_ids) - set(baseline.backup_ids):
-        await ha.ws.send_command("backup/delete", fields={"backup_id": backup_id})
-        reverted.append(Change("delete", f"backup:{backup_id}"))
+    reverted.extend(await _delete_and_recreate_registries(ha, baseline, current))
+    reverted.extend(await _revert_field_drift(ha, baseline, current))
+    reverted.extend(await _remove_added_config_entries(ha, baseline, current))
+    reverted.extend(await _revert_core_config(ha, baseline, current))
+    reverted.extend(await _revert_backup_config(ha, baseline, current))
+    reverted.extend(await _delete_added_backups(ha, baseline, current))
 
     if strict:
         remaining = await diff(ha, baseline)
