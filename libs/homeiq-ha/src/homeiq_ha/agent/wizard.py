@@ -18,6 +18,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from .engine import HAInitAgent, RecipeOutcome
+from .readiness import ReadinessResult, check_readiness
 from .readonly import read_only
 from .recipe import CheckStatus
 
@@ -27,6 +28,37 @@ if TYPE_CHECKING:
     from homeiq_ha.client import HAClient
 
     from .recipe import Recipe
+
+#: TAP-7272 decision (recorded 2026-09-09): captured network metadata is kept
+#: on a 30-day rolling basis and the customer can erase it from HomeIQ's UI.
+#: The rolling-deletion job and the erase action are TAP-6490, a separate
+#: story — this step states the policy, never a control that does not exist
+#: yet, which is why it names "Settings -> Network capture" as prose rather
+#: than a link.
+# TODO(TAP-6490): no "Settings -> Network capture" UI route exists yet to
+# link from here; wire it once that story ships the erase action.
+NETWORK_CAPTURE_HUMAN_ACTION = (
+    "Network metadata capture (Zeek) is optional and off unless you turn it "
+    "on. If enabled, captured data is kept for 30 days on a rolling basis; "
+    "you can erase it at any time from Settings -> Network capture."
+)
+
+
+def _network_capture_item() -> dict[str, Any]:
+    """The opt-in step for network metadata capture (TAP-7272).
+
+    Always ``readiness: False`` — turning this on never needs a person
+    physically at a device, unlike the pairing-style items above.
+    """
+    return {
+        "kind": "opt_in",
+        "id": "optin:network_capture",
+        "title": "Network metadata capture (optional)",
+        "human_action": NETWORK_CAPTURE_HUMAN_ACTION,
+        "decision": {"type": "toggle", "field": "network_capture_enabled", "default": False},
+        "readiness": False,
+    }
+
 
 #: Discovery handlers whose next step needs the person physically present,
 #: mapped to why (surfaced as the item's readiness reason).
@@ -130,8 +162,69 @@ def _discovery_item(flow: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-async def build_queue(ha: HAClient, recipes: Sequence[Recipe]) -> dict[str, Any]:
-    """The wizard's queue payload, generated from live truth on every call."""
+def _readiness_item(result: ReadinessResult) -> dict[str, Any]:
+    """The single queue item shown while the appliance's own HA is not ready.
+
+    Never an ``audit_blocked`` or ``discovery`` item — a person reading the
+    queue must not mistake "still booting" for "nothing to configure".
+    """
+    return {
+        "kind": "readiness",
+        "id": "readiness:appliance-ha",
+        "title": "Home Assistant is starting up",
+        "human_action": (
+            f"Home Assistant is not ready yet ({result.named}). Wait a moment and refresh."
+        ),
+        "decision": {"type": "acknowledge"},
+        "readiness": False,
+        "state": result.named,
+    }
+
+
+def not_ready_queue_payload(result: ReadinessResult) -> dict[str, Any]:
+    """The queue's shape while readiness is unverified (TAP-6468).
+
+    HTTP 200 with an actionable payload — never an empty ``items`` list (which
+    reads as "nothing to do" on an instance that is simply not up yet) and
+    never a propagated exception from a live call this appliance's HA cannot
+    yet answer.
+    """
+    return {
+        "items": [_readiness_item(result)],
+        "audit_outcomes": 0,
+        "generated_from": "readiness gate",
+        "reads": [],
+        "ready": False,
+        "readiness": result.named,
+    }
+
+
+async def build_queue(
+    ha: HAClient,
+    recipes: Sequence[Recipe],
+    *,
+    readiness: ReadinessResult | None = None,
+) -> dict[str, Any]:
+    """The wizard's queue payload, generated from live truth on every call.
+
+    Gated at the producer (TAP-6468): the audit and the discovery-flow reads
+    below never run until the appliance's own Home Assistant answers ready —
+    an unauthenticated instance mid-boot cannot answer either honestly, and a
+    caller that tried anyway would either 502 or read a fresh instance's
+    "nothing configured yet" as "no blockers", which is indistinguishable from
+    done.
+
+    Args:
+        readiness: A pre-computed result — callers that already probed
+            readiness (e.g. the route, to decide whether to open ``ha`` at
+            all) pass it through rather than probing twice. Defaults to
+            probing ``ha.base_url`` directly, so this gate holds even when
+            ``build_queue`` is called on its own.
+    """
+    result = readiness if readiness is not None else await check_readiness(ha.base_url)
+    if not result.ready:
+        return not_ready_queue_payload(result)
+
     report = await HAInitAgent(recipes).audit(ha)
     guarded = read_only(ha)
     flows = await guarded.ws.send_command("config_entries/flow/progress") or []
@@ -143,6 +236,7 @@ async def build_queue(ha: HAClient, recipes: Sequence[Recipe]) -> dict[str, Any]
         for outcome in report.by_status(CheckStatus.BLOCKED_ON_HUMAN)
     ]
     items.extend(_discovery_item(flow) for flow in flows)
+    items.append(_network_capture_item())
 
     return {
         "items": items,
@@ -150,7 +244,15 @@ async def build_queue(ha: HAClient, recipes: Sequence[Recipe]) -> dict[str, Any]
         "generated_from": "live audit + config_entries/flow/progress",
         # Read-only evidence: every HA call this payload was built from.
         "reads": report.reads + guarded.journal,
+        "ready": True,
+        "readiness": result.named,
     }
 
 
-__all__ = ["READINESS_HANDLERS", "build_queue", "flow_key"]
+__all__ = [
+    "NETWORK_CAPTURE_HUMAN_ACTION",
+    "READINESS_HANDLERS",
+    "build_queue",
+    "flow_key",
+    "not_ready_queue_payload",
+]

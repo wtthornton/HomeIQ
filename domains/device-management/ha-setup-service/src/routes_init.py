@@ -19,6 +19,7 @@ from homeiq_ha.agent.answers import Answers, apply_answers
 from homeiq_ha.agent.backup import backup_taker
 from homeiq_ha.agent.blockers import CATALOGUE, describe
 from homeiq_ha.agent.netobserve import observer_from_env
+from homeiq_ha.agent.readiness import ReadinessResult, check_readiness
 from homeiq_ha.agent.recipes import default_recipes
 from homeiq_ha.agent.triage import DEFAULT_TRIAGE_STORE_PATH, LaterStore, apply_decision
 from homeiq_ha.agent.triggers import (
@@ -28,7 +29,7 @@ from homeiq_ha.agent.triggers import (
     start_hacs,
 )
 from homeiq_ha.agent.unclaimed import UnclaimedDevicesRecipe
-from homeiq_ha.agent.wizard import build_queue
+from homeiq_ha.agent.wizard import build_queue, not_ready_queue_payload
 from homeiq_ha.client import HAClient
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
@@ -208,9 +209,39 @@ def _serialize(report: RunReport) -> dict[str, Any]:
     }
 
 
+async def _current_readiness() -> ReadinessResult:
+    """The appliance's own HA, probed against the stored owner credential.
+
+    ``get_settings().ha_url`` supplies only the *address* — never a
+    customer-supplied value persisted anywhere, just the operator-configured
+    endpoint this service was already using. The credential comes from
+    :func:`homeiq_ha.agent.readiness.check_readiness`'s own default (the
+    tier-2 secret store), never from this service's ``ha_token`` settings
+    field or the host environment.
+    """
+    return await check_readiness(get_settings().ha_url)
+
+
+@init_router.get("/readiness")
+async def readiness() -> dict[str, Any]:
+    """Authenticated readiness of THIS appliance's Home Assistant (TAP-6467).
+
+    ``ready`` only after an authenticated call succeeds; a rejected credential
+    is reported as ``credential-rejected``, distinguishable from
+    ``unreachable`` (the port never answered) and from a plain
+    ``not-ready:<reason>`` (a port that is up but not yet serving a valid API
+    response — e.g. still booting).
+    """
+    result = await _current_readiness()
+    return {"state": result.named, "ready": result.ready}
+
+
 @init_router.get("/audit")
 async def audit() -> dict[str, Any]:
-    """Read-only audit of every recipe. Always safe to call."""
+    """Read-only audit of every recipe. Refuses while readiness is unverified."""
+    result = await _current_readiness()
+    if not result.ready:
+        raise HTTPException(status_code=503, detail=f"not ready: {result.named}")
     agent = HAInitAgent(default_recipes())
     try:
         async with HAClient.from_env() as ha:
@@ -381,10 +412,18 @@ async def queue(show_all: bool = False) -> dict[str, Any]:
     the read-only proxy; the payload carries its read journal as evidence.
     Items deferred with a ``later`` decision (TAP-5947) are hidden by
     default and included with ``?show_all=true``.
+
+    Gated on readiness (TAP-6468): probed *before* opening a connection to
+    this appliance's HA, so a not-yet-up instance never reaches the
+    ``HAClient.from_env()`` connect attempt that would otherwise 502 — the
+    response is a plain 200 with a readiness step instead.
     """
+    result = await _current_readiness()
+    if not result.ready:
+        return not_ready_queue_payload(result)
     try:
         async with HAClient.from_env() as ha:
-            payload = await build_queue(ha, default_recipes())
+            payload = await build_queue(ha, default_recipes(), readiness=result)
         # Inside the envelope: a hand-corrupted store file must surface as
         # a diagnosable 502, not an anonymous 500.
         deferred = _TRIAGE_STORE.keys()
@@ -501,11 +540,14 @@ async def hacs_start() -> dict[str, Any]:
 
 @write_router.post("/converge")
 async def converge(body: ConvergeRequest | None = None) -> dict[str, Any]:
-    """Backup-gated plan+apply+verify run.
+    """Backup-gated plan+apply+verify run. Refuses while readiness is unverified.
 
     The engine takes a backup before every phase past the gate; a converge
     without a reachable backup destination halts rather than proceeding.
     """
+    result = await _current_readiness()
+    if not result.ready:
+        raise HTTPException(status_code=503, detail=f"not ready: {result.named}")
     body = body or ConvergeRequest()
     agent = HAInitAgent(default_recipes())
     try:

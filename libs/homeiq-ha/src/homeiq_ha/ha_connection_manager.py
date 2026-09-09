@@ -17,6 +17,30 @@ Usage:
     async with connection as client:
         # Make HA API calls
         pass
+
+Nabu Casa fallback is inapplicable to the appliance (TAP-6467, decided rather
+than removed)
+--------------------------------------------------------------------------
+The Nabu Casa branch below (``_load_connection_configs``'s
+``NABU_CASA_URL``/``NABU_CASA_TOKEN`` block, roughly lines 153-181, and the
+cloud-specific retry path in :meth:`HAConnectionManager.get_best_connection` /
+:meth:`_test_connection_with_retry`) exists for HomeIQ platform services —
+``domains/core-platform/websocket-ingestion`` and
+``domains/data-collectors/calendar-service`` are the only importers today —
+that may reach a customer's *pre-existing* Home Assistant over Nabu Casa's
+cloud relay when a local URL is not configured.
+
+The appliance ships its own Home Assistant instance, reachable only on the
+appliance's own LAN, with an owner credential this appliance mints itself at
+first boot (``homeiq_ha.agent.onboarding.run_first_boot``) and stores locally
+(``homeiq_ha.secrets.store``). There is no cloud relay to fall back to and no
+scenario in which one would apply: the appliance's onboarding, readiness
+(``homeiq_ha.agent.readiness``) and setup-wizard code paths never construct an
+``HAConnectionManager`` and never read ``NABU_CASA_URL`` / ``NABU_CASA_TOKEN``.
+Removing this class would change behavior for the two unrelated platform
+services above, which are out of this lane's file partition — so the decision
+here is "inapplicable to the appliance", documented at the point future
+readers would otherwise wonder why the appliance's readiness gate ignores it.
 """
 
 import asyncio
