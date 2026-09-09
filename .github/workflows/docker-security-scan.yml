@@ -114,21 +114,26 @@ jobs:
         # that is the only thing this repo controls the Dockerfile/base-image
         # for. Anything with only an `image:` key is pulled from a registry we
         # don't build (influxdb, pgvector, ...); those go to the separate
-        # scan-third-party job below, not into this gate. Service names come
-        # from the compose config itself (not a hand-maintained list) so a new
-        # service is classified correctly the moment it's added. `config
-        # --format json`'s `.services[].image` is null for any service that
-        # doesn't set `image:` explicitly in the YAML -- it is NOT the
-        # resolved build tag -- so the actual tags are looked up via `config
-        # --images <service...>` (which does resolve compose's default
-        # `<project>-<service>` naming), passing just the first-party service
-        # names as filters.
+        # scan-third-party job below, not into this gate. Derived from the
+        # compose config itself (not a hand-maintained list) so a new service
+        # is classified correctly the moment it's added.
+        #
+        # `config --format json`'s `.services[].image` is null for any
+        # service that doesn't set `image:` explicitly in the YAML -- it is
+        # NOT the resolved build tag. `config --images <service...>` was
+        # tried as a fix but silently ignores the service-name filter on this
+        # compose version and returns every service's image regardless (it
+        # returned all 39, including influxdb/pgvector, when passed only the
+        # 37 first-party names). Instead, reconstruct compose's own default
+        # naming rule directly: docker-compose.yml pins `name: homeiq`, so an
+        # unset `image:` resolves to `<project>-<service>` = `homeiq-<service>`
+        # -- exactly what `Build all services` below actually tags. Verified
+        # against the real resolved names for both a default-tag service
+        # (homeiq-data-api) and an explicit-tag one (homeiq/zeek:latest).
         run: |
           set -euo pipefail
-          mapfile -t SERVICES < <(docker compose --env-file .env.ci config --format json | jq -r '.services | to_entries[] | select(.value.build != null) | .key' | sort -u)
-          echo "Derived ${#SERVICES[@]} first-party services (have a build: key)"
-          mapfile -t IMAGES < <(docker compose --env-file .env.ci config --images "${SERVICES[@]}" | sort -u)
-          echo "Resolved ${#IMAGES[@]} first-party images"
+          mapfile -t IMAGES < <(docker compose --env-file .env.ci config --format json | jq -r '.name as $p | .services | to_entries[] | select(.value.build != null) | (.value.image // ($p + "-" + .key))' | sort -u)
+          echo "Derived ${#IMAGES[@]} first-party images (services with a build: key)"
           printf '%s\n' "${IMAGES[@]}" | tee /tmp/first-party-images.txt
 
       - name: Build all services
@@ -191,14 +196,16 @@ jobs:
       - name: Derive third-party image set
         # Same derivation as scan-all's first-party step, inverted: a service
         # with only an `image:` key (no `build:`) is third-party. See that
-        # step for why the actual tag is resolved via `config --images
-        # <service...>` rather than read off `.services[].image` in the JSON.
+        # step for why the tag is reconstructed from `.name` + service key
+        # rather than trusting `config --images <service...>`'s filter (it
+        # doesn't filter on this compose version) or a bare `.image` read
+        # (null for any service that doesn't set it explicitly). Every
+        # current third-party service does set `image:` explicitly, so the
+        # `homeiq-<service>` fallback here is defensive, not exercised today.
         run: |
           set -euo pipefail
-          mapfile -t SERVICES < <(docker compose --env-file .env.ci config --format json | jq -r '.services | to_entries[] | select(.value.build == null) | .key' | sort -u)
-          echo "Derived ${#SERVICES[@]} third-party services (image: only, no build: key)"
-          mapfile -t IMAGES < <(docker compose --env-file .env.ci config --images "${SERVICES[@]}" | sort -u)
-          echo "Resolved ${#IMAGES[@]} third-party images"
+          mapfile -t IMAGES < <(docker compose --env-file .env.ci config --format json | jq -r '.name as $p | .services | to_entries[] | select(.value.build == null) | (.value.image // ($p + "-" + .key))' | sort -u)
+          echo "Derived ${#IMAGES[@]} third-party images (services with only an image: key)"
           printf '%s\n' "${IMAGES[@]}" | tee /tmp/third-party-images.txt
 
       - name: Set up Trivy CLI
