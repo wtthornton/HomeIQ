@@ -1,31 +1,26 @@
-"""SSH transport to files on the Home Assistant host (``/config``).
+"""Transports to files on the Home Assistant host (``/config``).
 
 Two design-doc rows are YAML-only — ``http:`` (row 1.1) and ``recorder:``
 (row 2.4) have no API at all — so the agent needs file access to the host.
-It gets it through the **Terminal & SSH (`core_ssh`) add-on**: a dedicated
-agent public key in the add-on's ``authorized_keys`` and its ``22/tcp`` port
-published. Provisioning and rotation are in
-docs/deployment/DEPLOYMENT_RUNBOOK.md ("Agent write path to Home Assistant
-`/config`"). ``HOMEIQ_HA_SSH_KEY`` records the *path* to the private key; the
-key itself never leaves the operator host.
+``HOMEIQ_HA_BACKEND`` is the *only* switch between the two ways to get it,
+never the presence of ``HOMEIQ_HA_SSH_HOST`` / ``HOMEIQ_HA_LOCAL_CONFIG_DIR``:
 
-:class:`HostFiles` is a Protocol so recipes take the transport by injection
-and their tests never open a socket. The only implementation here,
-:class:`SSHHostFiles`, shells out to ``ssh``: the add-on speaks plain OpenSSH
-and pulling in an SSH client library to issue two commands would be a
-dependency nobody asked for.
+- ``"ssh"`` (default) — the **Terminal & SSH (`core_ssh`) add-on**, implemented
+  below. See docs/deployment/DEPLOYMENT_RUNBOOK.md ("Agent write path to
+  Home Assistant `/config`") for provisioning and rotation.
+- ``"local"`` — for an appliance whose HA ``/config`` is a bind mount this
+  process can already read and write directly. ``HOMEIQ_HA_LOCAL_CONFIG_DIR``
+  names the mount (default :data:`~homeiq_ha.agent.host_files_base.HA_CONFIG_DIR`).
+  Implemented in :mod:`homeiq_ha.agent.host_files_local`, re-exported here.
 
-Writes are integrity-checked and atomic by construction, because the file
-being written is the one that decides whether the instance boots:
-
-1. the new content is streamed over stdin into a sibling temp file, seeded by
-   ``cp -p`` from the target so mode and ownership survive (a target that does
-   not exist yet is created instead, parent directories included);
-2. the temp file's SHA-256 is compared **on the host** against the digest of
-   what was sent, and a mismatch deletes the temp file and fails — the live
-   file is never touched by a short or corrupted transfer;
-3. only then is a timestamped backup taken and the temp file ``mv``-ed over
-   the target, which is a rename within one directory and therefore atomic.
+:class:`HostFiles` (in :mod:`homeiq_ha.agent.host_files_base`, re-exported
+here) is a Protocol so recipes take the transport by injection and their
+tests never open a socket or touch a real filesystem. :class:`SSHHostFiles`
+shells out to ``ssh`` (see its docstring for the checksum-guarded remote
+script); :class:`~homeiq_ha.agent.host_files_local.LocalHostFiles` uses the
+filesystem directly (see its docstring for the temp-file-plus-``os.replace``
+algorithm). Both keep a write atomic and always leave a backup of whatever
+they overwrote.
 """
 
 from __future__ import annotations
@@ -37,7 +32,16 @@ import shlex
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
+
+from .host_files_base import (
+    DEFAULT_FILE_MODE,
+    HA_CONFIG_DIR,
+    HostFileError,
+    HostFileNotFound,
+    HostFiles,
+)
+from .host_files_local import LocalHostFiles, LocalTarget
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -45,53 +49,10 @@ if TYPE_CHECKING:
 #: Seconds any single ssh invocation may take.
 DEFAULT_TIMEOUT = 30.0
 
-#: Where Home Assistant keeps its configuration on a Supervised install.
-HA_CONFIG_DIR = "/config"
-
-
 #: Exit code the read script uses for "the file is not there". Chosen well
 #: clear of the codes ``ssh`` (255) and ``cat`` (1) use, so the two causes can
 #: never be confused for one another.
 MISSING_FILE_EXIT = 44
-
-
-class HostFileError(RuntimeError):
-    """An ssh file operation failed, or wrote something other than what was sent."""
-
-    def __init__(self, message: str, *, returncode: int | None = None) -> None:
-        super().__init__(message)
-        #: Exit status of the remote command, when there was one.
-        self.returncode = returncode
-
-
-class HostFileNotFound(HostFileError):
-    """The path does not exist on the host.
-
-    Separate from :class:`HostFileError` because callers act on the difference:
-    "the file is not deployed yet" is a thing to fix by writing it, while "ssh
-    could not reach the host" is a thing to surface. Collapsing the two would
-    let a broken transport read as absent config and trigger a blind rewrite.
-    """
-
-
-class HostFiles(Protocol):
-    """Read and replace a single text file on the Home Assistant host."""
-
-    async def read_text(self, path: str) -> str:
-        """Return the file's contents.
-
-        Raises:
-            HostFileNotFound: the path does not exist on the host.
-        """
-        ...
-
-    async def write_text(self, path: str, content: str) -> str | None:
-        """Write the file atomically, returning the backup path if one was taken.
-
-        ``None`` means the file did not exist and was created, so there was
-        nothing to back up.
-        """
-        ...
 
 
 @dataclass(frozen=True)
@@ -325,19 +286,34 @@ class SSHHostFiles:
         return (await self._run(script, stdin=payload)).strip() or None
 
 
-def host_files_from_env(env: Mapping[str, str] | None = None) -> SSHHostFiles | None:
-    """The configured transport, or ``None`` when no write path is provisioned."""
-    target = SSHTarget.from_env(env)
-    return None if target is None else SSHHostFiles(target)
+def host_files_from_env(env: Mapping[str, str] | None = None) -> HostFiles | None:
+    """The configured transport, or ``None`` when no write path is provisioned.
+
+    ``HOMEIQ_HA_BACKEND`` is the explicit selection key — ``"ssh"`` (the
+    default, so an unset var keeps today's behavior) or ``"local"``. It is
+    the only thing that decides which transport is built; the presence of
+    ``HOMEIQ_HA_SSH_HOST`` or ``HOMEIQ_HA_LOCAL_CONFIG_DIR`` never does.
+    """
+    source: Mapping[str, str] = os.environ if env is None else env
+    backend = str(source.get("HOMEIQ_HA_BACKEND") or "ssh").strip().lower()
+    if backend == "local":
+        return LocalHostFiles(LocalTarget.from_env(source))
+    if backend == "ssh":
+        target = SSHTarget.from_env(source)
+        return None if target is None else SSHHostFiles(target)
+    raise ValueError(f"HOMEIQ_HA_BACKEND={backend!r} is not 'ssh' or 'local'")
 
 
 __all__ = [
+    "DEFAULT_FILE_MODE",
     "DEFAULT_TIMEOUT",
     "HA_CONFIG_DIR",
     "MISSING_FILE_EXIT",
     "HostFileError",
     "HostFileNotFound",
     "HostFiles",
+    "LocalHostFiles",
+    "LocalTarget",
     "SSHHostFiles",
     "SSHTarget",
     "host_files_from_env",

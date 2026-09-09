@@ -248,15 +248,15 @@ class _ConfigYamlRecipe(Recipe):
     def _transport(self) -> HostFiles:
         if self.host_files is None:
             raise ConfigYamlError(
-                f"no SSH write path to {self.path}: set HOMEIQ_HA_SSH_HOST "
-                "(see docs/deployment/DEPLOYMENT_RUNBOOK.md)"
+                f"no write path to {self.path}: set HOMEIQ_HA_SSH_HOST or "
+                "HOMEIQ_HA_BACKEND=local (see docs/deployment/DEPLOYMENT_RUNBOOK.md)"
             )
         return self.host_files
 
     def _unconfigured(self) -> CheckResult:
         return CheckResult(
             CheckStatus.NOT_APPLICABLE,
-            f"no SSH write path to {self.path}; nothing can be read or changed",
+            f"no write path to {self.path}; nothing can be read or changed",
             {"path": self.path, "env": "HOMEIQ_HA_SSH_HOST"},
         )
 
