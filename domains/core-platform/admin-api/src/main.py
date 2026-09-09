@@ -185,6 +185,10 @@ async def _stop_monitoring() -> None:
         await admin_api_service.stats_endpoints.close()
     except Exception as e:
         logger.error("Error closing InfluxDB: %s", e)
+    # The health aggregator now holds one aiohttp session for the process
+    # lifetime (see health_endpoints._new_health_client_session); close it here
+    # rather than leaving the connector to be reaped at interpreter exit.
+    await admin_api_service.health_endpoints.aclose()
     await alerting_service.stop()
     await metrics_service.stop()
     await logging_service.stop()

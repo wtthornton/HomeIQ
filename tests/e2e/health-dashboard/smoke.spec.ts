@@ -59,9 +59,19 @@ test.describe('Health Dashboard Smoke Tests @smoke', () => {
     const dashboardRoot = dashboard.getDashboardRoot();
     await expect(dashboardRoot).toBeVisible({ timeout: 10000 });
 
-    // Should show at least one service health indicator
-    const healthText = page.getByText(/healthy|unhealthy|degraded|running|stopped/i).first();
-    await expect(healthText).toBeVisible({ timeout: 10000 });
+    // Should show at least one service health indicator. Scoped to
+    // service cards, not the page as a whole: the status-filter <select>
+    // above the grid has <option>Healthy</option> etc. that also match
+    // this regex and sort first in DOM order, but are hidden (unselected
+    // options of a closed native select) and fail toBeVisible(). The word
+    // list is the original one — a service the e2e stack actually starts
+    // must report "Running"; a card reading "Error" is a real failure and
+    // this assertion is meant to catch it.
+    const cardWithHealthText = page
+      .locator('[data-testid="service-card"]')
+      .filter({ hasText: /healthy|unhealthy|degraded|running|stopped/i })
+      .first();
+    await expect(cardWithHealthText).toBeVisible({ timeout: 10000 });
   });
 
   test('devices tab loads and shows device information', async ({ page }) => {

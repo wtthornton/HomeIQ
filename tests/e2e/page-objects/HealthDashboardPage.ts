@@ -76,7 +76,10 @@ export class HealthDashboardPage {
   }
 
   getSidebar(): Locator {
-    return this.page.getByRole('navigation', { name: /dashboard/i });
+    // The sidebar <nav> declares role="tablist" (it hosts tab buttons, not
+    // navigation links), which overrides the implicit "navigation" role a
+    // bare <nav> would otherwise expose.
+    return this.page.getByRole('tablist', { name: /dashboard/i });
   }
 
   getThemeToggle(): Locator {

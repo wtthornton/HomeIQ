@@ -37,8 +37,10 @@ test.describe('Alerts — Operator Fire Alarm Panel', () => {
     await qualityGroup.click();
     await page.getByTestId('tab-alerts').click();
     await waitForLoadingComplete(page);
-    // Wait for the Anomaly Detection heading to confirm we're on the right tab
-    await expect(page.getByRole('heading', { name: /Anomaly Detection/i })).toBeVisible({ timeout: 15000 });
+    // Wait for the Alert Management heading to confirm we're on the right tab.
+    // The panel was AlertsPanel/AlertStats after the Story 32.1 refactor; it no
+    // longer renders an "Anomaly Detection" heading at all.
+    await expect(page.getByRole('heading', { name: /Alert Management/i })).toBeVisible({ timeout: 15000 });
   });
 
   // ─── ALERT LIST LOADS WITH STRUCTURE ─────────────────────────────
@@ -46,13 +48,13 @@ test.describe('Alerts — Operator Fire Alarm Panel', () => {
   // active anomaly alerts, an error state, or both. A blank page is failure.
 
   test('@smoke alert section renders with content', async ({ page }) => {
-    // The Anomaly Detection heading should be visible
-    const anomalyHeading = page.getByRole('heading', { name: /Anomaly Detection/i });
-    await expect(anomalyHeading).toBeVisible({ timeout: 15000 });
+    // The Alert Management heading should be visible
+    const alertHeading = page.getByRole('heading', { name: /Alert Management/i });
+    await expect(alertHeading).toBeVisible({ timeout: 15000 });
 
-    // Alert count badge should show how many alerts exist
-    const alertCount = page.getByText(/\d+\s*alerts?/i);
-    await expect(alertCount).toBeVisible({ timeout: 5000 });
+    // The AlertStats summary card should show the total alert count
+    const totalAlerts = page.getByText(/Total Alerts/i);
+    await expect(totalAlerts).toBeVisible({ timeout: 5000 });
   });
 
   // ─── ALERT CARDS DISPLAY DEVICE AND DESCRIPTION ──────────────────

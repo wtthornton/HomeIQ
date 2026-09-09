@@ -115,6 +115,13 @@ jobs:
           # developer machine, and nothing had run it on a runner.
           sh scripts/ensure-network.sh
 
+          # homeiq_logs is also declared `external: true` (compose.yml:878-880)
+          # so compose refuses to create it — ensure-volumes.sh is the same
+          # out-of-band step scripts/start-stack.sh and scripts/domain.sh run
+          # right after ensure-network.sh. This job called only the network
+          # script, so `up` failed with 'external volume ... not found'.
+          sh scripts/ensure-volumes.sh
+
           docker compose $COMPOSE up -d --build $E2E_SERVICES
 
       - name: Wait for services to be healthy
@@ -266,6 +273,13 @@ jobs:
           # and the missing transitive deps resurfaced later as
           # "ModuleNotFoundError: No module named 'sqlalchemy'".
           pip install libs/homeiq-*/
+
+          # tests/integration/cross_group/test_zeek_pipeline.py imports the
+          # zeek-network-service parsers directly, which import influxdb_client_3
+          # (package influxdb3-python). Install the producer's own requirements
+          # file rather than a bare `pip install influxdb3-python` so the test
+          # environment tracks whatever the service actually declares.
+          pip install -r domains/data-collectors/zeek-network-service/requirements.txt
 
       - name: Run integration tests
         if: steps.check-integration.outputs.has_tests == 'true'

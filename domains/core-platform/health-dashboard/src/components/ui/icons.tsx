@@ -210,18 +210,6 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
     stopped: 'text-status-offline',
   };
 
-  // 508 Compliance: descriptive labels for screen readers
-  const statusLabels: Record<string, string> = {
-    healthy: 'Healthy',
-    running: 'Running',
-    warning: 'Warning',
-    degraded: 'Degraded',
-    critical: 'Critical',
-    error: 'Error',
-    offline: 'Offline',
-    stopped: 'Stopped',
-  };
-
   // 508 Compliance: Always render a distinct icon shape — never a color-only dot.
   // Shape conveys meaning independently of color:
   //   CheckCircle = healthy/running
@@ -232,9 +220,23 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
     <StatusIcon
       className={cn(sizeClasses[size], colorClasses[status], className)}
       role="img"
-      aria-label={`Status: ${statusLabels[status] || status}`}
+      aria-label={`Status: ${STATUS_LABELS[status] || status}`}
     />
   );
+};
+
+// 508 Compliance: descriptive labels for screen readers and any visible
+// status text (e.g. ServiceCard's status badge) — single source of truth
+// so the accessible name and the sighted-user label never drift apart.
+export const STATUS_LABELS: Record<string, string> = {
+  healthy: 'Healthy',
+  running: 'Running',
+  warning: 'Warning',
+  degraded: 'Degraded',
+  critical: 'Critical',
+  error: 'Error',
+  offline: 'Offline',
+  stopped: 'Stopped',
 };
 
 // Loading spinner component

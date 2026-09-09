@@ -3,7 +3,7 @@ import type { ServiceStatus } from '../types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { Icon, StatusIndicator, TabIcons } from './ui/icons';
+import { Icon, StatusIndicator, TabIcons, STATUS_LABELS } from './ui/icons';
 import { cn } from '@/lib/utils';
 import type { AiTierInfo } from '../hooks/useAiTierManifest';
 
@@ -108,6 +108,9 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
               </Badge>
             )}
             <StatusIndicator status={indicatorStatus(service.status)} size="sm" />
+            <Badge variant={getStatusVariant(service.status) as 'healthy' | 'warning' | 'critical' | 'offline' | 'secondary'} size="sm">
+              {STATUS_LABELS[service.status] || service.status}
+            </Badge>
           </div>
         </div>
       </CardHeader>

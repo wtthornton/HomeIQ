@@ -15,14 +15,38 @@ Exclude from default: pytest -m "not integration"
 
 from __future__ import annotations
 
+import importlib
 import os
+import sys
+from pathlib import Path
 
 import httpx
 import pytest
 
+# CI's Integration Tests job (.github/workflows/test.yml) starts no compose
+# stack, so there is nothing listening on YAML_VALIDATION_URL. None of the
+# requests below need validate_entities or validate_services (both default
+# False/omitted here), so the real validation pipeline never reaches out to
+# data-api or HA -- it is safe to run the actual FastAPI app in-process over
+# an ASGI transport instead of a real socket.
+_SERVICE_ROOT = str(
+    Path(__file__).resolve().parents[2]
+    / "domains" / "automation-core" / "yaml-validation-service"
+)
+if _SERVICE_ROOT not in sys.path:
+    sys.path.insert(0, _SERVICE_ROOT)
+
+# Imported through importlib rather than an `import` statement: the path
+# above has to be on sys.path first, and a module-level import placed after
+# that mutation is an E402 that would have to be silenced. tests/integration/
+# already resolves service sources this way (cross_group/test_zeek_pipeline.py
+# does its service imports after the same kind of sys.path insert).
+_yaml_validation_app = importlib.import_module("src.main").app
+
 YAML_VALIDATION_URL = os.environ.get("YAML_VALIDATION_URL", "http://localhost:8037")
 VALIDATE_ENDPOINT = f"{YAML_VALIDATION_URL}/api/v1/validation/validate"
 TIMEOUT = 30.0
+_ASGI_TRANSPORT = httpx.ASGITransport(app=_yaml_validation_app)
 
 
 @pytest.mark.integration
@@ -72,7 +96,7 @@ action:
     target:
       entity_id: light.kitchen
 """
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(transport=_ASGI_TRANSPORT) as client:
             result = await self._validate(client, yaml_content)
             assert result["valid"] is True
             assert result["score"] >= 80.0, (
@@ -91,7 +115,7 @@ trigger:
   action:  # Bad indentation - this is invalid YAML
     - action: light.turn_on
 """
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(transport=_ASGI_TRANSPORT) as client:
             result = await self._validate(client, yaml_content)
             assert result["valid"] is False
             assert any(
@@ -104,7 +128,7 @@ trigger:
     async def test_completely_invalid_yaml(self):
         """Completely unparseable YAML returns error."""
         yaml_content = "{{{{ this is not yaml: [[[["
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(transport=_ASGI_TRANSPORT) as client:
             result = await self._validate(client, yaml_content)
             assert result["valid"] is False
             assert len(result["errors"]) > 0
@@ -120,7 +144,7 @@ action:
     target:
       entity_id: light.kitchen
 """
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(transport=_ASGI_TRANSPORT) as client:
             result = await self._validate(client, yaml_content)
             assert result["valid"] is False
             assert any(
@@ -136,7 +160,7 @@ trigger:
     entity_id: binary_sensor.motion
     to: "on"
 """
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(transport=_ASGI_TRANSPORT) as client:
             result = await self._validate(client, yaml_content)
             assert result["valid"] is False
             assert any(
@@ -158,7 +182,7 @@ actions:
     target:
       entity_id: light.kitchen
 """
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(transport=_ASGI_TRANSPORT) as client:
             result = await self._validate(client, yaml_content, normalize=True)
             # Should apply fixes
             assert len(result["fixes_applied"]) > 0, "Expected normalization fixes"
@@ -188,7 +212,7 @@ action:
     target:
       entity_id: light.all_lights
 """
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(transport=_ASGI_TRANSPORT) as client:
             result = await self._validate(client, yaml_content, normalize=True)
             # Should be valid (initial_state auto-added)
             if result["fixed_yaml"]:
@@ -212,7 +236,7 @@ action:
     target:
       entity_id: lock.front_door
 """
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(transport=_ASGI_TRANSPORT) as client:
             result = await self._validate(client, yaml_content)
             # Should produce safety warnings (not necessarily invalid)
             has_safety = any(
@@ -240,7 +264,7 @@ action:
     target:
       entity_id: alarm_control_panel.home
 """
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(transport=_ASGI_TRANSPORT) as client:
             result = await self._validate(client, yaml_content)
             has_safety = any(
                 "safety" in w.lower()
@@ -269,7 +293,7 @@ action:
     target:
       entity_id: light.kitchen
 """
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(transport=_ASGI_TRANSPORT) as client:
             result = await self._validate(client, yaml_content)
             # Valid Jinja2 should not produce template errors
             template_errors = [
@@ -306,7 +330,7 @@ action:
     data:
       message: "Door opened"
 """
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(transport=_ASGI_TRANSPORT) as client:
             result = await self._validate(client, yaml_content)
             assert result["valid"] is True, (
                 f"Complex automation should be valid: {result['errors']}"
@@ -315,7 +339,7 @@ action:
 
     async def test_empty_string_returns_error(self):
         """Empty YAML string returns error."""
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(transport=_ASGI_TRANSPORT) as client:
             result = await self._validate(client, "")
             assert result["valid"] is False
             assert len(result["errors"]) > 0
@@ -326,7 +350,7 @@ action:
 - item1
 - item2
 """
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(transport=_ASGI_TRANSPORT) as client:
             result = await self._validate(client, yaml_content)
             assert result["valid"] is False
 
@@ -343,7 +367,7 @@ actions:
     target:
       entity_id: light.kitchen
 """
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(transport=_ASGI_TRANSPORT) as client:
             result = await self._validate(
                 client, yaml_content, normalize=False,
             )
@@ -365,7 +389,7 @@ action:
     target:
       entity_id: light.office
 """
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(transport=_ASGI_TRANSPORT) as client:
             result = await self._validate(client, yaml_content)
             expected_fields = ["valid", "errors", "warnings", "score"]
             for field in expected_fields:
