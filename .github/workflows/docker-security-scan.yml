@@ -114,13 +114,21 @@ jobs:
         # that is the only thing this repo controls the Dockerfile/base-image
         # for. Anything with only an `image:` key is pulled from a registry we
         # don't build (influxdb, pgvector, ...); those go to the separate
-        # scan-third-party job below, not into this gate. Derived from the
-        # compose config itself (not a hand-maintained list) so a new service
-        # is classified correctly the moment it's added.
+        # scan-third-party job below, not into this gate. Service names come
+        # from the compose config itself (not a hand-maintained list) so a new
+        # service is classified correctly the moment it's added. `config
+        # --format json`'s `.services[].image` is null for any service that
+        # doesn't set `image:` explicitly in the YAML -- it is NOT the
+        # resolved build tag -- so the actual tags are looked up via `config
+        # --images <service...>` (which does resolve compose's default
+        # `<project>-<service>` naming), passing just the first-party service
+        # names as filters.
         run: |
           set -euo pipefail
-          mapfile -t IMAGES < <(docker compose --env-file .env.ci config --format json | jq -r '.services[] | select(.build != null) | .image' | sort -u)
-          echo "Derived ${#IMAGES[@]} first-party images (services with a build: key)"
+          mapfile -t SERVICES < <(docker compose --env-file .env.ci config --format json | jq -r '.services | to_entries[] | select(.value.build != null) | .key' | sort -u)
+          echo "Derived ${#SERVICES[@]} first-party services (have a build: key)"
+          mapfile -t IMAGES < <(docker compose --env-file .env.ci config --images "${SERVICES[@]}" | sort -u)
+          echo "Resolved ${#IMAGES[@]} first-party images"
           printf '%s\n' "${IMAGES[@]}" | tee /tmp/first-party-images.txt
 
       - name: Build all services
@@ -182,11 +190,15 @@ jobs:
 
       - name: Derive third-party image set
         # Same derivation as scan-all's first-party step, inverted: a service
-        # with only an `image:` key (no `build:`) is third-party.
+        # with only an `image:` key (no `build:`) is third-party. See that
+        # step for why the actual tag is resolved via `config --images
+        # <service...>` rather than read off `.services[].image` in the JSON.
         run: |
           set -euo pipefail
-          mapfile -t IMAGES < <(docker compose --env-file .env.ci config --format json | jq -r '.services[] | select(.build == null) | .image' | sort -u)
-          echo "Derived ${#IMAGES[@]} third-party images (services with only an image: key)"
+          mapfile -t SERVICES < <(docker compose --env-file .env.ci config --format json | jq -r '.services | to_entries[] | select(.value.build == null) | .key' | sort -u)
+          echo "Derived ${#SERVICES[@]} third-party services (image: only, no build: key)"
+          mapfile -t IMAGES < <(docker compose --env-file .env.ci config --images "${SERVICES[@]}" | sort -u)
+          echo "Resolved ${#IMAGES[@]} third-party images"
           printf '%s\n' "${IMAGES[@]}" | tee /tmp/third-party-images.txt
 
       - name: Set up Trivy CLI
