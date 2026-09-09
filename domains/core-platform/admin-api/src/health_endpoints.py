@@ -4,8 +4,10 @@ Epic 17.2: Enhanced Service Health Monitoring
 """
 
 import asyncio
+import functools
 import os
 import socket
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any
 
@@ -34,30 +36,80 @@ logger = setup_logging("admin-api.health_endpoints")
 SERVICE_PROBE_TIMEOUT_SECONDS = 2.0
 
 
-def _new_health_client_session() -> aiohttp.ClientSession:
+class _PrivatePoolLoop:
+    """Event-loop view whose ``getaddrinfo`` runs on a private thread pool.
+
+    ``socket.getaddrinfo`` is blocking, so aiohttp's ThreadedResolver hands it
+    to ``loop.getaddrinfo``, which uses the loop's DEFAULT executor -- about
+    ``cpu_count + 4`` threads, shared with everything else in the process.
+    This service probes 23 hostnames at once and most of them are services the
+    deployment did not start, so their lookups sit in the resolver until they
+    time out. There are more of those than there are default threads, and the
+    dashboard re-polls every few seconds, so the pool never drains and lookups
+    for the services that ARE up queue behind names that will never resolve.
+    Measured in CI run 34307775805: 0/23 healthy on all 15 polls, every entry
+    "Timeout" or EAI_AGAIN, while websocket-ingestion in the same network
+    resolved ``ha-simulator`` and got an HTTP 404 back -- so the network's DNS
+    was working and only this process could not use it. Even /api/v1/health,
+    two sequential probes, took 5.7s against 3s and 2s budgets.
+
+    Giving resolution a pool of its own, sized to the number of services,
+    means an absent name can never take the slot of a live one.
+
+    Only ``getaddrinfo`` is redirected; everything else defers to the real
+    loop, which is all ThreadedResolver needs.
+    """
+
+    def __init__(self, loop: asyncio.AbstractEventLoop, executor: ThreadPoolExecutor):
+        self._loop = loop
+        self._executor = executor
+
+    async def getaddrinfo(self, host, port, **kwargs):
+        return await self._loop.run_in_executor(
+            self._executor,
+            functools.partial(
+                socket.getaddrinfo,
+                host,
+                port,
+                kwargs.get("family", 0),
+                kwargs.get("type", 0),
+                kwargs.get("proto", 0),
+                kwargs.get("flags", 0),
+            ),
+        )
+
+    def __getattr__(self, name: str):
+        return getattr(self._loop, name)
+
+
+def _new_health_client_session(
+    probe_count: int,
+) -> tuple[aiohttp.ClientSession, ThreadPoolExecutor]:
     """Build the one HTTP client every health probe shares.
 
     Long-lived on purpose. A session built per call throws away its DNS cache
-    and every keep-alive connection, so each poll pays a cold name lookup --
-    and where that lookup costs more than the probe budget the aggregator can
-    never learn any address, reports every service unhealthy, and stays that
-    way forever. Observed in CI run 34307004549: 0/23 healthy on all 18 polls,
-    every one "Timeout", while `docker compose ps` reported all seven started
-    services healthy; /api/v1/health, which makes only two sequential probes
-    and so cannot be queueing behind the other twenty-one, still took 5.7s
-    against budgets of 3s and 2s. Holding the session lets the first
-    resolution serve every later probe.
+    and every keep-alive connection, so each poll pays a cold name lookup;
+    aiohttp resolves through ``asyncio.shield`` (connector.py) expressly so a
+    request that times out still completes and caches its lookup, and
+    discarding the connector each call throws that away.
 
-    Pinned to IPv4 as well: aiohttp resolves with AF_UNSPEC by default, so
+    Pinned to IPv4: aiohttp resolves with AF_UNSPEC by default, so
     getaddrinfo waits for the AAAA answer as well as the A one, and Docker's
     embedded resolver forwards AAAA upstream rather than answering it. Every
     HomeIQ compose network is IPv4-only, so asking for A records only loses
     nothing.
+
+    Resolution runs on a private pool -- see _PrivatePoolLoop.
     """
-    return aiohttp.ClientSession(
+    loop = asyncio.get_running_loop()
+    executor = ThreadPoolExecutor(max_workers=max(probe_count, 1), thread_name_prefix="health-dns")
+    resolver = aiohttp.ThreadedResolver(loop=_PrivatePoolLoop(loop, executor))
+    connector = aiohttp.TCPConnector(family=socket.AF_INET, ttl_dns_cache=600, resolver=resolver)
+    session = aiohttp.ClientSession(
         timeout=aiohttp.ClientTimeout(total=SERVICE_PROBE_TIMEOUT_SECONDS),
-        connector=aiohttp.TCPConnector(family=socket.AF_INET, ttl_dns_cache=600),
+        connector=connector,
     )
+    return session, executor
 
 
 class HealthStatus(BaseModel):
@@ -93,6 +145,7 @@ class HealthEndpoints:
         self.router = APIRouter()
         self.start_time = datetime.now()
         self._session: aiohttp.ClientSession | None = None
+        self._dns_executor: ThreadPoolExecutor | None = None
         self.alert_manager = get_alert_manager("admin-api")
         # Docker Compose service names (not container_name) for DNS resolution
         self.service_urls = {
@@ -402,14 +455,17 @@ class HealthEndpoints:
     async def _session_for_probes(self) -> aiohttp.ClientSession:
         """Return the shared probe session, creating it on first use."""
         if self._session is None or self._session.closed:
-            self._session = _new_health_client_session()
+            self._session, self._dns_executor = _new_health_client_session(len(self.service_urls))
         return self._session
 
     async def aclose(self) -> None:
         """Close the shared probe session. Called from the app's shutdown."""
         if self._session is not None and not self._session.closed:
             await self._session.close()
-            self._session = None
+        self._session = None
+        if self._dns_executor is not None:
+            self._dns_executor.shutdown(wait=False)
+            self._dns_executor = None
 
     async def _check_one_service(
         self,

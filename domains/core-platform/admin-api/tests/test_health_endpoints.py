@@ -2,10 +2,17 @@
 Tests for health endpoints
 """
 
+import asyncio
+import socket
+import time
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 
+import aiohttp
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from src import health_endpoints
 from src.health_endpoints import HealthEndpoints
 
 
@@ -187,3 +194,72 @@ class TestHealthEndpoints:
 
         # Should return 405 Method Not Allowed
         assert response.status_code == 405
+
+
+class TestProbeResolverIsolation:
+    """A name that will never resolve must not take a live service's slot.
+
+    admin-api probes 23 hostnames at once and, outside the full stack, most of
+    them belong to services the deployment did not start. Those lookups sit in
+    the resolver until they time out. aiohttp's ThreadedResolver runs
+    getaddrinfo on the event loop's DEFAULT executor, so when there are more
+    dead names than default threads the lookups for services that ARE up queue
+    behind names that will never resolve, and the aggregator reports every
+    service unhealthy (CI run 34307775805: 0/23 healthy on all 15 polls).
+    """
+
+    @staticmethod
+    def _blocking_getaddrinfo(host, port, *_args, **_kwargs):
+        """Live names answer at once; absent names hang, as a real one does."""
+        if host.startswith("absent-"):
+            time.sleep(30)
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", port))]
+
+    async def _resolve_live_while_absent_hang(self, resolver) -> float:
+        absent = [
+            asyncio.create_task(resolver.resolve(f"absent-{i}", 80, socket.AF_INET))
+            for i in range(22)
+        ]
+        await asyncio.sleep(0.2)  # let every absent lookup claim its thread
+        start = time.monotonic()
+        try:
+            await asyncio.wait_for(resolver.resolve("live-service", 80, socket.AF_INET), 5)
+        finally:
+            for t in absent:
+                t.cancel()
+        return time.monotonic() - start
+
+    @pytest.mark.asyncio
+    async def test_live_lookup_is_not_queued_behind_absent_ones(self, monkeypatch):
+        monkeypatch.setattr(socket, "getaddrinfo", self._blocking_getaddrinfo)
+        loop = asyncio.get_running_loop()
+        default_pool = ThreadPoolExecutor(max_workers=8)  # a 4-vCPU runner's default
+        loop.set_default_executor(default_pool)
+        try:
+            session, executor = health_endpoints._new_health_client_session(23)
+            try:
+                elapsed = await self._resolve_live_while_absent_hang(session._connector._resolver)
+            finally:
+                await session.close()
+                executor.shutdown(wait=False)
+        finally:
+            default_pool.shutdown(wait=False)
+
+        assert elapsed < 1.0, (
+            f"live lookup took {elapsed:.2f}s behind 22 hanging ones — it is "
+            "sharing their thread pool"
+        )
+
+    @pytest.mark.asyncio
+    async def test_default_executor_is_where_this_goes_wrong(self, monkeypatch):
+        """Negative control: aiohttp's stock resolver does queue, and this is
+        what the service did before _PrivatePoolLoop."""
+        monkeypatch.setattr(socket, "getaddrinfo", self._blocking_getaddrinfo)
+        loop = asyncio.get_running_loop()
+        default_pool = ThreadPoolExecutor(max_workers=8)
+        loop.set_default_executor(default_pool)
+        try:
+            with pytest.raises(asyncio.TimeoutError):
+                await self._resolve_live_while_absent_hang(aiohttp.ThreadedResolver())
+        finally:
+            default_pool.shutdown(wait=False)
