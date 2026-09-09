@@ -65,6 +65,9 @@ CVE-2026-22036 # node-undici: no distro fix yet
 CVE-2026-2229 # node-undici: no distro fix yet
 CVE-2026-6734 # node-undici: no distro fix yet
 CVE-2026-9697 # node-undici: no distro fix yet
+CVE-2026-19534 # node-undici: no distro fix yet
+CVE-2026-84961 # node-undici: no distro fix yet
+CVE-2026-85152 # node-undici: no distro fix yet
 CVE-2026-48930 # libnode115/nodejs: no distro fix yet (zeek/zeek base ships Node.js for its own tooling)
 CVE-2026-48617 # libnode115/nodejs: no distro fix yet
 CVE-2026-48619 # libnode115/nodejs: no distro fix yet
@@ -89,6 +92,16 @@ CVE-2026-73622 # python3-git: no distro fix yet
 CVE-2026-73623 # python3-git: no distro fix yet
 CVE-2026-73624 # python3-git: no distro fix yet
 CVE-2026-73625 # python3-git: no distro fix yet
+CVE-2026-76218 # python3-git: no distro fix yet
+CVE-2026-76219 # python3-git: no distro fix yet
+CVE-2026-76220 # python3-git: no distro fix yet
+CVE-2026-76221 # python3-git: no distro fix yet
+CVE-2026-76222 # python3-git: no distro fix yet
+CVE-2026-78675 # python3-git: no distro fix yet
+CVE-2026-78676 # python3-git: no distro fix yet
+CVE-2026-78677 # python3-git: no distro fix yet
+CVE-2026-76956 # libexpat1 (bundled in zeek/zeek base): no distro fix yet
+CVE-2026-76957 # libexpat1: no distro fix yet
 
 # --- perl-base family: fix_deferred/affected across all Debian releases scanned ---
 CVE-2026-13221 # perl-base/libperl/perl/perl-modules: regex processing; distro status "affected" (no upstream point release yet)
@@ -159,3 +172,7 @@ CVE-2026-56859 # stdlib: fix requires major upgrade of data-bearing third-party 
 CVE-2026-56860 # stdlib: fix requires major upgrade of data-bearing third-party image
 CVE-2026-56862 # stdlib: fix requires major upgrade of data-bearing third-party image
 GHSA-hrxh-6v49-42gf # google.golang.org/grpc xDS RBAC/HTTP2 advisory: fix requires major upgrade of data-bearing third-party image
+CVE-2026-56854 # golang.org/x/crypto (influxdb): fix requires major upgrade of data-bearing third-party image
+CVE-2026-84304 # google.golang.org/grpc (influxdb): fix requires major upgrade of data-bearing third-party image
+CVE-2026-84445 # google.golang.org/grpc (influxdb): fix requires major upgrade of data-bearing third-party image
+CVE-2026-86140 # libxml2 (pgvector/pgvector:pg17, bookworm): no distro fix yet; also a data-bearing third-party image
