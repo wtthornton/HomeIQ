@@ -15,6 +15,7 @@ Exclude from default: pytest -m "not integration"
 
 from __future__ import annotations
 
+import importlib
 import os
 import sys
 from pathlib import Path
@@ -35,7 +36,12 @@ _SERVICE_ROOT = str(
 if _SERVICE_ROOT not in sys.path:
     sys.path.insert(0, _SERVICE_ROOT)
 
-from src.main import app as _yaml_validation_app  # noqa: E402
+# Imported through importlib rather than an `import` statement: the path
+# above has to be on sys.path first, and a module-level import placed after
+# that mutation is an E402 that would have to be silenced. tests/integration/
+# already resolves service sources this way (cross_group/test_zeek_pipeline.py
+# does its service imports after the same kind of sys.path insert).
+_yaml_validation_app = importlib.import_module("src.main").app
 
 YAML_VALIDATION_URL = os.environ.get("YAML_VALIDATION_URL", "http://localhost:8037")
 VALIDATE_ENDPOINT = f"{YAML_VALIDATION_URL}/api/v1/validation/validate"
