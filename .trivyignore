@@ -43,6 +43,11 @@ CVE-2026-6653 # libxml2: fix_deferred (bookworm)
 CVE-2023-45853 # zlib1g: will_not_fix per distro (MiniZip is not part of the zlib API/security scope per upstream)
 CVE-2026-53613 # bsdutils/util-linux family: no fix yet on bookworm (already fixed on trixie by the apt-get upgrade in Dockerfile.zeek; only pgvector/pgvector:pg17 (bookworm) still carries it)
 CVE-2026-53615 # bsdutils/util-linux family: no fix yet on bookworm (same as above)
+CVE-2026-16742 # libsystemd0/libudev1: status affected on trixie, no distro fix yet (python:3.12-slim first-party images)
+CVE-2026-76642 # bsdutils/libblkid1/liblastlog2-2/libmount1/libsmartcols1/libuuid1/login/mount/util-linux family: status affected on trixie, no distro fix yet (python:3.12-slim first-party images)
+CVE-2026-78408 # bsdutils/util-linux family (same package set as CVE-2026-76642): status affected on trixie, no distro fix yet
+CVE-2026-78409 # bsdutils/util-linux family (same package set as CVE-2026-76642): status affected on trixie, no distro fix yet
+CVE-2026-78410 # bsdutils/util-linux family (same package set as CVE-2026-76642): status affected on trixie, no distro fix yet
 CVE-2026-33630 # c-ares (libcares2): no distro fix yet
 CVE-2026-69184 # c-ares (libcares2): no distro fix yet
 CVE-2026-13149 # node-brace-expansion (npm, bundled in zeek/zeek base): no distro fix yet
