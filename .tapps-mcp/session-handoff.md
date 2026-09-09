@@ -1,11 +1,11 @@
 # Session Handoff — appliance-transformation-execute goal loop
 
-Updated: 2026-09-08T00:00:00Z
+Updated: 2026-09-09T06:11:44Z
 
 ## Goal
 Execute prompts/appliance-transformation-execute.md: land 12 stories (TAP-6623,6622,6485,6486,6467,6468,6570,6573,6572,6620,6619,6621), each PR'd, independently verified, Done in Linear. Contract = 33 VAL IDs (prompt's 30 + VAL-021/042/064 added from Linear boxes).
 
-## State (iteration 3, 2026-09-08)
+## State (iteration 3, 2026-09-09)
 - Pinned SHA 326f6cf16a91dcc5bc9d6b8f9bd55bbe70caa86e (origin/master).
 - VAL-000 round 1 FAILED (3 refuted counts/anchors) — corrected below; round 2 re-verify dispatched. Cumulative: iter 3/36, ~420k-plus/2M tokens (L1 ran 2 rounds, $14.2, on TAP-6622), orch-spend ~4%.
 
