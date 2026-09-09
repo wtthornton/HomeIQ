@@ -38,7 +38,7 @@ RUN npm run build
 # Stage 3: Production
 FROM nginx:stable-alpine
 
-RUN apk add --no-cache --upgrade openssl
+RUN apk add --no-cache --upgrade openssl libuuid
 LABEL maintainer="HA Ingestor Team"
 LABEL description="AI Automation UI - Standalone suggestion management interface"
 

@@ -13,7 +13,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 FROM python:3.12-alpine AS production
 
-RUN apk add --no-cache --upgrade openssl
+RUN apk add --no-cache --upgrade openssl libuuid
 
 RUN apk add --no-cache curl \
     && addgroup -g 1001 -S appgroup \

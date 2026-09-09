@@ -28,7 +28,7 @@ RUN pip install --no-cache-dir --user \
 # Production stage
 FROM python:3.12-alpine AS production
 
-RUN apk add --no-cache --upgrade openssl
+RUN apk add --no-cache --upgrade openssl libuuid
 
 WORKDIR /app
 
