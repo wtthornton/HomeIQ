@@ -1,4 +1,11 @@
-"""Powercalc-via-HACS recipe (TAP-5431).
+"""Powercalc recipe (TAP-5431).
+
+Powercalc is vendored into the appliance image at build time
+(``domains/core-platform/home-assistant/Dockerfile``) — there is no
+Supervisor and no runtime HACS to download it through. This recipe never
+calls a ``hacs/`` websocket command; it drives Powercalc's own
+``config_entries`` flow (global-configuration bootstrap, then per-device
+discovery confirmation) and confirms a discovered, reporting power sensor.
 
 Split from :mod:`.enablement` to keep both modules under the
 maintainability gate; the recipe follows the same TeamTracker lesson —
@@ -42,29 +49,23 @@ _LOAD_DOMAINS = ("light", "media_player")
 
 
 class PowercalcRecipe(Recipe):
-    """Install Powercalc through HACS and confirm a discovered power sensor.
+    """Confirm Powercalc (vendored at build time) has a live power sensor.
 
     Apply stages, each skipped when already true:
 
-    1. Download ``bramstroker/homeassistant-powercalc`` via the HACS
-       websocket API (``hacs/repository/download``, repository id read live
-       from ``hacs/repositories/list`` — never derived).
-    2. Restart HA to load the new custom component — config checked first,
-       then polled back to life. The restart happens inside a converge apply,
-       which is the gateway's backup-gated path.
-    3. Confirm a Powercalc discovery flow (its profile library recognises
-       supported lights and opens flows on its own). Forms are advanced
-       empty only when they have no required field without a default;
-       anything else raises with the live schema.
-    4. Assert power sensors cover most of the home's *metering-eligible*
+    1. Confirm a Powercalc discovery flow (its profile library recognises
+       supported lights and opens flows on its own) or, if the component has
+       no config entry yet, bootstrap one via its own defaulted
+       global-configuration flow. Forms are advanced empty only when they
+       have no required field without a default; anything else raises with
+       the live schema.
+    2. Assert power sensors cover most of the home's *metering-eligible*
        entities, not merely that one exists.
     """
 
     name = "hacs.powercalc"
     phase = PHASE_HACS
-    description = "Powercalc installed via HACS with a live power sensor"
-
-    REPO_FULL_NAME = "bramstroker/homeassistant-powercalc"
+    description = "Powercalc has a live power sensor"
 
     def __init__(
         self,
@@ -84,15 +85,6 @@ class PowercalcRecipe(Recipe):
         self.discovery_poll_interval = discovery_poll_interval
         self.power_state_timeout = power_state_timeout
         self.coverage_target = coverage_target
-
-    async def _repo(self, ha: Any) -> dict[str, Any] | None:
-        repos = await ha.ws.send_command(
-            "hacs/repositories/list", fields={"categories": ["integration"]}
-        )
-        for repo in repos or []:
-            if str(repo.get("full_name", "")).lower() == self.REPO_FULL_NAME:
-                return dict(repo)
-        return None
 
     async def _loaded_entry(self, ha: Any) -> dict[str, Any] | None:
         entries = await ha.rest.get_config_entries()
@@ -307,50 +299,19 @@ class PowercalcRecipe(Recipe):
                 f"{self.coverage_target:.0%} target; {len(uncovered)} uncovered",
                 details,
             )
-        repo = await self._repo(ha)
-        if repo is None:
-            return CheckResult(
-                CheckStatus.NEEDS_APPLY,
-                "Powercalc is absent from the HACS repository list",
-            )
-        if repo.get("installed"):
-            return CheckResult(
-                CheckStatus.NEEDS_APPLY,
-                "Powercalc is downloaded but has no loaded config entry",
-            )
         return CheckResult(
             CheckStatus.NEEDS_APPLY,
-            "Powercalc needs a HACS download and an HA restart",
+            "Powercalc integration is not configured",
         )
 
     async def plan(self, ha: HAClient) -> Plan:
         changes: list[Change] = []
-        repo = await self._repo(ha)
-        if repo is None or not repo.get("installed"):
-            changes.append(Change("hacs download", self.REPO_FULL_NAME, after="installed"))
-            changes.append(Change("restart", "homeassistant", after="powercalc loadable"))
         if await self._loaded_entry(ha) is None:
             changes.append(Change("configure integration", "powercalc", after="loaded"))
         return Plan(tuple(changes))
 
     async def apply(self, ha: HAClient) -> ApplyResult:
         changes: list[Change] = []
-
-        repo = await self._repo(ha)
-        if repo is None:
-            raise HAClientError(
-                f"{self.REPO_FULL_NAME} is not in the HACS repository list; "
-                "cannot download what HACS does not offer"
-            )
-        if not repo.get("installed"):
-            await ha.ws.send_command(
-                "hacs/repository/download",
-                timeout=300,
-                fields={"repository": str(repo["id"])},
-            )
-            changes.append(Change("hacs download", self.REPO_FULL_NAME, after="installed"))
-            await self._restart(ha)
-            changes.append(Change("restart", "homeassistant", after="restarted"))
 
         _, reporting = await self._reporting(ha)
         if not reporting:

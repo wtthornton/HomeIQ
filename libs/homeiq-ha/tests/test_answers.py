@@ -114,19 +114,6 @@ async def test_team_flow_reads_schema_and_verifies_marker_entity(sim: SimHA, man
 
 
 @pytest.mark.asyncio
-async def test_addon_options_land_and_addon_starts(sim: SimHA, manifest_path):
-    sim.state["addons"] = [{"slug": "otbr", "state": "stopped"}]
-    sim.state["addon_info"] = {"otbr": {"options": {"device": None}, "state": "stopped"}}
-    answers = Answers(addon_options=(("otbr", {"device": "/dev/ttyUSB0"}),))
-    result = await apply_answers(sim, answers, list, manifest_path=manifest_path)
-
-    by_id = {i["id"]: i for i in result["items"]}
-    assert by_id["addon:otbr"]["status"] == "converged"
-    assert sim.state["addon_info"]["otbr"]["options"]["device"] == "/dev/ttyUSB0"
-    assert next(a["state"] for a in sim.state["addons"] if a["slug"] == "otbr") == "started"
-
-
-@pytest.mark.asyncio
 async def test_unwritable_manifest_is_a_typed_item_not_a_500(sim: SimHA, manifest_path):
     manifest_path.chmod(0o444)
     manifest_path.parent.chmod(0o555)

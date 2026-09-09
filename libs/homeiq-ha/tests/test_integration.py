@@ -117,3 +117,20 @@ async def test_team_tracker_satisfied_when_the_entity_id_carries_the_marker():
     assert result.status is CheckStatus.SATISFIED
     assert result.details["entity_ids"] == ["sensor.team_tracker_raiders"]
     assert (await TeamTrackerRecipe().verify(sim)).ok
+
+
+@pytest.mark.asyncio
+async def test_team_tracker_confirms_loaded_without_ever_installing(sim):
+    """Team Tracker is confirm-loaded only: a real absent config-entry list
+    (never a mocked truthy) blocks rather than drives the flow, and apply
+    issues no write."""
+    result = await TeamTrackerRecipe().check(sim)
+
+    assert result.status is CheckStatus.BLOCKED_ON_HUMAN
+    assert "team_tracker" in (result.human_action or "")
+
+    from homeiq_ha.client.errors import HAHumanGateRequired
+
+    with pytest.raises(HAHumanGateRequired):
+        await TeamTrackerRecipe().apply(sim)
+    assert sim.rest.writes == [], "Team Tracker must never be installed automatically"

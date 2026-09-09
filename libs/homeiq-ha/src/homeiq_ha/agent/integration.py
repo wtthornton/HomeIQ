@@ -110,6 +110,11 @@ class TeamTrackerRecipe(IntegrationRecipe):
     So this recipe verifies the resulting entity_id instead of trusting the
     documented default, and fails loudly when the name does not carry the
     marker.
+
+    Confirm-loaded only: ``apply`` never drives the config flow itself, since
+    league and team are personal preferences the agent must not guess — a
+    person configures Team Tracker through the UI, and this recipe only
+    verifies the result.
     """
 
     #: The substring sports-api filters on.
@@ -117,6 +122,13 @@ class TeamTrackerRecipe(IntegrationRecipe):
 
     name = "integrations.team_tracker"
     description = "Team Tracker configured with a sports-api-compatible entity_id"
+
+    #: The human_action shown when Team Tracker is not yet configured.
+    DEFAULT_NEEDS_USER_INPUT = (
+        "Add Team Tracker in Settings > Integrations: league and team are "
+        "personal preferences the agent must not guess. Name the sensor so "
+        "its entity_id contains 'team_tracker'."
+    )
 
     def __init__(
         self,
@@ -128,7 +140,7 @@ class TeamTrackerRecipe(IntegrationRecipe):
             "teamtracker",
             title="Team Tracker",
             steps=steps,
-            needs_user_input=needs_user_input,
+            needs_user_input=needs_user_input or self.DEFAULT_NEEDS_USER_INPUT,
         )
         self.name = "integrations.team_tracker"
 

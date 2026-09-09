@@ -51,7 +51,6 @@ FRESH_INSTANCE: dict[str, Any] = {
         },
     ],
     "entities": [{"entity_id": f"light.wled_{i}"} for i in range(164)],
-    "addons": [],
     "config_entries": [],
 }
 
@@ -93,8 +92,6 @@ class SimWs:
         handled, result = self._read(command_type, args)
         if handled:
             return result
-        if command_type == "supervisor/api":
-            return await self._supervisor(args)
 
         # Everything below writes — recorded so tests can assert "no writes".
         self.writes.append(command_type)
@@ -133,8 +130,6 @@ class SimWs:
             return True, self.state.get("zha_devices", [])
         if command_type == "config_entries/flow/progress":
             return True, self.state.get("flow_progress", [])
-        if command_type == "hacs/repositories/list":
-            return True, self.state.get("hacs_repositories", [])
         return False, None
 
     def _write(self, command_type: str, args: dict[str, Any]) -> Any:
@@ -159,12 +154,6 @@ class SimWs:
                     "title": args.get("title"),
                 }
             )
-            return None
-        if command_type == "hacs/repository/download":
-            # Mirror HACS: download flips installed; loading needs a restart.
-            for repo in self.state.get("hacs_repositories", []):
-                if str(repo.get("id")) == str(args.get("repository")):
-                    repo["installed"] = True
             return None
         if command_type == "backup/config/update":
             return self._backup_config_update(args)
@@ -240,39 +229,6 @@ class SimWs:
                 return entry
         return None
 
-    async def _supervisor(self, args: dict[str, Any]) -> Any:
-        endpoint = args["endpoint"]
-        method = args.get("method", "get")
-        if method == "get":
-            return self._supervisor_read(endpoint)
-        self.writes.append(f"supervisor {method} {endpoint}")
-        return self._supervisor_write(endpoint, args.get("data"))
-
-    def _supervisor_read(self, endpoint: str) -> Any:
-        if endpoint == "/addons":
-            return {"addons": self.state["addons"]}
-        if endpoint.startswith("/addons/") and endpoint.endswith("/info"):
-            slug = endpoint.split("/")[2]
-            return self.state.get("addon_info", {}).get(slug, {})
-        return None
-
-    def _supervisor_write(self, endpoint: str, data: dict[str, Any] | None = None) -> None:
-        if endpoint.startswith("/addons/") and endpoint.endswith("/options"):
-            slug = endpoint.split("/")[2]
-            info = self.state.setdefault("addon_info", {}).setdefault(slug, {})
-            info.setdefault("options", {}).update((data or {}).get("options") or {})
-        elif endpoint.startswith("/store/addons/") and endpoint.endswith("/install"):
-            slug = endpoint.split("/")[3]
-            self.state["addons"].append({"slug": slug, "state": "stopped"})
-        elif endpoint.startswith("/addons/") and endpoint.endswith("/start"):
-            slug = endpoint.split("/")[2]
-            for addon in self.state["addons"]:
-                if addon["slug"] == slug:
-                    addon["state"] = "started"
-        elif endpoint.startswith("/addons/") and endpoint.endswith("/uninstall"):
-            slug = endpoint.split("/")[2]
-            self.state["addons"] = [a for a in self.state["addons"] if a["slug"] != slug]
-
     async def list_entities(self) -> list[dict[str, Any]]:
         return self.state["entities"]
 
@@ -281,19 +237,6 @@ class SimWs:
 
     async def connect(self) -> None:
         self.state.setdefault("ws_reconnects", []).append("connect")
-
-    async def supervisor_api(
-        self,
-        endpoint: str,
-        *,
-        method: str = "get",
-        payload: dict[str, Any] | None = None,
-        timeout: float = 900,
-    ) -> Any:
-        fields: dict[str, Any] = {"endpoint": endpoint, "method": method, "timeout": int(timeout)}
-        if payload is not None:
-            fields["data"] = payload
-        return await self.send_command("supervisor/api", fields=fields)
 
 
 #: registry name -> (state key, id field)

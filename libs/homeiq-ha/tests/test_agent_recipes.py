@@ -11,13 +11,13 @@ from __future__ import annotations
 
 import pytest
 from homeiq_ha.agent import CheckStatus, HAInitAgent
+from homeiq_ha.agent.recipe import PHASE_HACS
 from homeiq_ha.agent.recipes import (
-    AddonRecipe,
     AreasRecipe,
     CoreConfigRecipe,
+    HACSAbsentRecipe,
     default_recipes,
 )
-from homeiq_ha.client.errors import HAHumanGateRequired
 
 from tests.simulators import FRESH_INSTANCE, SimHA
 
@@ -57,65 +57,40 @@ async def test_core_config_detects_the_eur_default():
     assert "EUR" in result.details["drift"][0]
 
 
-# --- add-ons --------------------------------------------------------------
+# --- HACS confirm-absent (TAP-6486) ---------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_addon_installs_and_starts(sim):
-    recipe = AddonRecipe("core_ssh", title="Terminal & SSH")
-    assert (await recipe.check(sim)).status is CheckStatus.NEEDS_APPLY
+async def test_hacs_absent_is_satisfied_on_a_real_absent_entry_list(sim):
+    """A real absent config-entries list, never a mocked truthy."""
+    result = await HACSAbsentRecipe().check(sim)
 
-    result = await recipe.apply(sim)
-
-    assert result.change_count == 2
-    assert (await recipe.verify(sim)).ok
+    assert result.status is CheckStatus.SATISFIED
+    assert (await HACSAbsentRecipe().verify(sim)).ok
 
 
 @pytest.mark.asyncio
-async def test_addon_is_idempotent(sim):
-    recipe = AddonRecipe("otbr")
-    await recipe.apply(sim)
-    assert (await recipe.apply(sim)).change_count == 0
-
-
-@pytest.mark.asyncio
-async def test_installed_but_stopped_addon_needs_apply():
-    sim = SimHA({**FRESH_INSTANCE, "addons": [{"slug": "otbr", "state": "stopped"}]})
-    result = await AddonRecipe("otbr").check(sim)
-    assert result.status is CheckStatus.NEEDS_APPLY
-    assert result.details["state"] == "stopped"
-
-
-@pytest.mark.asyncio
-async def test_addon_with_unset_required_option_is_blocked_on_human():
-    """OTBR live: required option 'device' is null and only a person knows
-    which serial port carries the Thread radio. check classifies, apply
-    raises the human gate before ever issuing a start."""
+async def test_hacs_absent_is_never_satisfied_when_hacs_is_present():
     sim = SimHA(
         {
             **FRESH_INSTANCE,
-            "addons": [{"slug": "otbr", "state": "stopped"}],
-            "addon_info": {
-                "otbr": {
-                    "options": {"device": None, "baudrate": "460800"},
-                    "schema": [
-                        {"name": "device", "required": True, "type": "select"},
-                        {"name": "baudrate", "required": True, "type": "select"},
-                    ],
-                }
-            },
+            "config_entries": [{"entry_id": "e1", "domain": "hacs", "state": "loaded"}],
         }
     )
-    recipe = AddonRecipe("otbr")
 
-    result = await recipe.check(sim)
+    result = await HACSAbsentRecipe().check(sim)
 
+    assert result.status is not CheckStatus.SATISFIED
     assert result.status is CheckStatus.BLOCKED_ON_HUMAN
-    assert result.details["unconfigured"] == ["device"]
+    assert not (await HACSAbsentRecipe().verify(sim)).ok
 
-    with pytest.raises(HAHumanGateRequired):
-        await recipe.apply(sim)
-    assert not any("start" in w for w in sim.writes), "no start attempt allowed"
+
+def test_phase_5_carries_no_recipe_that_requires_a_human():
+    """No add-on/HACS bootstrap step survives; phase 5 is confirm-only."""
+    phase_5 = [r for r in default_recipes() if r.phase == PHASE_HACS]
+
+    assert phase_5, "expected at least one phase-5 recipe"
+    assert not any(r.requires_human for r in phase_5), [r.name for r in phase_5 if r.requires_human]
 
 
 # --- end-to-end idempotency ----------------------------------------------

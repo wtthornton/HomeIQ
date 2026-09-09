@@ -11,16 +11,15 @@ One submitted wizard form becomes a converged, verified instance:
 2. The backup encryption password is **write-only**: set via
    ``backup/config/update``, then only ``encryption_key_set`` is read back.
    The secret never appears in the manifest, the response, or logs.
-3. Add-on options land via ``/addons/<slug>/options`` and the add-on is
-   started. Team Tracker flows are driven one per submitted team, reading
-   the flow's own ``data_schema`` for field names — never assumed.
+3. Team Tracker flows are driven one per submitted team, reading the flow's
+   own ``data_schema`` for field names — never assumed. This appliance ships
+   no Supervisor, so the wizard carries no add-on step.
 4. A backup-gated converge runs, then every item is verified by live
    read-back, not by the writes' return values.
 
 Idempotent by construction: rows already present are skipped, a password
-already set is not overwritten, a started add-on with matching options is
-left alone, an existing team entity short-circuits its flow — so a second
-identical submission applies zero changes.
+already set is not overwritten, an existing team entity short-circuits its
+flow — so a second identical submission applies zero changes.
 """
 
 from __future__ import annotations
@@ -57,7 +56,6 @@ class Answers:
     """One wizard submission. ``backup_password`` is write-only by contract."""
 
     device_areas: tuple[tuple[str, str], ...] = ()  # (device_id, area NAME)
-    addon_options: tuple[tuple[str, dict[str, Any]], ...] = ()  # (slug, options)
     teams: tuple[dict[str, str], ...] = ()  # flow-field values per team
     backup_password: str | None = None
 
@@ -83,25 +81,6 @@ async def _set_backup_password(ha: HAClient, password: str) -> _Item:
         "backup_password",
         "converged" if key_set else "failed",
         {"encryption_key_set": key_set},
-    )
-
-
-async def _apply_addon_options(ha: HAClient, slug: str, options: dict[str, Any]) -> _Item:
-    info = await ha.ws.supervisor_api(f"/addons/{slug}/info", timeout=60) or {}
-    current = info.get("options") or {}
-    if all(current.get(k) == v for k, v in options.items()) and info.get("state") == "started":
-        return _Item(f"addon:{slug}", "skipped", {"state": "started"})
-    await ha.ws.supervisor_api(
-        f"/addons/{slug}/options", method="post", payload={"options": options}
-    )
-    if info.get("state") != "started":
-        await ha.ws.supervisor_api(f"/addons/{slug}/start", method="post")
-    addons = (await ha.ws.supervisor_api("/addons", timeout=60) or {}).get("addons") or []
-    state = next((a.get("state") for a in addons if a.get("slug") == slug), None)
-    return _Item(
-        f"addon:{slug}",
-        "converged" if state == "started" else "failed",
-        {"state": state},
     )
 
 
@@ -214,8 +193,6 @@ async def apply_answers(
 
     if answers.backup_password:
         items.append(await _set_backup_password(ha, answers.backup_password))
-    for slug, options in answers.addon_options:
-        items.append(await _apply_addon_options(ha, slug, options))
     for team in answers.teams:
         items.append(await _drive_team_flow(ha, team))
 

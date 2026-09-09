@@ -58,7 +58,6 @@ class Snapshot:
     devices: dict[str, dict[str, Any]] = field(default_factory=dict)
     entities: dict[str, dict[str, Any]] = field(default_factory=dict)
     config_entries: dict[str, str] = field(default_factory=dict)
-    addons: dict[str, str] = field(default_factory=dict)
     core_config: dict[str, Any] = field(default_factory=dict)
     backup_config: dict[str, Any] = field(default_factory=dict)
     backup_ids: list[str] = field(default_factory=list)
@@ -75,7 +74,7 @@ class Snapshot:
             f"areas={len(self.areas)} floors={len(self.floors)} "
             f"labels={len(self.labels)} devices={len(self.devices)} "
             f"entities={len(self.entities)} config_entries={len(self.config_entries)} "
-            f"addons={len(self.addons)} backups={len(self.backup_ids)}"
+            f"backups={len(self.backup_ids)}"
         )
 
 
@@ -140,13 +139,6 @@ async def capture(ha: HAClient) -> Snapshot:
     # on an instance the caller was told is back at its baseline.
     snapshot.backup_ids = list((await wait_until_idle(ha)).backup_ids)
 
-    try:
-        addons = await ha.ws.supervisor_api("/addons", timeout=60) or {}
-        for addon in addons.get("addons") or []:
-            snapshot.addons[str(addon["slug"])] = str(addon.get("state"))
-    except Exception:  # noqa: BLE001 - a non-Supervised install has no Supervisor
-        snapshot.addons = {}
-
     return snapshot
 
 
@@ -189,11 +181,6 @@ async def diff(ha: HAClient, baseline: Snapshot) -> list[Change]:
     for entry_id in baseline.config_entries.keys() - current.config_entries.keys():
         domain = baseline.config_entries[entry_id]
         changes.append(Change("removed", f"config_entry:{domain}", before=entry_id))
-
-    for slug in current.addons.keys() - baseline.addons.keys():
-        changes.append(Change("added", f"addon:{slug}", after=current.addons[slug]))
-    for slug in baseline.addons.keys() - current.addons.keys():
-        changes.append(Change("removed", f"addon:{slug}", before=baseline.addons[slug]))
 
     for name in CORE_CONFIG_FIELDS:
         if baseline.core_config.get(name) != current.core_config.get(name):
@@ -297,11 +284,6 @@ async def restore(ha: HAClient, baseline: Snapshot, *, strict: bool = True) -> l
         domain = current.config_entries[entry_id]
         await ha.rest.request("DELETE", f"/api/config/config_entries/entry/{entry_id}")
         reverted.append(Change("delete", f"config_entry:{domain}"))
-
-    # Add-ons that appeared -> uninstall.
-    for slug in current.addons.keys() - baseline.addons.keys():
-        await ha.ws.supervisor_api(f"/addons/{slug}/uninstall", method="post")
-        reverted.append(Change("uninstall", f"addon:{slug}"))
 
     core_drift = {
         name: baseline.core_config.get(name)
