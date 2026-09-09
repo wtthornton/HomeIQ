@@ -59,15 +59,19 @@ test.describe('Health Dashboard Smoke Tests @smoke', () => {
     const dashboardRoot = dashboard.getDashboardRoot();
     await expect(dashboardRoot).toBeVisible({ timeout: 10000 });
 
-    // Should show at least one service health indicator. Scoped to a
-    // service card, not the page as a whole: the status-filter <select>
+    // Should show at least one service health indicator. Scoped to
+    // service cards, not the page as a whole: the status-filter <select>
     // above the grid has <option>Healthy</option> etc. that also match
     // this regex and sort first in DOM order, but are hidden (unselected
-    // options of a closed native select) and fail toBeVisible().
-    const firstCard = page.locator('[data-testid="service-card"]').first();
-    await expect(firstCard).toBeVisible({ timeout: 10000 });
-    const healthText = firstCard.getByText(/healthy|unhealthy|degraded|running|stopped/i).first();
-    await expect(healthText).toBeVisible({ timeout: 10000 });
+    // options of a closed native select) and fail toBeVisible(). Filtered
+    // (not `.first()` of all cards) because a card's own status word can
+    // be "Error", which this regex — deliberately, it predates this test —
+    // doesn't include; the first *matching* card is what the test means.
+    const cardWithHealthText = page
+      .locator('[data-testid="service-card"]')
+      .filter({ hasText: /healthy|unhealthy|degraded|running|stopped/i })
+      .first();
+    await expect(cardWithHealthText).toBeVisible({ timeout: 10000 });
   });
 
   test('devices tab loads and shows device information', async ({ page }) => {
