@@ -5,11 +5,21 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
+from homeiq_ha.agent.readiness import ReadinessResult, ReadinessState
 from homeiq_ha.agent.recipes import DevicesHaveAreasRecipe, default_recipes
 from homeiq_ha.agent.wizard import build_queue
 
 if TYPE_CHECKING:
     from tests.simulators import SimHA
+
+_READY = ReadinessResult(ReadinessState.READY)
+
+
+def _non_optin_items(payload: dict) -> list[dict]:
+    """Every item except the always-present network-capture opt-in step
+    (TAP-7272) -- these tests predate it and assert on audit/discovery items
+    specifically; the opt-in step has its own tests below."""
+    return [i for i in payload["items"] if i["kind"] != "opt_in"]
 
 
 @pytest.mark.asyncio
@@ -19,9 +29,9 @@ async def test_blocked_audit_rows_become_items_with_verbatim_human_action(sim: S
     recipe = DevicesHaveAreasRecipe()
     expected = (await recipe.check(sim)).human_action
 
-    payload = await build_queue(sim, [recipe])
+    payload = await build_queue(sim, [recipe], readiness=_READY)
 
-    (item,) = payload["items"]
+    (item,) = _non_optin_items(payload)
     assert item["kind"] == "audit_blocked"
     assert item["id"] == "audit:organization.device_areas"
     assert item["human_action"] == expected
@@ -45,9 +55,9 @@ async def test_discovery_flows_become_triage_items_with_readiness(sim: SimHA):
             "context": {"source": "ssdp", "title_placeholders": {"name": "TV"}},
         },
     ]
-    payload = await build_queue(sim, [])
+    payload = await build_queue(sim, [], readiness=_READY)
 
-    homekit, dlna = payload["items"]
+    homekit, dlna = _non_optin_items(payload)
     assert homekit["kind"] == "discovery"
     assert homekit["id"] == "flow:f1"
     assert homekit["handler"] == "homekit_controller"
@@ -61,7 +71,7 @@ async def test_discovery_flows_become_triage_items_with_readiness(sim: SimHA):
 
 @pytest.mark.asyncio
 async def test_queue_over_the_full_default_set_issues_zero_writes(sim: SimHA):
-    payload = await build_queue(sim, default_recipes())
+    payload = await build_queue(sim, default_recipes(), readiness=_READY)
     assert sim.writes == [], f"queue wrote: {sim.writes}"
     assert payload["reads"], "read journal is the read-only evidence"
     assert all(r.startswith(("ws ", "rest GET ")) for r in payload["reads"])
@@ -98,8 +108,8 @@ async def test_unknown_blocked_kind_degrades_to_acknowledge(sim: SimHA):
         async def verify(self, _ha):
             return VerifyResult(True, "")
 
-    payload = await build_queue(sim, [Odd()])
-    (item,) = payload["items"]
+    payload = await build_queue(sim, [Odd()], readiness=_READY)
+    (item,) = _non_optin_items(payload)
     assert item["decision"] == {"type": "acknowledge"}
     assert item["human_action"] == "do the thing"
 
@@ -114,8 +124,10 @@ async def test_backup_blocked_rows_get_machine_derived_schemas(sim: SimHA):
     # With NO backup destination at all, both recipes block on the missing
     # location; schema must be the acknowledge/add-location kind.
     sim.state["backup_agents"] = []
-    payload = await build_queue(sim, [BackupScheduleRecipe(), FirstBackupRecipe()])
-    schedule, first = payload["items"]
+    payload = await build_queue(
+        sim, [BackupScheduleRecipe(), FirstBackupRecipe()], readiness=_READY
+    )
+    schedule, first = _non_optin_items(payload)
     assert schedule["decision"] == {"type": "acknowledge", "action": "add_backup_location"}
     assert first["decision"] == {"type": "acknowledge", "action": "add_backup_location"}
 
@@ -125,8 +137,8 @@ async def test_backup_blocked_rows_get_machine_derived_schemas(sim: SimHA):
     sim.state["backup_config"]["schedule"]["recurrence"] = "daily"
     sim.state["backup_config"]["retention"]["copies"] = 7
     sim.state["backup_config"]["create_backup"]["agent_ids"] = ["backup.local"]
-    payload = await build_queue(sim, [BackupScheduleRecipe()])
-    (item,) = payload["items"]
+    payload = await build_queue(sim, [BackupScheduleRecipe()], readiness=_READY)
+    (item,) = _non_optin_items(payload)
     assert item["decision"] == {
         "type": "secret",
         "field": "backup_password",
@@ -148,11 +160,85 @@ async def test_pin_dependent_handlers_are_readiness_flagged(sim: SimHA):
             ("d", "heos"),
         ]
     ]
-    payload = await build_queue(sim, [])
-    flags = {i["handler"]: i["readiness"] for i in payload["items"]}
+    payload = await build_queue(sim, [], readiness=_READY)
+    flags = {i["handler"]: i["readiness"] for i in _non_optin_items(payload)}
     assert flags == {
         "apple_tv": True,
         "androidtv_remote": True,
         "braviatv": True,
         "heos": False,
     }
+
+
+@pytest.mark.asyncio
+async def test_network_capture_step_is_opt_in_with_the_decided_retention_text(
+    sim: SimHA,
+) -> None:
+    """TAP-7272: off by default, states the 30-day rolling retention and the
+    self-service erase — and never claims a control (a "Settings" link) that
+    does not exist yet."""
+    from homeiq_ha.agent.wizard import NETWORK_CAPTURE_HUMAN_ACTION
+
+    payload = await build_queue(sim, [], readiness=_READY)
+
+    (item,) = [i for i in payload["items"] if i["kind"] == "opt_in"]
+    assert item["decision"] == {
+        "type": "toggle",
+        "field": "network_capture_enabled",
+        "default": False,
+    }
+    assert item["human_action"] == NETWORK_CAPTURE_HUMAN_ACTION
+    assert "30 days" in item["human_action"]
+    assert "rolling basis" in item["human_action"]
+    assert "erase" in item["human_action"]
+    # Off unless the customer opts in.
+    assert item["decision"]["default"] is False
+
+
+@pytest.mark.asyncio
+async def test_network_capture_step_is_absent_while_not_ready(sim: SimHA) -> None:
+    from homeiq_ha.agent.readiness import ReadinessResult, ReadinessState
+
+    not_ready = ReadinessResult(ReadinessState.NOT_READY, "http-500")
+    payload = await build_queue(sim, [], readiness=not_ready)
+    assert all(i["kind"] != "opt_in" for i in payload["items"])
+
+
+@pytest.mark.asyncio
+async def test_build_queue_holds_before_readiness_and_issues_no_audit_reads(
+    sim: SimHA,
+) -> None:
+    """VAL-040 (hold): setup cannot proceed before the shipped HA answers
+    ready. A not-ready result must short-circuit before HAInitAgent.audit
+    ever runs — zero outcomes, zero reads, one readiness item, HTTP-200-shaped."""
+    from homeiq_ha.agent.readiness import ReadinessResult, ReadinessState
+    from homeiq_ha.agent.recipes import default_recipes
+
+    not_ready = ReadinessResult(ReadinessState.NOT_READY, "http-500")
+
+    payload = await build_queue(sim, default_recipes(), readiness=not_ready)
+
+    assert payload["ready"] is False
+    assert payload["readiness"] == "not-ready:http-500"
+    assert payload["audit_outcomes"] == 0
+    assert payload["reads"] == []
+    assert sim.writes == []
+    (item,) = payload["items"]
+    assert item["kind"] == "readiness"
+    assert item["state"] == "not-ready:http-500"
+
+
+@pytest.mark.asyncio
+async def test_build_queue_proceeds_to_the_live_audit_once_ready(sim: SimHA) -> None:
+    """VAL-040 (proceed): the same gate, with the readiness stub returning
+    ready, reaches the ordinary live-audit assembly."""
+    from homeiq_ha.agent.recipes import default_recipes
+
+    payload = await build_queue(sim, default_recipes(), readiness=_READY)
+
+    assert payload["ready"] is True
+    assert payload["readiness"] == "ready"
+    assert payload["audit_outcomes"] > 0
+    assert payload["reads"], "read journal is the read-only evidence"
+    blocked_ids = {i["id"] for i in payload["items"] if i["kind"] == "audit_blocked"}
+    assert "audit:organization.device_areas" in blocked_ids

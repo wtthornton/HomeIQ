@@ -108,14 +108,19 @@ class _FakeStore:
 
 
 def _patch_queue(monkeypatch: Any, deferred: set[str]) -> None:
+    from homeiq_ha.agent.readiness import ReadinessResult, ReadinessState
     from src import routes_init
 
     _patch_ha(monkeypatch)
 
-    async def _fake_build_queue(ha: Any, recipes: Any) -> dict[str, Any]:
+    async def _fake_build_queue(ha: Any, recipes: Any, **kwargs: Any) -> dict[str, Any]:
         return _queue_payload()
 
+    async def _fake_readiness(*_args: Any, **_kwargs: Any) -> ReadinessResult:
+        return ReadinessResult(ReadinessState.READY)
+
     monkeypatch.setattr(routes_init, "build_queue", _fake_build_queue)
+    monkeypatch.setattr(routes_init, "check_readiness", _fake_readiness)
     monkeypatch.setattr(routes_init, "_TRIAGE_STORE", _FakeStore(deferred))
 
 
