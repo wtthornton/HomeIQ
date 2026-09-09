@@ -29,6 +29,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Production stage
 FROM python:3.12-alpine
 
+RUN apk add --no-cache --upgrade openssl libuuid
+
 WORKDIR /app
 
 # Install runtime dependencies and create non-root user

@@ -1,0 +1,138 @@
+# Trivy ignore file for `scan-all` (TAP-6622).
+#
+# Every entry here was verified, at the time of writing, to have NO available
+# fix in the relevant package's distro/registry -- either upstream has stated
+# no patch is planned, or the fix requires a major-version bump of a
+# data-bearing third-party service that is explicitly out of scope for a CVE
+# patching pass. None of these CVEs are fixable in a first-party image; where
+# a CVE ID below also affects a first-party Alpine/Debian-slim/nginx-alpine
+# image (e.g. the openssl CVE), that image has already been patched via a
+# `RUN apk/apt-get ... upgrade` step in its Dockerfile, so this file only
+# matters for the third-party images that still carry it.
+#
+# Format: classic plain-text .trivyignore (one ID per line, `# reason` inline
+# comment). setup-trivy@v0.3.1 installs whatever Trivy release is `latest` at
+# CI run time (no pinned version in the workflow), so the plain-text schema is
+# used here for maximum compatibility -- it has been supported unchanged since
+# Trivy's first `--ignorefile` release, unlike the newer `.trivyignore.yaml`
+# per-entry schema which depends on a specific minimum Trivy version.
+#
+# Re-verify freshness before adding new entries: package registries and
+# distro security trackers update daily, and a CVE ignored here may gain a
+# fix later.
+
+# --- Upstream has stated no patch is planned ---
+CVE-2024-23342 # python-ecdsa: Minerva timing side-channel on P-256; no patched version exists (pure-Python ECDSA design limitation, confirmed via OSV.dev as of 2026-08)
+
+# --- Debian trixie/bookworm packages: no distro fix published yet (status affected/fix_deferred/will_not_fix) ---
+CVE-2026-12064 # curl/libcurl: schemeless URL + --proto-default sftp/scp skips SSH host verification; trixie status "vulnerable, no-dsa" per Debian security tracker
+CVE-2026-8286 # curl/libcurl: no fixed version in trixie/bookworm yet
+CVE-2026-8458 # curl/libcurl: no fixed version in trixie/bookworm yet
+CVE-2026-8927 # curl/libcurl: no fixed version in trixie/bookworm yet
+CVE-2026-41992 # gzip: no distro fix yet
+CVE-2026-54369 # libacl1: no distro fix yet
+CVE-2025-69720 # ncurses/libncursesw6/libtinfo6/ncurses-base/ncurses-bin: no distro fix yet
+CVE-2026-11822 # libsqlite3-0: SQLite FTS5 RCE, fix_deferred upstream/distro
+CVE-2026-11824 # libsqlite3-0: fix_deferred upstream/distro
+CVE-2025-7458 # libsqlite3-0: integer overflow, no distro fix yet (bookworm)
+CVE-2026-58050 # libssh2: no distro fix yet in the 10 first-party bookworm images that carry it (empty FixedVersion there); influxdb:2.9.1's own libssh2 build shows FixedVersion 1.10.0-3+deb12u1, but influxdb is a pulled third-party image we do not build, so that fix is not ours to apply -- kept ignored for the shared-package majority rather than false-red the 10 images that are still genuinely unfixed (see PR body: needs-decision, plain-text .trivyignore has no per-image scoping)
+CVE-2023-2953 # libldap-2.5-0: no distro fix yet (bookworm)
+CVE-2026-6653 # libxml2: fix_deferred (bookworm)
+CVE-2023-45853 # zlib1g: will_not_fix per distro (MiniZip is not part of the zlib API/security scope per upstream)
+CVE-2026-16742 # libsystemd0/libudev1: status affected on trixie, no distro fix yet (python:3.12-slim first-party images)
+CVE-2026-76642 # bsdutils/libblkid1/liblastlog2-2/libmount1/libsmartcols1/libuuid1/login/mount/util-linux family: status affected on trixie, no distro fix yet (python:3.12-slim first-party images)
+CVE-2026-78408 # bsdutils/util-linux family (same package set as CVE-2026-76642): status affected on trixie, no distro fix yet
+CVE-2026-78409 # bsdutils/util-linux family (same package set as CVE-2026-76642): status affected on trixie, no distro fix yet
+CVE-2026-78410 # bsdutils/util-linux family (same package set as CVE-2026-76642): status affected on trixie, no distro fix yet
+CVE-2026-33630 # c-ares (libcares2): no distro fix yet
+CVE-2026-69184 # c-ares (libcares2): no distro fix yet
+CVE-2026-13149 # node-brace-expansion (npm, bundled in zeek/zeek base): no distro fix yet
+CVE-2026-14257 # node-brace-expansion: no distro fix yet
+CVE-2026-33750 # node-brace-expansion: no distro fix yet
+CVE-2026-45149 # node-brace-expansion: no distro fix yet
+CVE-2026-26996 # node-minimatch (npm, bundled): no distro fix yet
+CVE-2026-13697 # node-undici (npm, bundled): no distro fix yet
+CVE-2026-1525 # node-undici: no distro fix yet
+CVE-2026-12151 # node-undici: no distro fix yet
+CVE-2026-14643 # node-undici: no distro fix yet
+CVE-2026-1526 # node-undici: no distro fix yet
+CVE-2026-1528 # node-undici: no distro fix yet
+CVE-2026-22036 # node-undici: no distro fix yet
+CVE-2026-2229 # node-undici: no distro fix yet
+CVE-2026-6734 # node-undici: no distro fix yet
+CVE-2026-9697 # node-undici: no distro fix yet
+CVE-2026-19534 # node-undici: no distro fix yet
+CVE-2026-84961 # node-undici: no distro fix yet
+CVE-2026-85152 # node-undici: no distro fix yet
+CVE-2026-48930 # libnode115/nodejs: no distro fix yet (zeek/zeek base ships Node.js for its own tooling)
+CVE-2026-48617 # libnode115/nodejs: no distro fix yet
+CVE-2026-48619 # libnode115/nodejs: no distro fix yet
+CVE-2026-48933 # libnode115/nodejs: no distro fix yet
+CVE-2026-48937 # libnode115/nodejs: no distro fix yet
+CVE-2026-56846 # libnode115/nodejs: no distro fix yet
+CVE-2026-56848 # libnode115/nodejs: no distro fix yet
+CVE-2026-58043 # libnode115/nodejs: no distro fix yet
+CVE-2026-11940 # libpython3.13: no distro fix yet
+CVE-2026-15308 # libpython3.13: no distro fix yet
+CVE-2026-7210 # libpython3.13: no distro fix yet
+CVE-2026-42284 # python3-git (GitPython, bundled in zeek/zeek base for zkg): no distro fix yet
+CVE-2026-42215 # python3-git: no distro fix yet
+CVE-2026-44243 # python3-git: no distro fix yet
+CVE-2026-44244 # python3-git: no distro fix yet
+CVE-2026-67322 # python3-git: no distro fix yet
+CVE-2026-67323 # python3-git: no distro fix yet
+CVE-2026-67324 # python3-git: no distro fix yet
+CVE-2026-67325 # python3-git: no distro fix yet
+CVE-2026-73620 # python3-git: no distro fix yet
+CVE-2026-73622 # python3-git: no distro fix yet
+CVE-2026-73623 # python3-git: no distro fix yet
+CVE-2026-73624 # python3-git: no distro fix yet
+CVE-2026-73625 # python3-git: no distro fix yet
+CVE-2026-76218 # python3-git: no distro fix yet
+CVE-2026-76219 # python3-git: no distro fix yet
+CVE-2026-76220 # python3-git: no distro fix yet
+CVE-2026-76221 # python3-git: no distro fix yet
+CVE-2026-76222 # python3-git: no distro fix yet
+CVE-2026-78675 # python3-git: no distro fix yet
+CVE-2026-78676 # python3-git: no distro fix yet
+CVE-2026-78677 # python3-git: no distro fix yet
+CVE-2026-76956 # libexpat1 (bundled in zeek/zeek base): no distro fix yet
+CVE-2026-76957 # libexpat1: no distro fix yet
+
+# --- perl-base family: fix_deferred/affected across all Debian releases scanned ---
+CVE-2026-13221 # perl-base/libperl/perl/perl-modules: regex processing; distro status "affected" (no upstream point release yet)
+CVE-2026-42496 # perl family: fix_deferred
+CVE-2026-42497 # perl family: fix_deferred (perl-Archive-Tar arbitrary file write)
+CVE-2026-48962 # perl family: affected, no fix yet
+CVE-2026-57432 # perl family: affected, no fix yet
+CVE-2026-57433 # perl family: affected, no fix yet
+CVE-2026-8376 # perl family: affected, no fix yet
+CVE-2026-9538 # perl family: fix_deferred
+
+# --- wget: no distro fix yet ---
+CVE-2026-58471 # wget: heap buffer overflow in convert_fname(); trixie/sid both still "vulnerable", Debian bug 1141689 open, marked no-dsa (minor issue)
+CVE-2026-58472 # wget: companion CVE from the same disclosure, same no-dsa/unfixed status
+
+# --- influxdb/pgvector (round 3, TAP-7250): these two are third-party data-bearing images,
+#     pulled as `image:` (not built from a Dockerfile we own), and as of round 3 are no longer
+#     part of the `scan-all` gate at all -- see docker-security-scan.yml's `scan-third-party`
+#     job, which reports on them separately (continue-on-error at the job level) with the
+#     unchanged trivy command. An ignore entry for an id whose ONLY carrier is influxdb/pgvector
+#     is now dead weight on the gate and, worse, hides the finding from that reporting job -- so
+#     every such entry has been removed here (round 2 already removed the 41 that had a
+#     FixedVersion; round 3 removes the remaining bookworm-only-and-unfixable ones: the two
+#     bsdutils/util-linux ids above (CVE-2026-53613/53615, moved out of the generic Debian
+#     section since they turned out to be pgvector-exclusive) and libxml2 CVE-2026-86140).
+#     Re-verified live: `trivy image --ignorefile /dev/null` against a first-party trixie image
+#     (data-retention) shows none of the removed ids present -- confirms they never affected any
+#     image `scan-all` still gates.
+#
+#     One exception stays: CVE-2026-58050 above (libssh2) is kept because it also affects the 10
+#     first-party images `scan-all` still gates -- removing it would false-red those, not just
+#     surface an influxdb/pgvector-only finding. See its inline rationale.
+#
+#     influxdb was bumped 2.8.0 -> 2.9.1 (same-major OSS 2.x point release, the newest available)
+#     on round 2 of TAP-6622; pgvector/pgvector:pg17 is already the newest pg17-compatible build
+#     on Docker Hub. Neither image has further Dockerfile-level fixes available to us -- see the
+#     PR body's needs-decision section for the Go-module CVEs baked into influxdb's compiled
+#     binaries, now visible in the `scan-third-party` job's report instead of hidden here.

@@ -22,7 +22,7 @@ pydantic-settings>=2.6.0,<3.0.0  # Phase 1: aligned
 tenacity>=8.2.0,<10.0.0  # Phase 2: standardized
 
 # Cryptography
-cryptography>=41.0.0,<42.0.0
+cryptography>=49.0.0,<51.0.0  # CVE-2023-50782/CVE-2024-26130/CVE-2026-26007/CVE-2026-69249/GHSA-537c-gmf6-5ccf fix (TAP-6622)
 
 # InfluxDB
 influxdb-client>=1.49.0,<2.0.0

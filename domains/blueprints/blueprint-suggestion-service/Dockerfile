@@ -20,6 +20,8 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 # Production stage
 FROM python:3.12-slim AS production
 
+RUN apt-get update && apt-get install -y --no-install-recommends --only-upgrade openssl libssl3t64 && rm -rf /var/lib/apt/lists/*
+
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1

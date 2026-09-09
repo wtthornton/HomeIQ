@@ -109,6 +109,33 @@ jobs:
         # step does.
         run: cp .env.ci .env
 
+      - name: Derive first-party image set
+        # A service is first-party iff its compose entry has a `build:` key --
+        # that is the only thing this repo controls the Dockerfile/base-image
+        # for. Anything with only an `image:` key is pulled from a registry we
+        # don't build (influxdb, pgvector, ...); those go to the separate
+        # scan-third-party job below, not into this gate. Derived from the
+        # compose config itself (not a hand-maintained list) so a new service
+        # is classified correctly the moment it's added.
+        #
+        # `config --format json`'s `.services[].image` is null for any
+        # service that doesn't set `image:` explicitly in the YAML -- it is
+        # NOT the resolved build tag. `config --images <service...>` was
+        # tried as a fix but silently ignores the service-name filter on this
+        # compose version and returns every service's image regardless (it
+        # returned all 39, including influxdb/pgvector, when passed only the
+        # 37 first-party names). Instead, reconstruct compose's own default
+        # naming rule directly: docker-compose.yml pins `name: homeiq`, so an
+        # unset `image:` resolves to `<project>-<service>` = `homeiq-<service>`
+        # -- exactly what `Build all services` below actually tags. Verified
+        # against the real resolved names for both a default-tag service
+        # (homeiq-data-api) and an explicit-tag one (homeiq/zeek:latest).
+        run: |
+          set -euo pipefail
+          mapfile -t IMAGES < <(docker compose --env-file .env.ci config --format json | jq -r '.name as $p | .services | to_entries[] | select(.value.build != null) | (.value.image // ($p + "-" + .key))' | sort -u)
+          echo "Derived ${#IMAGES[@]} first-party images (services with a build: key)"
+          printf '%s\n' "${IMAGES[@]}" | tee /tmp/first-party-images.txt
+
       - name: Build all services
         run: |
           docker compose --env-file .env.ci build --parallel
@@ -116,23 +143,87 @@ jobs:
       - name: Set up Trivy CLI
         uses: aquasecurity/setup-trivy@v0.3.1
 
-      - name: Scan all built images with Trivy
+      - name: Scan first-party images with Trivy
         # The previous single trivy-action step passed scan-type: 'image' with
         # scan-ref: 'docker-compose.yml' -- a filename, not an image reference,
         # so Trivy tried to pull an image literally named "docker-compose.yml"
         # ("unable to find the specified image"). trivy-action's image-ref also
         # only ever accepts one image per step, which could never have covered
-        # all services anyway. `docker compose config --images` prints the
-        # actual tag each service just built under (verified locally: 39
-        # entries, no filenames), so loop the real Trivy CLI over that list.
+        # all services anyway. Loop the real Trivy CLI over the first-party set
+        # derived above instead. This is the merge/schedule gate: it must stay
+        # red on a real first-party CVE, so --exit-code stays 1 and this job is
+        # not continue-on-error.
         run: |
           set -euo pipefail
-          mapfile -t IMAGES < <(docker compose --env-file .env.ci config --images | sort -u)
-          echo "Scanning ${#IMAGES[@]} built images"
+          mapfile -t IMAGES < /tmp/first-party-images.txt
+          echo "Scanning ${#IMAGES[@]} first-party images"
           status=0
           for img in "${IMAGES[@]}"; do
             echo "::group::trivy image ${img}"
-            trivy image --exit-code 1 --severity CRITICAL,HIGH --format table "${img}" || status=1
+            trivy image --exit-code 1 --severity CRITICAL,HIGH --ignorefile "${GITHUB_WORKSPACE}/.trivyignore" --format table "${img}" || status=1
+            echo "::endgroup::"
+          done
+          exit "${status}"
+
+  scan-third-party:
+    name: Security Scan Third-Party Images (report only)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    # Reporting job, not a merge gate (TAP-7250, 2026-09-09): influxdb and
+    # pgvector are pulled images we don't build, so a Dockerfile fix can't
+    # clear their Go-module CVEs -- see .trivyignore and the PR's
+    # needs-decision section. continue-on-error is set at the JOB level (the
+    # honest shape for a non-blocking report) so this job's own conclusion
+    # stays truthful -- it still runs the unchanged --exit-code 1 trivy
+    # command and fails when CVEs are present -- while not blocking the
+    # workflow or being in any required-checks list. The gate that PRs and
+    # branch protection must watch is `Security Scan All Services` above.
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Materialize CI placeholder env
+        # See the identical step in scan-all: docker-compose.yml's `include:`
+        # entries reference `.env` literally, so this placeholder copy is
+        # needed purely to resolve `docker compose config`, not for real
+        # credentials.
+        run: cp .env.ci .env
+
+      - name: Derive third-party image set
+        # Same derivation as scan-all's first-party step, inverted: a service
+        # with only an `image:` key (no `build:`) is third-party. See that
+        # step for why the tag is reconstructed from `.name` + service key
+        # rather than trusting `config --images <service...>`'s filter (it
+        # doesn't filter on this compose version) or a bare `.image` read
+        # (null for any service that doesn't set it explicitly). Every
+        # current third-party service does set `image:` explicitly, so the
+        # `homeiq-<service>` fallback here is defensive, not exercised today.
+        run: |
+          set -euo pipefail
+          mapfile -t IMAGES < <(docker compose --env-file .env.ci config --format json | jq -r '.name as $p | .services | to_entries[] | select(.value.build == null) | (.value.image // ($p + "-" + .key))' | sort -u)
+          echo "Derived ${#IMAGES[@]} third-party images (services with only an image: key)"
+          printf '%s\n' "${IMAGES[@]}" | tee /tmp/third-party-images.txt
+
+      - name: Set up Trivy CLI
+        uses: aquasecurity/setup-trivy@v0.3.1
+
+      - name: Scan third-party images with Trivy
+        # Unchanged trivy command/flags from the first-party gate -- only the
+        # image set differs. These images are pulled straight from the
+        # registry (never built), so no docker compose build step precedes
+        # this.
+        run: |
+          set -euo pipefail
+          mapfile -t IMAGES < /tmp/third-party-images.txt
+          echo "Scanning ${#IMAGES[@]} third-party images"
+          status=0
+          for img in "${IMAGES[@]}"; do
+            echo "::group::trivy image ${img}"
+            trivy image --exit-code 1 --severity CRITICAL,HIGH --ignorefile "${GITHUB_WORKSPACE}/.trivyignore" --format table "${img}" || status=1
             echo "::endgroup::"
           done
           exit "${status}"

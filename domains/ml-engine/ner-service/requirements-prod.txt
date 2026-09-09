@@ -8,5 +8,5 @@ aiohttp>=3.13.3,<4.0.0  # CVE-2025-69223..69230 fix; required by homeiq-observab
 # openvino-service/requirements.txt and model-prep/Dockerfile.
 --extra-index-url https://download.pytorch.org/whl/cpu
 
-transformers>=4.50.0,<5.0.0  # Epic 54: aligned
+transformers>=5.5.0,<6.0.0  # CVE-2026-4372/CVE-2026-5241 fix (TAP-6622)
 torch>=2.5.0,<3.0.0  # Epic 54: aligned — CPU-only
