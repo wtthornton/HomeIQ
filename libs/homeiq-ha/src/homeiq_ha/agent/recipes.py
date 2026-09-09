@@ -21,8 +21,6 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING, Any
 
-from homeiq_ha.client.errors import HAHumanGateRequired
-
 from .backup import BackupScheduleRecipe, FirstBackupRecipe
 from .config_yaml import HttpLoginThresholdRecipe, RecorderTuningRecipe
 from .device_areas import ManifestAreasRemoveRecipe, ManifestDeviceAreasRecipe
@@ -43,7 +41,6 @@ from .organization import (
 )
 from .powercalc import PowercalcRecipe
 from .recipe import (
-    PHASE_ADDONS,
     PHASE_CORRECTNESS,
     PHASE_HACS,
     PHASE_INTEGRATIONS,
@@ -132,133 +129,27 @@ class CoreConfigRecipe(Recipe):
 
 
 # ---------------------------------------------------------------------------
-# Phase 4 — add-ons
+# Phase 5 — HACS (confirm-absent: the appliance vendors components at build
+# time, domains/core-platform/home-assistant/Dockerfile — no Supervisor, no
+# runtime HACS, so there is nothing for this phase to install)
 # ---------------------------------------------------------------------------
 
 
-class AddonRecipe(Recipe):
-    """Install and start one add-on through the Supervisor passthrough.
+class HACSAbsentRecipe(Recipe):
+    """Confirm HACS is absent, as the headless appliance build intends.
 
-    Slugs are read from the store at runtime rather than computed: custom
-    repository slugs are ``<sha1(url)[:8]>_<folder>``, and several built-in
-    add-ons (ESPHome, Music Assistant) are not ``core_``-prefixed, so any logic
-    that derives a slug gets those wrong.
+    Powercalc, Team Tracker and the Aqara FP1E quirk are vendored into
+    ``/config/custom_components`` (and ``custom_zha_quirks``) at image build
+    time; the same build step asserts no ``hacs`` custom_component exists in
+    the image. A HACS config entry appearing at runtime on this appliance is a
+    build-integrity regression, not a setup step the agent should ever drive —
+    there is no Supervisor to install a "Get HACS" add-on through in the first
+    place.
     """
 
-    phase = PHASE_ADDONS
-
-    def __init__(self, slug: str, *, title: str | None = None, start: bool = True) -> None:
-        self.slug = slug
-        self.title = title or slug
-        self.start = start
-        self.name = f"addons.{slug}"
-        self.description = f"Add-on {self.title} installed"
-
-    async def _installed(self, ha: Any) -> dict[str, Any] | None:
-        result = await ha.ws.supervisor_api("/addons", timeout=60)
-        for addon in (result or {}).get("addons") or []:
-            if addon.get("slug") == self.slug:
-                return dict(addon)
-        return None
-
-    async def _unconfigured_required(self, ha: Any) -> list[str]:
-        """Required options a person has not set yet.
-
-        The Supervisor refuses to start an add-on whose required options are
-        null (observed live: OTBR's ``device`` — which serial port carries the
-        Thread radio is a hardware fact no agent can infer). Schema shape read
-        live: a list of ``{"name", "required": bool, ...}`` entries.
-        """
-        info = await ha.ws.supervisor_api(f"/addons/{self.slug}/info", timeout=60)
-        options = (info or {}).get("options") or {}
-        return [
-            str(entry["name"])
-            for entry in (info or {}).get("schema") or []
-            if entry.get("required") and options.get(entry.get("name")) is None
-        ]
-
-    async def check(self, ha: HAClient) -> CheckResult:
-        addon = await self._installed(ha)
-        if addon is None:
-            return CheckResult(CheckStatus.NEEDS_APPLY, f"{self.title} is not installed")
-        if self.start and addon.get("state") != "started":
-            missing = await self._unconfigured_required(ha)
-            if missing:
-                return CheckResult(
-                    CheckStatus.BLOCKED_ON_HUMAN,
-                    f"{self.title} is installed but requires configuration",
-                    {"state": addon.get("state"), "unconfigured": missing},
-                    human_action=(
-                        f"Set required option(s) {missing} for {self.title} in "
-                        "Settings > Add-ons. These are hardware/site facts the "
-                        "agent must not guess."
-                    ),
-                )
-            return CheckResult(
-                CheckStatus.NEEDS_APPLY,
-                f"{self.title} is installed but {addon.get('state')}",
-                {"state": addon.get("state")},
-            )
-        return CheckResult(CheckStatus.SATISFIED, f"{self.title} installed and running")
-
-    async def plan(self, ha: HAClient) -> Plan:
-        addon = await self._installed(ha)
-        changes: list[Change] = []
-        if addon is None:
-            changes.append(Change("install add-on", self.slug, after="installed"))
-        if self.start and (addon or {}).get("state") != "started":
-            changes.append(Change("start add-on", self.slug, (addon or {}).get("state"), "started"))
-        return Plan(tuple(changes))
-
-    async def apply(self, ha: HAClient) -> ApplyResult:
-        changes: list[Change] = []
-        addon = await self._installed(ha)
-        if addon is None:
-            await ha.ws.supervisor_api(f"/store/addons/{self.slug}/install", method="post")
-            changes.append(Change("install add-on", self.slug, after="installed"))
-        if self.start:
-            addon = await self._installed(ha)
-            if (addon or {}).get("state") != "started":
-                missing = await self._unconfigured_required(ha)
-                if missing:
-                    # The engine turns this into BLOCKED_ON_HUMAN; starting
-                    # anyway would just make the Supervisor error instead.
-                    raise HAHumanGateRequired(
-                        f"{self.title} needs required option(s) {missing} set "
-                        "by a person before it can start",
-                        {"type": "addon_options", "unconfigured": missing},
-                    )
-                await ha.ws.supervisor_api(f"/addons/{self.slug}/start", method="post")
-                changes.append(Change("start add-on", self.slug, after="started"))
-        return ApplyResult(tuple(changes), f"{self.title}: {len(changes)} change(s)")
-
-    async def verify(self, ha: HAClient) -> VerifyResult:
-        addon = await self._installed(ha)
-        if addon is None:
-            return VerifyResult(False, f"{self.title} is still not installed")
-        if self.start and addon.get("state") != "started":
-            return VerifyResult(False, f"{self.title} is {addon.get('state')}, not started")
-        return VerifyResult(True, f"{self.title} installed and running")
-
-
-# ---------------------------------------------------------------------------
-# Phase 5 — HACS
-# ---------------------------------------------------------------------------
-
-
-class HACSBootstrapRecipe(Recipe):
-    """Install HACS via the official "Get HACS" add-on.
-
-    The ``wget | bash`` method in most online guides is Container/Core-only and
-    does not apply to a Supervised install. Onboarding then needs a GitHub
-    device code, which is a hard human gate — but a cheap one: the code and URL
-    are machine-readable, so the agent prints them and waits.
-    """
-
-    name = "hacs.bootstrap"
+    name = "hacs.absent"
     phase = PHASE_HACS
-    description = "HACS installed and onboarded"
-    requires_human = True
+    description = "HACS is absent by design (components vendored at build time)"
 
     async def _hacs_entry(self, ha: Any) -> dict[str, Any] | None:
         entries = await ha.rest.get_config_entries()
@@ -269,39 +160,32 @@ class HACSBootstrapRecipe(Recipe):
 
     async def check(self, ha: HAClient) -> CheckResult:
         entry = await self._hacs_entry(ha)
-        if entry is not None and entry.get("state") == "loaded":
-            return CheckResult(CheckStatus.SATISFIED, "HACS is installed and loaded")
-        if entry is not None:
-            return CheckResult(
-                CheckStatus.NEEDS_APPLY,
-                f"HACS config entry is {entry.get('state')}",
-                {"state": entry.get("state")},
-            )
+        if entry is None:
+            return CheckResult(CheckStatus.SATISFIED, "HACS is absent, as designed")
         return CheckResult(
             CheckStatus.BLOCKED_ON_HUMAN,
-            "HACS is not installed",
+            f"HACS config entry present ({entry.get('state')}) on a build that "
+            "vendors components directly",
+            {"state": entry.get("state")},
             human_action=(
-                "Install the 'Get HACS' add-on, then complete GitHub device "
-                "authorization. The agent surfaces the URL and code."
+                "This appliance image ships no Supervisor and vendors Powercalc, "
+                "Team Tracker and the Aqara FP1E quirk at build time — a HACS "
+                "config entry here means the build itself needs fixing, not a "
+                "setup step. Remove HACS and rebuild the image."
             ),
         )
 
-    async def plan(self, ha: HAClient) -> Plan:
-        if await self._hacs_entry(ha) is None:
-            return Plan((Change("install", "HACS", after="config entry"),))
+    async def plan(self, _ha: HAClient) -> Plan:
         return Plan()
 
-    async def apply(self, ha: HAClient) -> ApplyResult:
-        # run_config_flow raises HAHumanGateRequired on the device-code step,
-        # which the engine turns into a hard stop carrying the code.
-        await ha.rest.run_config_flow("hacs", [{}])
-        return ApplyResult((Change("install", "HACS", after="config entry"),), "HACS onboarded")
+    async def apply(self, _ha: HAClient) -> ApplyResult:
+        return ApplyResult((), "hacs.absent is confirm-only; there is nothing to apply")
 
     async def verify(self, ha: HAClient) -> VerifyResult:
         entry = await self._hacs_entry(ha)
         return VerifyResult(
-            entry is not None and entry.get("state") == "loaded",
-            "HACS loaded" if entry else "HACS config entry absent",
+            entry is None,
+            "HACS absent" if entry is None else f"HACS config entry present ({entry.get('state')})",
         )
 
 
@@ -356,13 +240,13 @@ def default_recipes(
         ),
         LabelsRecipe(("critical", "exterior")),
         DevicesHaveAreasRecipe(),
-        AddonRecipe("core_ssh", title="Terminal & SSH"),
-        AddonRecipe("core_configurator", title="File editor"),
-        # OpenThread Border Router deliberately absent: no Thread radio on
+        # No add-on recipes: this appliance ships a headless HA Container with
+        # no Supervisor (domains/core-platform/home-assistant/Dockerfile).
+        # OpenThread Border Router deliberately absent too: no Thread radio on
         # this host — owner decision 2026-08-12, add-on uninstalled same day.
-        HACSBootstrapRecipe(),
-        # Powercalc rides HACS (phase 5): download, restart, confirm a
-        # discovered power sensor. TAP-5431.
+        HACSAbsentRecipe(),
+        # Powercalc is vendored at build time (phase 5): confirm a discovered
+        # power sensor, never a HACS download. TAP-5431.
         PowercalcRecipe(),
         # NWS deliberately absent: the stack already carries three weather
         # feeds (data-collectors/weather-api, websocket-ingestion's
@@ -405,14 +289,12 @@ def default_recipes(
 
 
 __all__ = [
-    "PHASE_ADDONS",
     "PHASE_CORRECTNESS",
     "PHASE_HACS",
     "PHASE_INTEGRATIONS",
     "PHASE_ORGANIZATION",
     "PHASE_SAFETY",
     "ZHA_SERIAL_PATH",
-    "AddonRecipe",
     "AqaraFP1EQuirkRecipe",
     "AreasRecipe",
     "BackupScheduleRecipe",
@@ -424,7 +306,7 @@ __all__ = [
     "ZigbeeMeshHealthRecipe",
     "FirstBackupRecipe",
     "FloorsRecipe",
-    "HACSBootstrapRecipe",
+    "HACSAbsentRecipe",
     "HttpLoginThresholdRecipe",
     "IntegrationRecipe",
     "LabelsRecipe",

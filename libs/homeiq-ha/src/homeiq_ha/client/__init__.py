@@ -31,7 +31,6 @@ from .redaction import REDACTED, redact, redact_text
 from .rest import HARestClient
 from .ws import (
     DEFAULT_COMMAND_TIMEOUT,
-    SUPERVISOR_INSTALL_TIMEOUT,
     HAWebSocketClient,
 )
 
@@ -41,7 +40,6 @@ if TYPE_CHECKING:
 __all__ = [
     "DEFAULT_COMMAND_TIMEOUT",
     "REDACTED",
-    "SUPERVISOR_INSTALL_TIMEOUT",
     "HAAuthError",
     "HAClient",
     "HAClientClosed",

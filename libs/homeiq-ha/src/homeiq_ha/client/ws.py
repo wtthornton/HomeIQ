@@ -4,13 +4,6 @@ Home Assistant's entity, device, area, floor, label and category registries are
 **WebSocket-only**. There is no REST equivalent, so the several HomeIQ services
 that reach for ``GET /api/config/entity_registry`` have always received a 404
 and degraded silently. This client is the shared replacement.
-
-It also exposes :meth:`HAWebSocketClient.supervisor_api`, the unrestricted
-Supervisor passthrough. The REST path ``/api/hassio/*`` is a deny-by-default
-allowlist that answers 401 even for an admin+owner token; the WebSocket
-``supervisor/api`` command is how the Home Assistant frontend itself drives the
-Supervisor panel, and it is the only route to add-on management from outside
-the host.
 """
 
 from __future__ import annotations
@@ -39,10 +32,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Installing an add-on routinely takes minutes; the default command timeout is
-# far too short for the Supervisor endpoints that do real work.
 DEFAULT_COMMAND_TIMEOUT = 30.0
-SUPERVISOR_INSTALL_TIMEOUT = 900.0
 
 # Auto-reconnect backoff: first retry after DEFAULT_RECONNECT_DELAY seconds
 # (plus up to 30% jitter), doubling per attempt, capped at MAX_RECONNECT_DELAY.
@@ -63,22 +53,6 @@ def _frame_logger() -> logging.Logger:
     frame_logger = logging.getLogger("homeiq_ha.client.ws.frames")
     frame_logger.setLevel(logging.INFO)
     return frame_logger
-
-
-def _is_log_endpoint(endpoint: str) -> bool:
-    """Supervisor endpoints that return plain journald text, not JSON.
-
-    Covers ``/core/logs``, ``/supervisor/logs``, ``/host/logs``,
-    ``/addons/<slug>/logs`` and their sub-paths (``/host/logs/boots/0``).
-    Two collection endpoints under ``/host/logs`` return JSON, not text —
-    ``/host/logs/boots`` and ``/host/logs/identifiers`` (verified live
-    2026-08-13, HA 2026.8.1) — so those pass through to the WS passthrough,
-    while their entry sub-paths (``.../boots/0``) are text and stay blocked.
-    """
-    path = endpoint.split("?", 1)[0].rstrip("/")
-    if path.endswith(("/logs/boots", "/logs/identifiers")):
-        return False
-    return path.endswith("/logs") or "/logs/" in path
 
 
 class HAWebSocketClient:
@@ -324,8 +298,8 @@ class HAWebSocketClient:
         Args:
             fields: Command fields supplied as a dict rather than keywords. Use
                 this for commands whose own field names collide with this
-                method's parameters — ``supervisor/api`` takes a ``timeout``
-                field of its own.
+                method's parameters (e.g. a command with its own ``timeout``
+                field).
 
         Raises:
             HACommandError: Home Assistant answered ``success: false``.
@@ -590,52 +564,3 @@ class HAWebSocketClient:
         await self.send_command(
             "config/category_registry/delete", scope=scope, category_id=category_id
         )
-
-    # -- supervisor --------------------------------------------------------
-
-    async def supervisor_api(
-        self,
-        endpoint: str,
-        *,
-        method: str = "get",
-        payload: dict[str, Any] | None = None,
-        timeout: float = SUPERVISOR_INSTALL_TIMEOUT,
-    ) -> Any:
-        """Call a Supervisor endpoint through the WebSocket passthrough.
-
-        Args:
-            endpoint: Supervisor path, e.g. ``/store/addons/core_ssh/install``.
-            method: HTTP verb the Supervisor should use.
-            payload: JSON body for write methods.
-            timeout: Defaults to 15 minutes — add-on installs are slow, and a
-                short timeout aborts the client while the install continues
-                server-side, which is worse than waiting.
-
-        Raises:
-            ValueError: for log endpoints, which this passthrough cannot
-                transport (TAP-5984). Home Assistant's ``supervisor/api``
-                handler JSON-decodes every Supervisor response, and log
-                endpoints return plain journald text, so they always fail
-                with an opaque ``unknown_error`` (verified live 2026-08-13,
-                HA 2026.8.1). Refusing up front points the caller at the
-                supported path: :meth:`HARestClient.get_supervisor_logs`.
-        """
-        if _is_log_endpoint(endpoint):
-            raise ValueError(
-                f"supervisor/api cannot return text logs ({endpoint!r}): the WS "
-                "passthrough JSON-decodes every Supervisor response, so log "
-                "endpoints always fail with unknown_error. Use "
-                "HARestClient.get_supervisor_logs(), which fetches "
-                f"GET /api/hassio{endpoint} as text."
-            )
-        command: dict[str, Any] = {
-            "endpoint": endpoint,
-            "method": method.lower(),
-            # Supervisor's own field, distinct from this client's wait timeout.
-            "timeout": int(timeout),
-        }
-        if payload is not None:
-            command["data"] = payload
-        # Wait slightly longer than the Supervisor does, so its own timeout
-        # surfaces as a Supervisor error rather than a client-side abort.
-        return await self.send_command("supervisor/api", timeout=timeout + 30.0, fields=command)

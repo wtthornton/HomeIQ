@@ -9,12 +9,6 @@ from homeiq_ha.client.errors import HAClientError, HAFlowError
 
 from tests.simulators import SimHA
 
-POWERCALC_REPO = {
-    "id": "138121412",
-    "full_name": "bramstroker/homeassistant-powercalc",
-    "installed": False,
-}
-
 PC_DONE = {
     "type": "create_entry",
     "add_entities": [
@@ -50,23 +44,13 @@ def powercalc_recipe() -> PowercalcRecipe:
 
 
 @pytest.mark.asyncio
-async def test_powercalc_check_reports_absence_from_hacs(sim):
+async def test_powercalc_check_reports_not_configured(sim):
+    """Powercalc is vendored at build time; check never touches ``hacs/``."""
     result = await powercalc_recipe().check(sim)
 
     assert result.status is CheckStatus.NEEDS_APPLY
-    assert "absent from the HACS repository list" in result.summary
-
-
-@pytest.mark.asyncio
-async def test_powercalc_check_distinguishes_download_from_flow(sim):
-    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO)]
-    needs_download = await powercalc_recipe().check(sim)
-
-    sim.state["hacs_repositories"][0]["installed"] = True
-    needs_flow = await powercalc_recipe().check(sim)
-
-    assert "HACS download" in needs_download.summary
-    assert "no loaded config entry" in needs_flow.summary
+    assert "not configured" in result.summary
+    assert not any(str(cmd).startswith("hacs/") for cmd, _ in sim.ws.calls)
 
 
 @pytest.mark.asyncio
@@ -84,29 +68,25 @@ async def test_powercalc_check_refuses_a_sensor_that_reports_nothing(sim):
 
 
 @pytest.mark.asyncio
-async def test_powercalc_apply_downloads_restarts_and_confirms_discovery(sim):
+async def test_powercalc_apply_confirms_discovery_without_any_hacs_call(sim):
+    """No config entry yet, but a discovery flow already exists (the
+    vendored component set itself up at boot) — apply confirms it directly,
+    never touching ``hacs/``."""
     sim.state["states"] = list(POWER_OK)
-    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO)]
     sim.state["flow_progress"] = [{"flow_id": "pf1", "handler": "powercalc"}]
     sim.state["flow_current_step"] = {"type": "form", "flow_id": "pf1", "data_schema": []}
     sim.state["flow_steps"] = [dict(PC_DONE)]
 
     result = await powercalc_recipe().apply(sim)
 
-    assert sim.state["hacs_repositories"][0]["installed"] is True
-    assert ("homeassistant", "restart", {}) in sim.state["service_calls"]
-    assert [c.action for c in result.changed] == [
-        "hacs download",
-        "restart",
-        "configure integration",
-    ]
+    assert [c.action for c in result.changed] == ["configure integration"]
     assert "sensor.office_light_power" in result.summary
+    assert not any(str(cmd).startswith("hacs/") for cmd, _ in sim.ws.calls)
 
 
 @pytest.mark.asyncio
 async def test_powercalc_second_apply_reports_zero_changes(sim):
     sim.state["states"] = list(POWER_OK)
-    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
     sim.state["config_entries"].append(
         {"entry_id": "pc1", "domain": "powercalc", "state": "loaded"}
     )
@@ -123,7 +103,6 @@ async def test_powercalc_second_apply_reports_zero_changes(sim):
 @pytest.mark.asyncio
 async def test_powercalc_apply_bootstraps_discovery_via_global_config(sim):
     sim.state["states"] = list(POWER_OK)
-    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
     sim.state["flow_first_step"] = PC_MENU
     sim.state["flow_current_step"] = {"type": "form", "flow_id": "pf1", "data_schema": []}
     sim.state["flow_steps"] = [
@@ -154,7 +133,6 @@ async def test_powercalc_apply_bootstraps_discovery_via_global_config(sim):
 @pytest.mark.asyncio
 async def test_powercalc_submits_sections_as_empty_dicts(sim):
     sim.state["states"] = list(POWER_OK)
-    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
     sim.state["flow_first_step"] = PC_MENU
     sim.state["flow_current_step"] = {"type": "form", "flow_id": "pf1", "data_schema": []}
     sim.state["flow_steps"] = [
@@ -195,7 +173,6 @@ async def test_powercalc_submits_sections_as_empty_dicts(sim):
 
 @pytest.mark.asyncio
 async def test_powercalc_refuses_a_section_with_a_required_undefaulted_field(sim):
-    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
     sim.state["flow_first_step"] = PC_MENU
     sim.state["flow_steps"] = [
         {
@@ -219,7 +196,6 @@ async def test_powercalc_refuses_a_section_with_a_required_undefaulted_field(sim
 
 @pytest.mark.asyncio
 async def test_powercalc_apply_raises_when_discovery_never_appears(sim):
-    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
     sim.state["flow_first_step"] = PC_MENU
     sim.state["flow_steps"] = [
         {
@@ -235,7 +211,6 @@ async def test_powercalc_apply_raises_when_discovery_never_appears(sim):
 @pytest.mark.asyncio
 async def test_powercalc_restarts_and_retries_on_already_in_progress(sim):
     sim.state["states"] = list(POWER_OK)
-    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
     sim.state["flow_first_step"] = PC_MENU
     sim.state["flow_current_step"] = {"type": "form", "flow_id": "pf1", "data_schema": []}
     sim.state["flow_steps"] = [
@@ -258,7 +233,6 @@ async def test_powercalc_restarts_and_retries_on_already_in_progress(sim):
 
 @pytest.mark.asyncio
 async def test_powercalc_aborts_its_own_flow_on_failure(sim):
-    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
     sim.state["flow_first_step"] = PC_MENU
     sim.state["flow_steps"] = [
         {"type": "abort", "flow_id": "gc1", "reason": "not_allowed"},
@@ -272,7 +246,6 @@ async def test_powercalc_aborts_its_own_flow_on_failure(sim):
 
 @pytest.mark.asyncio
 async def test_powercalc_apply_refuses_a_menu_without_global_configuration(sim):
-    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
     sim.state["flow_first_step"] = dict(PC_MENU, menu_options=["virtual_power", "group"])
 
     with pytest.raises(HAFlowError, match="global_configuration"):
@@ -281,7 +254,6 @@ async def test_powercalc_apply_refuses_a_menu_without_global_configuration(sim):
 
 @pytest.mark.asyncio
 async def test_powercalc_refuses_when_every_discovery_needs_human_facts(sim):
-    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
     sim.state["flow_progress"] = [
         {
             "flow_id": "pf1",
@@ -302,7 +274,6 @@ async def test_powercalc_refuses_when_every_discovery_needs_human_facts(sim):
 @pytest.mark.asyncio
 async def test_powercalc_skips_blocked_flows_and_confirms_the_next(sim):
     sim.state["states"] = list(POWER_OK)
-    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
     sim.state["flow_progress"] = [
         {
             "flow_id": "wled1",
@@ -506,7 +477,6 @@ async def test_powercalc_apply_confirms_every_defaulted_flow_not_just_one(sim):
     this home read 3 of 43 metered while the integration reported healthy.
     """
     sim.state["states"] = list(POWER_OK)
-    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
     # One sensor already reports, so the "get at least one" bootstrap is
     # satisfied and what is under test is what happens to the REST.
     sim.state["config_entries"].append(
@@ -544,7 +514,6 @@ async def test_powercalc_apply_leaves_flows_needing_human_facts_in_triage(sim):
     from that sensor.
     """
     sim.state["states"] = list(POWER_OK)
-    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
     sim.state["config_entries"].append(
         {"entry_id": "pc1", "domain": "powercalc", "state": "loaded"}
     )
@@ -587,7 +556,6 @@ async def test_powercalc_check_says_why_each_load_is_uncovered(sim):
     a device that is not powered, a profile that wants a fact about the
     installation, and hardware Powercalc has no profile for at all.
     """
-    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
     sim.state["config_entries"].append(
         {"entry_id": "pc1", "domain": "powercalc", "state": "loaded"}
     )
@@ -626,7 +594,6 @@ async def test_powercalc_counts_one_physical_device_once(sim):
     NAMES those integrations report would not, and matching on them would be a
     name match wearing a better job title.
     """
-    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
     sim.state["config_entries"].append(
         {"entry_id": "pc1", "domain": "powercalc", "state": "loaded"}
     )
@@ -669,7 +636,6 @@ async def test_powercalc_counts_one_physical_device_once(sim):
 @pytest.mark.asyncio
 async def test_powercalc_keeps_devices_without_a_mac_separate(sim):
     """Absence of a MAC is not evidence that two devices are the same one."""
-    sim.state["hacs_repositories"] = [dict(POWERCALC_REPO, installed=True)]
     sim.state["config_entries"].append(
         {"entry_id": "pc1", "domain": "powercalc", "state": "loaded"}
     )

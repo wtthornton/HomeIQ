@@ -64,7 +64,6 @@ def test_answers_happy_path_maps_contract(monkeypatch: Any) -> None:
         "/api/v1/init/answers",
         json={
             "device_areas": [{"device_id": "abc", "area": "office"}],
-            "addon_options": [{"slug": "core_ssh", "options": {"port": 22}}],
             "teams": [{"league": "NHL", "team": "VGK"}],
             "backup_password": "s3cret",
         },
@@ -74,7 +73,6 @@ def test_answers_happy_path_maps_contract(monkeypatch: Any) -> None:
 
     contract = captured["contract"]
     assert contract.device_areas == (("abc", "office"),)
-    assert contract.addon_options == (("core_ssh", {"port": 22}),)
     assert contract.teams == ({"league": "NHL", "team": "VGK"},)
     assert contract.backup_password == "s3cret"
 

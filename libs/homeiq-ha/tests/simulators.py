@@ -51,7 +51,6 @@ FRESH_INSTANCE: dict[str, Any] = {
         },
     ],
     "entities": [{"entity_id": f"light.wled_{i}"} for i in range(164)],
-    "addons": [],
     "config_entries": [],
 }
 
@@ -93,26 +92,52 @@ class SimWs:
         handled, result = self._read(command_type, args)
         if handled:
             return result
-        if command_type == "supervisor/api":
-            return await self._supervisor(args)
 
         # Everything below writes — recorded so tests can assert "no writes".
         self.writes.append(command_type)
         return self._write(command_type, args)
 
+    def _backup_config_info(self, _args: dict[str, Any]) -> Any:
+        return {"config": self.state["backup_config"]}
+
+    def _backup_agents_info(self, _args: dict[str, Any]) -> Any:
+        return {"agents": self.state["backup_agents"]}
+
+    def _backup_info(self, _args: dict[str, Any]) -> Any:
+        # Advance first: the job lands partway through a poll loop, which is
+        # the whole behaviour verify has to cope with.
+        state = self._advance_backup()
+        return {"backups": list(self.state["backups"]), "state": state}
+
+    def _get_core_config(self, _args: dict[str, Any]) -> Any:
+        return self.state["core_config"]
+
+    def _zha_devices(self, _args: dict[str, Any]) -> Any:
+        return self.state.get("zha_devices", [])
+
+    def _flow_progress(self, _args: dict[str, Any]) -> Any:
+        return self.state.get("flow_progress", [])
+
+    #: Exact command_type -> handler(self, args) -> value. Checked before the
+    #: ``_registry/*`` suffix dispatch below, so a read with no registry
+    #: shape still gets a single, flat lookup.
+    _EXACT_READ_HANDLERS = {
+        "backup/config/info": _backup_config_info,
+        "backup/agents/info": _backup_agents_info,
+        "backup/info": _backup_info,
+        "get_config": _get_core_config,
+        "zha/devices": _zha_devices,
+        "config_entries/flow/progress": _flow_progress,
+    }
+
     def _read(self, command_type: str, args: dict[str, Any]) -> tuple[bool, Any]:
         """Answer a read command; ``(False, None)`` when it isn't one."""
-        if command_type == "backup/config/info":
-            return True, {"config": self.state["backup_config"]}
-        if command_type == "backup/agents/info":
-            return True, {"agents": self.state["backup_agents"]}
-        if command_type == "backup/info":
-            # Advance first: the job lands partway through a poll loop, which is
-            # the whole behaviour verify has to cope with.
-            state = self._advance_backup()
-            return True, {"backups": list(self.state["backups"]), "state": state}
-        if command_type == "get_config":
-            return True, self.state["core_config"]
+        handler = self._EXACT_READ_HANDLERS.get(command_type)
+        if handler is not None:
+            return True, handler(self, args)
+        return self._read_registry_command(command_type, args)
+
+    def _read_registry_command(self, command_type: str, args: dict[str, Any]) -> tuple[bool, Any]:
         if command_type.endswith("_registry/list"):
             # The real entity_registry/list returns a TRIMMED row: aliases are
             # not in it. Modelling that matters -- a simulator that returned the
@@ -129,55 +154,57 @@ class SimWs:
             wanted = args.get(id_field)
             entry = next((e for e in self.state[key] if e.get(id_field) == wanted), None)
             return (True, entry) if entry is not None else (False, None)
-        if command_type == "zha/devices":
-            return True, self.state.get("zha_devices", [])
-        if command_type == "config_entries/flow/progress":
-            return True, self.state.get("flow_progress", [])
-        if command_type == "hacs/repositories/list":
-            return True, self.state.get("hacs_repositories", [])
         return False, None
 
+    def _ignore_flow(self, command_type: str, args: dict[str, Any]) -> None:
+        # Mirror HA core config_entries.py ignore_config_flow: unknown
+        # flow -> not_found; a flow without unique_id is refused; else
+        # the flow is dismissed and an ignore-source entry persists it.
+        flows = self.state.get("flow_progress", [])
+        flow = next((f for f in flows if f.get("flow_id") == args.get("flow_id")), None)
+        if flow is None:
+            raise HACommandError(command_type, "not_found", "Flow not found")
+        if "unique_id" not in (flow.get("context") or {}):
+            raise HACommandError(command_type, "no_unique_id", "Specified flow has no unique ID.")
+        self.state["flow_progress"] = [f for f in flows if f is not flow]
+        self.state["config_entries"].append(
+            {
+                "entry_id": f"ignore-{args['flow_id']}",
+                "domain": flow.get("handler"),
+                "source": "ignore",
+                "title": args.get("title"),
+            }
+        )
+        return None
+
+    def _core_config_update(self, _command_type: str, args: dict[str, Any]) -> None:
+        self.state["core_config"].update(args)
+        return None
+
+    def _backup_delete(self, _command_type: str, args: dict[str, Any]) -> None:
+        self.state["backups"] = [
+            b for b in self.state["backups"] if b["backup_id"] != args["backup_id"]
+        ]
+        return None
+
+    #: Exact command_type -> handler(self, command_type, args). Checked
+    #: before the ``_registry/*`` suffix dispatch below, so a write with no
+    #: registry shape still gets a single, flat lookup.
+    _EXACT_WRITE_HANDLERS = {
+        "config_entries/ignore_flow": _ignore_flow,
+        "backup/config/update": lambda self, _ct, args: self._backup_config_update(args),
+        "backup/generate": lambda self, _ct, args: self._backup_generate(args),
+        "config/core/update": _core_config_update,
+        "backup/delete": _backup_delete,
+    }
+
     def _write(self, command_type: str, args: dict[str, Any]) -> Any:
-        if command_type == "config_entries/ignore_flow":
-            # Mirror HA core config_entries.py ignore_config_flow: unknown
-            # flow -> not_found; a flow without unique_id is refused; else
-            # the flow is dismissed and an ignore-source entry persists it.
-            flows = self.state.get("flow_progress", [])
-            flow = next((f for f in flows if f.get("flow_id") == args.get("flow_id")), None)
-            if flow is None:
-                raise HACommandError(command_type, "not_found", "Flow not found")
-            if "unique_id" not in (flow.get("context") or {}):
-                raise HACommandError(
-                    command_type, "no_unique_id", "Specified flow has no unique ID."
-                )
-            self.state["flow_progress"] = [f for f in flows if f is not flow]
-            self.state["config_entries"].append(
-                {
-                    "entry_id": f"ignore-{args['flow_id']}",
-                    "domain": flow.get("handler"),
-                    "source": "ignore",
-                    "title": args.get("title"),
-                }
-            )
-            return None
-        if command_type == "hacs/repository/download":
-            # Mirror HACS: download flips installed; loading needs a restart.
-            for repo in self.state.get("hacs_repositories", []):
-                if str(repo.get("id")) == str(args.get("repository")):
-                    repo["installed"] = True
-            return None
-        if command_type == "backup/config/update":
-            return self._backup_config_update(args)
-        if command_type == "backup/generate":
-            return self._backup_generate(args)
-        if command_type == "config/core/update":
-            self.state["core_config"].update(args)
-            return None
-        if command_type == "backup/delete":
-            self.state["backups"] = [
-                b for b in self.state["backups"] if b["backup_id"] != args["backup_id"]
-            ]
-            return None
+        handler = self._EXACT_WRITE_HANDLERS.get(command_type)
+        if handler is not None:
+            return handler(self, command_type, args)
+        return self._write_registry_command(command_type, args)
+
+    def _write_registry_command(self, command_type: str, args: dict[str, Any]) -> Any:
         if command_type.endswith("_registry/create"):
             return self._registry_create(command_type, args)
         if command_type.endswith("_registry/delete"):
@@ -240,39 +267,6 @@ class SimWs:
                 return entry
         return None
 
-    async def _supervisor(self, args: dict[str, Any]) -> Any:
-        endpoint = args["endpoint"]
-        method = args.get("method", "get")
-        if method == "get":
-            return self._supervisor_read(endpoint)
-        self.writes.append(f"supervisor {method} {endpoint}")
-        return self._supervisor_write(endpoint, args.get("data"))
-
-    def _supervisor_read(self, endpoint: str) -> Any:
-        if endpoint == "/addons":
-            return {"addons": self.state["addons"]}
-        if endpoint.startswith("/addons/") and endpoint.endswith("/info"):
-            slug = endpoint.split("/")[2]
-            return self.state.get("addon_info", {}).get(slug, {})
-        return None
-
-    def _supervisor_write(self, endpoint: str, data: dict[str, Any] | None = None) -> None:
-        if endpoint.startswith("/addons/") and endpoint.endswith("/options"):
-            slug = endpoint.split("/")[2]
-            info = self.state.setdefault("addon_info", {}).setdefault(slug, {})
-            info.setdefault("options", {}).update((data or {}).get("options") or {})
-        elif endpoint.startswith("/store/addons/") and endpoint.endswith("/install"):
-            slug = endpoint.split("/")[3]
-            self.state["addons"].append({"slug": slug, "state": "stopped"})
-        elif endpoint.startswith("/addons/") and endpoint.endswith("/start"):
-            slug = endpoint.split("/")[2]
-            for addon in self.state["addons"]:
-                if addon["slug"] == slug:
-                    addon["state"] = "started"
-        elif endpoint.startswith("/addons/") and endpoint.endswith("/uninstall"):
-            slug = endpoint.split("/")[2]
-            self.state["addons"] = [a for a in self.state["addons"] if a["slug"] != slug]
-
     async def list_entities(self) -> list[dict[str, Any]]:
         return self.state["entities"]
 
@@ -281,19 +275,6 @@ class SimWs:
 
     async def connect(self) -> None:
         self.state.setdefault("ws_reconnects", []).append("connect")
-
-    async def supervisor_api(
-        self,
-        endpoint: str,
-        *,
-        method: str = "get",
-        payload: dict[str, Any] | None = None,
-        timeout: float = 900,
-    ) -> Any:
-        fields: dict[str, Any] = {"endpoint": endpoint, "method": method, "timeout": int(timeout)}
-        if payload is not None:
-            fields["data"] = payload
-        return await self.send_command("supervisor/api", fields=fields)
 
 
 #: registry name -> (state key, id field)
@@ -330,37 +311,47 @@ class SimRest:
             or {"type": "form", "flow_id": "sim-flow", "data_schema": []}
         )
 
-    async def advance_config_flow(self, flow_id: str, user_input: dict[str, Any]) -> dict[str, Any]:
-        self.writes.append(f"flow_advance {flow_id}")
-        self.state.setdefault("flow_inputs", []).append(dict(user_input))
+    def _next_flow_step(self, user_input: dict[str, Any]) -> dict[str, Any]:
         queue = self.state.get("flow_steps")
         if queue:
             # Scripted multi-step flow: each advance pops the next step.
-            step = dict(queue.pop(0))
-        else:
-            step = dict(self.state.get("flow_next_step") or {"type": "create_entry"})
-            if step.get("type") == "create_entry" and user_input.get("name"):
-                # Mirror HA: the created entity_id derives from the name.
-                slug = re.sub(r"[^a-z0-9]+", "_", str(user_input["name"]).lower()).strip("_")
-                self.state["entities"].append({"entity_id": f"sensor.{slug}"})
+            return dict(queue.pop(0))
+        step = dict(self.state.get("flow_next_step") or {"type": "create_entry"})
+        if step.get("type") == "create_entry" and user_input.get("name"):
+            # Mirror HA: the created entity_id derives from the name.
+            slug = re.sub(r"[^a-z0-9]+", "_", str(user_input["name"]).lower()).strip("_")
+            self.state["entities"].append({"entity_id": f"sensor.{slug}"})
+        return step
+
+    def _apply_flow_step_side_effects(self, step: dict[str, Any]) -> None:
         for entity in step.pop("add_entities", []):
             # Scripted side effect: entities the completing step materialises.
             self.state["entities"].append(dict(entity))
         for flow in step.pop("add_flows", []):
             # Scripted side effect: discovery flows a completing setup opens.
             self.state.setdefault("flow_progress", []).append(dict(flow))
+
+    def _finish_flow_if_create_entry(self, step: dict[str, Any], flow_id: str) -> None:
+        if step.get("type") != "create_entry":
+            return
         result = step.get("result")
-        if step.get("type") == "create_entry" and isinstance(result, dict):
+        if isinstance(result, dict):
             # Mirror HA: a completed flow's entry becomes readable back.
             self.state["config_entries"].append(dict(result))
-        if step.get("type") == "create_entry":
-            # Mirror HA: a flow that creates an entry is finished and leaves the
-            # progress list. Without this the fake reports a completed flow as
-            # still outstanding forever, so any caller that enumerates flows a
-            # second time sees work that no longer exists.
-            self.state["flow_progress"] = [
-                f for f in self.state.get("flow_progress", []) if f.get("flow_id") != flow_id
-            ]
+        # Mirror HA: a flow that creates an entry is finished and leaves the
+        # progress list. Without this the fake reports a completed flow as
+        # still outstanding forever, so any caller that enumerates flows a
+        # second time sees work that no longer exists.
+        self.state["flow_progress"] = [
+            f for f in self.state.get("flow_progress", []) if f.get("flow_id") != flow_id
+        ]
+
+    async def advance_config_flow(self, flow_id: str, user_input: dict[str, Any]) -> dict[str, Any]:
+        self.writes.append(f"flow_advance {flow_id}")
+        self.state.setdefault("flow_inputs", []).append(dict(user_input))
+        step = self._next_flow_step(user_input)
+        self._apply_flow_step_side_effects(step)
+        self._finish_flow_if_create_entry(step, flow_id)
         return step
 
     async def abort_config_flow(self, flow_id: str) -> None:

@@ -164,13 +164,6 @@ class DeviceAreaAnswer(BaseModel):
     area: str
 
 
-class AddonOptionsAnswer(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    slug: str
-    options: dict[str, Any]
-
-
 class AnswersRequest(BaseModel):
     """The ha-human-actions-answers contract (TAP-5945).
 
@@ -183,7 +176,6 @@ class AnswersRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     device_areas: list[DeviceAreaAnswer] = []
-    addon_options: list[AddonOptionsAnswer] = []
     teams: list[dict[str, str]] = []
     backup_password: SecretStr | None = None
 
@@ -415,7 +407,6 @@ async def answers(body: AnswersRequest) -> dict[str, Any]:
     """
     contract = Answers(
         device_areas=tuple((d.device_id, d.area) for d in body.device_areas),
-        addon_options=tuple((a.slug, a.options) for a in body.addon_options),
         teams=tuple(body.teams),
         backup_password=(body.backup_password.get_secret_value() if body.backup_password else None),
     )
