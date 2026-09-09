@@ -274,6 +274,13 @@ jobs:
           # "ModuleNotFoundError: No module named 'sqlalchemy'".
           pip install libs/homeiq-*/
 
+          # tests/integration/cross_group/test_zeek_pipeline.py imports the
+          # zeek-network-service parsers directly, which import influxdb_client_3
+          # (package influxdb3-python). Install the producer's own requirements
+          # file rather than a bare `pip install influxdb3-python` so the test
+          # environment tracks whatever the service actually declares.
+          pip install -r domains/data-collectors/zeek-network-service/requirements.txt
+
       - name: Run integration tests
         if: steps.check-integration.outputs.has_tests == 'true'
         run: |
