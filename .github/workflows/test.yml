@@ -115,6 +115,13 @@ jobs:
           # developer machine, and nothing had run it on a runner.
           sh scripts/ensure-network.sh
 
+          # homeiq_logs is also declared `external: true` (compose.yml:878-880)
+          # so compose refuses to create it — ensure-volumes.sh is the same
+          # out-of-band step scripts/start-stack.sh and scripts/domain.sh run
+          # right after ensure-network.sh. This job called only the network
+          # script, so `up` failed with 'external volume ... not found'.
+          sh scripts/ensure-volumes.sh
+
           docker compose $COMPOSE up -d --build $E2E_SERVICES
 
       - name: Wait for services to be healthy
