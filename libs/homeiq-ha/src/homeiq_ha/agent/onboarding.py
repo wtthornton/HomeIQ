@@ -31,17 +31,16 @@ Failures surface as :class:`OnboardingError` with a named
 credential: a silent fallback would reintroduce the constant-secret problem the
 generation exists to avoid.
 
-Dormant: nothing calls this yet
--------------------------------
-Nothing outside the tests constructs :class:`HAOnboarder`, and it is exported
-from no ``__init__``. That is deliberate, not an oversight. A production caller
-has to put the minted token *somewhere*, and the appliance secret store has not
-been chosen yet -- that decision is TAP-6571. Wiring a caller up before it lands
-would pick a storage mechanism by accident, in the one place nobody would think
-to look for the choice.
-
-TAP-6572 wires this into the boot path once TAP-6571 resolves. Until then the
-module is complete and tested but intentionally unreachable from production.
+First-boot caller: :func:`run_first_boot` (TAP-6570)
+-----------------------------------------------------
+:func:`run_first_boot` is the stable entry point a production caller uses. It
+never raises for an expected outcome -- ``ALREADY_ONBOARDED`` and every named
+failure state come back on ``FirstBootResult.state`` -- so a caller can branch
+on the state alone. It still does not decide *where* the minted token is
+stored: the appliance secret store is a separate decision (TAP-6571), owned by
+whichever caller persists ``FirstBootResult.credential``. ``HAOnboarder``
+itself is exported from no ``__init__``; only :func:`run_first_boot` and the
+public dataclasses are meant to be imported by other packages.
 """
 
 from __future__ import annotations
@@ -293,3 +292,45 @@ class HAOnboarder:
 
     async def __aexit__(self, *_exc: Any) -> None:
         await self.close()
+
+
+@dataclass(slots=True)
+class FirstBootResult:
+    """The outcome of one :func:`run_first_boot` call.
+
+    ``state`` is always set and is never a silent default: callers branch on
+    it instead of on whether an exception was raised, because
+    ``ALREADY_ONBOARDED`` is an expected outcome (a second boot of an
+    already-onboarded HA), not an error condition.
+    """
+
+    state: OnboardingState
+    credential: OwnerCredential | None = None
+    detail: str = ""
+
+
+async def run_first_boot(
+    base_url: str,
+    *,
+    timeout: float = 60.0,
+    username: str = _OWNER_USERNAME,
+    password: str | None = None,
+    lifespan_days: int = DEFAULT_LIFESPAN_DAYS,
+) -> FirstBootResult:
+    """Drive first-boot onboarding against ``base_url`` and report the outcome.
+
+    This is the stable entry point production callers use: Lane B3 (secret
+    persistence) consumes ``result.credential`` on ``COMPLETED``, and Lane A3
+    (readiness probe) consumes ``result.state`` directly, including
+    ``ALREADY_ONBOARDED`` after a restart. Neither has to catch
+    :class:`OnboardingError` — every outcome, success or named failure, comes
+    back on ``FirstBootResult.state``.
+    """
+    async with HAOnboarder(base_url=base_url, timeout=timeout) as onboarder:
+        try:
+            credential = await onboarder.onboard(
+                username=username, password=password, lifespan_days=lifespan_days
+            )
+        except OnboardingError as exc:
+            return FirstBootResult(state=exc.state, credential=None, detail=exc.detail)
+    return FirstBootResult(state=credential.state, credential=credential)
