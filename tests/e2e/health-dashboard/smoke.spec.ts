@@ -61,18 +61,15 @@ test.describe('Health Dashboard Smoke Tests @smoke', () => {
 
     // Should show at least one service health indicator. Scoped to
     // service cards, not the page as a whole: the status-filter <select>
-    // above the grid has <option>Healthy</option> etc. that also match a
-    // status-word regex and sort first in DOM order, but are hidden
-    // (unselected options of a closed native select) and fail
-    // toBeVisible(). The word list is every value STATUS_LABELS
-    // (health-dashboard/src/components/ui/icons.tsx) can produce — the
-    // one source of truth ServiceCard's status badge renders from — not a
-    // guessed subset: which word appears on the first card depends on
-    // that card's actual (possibly degraded, in a partial e2e stack)
-    // status, not on the test.
+    // above the grid has <option>Healthy</option> etc. that also match
+    // this regex and sort first in DOM order, but are hidden (unselected
+    // options of a closed native select) and fail toBeVisible(). Filtered
+    // (not `.first()` of all cards) because a card's own status word can
+    // be "Error", which this regex — deliberately, it predates this test —
+    // doesn't include; the first *matching* card is what the test means.
     const cardWithHealthText = page
       .locator('[data-testid="service-card"]')
-      .filter({ hasText: /healthy|unhealthy|running|warning|degraded|critical|error|offline|stopped/i })
+      .filter({ hasText: /healthy|unhealthy|degraded|running|stopped/i })
       .first();
     await expect(cardWithHealthText).toBeVisible({ timeout: 10000 });
   });
