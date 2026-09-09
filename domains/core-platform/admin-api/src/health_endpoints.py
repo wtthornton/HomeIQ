@@ -514,13 +514,15 @@ class HealthEndpoints:
         # Check InfluxDB
         try:
             influxdb_url = self.service_urls["influxdb"]
-            async with _health_client_session(5) as session:  # noqa: SIM117
-                async with session.get(f"{influxdb_url}/health") as response:
-                    dependencies_health["influxdb"] = {
-                        "status": "healthy" if response.status == 200 else "unhealthy",
-                        "last_check": datetime.now().isoformat(),
-                        "response_time_ms": response.headers.get("X-Response-Time", "N/A"),
-                    }
+            async with (
+                _health_client_session(5) as session,
+                session.get(f"{influxdb_url}/health") as response,
+            ):
+                dependencies_health["influxdb"] = {
+                    "status": "healthy" if response.status == 200 else "unhealthy",
+                    "last_check": datetime.now().isoformat(),
+                    "response_time_ms": response.headers.get("X-Response-Time", "N/A"),
+                }
         except Exception as e:
             dependencies_health["influxdb"] = {
                 "status": "unhealthy",
@@ -533,16 +535,18 @@ class HealthEndpoints:
             weather_api_key = os.getenv("WEATHER_API_KEY")
             if weather_api_key:
                 weather_url = self.service_urls["weather-api"]
-                async with _health_client_session(5) as session:  # noqa: SIM117
-                    async with session.get(
+                async with (
+                    _health_client_session(5) as session,
+                    session.get(
                         f"{weather_url}/weather",
                         params={"q": "London", "appid": weather_api_key},
-                    ) as response:
-                        dependencies_health["weather_api"] = {
-                            "status": "healthy" if response.status == 200 else "unhealthy",
-                            "last_check": datetime.now().isoformat(),
-                            "response_time_ms": response.headers.get("X-Response-Time", "N/A"),
-                        }
+                    ) as response,
+                ):
+                    dependencies_health["weather_api"] = {
+                        "status": "healthy" if response.status == 200 else "unhealthy",
+                        "last_check": datetime.now().isoformat(),
+                        "response_time_ms": response.headers.get("X-Response-Time", "N/A"),
+                    }
             else:
                 dependencies_health["weather_api"] = {
                     "status": "disabled",
@@ -576,9 +580,11 @@ class HealthEndpoints:
         """Check InfluxDB health"""
         try:
             influxdb_url = self.service_urls["influxdb"]
-            async with _health_client_session(5) as session:  # noqa: SIM117
-                async with session.get(f"{influxdb_url}/health") as response:
-                    return response.status == 200
+            async with (
+                _health_client_session(5) as session,
+                session.get(f"{influxdb_url}/health") as response,
+            ):
+                return response.status == 200
         except Exception as e:
             logger.error("InfluxDB health check failed: %s", e)
             return False
@@ -586,9 +592,11 @@ class HealthEndpoints:
     async def _check_service_health(self, service_url: str) -> bool:
         """Check service health via HTTP"""
         try:
-            async with _health_client_session(5) as session:  # noqa: SIM117
-                async with session.get(service_url) as response:
-                    return response.status == 200
+            async with (
+                _health_client_session(5) as session,
+                session.get(service_url) as response,
+            ):
+                return response.status == 200
         except Exception as e:
             logger.error("Service health check failed for %s: %s", service_url, e)
             return False
