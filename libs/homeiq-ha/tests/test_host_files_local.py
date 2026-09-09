@@ -38,7 +38,9 @@ async def test_local_target_round_trips_a_write_with_no_ssh_host_set(tmp_path, m
     monkeypatch.delenv("HOMEIQ_HA_SSH_HOST", raising=False)
     target_file = tmp_path / "configuration.yaml"
 
-    transport = host_files_from_env({"HOMEIQ_HA_BACKEND": "local", "HOMEIQ_HA_LOCAL_CONFIG_DIR": str(tmp_path)})
+    transport = host_files_from_env(
+        {"HOMEIQ_HA_BACKEND": "local", "HOMEIQ_HA_LOCAL_CONFIG_DIR": str(tmp_path)}
+    )
 
     assert isinstance(transport, LocalHostFiles)
     backup = await transport.write_text(str(target_file), "http:\n")
@@ -211,6 +213,8 @@ def test_config_yaml_raise_site_is_applicable_with_local_backend_no_ssh_host(tmp
 def test_zha_quirks_raise_site_is_applicable_with_local_backend_no_ssh_host(tmp_path, monkeypatch):
     monkeypatch.delenv("HOMEIQ_HA_SSH_HOST", raising=False)
     local = LocalHostFiles(LocalTarget(config_dir=str(tmp_path)))
-    recipe = AqaraFP1EQuirkRecipe(host_files=local, config_path=str(tmp_path / "configuration.yaml"))
+    recipe = AqaraFP1EQuirkRecipe(
+        host_files=local, config_path=str(tmp_path / "configuration.yaml")
+    )
 
     assert recipe._transport is local
