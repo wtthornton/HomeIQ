@@ -27,10 +27,8 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({ darkMode }): JSX.Eleme
       try {
         const data = await adminApi.getActiveAlerts();
         setAlerts(data);
-      } catch {
-        // adminApi.getActiveAlerts() already logs "API Error for <url>" via
-        // BaseApiClient.fetchWithErrorHandling; a second console.error here
-        // duplicated the same failure under an unrelated message.
+      } catch (error) {
+        console.error('Failed to fetch alerts:', error);
       } finally {
         setLoading(false);
       }
@@ -46,8 +44,8 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({ darkMode }): JSX.Eleme
     try {
       await adminApi.acknowledgeAlert(alertId);
       setAlerts((prev) => prev.filter((a) => a.id !== alertId));
-    } catch {
-      // Already logged by BaseApiClient.fetchWithErrorHandling.
+    } catch (error) {
+      console.error('Failed to acknowledge alert:', error);
     }
   };
 
@@ -56,8 +54,8 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({ darkMode }): JSX.Eleme
     try {
       await adminApi.resolveAlert(alertId);
       setAlerts((prev) => prev.filter((a) => a.id !== alertId));
-    } catch {
-      // Already logged by BaseApiClient.fetchWithErrorHandling.
+    } catch (error) {
+      console.error('Failed to resolve alert:', error);
     }
   };
 
