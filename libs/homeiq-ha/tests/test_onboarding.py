@@ -13,6 +13,7 @@ import asyncio
 from typing import Any
 
 import pytest
+from homeiq_ha.agent import onboarding
 from homeiq_ha.agent.onboarding import (
     HAOnboarder,
     OnboardingError,
@@ -184,3 +185,78 @@ def test_client_id_is_a_url_with_trailing_slash() -> None:
     """HA validates client_id as a URL matching the request origin."""
     assert HAOnboarder("http://localhost:8123")._client_id == "http://localhost:8123/"
     assert HAOnboarder("http://localhost:8123/")._client_id == "http://localhost:8123/"
+
+
+# --------------------------------------------------------------------------
+# run_first_boot — the caller-facing entry point (TAP-6570)
+#
+# Every outcome, including ALREADY_ONBOARDED and every named failure, must
+# come back on FirstBootResult.state rather than as a raised exception, so
+# Lane B3 (persist) and Lane A3 (readiness probe) can branch on state alone.
+# --------------------------------------------------------------------------
+
+
+def test_run_first_boot_reports_completed_without_raising(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _FakeOnboarder({"user": False})
+    monkeypatch.setattr(onboarding, "HAOnboarder", lambda *_a, **_kw: fake)
+
+    result = asyncio.run(onboarding.run_first_boot("http://ha.invalid"))
+
+    assert result.state is OnboardingState.COMPLETED
+    assert result.credential is not None
+    assert result.credential.token == "long-lived-token"
+    assert result.detail == ""
+
+
+def test_run_first_boot_reports_already_onboarded_without_raising(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A second boot must report ALREADY_ONBOARDED as data, not as an exception
+    the caller has to catch — it is an expected outcome, not a failure."""
+    fake = _FakeOnboarder({"user": True})
+    monkeypatch.setattr(onboarding, "HAOnboarder", lambda *_a, **_kw: fake)
+
+    result = asyncio.run(onboarding.run_first_boot("http://ha.invalid"))
+
+    assert result.state is OnboardingState.ALREADY_ONBOARDED
+    assert result.credential is None
+
+
+@pytest.mark.parametrize(
+    ("failing_step", "expected"),
+    [
+        ("create", OnboardingState.USER_STEP_REJECTED),
+        ("exchange", OnboardingState.TOKEN_EXCHANGE_FAILED),
+        ("mint", OnboardingState.LONG_LIVED_MINT_FAILED),
+    ],
+)
+def test_run_first_boot_reports_named_failure_without_raising(
+    monkeypatch: pytest.MonkeyPatch, failing_step: str, expected: OnboardingState
+) -> None:
+    """Never a silent default credential on failure — the state is always named."""
+    error = OnboardingError(expected, "boom")
+    fake = _FakeOnboarder({"user": False}, **{failing_step: error})
+    monkeypatch.setattr(onboarding, "HAOnboarder", lambda *_a, **_kw: fake)
+
+    result = asyncio.run(onboarding.run_first_boot("http://ha.invalid"))
+
+    assert result.state is expected
+    assert result.credential is None
+    assert result.detail == "boom"
+
+
+def test_run_first_boot_passes_lifespan_and_username_through(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _FakeOnboarder({"user": False})
+    monkeypatch.setattr(onboarding, "HAOnboarder", lambda *_a, **_kw: fake)
+
+    result = asyncio.run(
+        onboarding.run_first_boot("http://ha.invalid", username="custom-owner", lifespan_days=7)
+    )
+
+    assert result.credential is not None
+    assert result.credential.username == "custom-owner"
+    assert fake.calls["mint"]["lifespan_days"] == 7

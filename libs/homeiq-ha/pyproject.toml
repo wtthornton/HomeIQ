@@ -23,6 +23,16 @@ dependencies = [
     "pydantic>=2.0",
 ]
 
+[tool.pytest.ini_options]
+markers = [
+    "integration: integration tests (real Docker/HA); run with pytest -m integration",
+]
+# The default lib-ci invocation (`pytest libs/homeiq-ha -q`) has no container
+# to onboard, so integration-marked tests are excluded from the default run
+# the same way the repo-wide `integration` marker already documents itself
+# ("run with pytest -m integration") — not a skip inside the test (TAP-6570).
+addopts = ["-m", "not integration"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
