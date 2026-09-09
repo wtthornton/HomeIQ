@@ -202,3 +202,43 @@ async def test_network_capture_step_is_absent_while_not_ready(sim: SimHA) -> Non
     not_ready = ReadinessResult(ReadinessState.NOT_READY, "http-500")
     payload = await build_queue(sim, [], readiness=not_ready)
     assert all(i["kind"] != "opt_in" for i in payload["items"])
+
+
+@pytest.mark.asyncio
+async def test_build_queue_holds_before_readiness_and_issues_no_audit_reads(
+    sim: SimHA,
+) -> None:
+    """VAL-040 (hold): setup cannot proceed before the shipped HA answers
+    ready. A not-ready result must short-circuit before HAInitAgent.audit
+    ever runs — zero outcomes, zero reads, one readiness item, HTTP-200-shaped."""
+    from homeiq_ha.agent.readiness import ReadinessResult, ReadinessState
+    from homeiq_ha.agent.recipes import default_recipes
+
+    not_ready = ReadinessResult(ReadinessState.NOT_READY, "http-500")
+
+    payload = await build_queue(sim, default_recipes(), readiness=not_ready)
+
+    assert payload["ready"] is False
+    assert payload["readiness"] == "not-ready:http-500"
+    assert payload["audit_outcomes"] == 0
+    assert payload["reads"] == []
+    assert sim.writes == []
+    (item,) = payload["items"]
+    assert item["kind"] == "readiness"
+    assert item["state"] == "not-ready:http-500"
+
+
+@pytest.mark.asyncio
+async def test_build_queue_proceeds_to_the_live_audit_once_ready(sim: SimHA) -> None:
+    """VAL-040 (proceed): the same gate, with the readiness stub returning
+    ready, reaches the ordinary live-audit assembly."""
+    from homeiq_ha.agent.recipes import default_recipes
+
+    payload = await build_queue(sim, default_recipes(), readiness=_READY)
+
+    assert payload["ready"] is True
+    assert payload["readiness"] == "ready"
+    assert payload["audit_outcomes"] > 0
+    assert payload["reads"], "read journal is the read-only evidence"
+    blocked_ids = {i["id"] for i in payload["items"] if i["kind"] == "audit_blocked"}
+    assert "audit:organization.device_areas" in blocked_ids
