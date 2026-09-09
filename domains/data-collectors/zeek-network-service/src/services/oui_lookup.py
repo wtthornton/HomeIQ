@@ -4,6 +4,16 @@ Resolves a MAC address to its manufacturer using the full IEEE dataset built
 into the image by ``scripts/fetch_ieee_oui.py``, falling back to the curated
 dictionary below when that file is absent.
 
+The IEEE registry stores each assignee's raw legal-entity name (for example
+``"Google, Inc."``, ``"Amazon Technologies Inc."``, ``"TP-LINK TECHNOLOGIES
+CO.,LTD."``) rather than the display name a customer recognises. For the
+~200 prefixes it knows, the curated dictionary below is that display-name
+normalisation: it is layered on top of the IEEE dataset and wins wherever
+both define the same block, so ``lookup()`` returns e.g. ``"Google"`` and
+``"TP-Link"`` for those vendors while still falling through to the IEEE
+dataset's raw legal name for the ~53,000 prefixes the curated dict does not
+cover.
+
 **Longest prefix wins.** IEEE subdivides 24-bit MA-L blocks into 28-bit MA-M
 and 36-bit MA-S assignments held by *different* companies, so a lookup that
 only ever reads 3 octets reports the block holder rather than the actual
@@ -220,6 +230,10 @@ class OUILookup:
         path = dataset_path or IEEE_DATASET_PATH
         try:
             self._db = _load_ieee_dataset(path)
+            # Curated display names win over the IEEE dataset's raw legal-entity
+            # names for the prefixes it defines (see module docstring); it never
+            # removes an IEEE-only prefix.
+            self._db.update(_curated_fallback())
             self.source = "ieee"
         except (OSError, EOFError, gzip.BadGzipFile) as exc:
             self._db = _curated_fallback()
