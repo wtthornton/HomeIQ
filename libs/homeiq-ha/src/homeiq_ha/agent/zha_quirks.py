@@ -23,9 +23,10 @@ that none of them can be half-done:
 
 The engine's contract is kept literally: ``check`` and ``plan`` only ever call
 ``read_text``, a converged instance produces an empty plan and a zero-change
-``apply``, and without ``HOMEIQ_HA_SSH_HOST`` there is no write path so the
-recipe is ``NOT_APPLICABLE`` rather than blocked on a person — nobody can
-unblock a missing transport by clicking something in Home Assistant.
+``apply``, and with no write path configured (see :mod:`.host_files` for the
+``HOMEIQ_HA_BACKEND`` selection) the recipe is ``NOT_APPLICABLE`` rather than
+blocked on a person — nobody can unblock a missing transport by clicking
+something in Home Assistant.
 """
 
 from __future__ import annotations
@@ -164,8 +165,8 @@ class AqaraFP1EQuirkRecipe(Recipe):
     def _transport(self) -> HostFiles:
         if self.host_files is None:
             raise HAClientError(
-                f"no SSH write path to {self.quirks_dir}: set HOMEIQ_HA_SSH_HOST "
-                "(see docs/deployment/DEPLOYMENT_RUNBOOK.md)"
+                f"no write path to {self.quirks_dir}: set HOMEIQ_HA_SSH_HOST or "
+                "HOMEIQ_HA_BACKEND=local (see docs/deployment/DEPLOYMENT_RUNBOOK.md)"
             )
         return self.host_files
 
@@ -254,7 +255,7 @@ class AqaraFP1EQuirkRecipe(Recipe):
         if self.host_files is None:
             return CheckResult(
                 CheckStatus.NOT_APPLICABLE,
-                f"no SSH write path to {self.quirks_dir}; the quirk cannot be deployed",
+                f"no write path to {self.quirks_dir}; the quirk cannot be deployed",
                 {"quirks_dir": self.quirks_dir, "env": "HOMEIQ_HA_SSH_HOST"},
             )
         devices = await self._fp1e_devices(ha)
