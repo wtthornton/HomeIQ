@@ -812,6 +812,13 @@ class ValidationPipeline:
         warnings = []
         errors = []
 
+        if not isinstance(data, dict):
+            # Non-dict roots (None from an empty document, or a list) are
+            # already reported as an error by _validate_schema (Stage 2);
+            # every check below assumes dict access and has nothing
+            # meaningful to add for a root that isn't a dict.
+            return {"valid": True, "errors": errors, "warnings": warnings}
+
         # Check for deprecated error handling
         if "continue_on_error" in data:
             warnings.append("Use 'error' field instead of deprecated 'continue_on_error'")
