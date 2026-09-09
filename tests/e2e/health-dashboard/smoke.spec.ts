@@ -63,10 +63,10 @@ test.describe('Health Dashboard Smoke Tests @smoke', () => {
     // service cards, not the page as a whole: the status-filter <select>
     // above the grid has <option>Healthy</option> etc. that also match
     // this regex and sort first in DOM order, but are hidden (unselected
-    // options of a closed native select) and fail toBeVisible(). Filtered
-    // (not `.first()` of all cards) because a card's own status word can
-    // be "Error", which this regex — deliberately, it predates this test —
-    // doesn't include; the first *matching* card is what the test means.
+    // options of a closed native select) and fail toBeVisible(). The word
+    // list is the original one — a service the e2e stack actually starts
+    // must report "Running"; a card reading "Error" is a real failure and
+    // this assertion is meant to catch it.
     const cardWithHealthText = page
       .locator('[data-testid="service-card"]')
       .filter({ hasText: /healthy|unhealthy|degraded|running|stopped/i })
