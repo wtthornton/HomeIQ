@@ -6,6 +6,7 @@ Epic 17.2: Enhanced Service Health Monitoring
 import asyncio
 import logging
 import os
+import socket
 from datetime import datetime
 from typing import Any
 
@@ -22,6 +23,30 @@ from homeiq_observability.alert_manager import get_alert_manager
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
+
+# Budget for one service health probe. Every probe runs concurrently, so this
+# is also the ceiling on /health/services as a whole.
+SERVICE_PROBE_TIMEOUT_SECONDS = 2.0
+
+
+def _health_client_session(total_seconds: float) -> aiohttp.ClientSession:
+    """Build the HTTP client every health probe uses.
+
+    Pinned to IPv4. Docker's embedded resolver answers the A query for a live
+    compose service straight from its own table, but forwards the AAAA query
+    to the host's upstream resolver, which on a GitHub-hosted runner never
+    answers. ``getaddrinfo`` waits for both families, so with the default
+    AF_UNSPEC every probe spends its whole budget in name resolution and comes
+    back "unhealthy" -- including the probes aimed at services that are up and
+    answering. Every HomeIQ compose network is IPv4-only, so asking for A
+    records alone loses nothing and removes the stall. ``ttl_dns_cache`` keeps
+    resolved addresses for the life of the session so one fan-out does not
+    re-resolve the same host once per target.
+    """
+    return aiohttp.ClientSession(
+        timeout=aiohttp.ClientTimeout(total=total_seconds),
+        connector=aiohttp.TCPConnector(family=socket.AF_INET, ttl_dns_cache=300),
+    )
 
 
 class HealthStatus(BaseModel):
@@ -418,6 +443,17 @@ class HealthEndpoints:
                 )
 
         except TimeoutError:
+            # Logged, not silent: a timeout here is how a service that is
+            # actually up gets reported "unhealthy", and the list of names
+            # that timed out is the only way to tell that apart from a
+            # service that is genuinely absent.
+            logger.warning(
+                "Health check for %s timed out after %.1fs (%s%s)",
+                service_name,
+                SERVICE_PROBE_TIMEOUT_SECONDS,
+                service_url,
+                health_path,
+            )
             return ServiceHealth(
                 name=service_name,
                 status="unhealthy",
@@ -449,7 +485,7 @@ class HealthEndpoints:
         # timeouts into a multi-second response — long enough to blow past a
         # caller's own UI-render timeout. A single shared session runs every
         # check concurrently instead.
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=2)) as session:
+        async with _health_client_session(SERVICE_PROBE_TIMEOUT_SECONDS) as session:
             results = await asyncio.gather(
                 *(
                     self._check_one_service(
@@ -478,7 +514,7 @@ class HealthEndpoints:
         # Check InfluxDB
         try:
             influxdb_url = self.service_urls["influxdb"]
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:  # noqa: SIM117
+            async with _health_client_session(5) as session:  # noqa: SIM117
                 async with session.get(f"{influxdb_url}/health") as response:
                     dependencies_health["influxdb"] = {
                         "status": "healthy" if response.status == 200 else "unhealthy",
@@ -497,7 +533,7 @@ class HealthEndpoints:
             weather_api_key = os.getenv("WEATHER_API_KEY")
             if weather_api_key:
                 weather_url = self.service_urls["weather-api"]
-                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:  # noqa: SIM117
+                async with _health_client_session(5) as session:  # noqa: SIM117
                     async with session.get(
                         f"{weather_url}/weather",
                         params={"q": "London", "appid": weather_api_key},
@@ -540,7 +576,7 @@ class HealthEndpoints:
         """Check InfluxDB health"""
         try:
             influxdb_url = self.service_urls["influxdb"]
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:  # noqa: SIM117
+            async with _health_client_session(5) as session:  # noqa: SIM117
                 async with session.get(f"{influxdb_url}/health") as response:
                     return response.status == 200
         except Exception as e:
@@ -550,7 +586,7 @@ class HealthEndpoints:
     async def _check_service_health(self, service_url: str) -> bool:
         """Check service health via HTTP"""
         try:
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:  # noqa: SIM117
+            async with _health_client_session(5) as session:  # noqa: SIM117
                 async with session.get(service_url) as response:
                     return response.status == 200
         except Exception as e:
