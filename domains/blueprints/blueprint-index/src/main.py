@@ -8,6 +8,7 @@ from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 from .api.routes import router
 from .config import settings
 from .database import close_db, init_db
+from .scheduler import IndexRefreshScheduler
 
 
 def _configure_logging() -> None:
@@ -37,9 +38,22 @@ async def _startup_db() -> None:
         logger.warning("Database unavailable -- starting in degraded mode")
 
 
+refresh_scheduler = IndexRefreshScheduler()
+
+
+async def _start_refresh_scheduler() -> None:
+    refresh_scheduler.start()
+
+
+async def _stop_refresh_scheduler() -> None:
+    refresh_scheduler.stop()
+
+
 lifespan = ServiceLifespan(settings.service_name)
 lifespan.on_startup(_startup_db, name="database")
+lifespan.on_startup(_start_refresh_scheduler, name="index-refresh-scheduler")
 lifespan.on_shutdown(close_db, name="database")
+lifespan.on_shutdown(_stop_refresh_scheduler, name="index-refresh-scheduler")
 
 
 # ---------------------------------------------------------------------------

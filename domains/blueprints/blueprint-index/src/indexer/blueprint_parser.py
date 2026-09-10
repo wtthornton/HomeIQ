@@ -246,6 +246,7 @@ class BlueprintParser:
                 updated_at=updated_at or datetime.now(UTC),
                 indexed_at=datetime.now(UTC),
                 yaml_content=yaml_content,
+                content_trust="untrusted",
             )
 
             return blueprint

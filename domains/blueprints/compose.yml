@@ -103,7 +103,10 @@ services:
     restart: unless-stopped
     ports:
       - "8040:8035"
+    env_file:
+      - ../../.env
     environment:
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq
       - PORT=8035
       - HOST=0.0.0.0
       - MODEL_PATH=./models/rule_recommender.pkl

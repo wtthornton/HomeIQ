@@ -94,6 +94,14 @@ class IndexedBlueprint(Base):
     # Full YAML content
     yaml_content = Column(Text)
 
+    # Content provenance -- crawled from GitHub/Discourse, never authored by
+    # this service. Downstream consumers (blueprint-suggestion-service, any
+    # future automation-apply flow) must treat this as untrusted third-party
+    # content, not as vetted configuration.
+    content_trust = Column(
+        String(20), nullable=False, default="untrusted", server_default="untrusted"
+    )
+
     # Relationships
     inputs_rel = relationship(
         "BlueprintInput", back_populates="blueprint", cascade="all, delete-orphan"
@@ -134,6 +142,7 @@ class IndexedBlueprint(Base):
             "complexity": self.complexity,
             "author": self.author,
             "ha_min_version": self.ha_min_version,
+            "content_trust": self.content_trust,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

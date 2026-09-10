@@ -94,6 +94,23 @@ def client():
         yield TestClient(app, raise_server_exceptions=False)
 
 
+@pytest.fixture()
+def client_no_model():
+    """Test client with no recommender loaded (no trained model on disk)."""
+    mock_store = _mock_feedback_store()
+
+    from src.main import app
+
+    with (
+        patch("src.api.routes._recommender", None),
+        patch("src.api.routes._feedback_store", mock_store),
+        patch("src.api.routes._memory_client", None),
+        patch("src.api.routes.init_feedback_store", return_value=mock_store),
+        patch("src.api.routes.init_memory_client", new_callable=AsyncMock),
+    ):
+        yield TestClient(app, raise_server_exceptions=False)
+
+
 # ---------------------------------------------------------------------------
 # Health
 # ---------------------------------------------------------------------------
@@ -129,6 +146,14 @@ class TestModelInfoEndpoint:
         assert "factors" in data
         assert "num_users" in data
         assert "num_patterns" in data
+
+    def test_model_info_no_model_returns_200_degraded(self, client_no_model):
+        """No trained model on disk is a named degraded state, not a bare 503 (TAP-7312)."""
+        response = client_no_model.get("/api/v1/model/info")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "not_loaded"
+        assert data["is_fitted"] is False
 
 
 # ---------------------------------------------------------------------------

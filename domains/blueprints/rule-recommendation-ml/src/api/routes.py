@@ -74,6 +74,7 @@ class FeedbackResponse(BaseModel):
 class ModelInfoResponse(BaseModel):
     """Model information and statistics."""
 
+    status: str = Field(..., description="'loaded' or 'not_loaded' (degraded, no trained model)")
     is_fitted: bool
     factors: int
     iterations: int
@@ -124,11 +125,16 @@ def get_feedback_store() -> FeedbackStore:
     return _feedback_store
 
 
-def init_feedback_store(db_path: Path | str | None = None) -> FeedbackStore:
-    """Create and set the module-level feedback store singleton."""
+def init_feedback_store(db_url: str | None = None) -> FeedbackStore:
+    """Create and set the module-level feedback store singleton.
+
+    ``db_url`` must be a DB connection string (e.g.
+    ``postgresql+asyncpg://...``), never a filesystem path -- FeedbackStore
+    talks to PostgreSQL, not a local file.
+    """
     global _feedback_store
-    _feedback_store = FeedbackStore(db_path)
-    logger.info("Feedback store configured (db_path=%s)", db_path)
+    _feedback_store = FeedbackStore(db_url)
+    logger.info("Feedback store configured (db_url=%s)", db_url)
     return _feedback_store
 
 
@@ -238,11 +244,29 @@ async def health_check():
 
 @router.get("/model/info", response_model=ModelInfoResponse)
 async def get_model_info():
-    """Get information about the loaded model."""
-    recommender = get_recommender()
-    info = recommender.get_model_info()
+    """Get information about the loaded model.
+
+    Returns a named degraded state (status="not_loaded") instead of a bare
+    503 when no trained model is on disk yet -- there being no model is an
+    expected, recoverable condition (train one and restart), not a service
+    failure.
+    """
+    if _recommender is None:
+        return ModelInfoResponse(
+            status="not_loaded",
+            is_fitted=False,
+            factors=0,
+            iterations=0,
+            num_users=0,
+            num_patterns=0,
+            matrix_shape=None,
+            matrix_nnz=0,
+        )
+
+    info = _recommender.get_model_info()
 
     return ModelInfoResponse(
+        status="loaded",
         is_fitted=info["is_fitted"],
         factors=info["factors"],
         iterations=info["iterations"],
