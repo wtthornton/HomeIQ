@@ -13,19 +13,22 @@ import asyncio
 import contextlib
 import time
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import aiohttp
 from fastapi import APIRouter
 from homeiq_observability.logging_config import log_error_with_context, setup_logging
-from homeiq_resilience import StandardHealthCheck
 from influxdb_client_3 import InfluxDBClient3, Point
 
 from ...config import Settings, settings
 from ..base import CollectorAdapter, with_adapter_timeout
 from .health_check import HealthCheckHandler
-from .meters.base import MeterAdapter
 from .meters.home_assistant import HomeAssistantAdapter
+
+if TYPE_CHECKING:
+    from homeiq_resilience import StandardHealthCheck
+
+    from .meters.base import MeterAdapter
 
 NAME = "smart_meter"
 ADAPTER_TIMEOUT_SECONDS = 15.0

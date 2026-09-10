@@ -45,7 +45,7 @@ class CollectorAdapter(ABC):
         """Stop the adapter, releasing sessions and background tasks."""
         return None
 
-    def register_health(self, health: StandardHealthCheck) -> None:
+    def register_health(self, _health: StandardHealthCheck) -> None:
         """Register this adapter's readiness checks on the shared health check."""
         return None
 

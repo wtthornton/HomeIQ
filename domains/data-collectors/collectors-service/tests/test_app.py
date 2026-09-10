@@ -14,7 +14,7 @@ from src.main import __version__
 
 
 def test_root_is_sports_adapter_root(collectors_client):
-    """"/" is owned by the sports adapter (unchanged from sports-api's own root);
+    """ "/" is owned by the sports adapter (unchanged from sports-api's own root);
     create_app()'s generic root is explicitly stripped in src/main.py so the
     two don't collide."""
     response = collectors_client.get("/")

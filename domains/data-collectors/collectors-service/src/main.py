@@ -14,11 +14,12 @@ those tasks run, not how they're isolated from each other.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from homeiq_observability.logging_config import setup_logging
 from homeiq_resilience import ServiceLifespan, StandardHealthCheck, create_app
 
 from . import __version__
-from .adapters import CollectorAdapter
 from .adapters.air_quality import adapter as air_quality_adapter
 from .adapters.calendar import adapter as calendar_adapter
 from .adapters.electricity_pricing import adapter as electricity_pricing_adapter
@@ -26,6 +27,9 @@ from .adapters.smart_meter import adapter as smart_meter_adapter
 from .adapters.sports import adapter as sports_adapter
 from .adapters.weather import adapter as weather_adapter
 from .config import settings
+
+if TYPE_CHECKING:
+    from .adapters import CollectorAdapter
 
 SERVICE_NAME = settings.service_name
 SERVICE_VERSION = __version__

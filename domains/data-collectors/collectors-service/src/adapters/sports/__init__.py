@@ -17,18 +17,20 @@ import time
 from collections import defaultdict
 from contextlib import suppress
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 import aiohttp
 from fastapi import APIRouter, Depends, Header, HTTPException
 from homeiq_observability.logging_config import setup_logging
-from homeiq_resilience import StandardHealthCheck
 from influxdb_client_3 import InfluxDBClient3, Point
 from pydantic import BaseModel
 
 from ...config import settings
 from ..base import CollectorAdapter, with_adapter_timeout
+
+if TYPE_CHECKING:
+    from homeiq_resilience import StandardHealthCheck
 
 NAME = "sports"
 ADAPTER_TIMEOUT_SECONDS = 15.0
