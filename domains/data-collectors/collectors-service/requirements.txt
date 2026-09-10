@@ -1,0 +1,22 @@
+# Collectors Service Dependencies
+# Union of the six retired services' requirements (weather-api, sports-api,
+# air-quality-service, electricity-pricing-service, calendar-service,
+# smart-meter-service), TAP-7274.
+
+fastapi>=0.115.0,<1.0.0
+uvicorn[standard]>=0.30.0,<1.0.0
+aiohttp>=3.13.3,<4.0.0  # CVE-2025-69223..69230 fix — min 3.13.3
+python-dotenv>=1.0.1,<2.0.0
+pydantic>=2.9.0,<3.0.0
+pydantic-settings>=2.6.0,<3.0.0
+influxdb3-python[pandas]>=0.3.0,<1.0.0
+websockets>=13.0,<16.0  # homeiq_ha needs websockets.asyncio (calendar adapter)
+pytest>=8.3.0,<10.0.0
+pytest-asyncio>=0.23.0,<2.0.0
+httpx>=0.27.0,<0.29.0
+
+# HomeIQ shared libraries (installed from libs/ in Docker)
+homeiq-observability>=1.0.0
+homeiq-resilience>=1.0.0
+homeiq-data>=1.0.0
+homeiq-ha>=1.0.0

@@ -1,0 +1,197 @@
+"""
+Unit tests for air quality service configuration and validation
+"""
+
+import os
+from unittest.mock import patch
+
+import pytest
+
+
+class TestServiceConfiguration:
+    """Test service configuration parsing"""
+
+    def test_no_provider_credential_required(self):
+        """
+        GIVEN: No weather-provider API key in the environment
+        WHEN: Initialize service
+        THEN: Should construct successfully — Open-Meteo needs no credential
+        """
+        from src.adapters.air_quality import AirQualityService
+
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
+            service = AirQualityService()
+            assert service.base_url.startswith("https://air-quality-api.open-meteo.com")
+
+    def test_missing_influxdb_token(self):
+        """
+        GIVEN: No INFLUXDB_TOKEN environment variable
+        WHEN: Initialize service
+        THEN: Should raise ValueError
+        """
+        from src.adapters.air_quality import AirQualityService
+
+        with (
+            patch.dict(os.environ, {"INFLUXDB_TOKEN": ""}, clear=True),
+            pytest.raises(ValueError, match="INFLUXDB_TOKEN environment variable is required"),
+        ):
+            AirQualityService()
+
+    def test_default_location(self):
+        """
+        GIVEN: No LATITUDE/LONGITUDE set
+        WHEN: Initialize service
+        THEN: Should default to Las Vegas (36.1699, -115.1398)
+        """
+        from src.adapters.air_quality import AirQualityService
+
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
+            service = AirQualityService()
+            assert service.latitude == "36.1699"
+            assert service.longitude == "-115.1398"
+
+    def test_custom_location(self):
+        """
+        GIVEN: Custom LATITUDE/LONGITUDE
+        WHEN: Initialize service
+        THEN: Should use custom location
+        """
+        from src.adapters.air_quality import AirQualityService
+
+        with patch.dict(
+            os.environ,
+            {
+                "INFLUXDB_TOKEN": "test-token",
+                "AIR_QUALITY_LATITUDE": "40.7128",
+                "AIR_QUALITY_LONGITUDE": "-74.0060",
+            },
+            clear=True,
+        ):
+            service = AirQualityService()
+            assert service.latitude == "40.7128"
+            assert service.longitude == "-74.0060"
+
+    def test_default_influxdb_url(self):
+        """
+        GIVEN: No INFLUXDB_URL set
+        WHEN: Initialize service
+        THEN: Should default to http://influxdb:8086
+        """
+        from src.adapters.air_quality import AirQualityService
+
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
+            service = AirQualityService()
+            assert service.influxdb_url == "http://influxdb:8086"
+
+    def test_default_influxdb_org(self):
+        """
+        GIVEN: No INFLUXDB_ORG set
+        WHEN: Initialize service
+        THEN: Should default to 'home_assistant'
+        """
+        from src.adapters.air_quality import AirQualityService
+
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
+            service = AirQualityService()
+            assert service.influxdb_org == "homeiq"  # BaseServiceSettings default
+
+    def test_default_influxdb_bucket(self):
+        """
+        GIVEN: No INFLUXDB_BUCKET set
+        WHEN: Initialize service
+        THEN: Should default to 'events'
+        """
+        from src.adapters.air_quality import AirQualityService
+
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
+            service = AirQualityService()
+            assert service.influxdb_bucket == "home_assistant_events"  # BaseServiceSettings default
+
+    def test_fetch_interval_default(self):
+        """
+        GIVEN: Service instance
+        WHEN: Check fetch_interval
+        THEN: Should be 3600 seconds (1 hour)
+        """
+        from src.adapters.air_quality import AirQualityService
+
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
+            service = AirQualityService()
+            assert service.fetch_interval == 3600
+
+    def test_cache_duration_default(self):
+        """
+        GIVEN: Service instance
+        WHEN: Check cache_duration
+        THEN: Should be 60 minutes
+        """
+        from src.adapters.air_quality import AirQualityService
+
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
+            service = AirQualityService()
+            assert service.cache_duration == 60
+
+    def test_base_url_configured(self):
+        """
+        GIVEN: Service instance
+        WHEN: Check base_url
+        THEN: Should be the Open-Meteo air-quality endpoint
+        """
+        from src.adapters.air_quality import AirQualityService
+
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
+            service = AirQualityService()
+            assert service.base_url == "https://air-quality-api.open-meteo.com/v1/air-quality"
+
+
+class TestCompleteConfiguration:
+    """Test complete service configuration"""
+
+    def test_all_custom_configuration(self):
+        """
+        GIVEN: All environment variables set to custom values
+        WHEN: Initialize service
+        THEN: Should use all custom values
+        """
+        from src.adapters.air_quality import AirQualityService
+
+        custom_env = {
+            "INFLUXDB_TOKEN": "custom-token-12345",
+            "INFLUXDB_URL": "http://prod-influxdb:8086",
+            "INFLUXDB_ORG": "production-org",
+            "INFLUXDB_BUCKET": "production-events",
+            "AIR_QUALITY_LATITUDE": "51.5074",
+            "AIR_QUALITY_LONGITUDE": "-0.1278",
+            "HOME_ASSISTANT_URL": "http://ha:8123",
+            "HOME_ASSISTANT_TOKEN": "ha-token",
+        }
+
+        with patch.dict(os.environ, custom_env, clear=True):
+            service = AirQualityService()
+
+            assert service.influxdb_token == "custom-token-12345"
+            assert service.influxdb_url == "http://prod-influxdb:8086"
+            assert service.influxdb_org == "production-org"
+            assert service.influxdb_bucket == "production-events"
+            assert service.latitude == "51.5074"
+            assert service.longitude == "-0.1278"
+            assert service.ha_url == "http://ha:8123"
+            assert service.ha_token == "ha-token"
+
+    def test_minimal_configuration(self):
+        """
+        GIVEN: Only required environment variables set
+        WHEN: Initialize service
+        THEN: Should use defaults for all other values
+        """
+        from src.adapters.air_quality import AirQualityService
+
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
+            service = AirQualityService()
+
+            assert service.influxdb_token == "test-token"
+            assert service.influxdb_url == "http://influxdb:8086"
+            assert service.influxdb_org == "homeiq"  # BaseServiceSettings default
+            assert service.influxdb_bucket == "home_assistant_events"  # BaseServiceSettings default
+            assert service.latitude == "36.1699"
+            assert service.longitude == "-115.1398"
