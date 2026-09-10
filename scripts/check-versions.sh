@@ -35,8 +35,7 @@ SERVICES=(
   "model-server:8026"
   "device-intelligence-service:8028"
   # Tier 4: Automation Core
-  "ha-ai-agent-service:8030"
-  "ai-automation-service-new:8036"
+  "automation-domain:8030"
   "automation-linter:8016"
   "yaml-validation-service:8037"
   "automation-trace-service:8044"
@@ -47,7 +46,6 @@ SERVICES=(
   "automation-miner:8029"
   "rule-recommendation-ml:8040"
   # Tier 6: Energy Analytics
-  "proactive-agent-service:8031"
   # Tier 7: Device Management
   "device-health-monitor:8019"
   "device-setup-assistant:8021"
@@ -59,7 +57,6 @@ SERVICES=(
   "ai-pattern-service:8034"
   "api-automation-edge:8041"
   # Tier 9: Frontends
-  "ai-automation-ui:3001"
   "observability-dashboard:8501"
 )
 

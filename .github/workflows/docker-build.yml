@@ -33,13 +33,10 @@ jobs:
           - admin-api
           - collectors-service
           - health-dashboard
-          - ai-automation-service-new
-          - ai-automation-ui
+          - automation-domain
           - log-aggregator
           - model-server
           - ai-pattern-service
-          - ha-ai-agent-service
-          - proactive-agent-service
           - device-intelligence-service
           - automation-miner
           - ha-setup-service
@@ -161,13 +158,10 @@ jobs:
           - admin-api
           - collectors-service
           - health-dashboard
-          - ai-automation-service-new
-          - ai-automation-ui
+          - automation-domain
           - log-aggregator
           - model-server
           - ai-pattern-service
-          - ha-ai-agent-service
-          - proactive-agent-service
           - device-intelligence-service
           - automation-miner
           - ha-setup-service

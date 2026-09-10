@@ -1,0 +1,54 @@
+# Answer one HomeIQ conversation turn (TAP-7275).
+#
+# Serves automation-domain's agent slice: POST /api/v1/chat. This workflow is
+# where the iterative tool-calling loop went — HomeIQ used to call a provider,
+# execute whatever Home Assistant tools the model named, feed the results back
+# and repeat. The gene reaches the same house data through the homeiq MCP read
+# tools, so the loop happens inside the run.
+#
+# HomeIQ still owns the conversation: it assembles the system prompt from its
+# own context builder, passes the prior turns, and persists the result.
+
+name: assistant-chat
+spec_version: 2
+
+inputs:
+  - name: message
+    type: string
+    required: true
+    description: "The person's message for this turn"
+  - name: house_context
+    type: string
+    required: false
+    description: "HomeIQ's assembled system prompt: entity summary, areas, capabilities, memories"
+    default: ""
+  - name: conversation
+    type: string
+    required: false
+    description: "JSON array of the prior turns, each {role, content}, already trimmed to the token budget"
+    default: "[]"
+
+on_error: fail
+
+nodes:
+  answer:
+    kind: task
+    agent: hiq-assistant
+    inputs:
+      message: $message
+      house_context: $house_context
+      conversation: $conversation
+    output_repair_retries: 1
+    output_schema:
+      type: object
+      required: [answer]
+      properties:
+        answer:
+          type: string
+          description: "Spoken-prose reply grounded in what the tools returned"
+        tool_calls:
+          type: array
+          items: {type: object}
+        iterations: {type: integer}
+
+output: answer

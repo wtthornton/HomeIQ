@@ -73,12 +73,9 @@ SERVICES[model-server]="http://localhost:8026/health|8026|false"
 SERVICES[ha-setup-service]="http://localhost:8027/health|8027|false"
 SERVICES[device-intelligence]="http://localhost:8028/health|8028|false"
 SERVICES[automation-miner]="http://localhost:8029/health|8029|false"
-SERVICES[ha-ai-agent-service]="http://localhost:8030/health|8030|false"
-SERVICES[proactive-agent-service]="http://localhost:8031/health|8031|false"
+SERVICES[automation-domain]="http://localhost:8030/health|8030|false"
 SERVICES[device-context-classifier]="http://localhost:8032/health|8032|false"
-SERVICES[ai-automation-service-new]="http://localhost:8036/health|8036|false"
 SERVICES[yaml-validation-service]="http://localhost:8037/health|8037|false"
-SERVICES[ai-automation-ui]="http://localhost:3001|3001|false"
 
 # Results
 declare -A RESULTS

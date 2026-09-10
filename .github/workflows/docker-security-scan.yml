@@ -32,8 +32,7 @@ jobs:
           - admin-api
           - collectors-service
           - health-dashboard
-          - ai-automation-service-new
-          - ha-ai-agent-service
+          - automation-domain
           - ai-pattern-service
           - device-intelligence-service
           - model-server

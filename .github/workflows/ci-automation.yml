@@ -29,4 +29,6 @@ jobs:
     with:
       group_name: automation-core
       domain_dir: automation-core
-      services: '["ha-ai-agent-service","ai-automation-service-new","automation-linter","yaml-validation-service","automation-trace-service","ha-device-control"]'
+      # TAP-7275: ha-ai-agent-service and ai-automation-service-new folded into
+      # automation-domain, along with energy-analytics/proactive-agent-service.
+      services: '["automation-domain","automation-linter","yaml-validation-service","automation-trace-service","ha-device-control"]'

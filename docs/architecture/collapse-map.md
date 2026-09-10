@@ -507,3 +507,231 @@ tests (`test_health.py`, `test_shared_model_load.py`) only became possible outsi
 container once `_startup_openvino()` was fixed to pass
 `models_dir=openvino_settings.model_cache_dir`, which is what let `MODEL_CACHE_DIR`
 be pointed at a writable tmp dir in `tests/conftest.py`.
+
+## Section C2 — automation-domain (TAP-7275, landed)
+
+`ha-ai-agent-service`, `ai-automation-service-new` and
+`proactive-agent-service` fold into one production service `automation-domain`
+(`domains/automation-core/automation-domain/`, port 8030). `ai-automation-ui` is
+**retired outright**. Base sha `dbc32495388bb74b572062b90ed1e12bf32468cc`: **34**
+production services before this lane, **31** after (`34 − 4 + 1`, ratcheted in
+`infrastructure/container-budget.json`).
+
+Every number here was re-derived at that base sha, not carried from the brief.
+Two of the brief's own figures did not survive re-measurement and are corrected
+below.
+
+### Re-derived counts
+
+| Measure | Brief said | Re-measured at `dbc32495` |
+|---|---|---|
+| HTTP endpoints across the four services | 206 | **114 route declarations** (agent 29, authoring 50, proactive 35; `ai-automation-ui` is a SPA and declares none) |
+| Services reading `OPENAI_API_KEY` in code | 3 | **4** — the three named, plus `domains/ml-engine/nlp-fine-tuning/src/training/fine_tune_openai.py` (see "Residue" below) |
+| AgentForge workflows covering those endpoints | 3 of 206 | **0 of 114** — the 9 published workflows at base sha are digests, triage and authoring pipelines; none of them was the backend of any of these routes |
+
+### One process, three schemas
+
+The three slices persist to three different Postgres schemas (`agent`,
+`automation`, `energy`) and each now reads **its own** environment variable:
+`AGENT_DB_SCHEMA`, `AUTOMATION_DB_SCHEMA`, `ENERGY_DB_SCHEMA`. All three
+previously read `DATABASE_SCHEMA`, which is correct for three containers and
+silently wrong for one process: one variable would bind all three slices to
+whichever value was set last, and the two that lost would read and write the
+wrong schema without raising. Asserted by
+`tests/test_agentforge_fold.py::TestSchemaSeparation`, red-first — the two tests
+were run against a tree in which all three modules read `DATABASE_SCHEMA` again,
+and failed with `assert 'wrong_schema' == 'agent'`.
+
+`TestComposeSetsWhatTheCodeReads` closes the TAP-7365 shape from the other side:
+it parses the compose file this PR ships and asserts every `*_DB_SCHEMA` the
+source reads (discovered by scanning `src/` for `os.getenv`, not from a
+hand-written list) has an entry there, plus each AgentForge variable. A
+documented env mechanism nothing sets is what let C1's calendar adapter report
+healthy while never writing a row.
+
+### The LLM slice: nine AgentForge workflows
+
+Every model call these services made is now a workflow run. No provider SDK
+(`openai`, `anthropic`) is in `requirements.txt` and no provider credential is
+in any compose block.
+
+| Workflow | Gene | Serves (HomeIQ call site) | New gene? |
+|---|---|---|---|
+| `automation-draft` | `hiq-draft-automation` | `AutomationLLMClient.generate_yaml` / `.generate_structured_plan`; `ValidationRetryLoop`'s correction pass | no |
+| `automation-json` | `hiq-automation-json` | `.generate_homeiq_automation_json` — `POST /api/suggestions/{id}/rebuild-json`, `GET /api/suggestions/{id}/json`, `YAMLGenerationService` | **new** |
+| `intent-plan` | `hiq-intent-plan` | `IntentPlanner` — `POST /automation/plan` | **new** |
+| `suggestion-describe` | `hiq-summarize` + transform | `.generate_suggestion_description` — `POST /api/suggestions/generate` and the daily scheduler | no |
+| `assistant-chat` | `hiq-assistant` | `POST /api/v1/chat` | no |
+| `memory-extract` | `hiq-extract` | `MemoryExtractor`, per chat turn | no |
+| `proactive-suggest` | `hiq-proactive-suggest` | `AIPromptGenerationService._call_llm` (reads `suggestions`) **and** `ProactiveAgentLoop._reason` (reads `actions`) | **new** |
+| `device-name-suggest` | `hiq-device-name` | `device-intelligence-service`'s `AINameSuggester` | **new** |
+| `automation-enhance` | `hiq-automation-enhance` | `AutomationEnhancementService` — one run replaces up to nine provider calls per automation | **new** |
+
+`hiq-extract`'s contract is why `memory-extract` uses it rather than a new gene:
+a field the source does not state comes back `null` and listed in
+`unsourced_fields` instead of guessed. A guessed "fact" here becomes a stored
+memory the assistant later treats as something the person said. The real run
+confirms it — `favourite_colour` came back `null` from a message that never
+mentioned one.
+
+**A defect the first real run caught.** `intent-plan`'s gene answered with its
+whole envelope nested under `parameters`, and HomeIQ passes `parameters`
+straight to the template renderer. `additionalProperties: false` did not catch
+it because the extra keys were *inside* a field typed `{"type": "object"}`. The
+workflow's node schema now carries a `not/anyOf` clause forbidding the
+envelope's own field names in there, so `output_repair_retries` turns the
+violation into a repair. Re-run after the fix: `parameters` is
+`{"area_id": "office", "light_entity_id": "light.office"}`.
+
+**A defect the runs caught in HomeIQ's own client.** `kickoff=sync` is a
+request, not a guarantee: AgentForge steers a run onto its async queue when it
+exceeds the sync threshold and answers **202 `pending`** with no output. Eight of
+the nine workflows answered 200; `suggestion-describe` answered 202. The client
+treated any non-terminal state as a failure, which would have been an
+intermittent failure reproducible only under load. `AgentForgeClient` now polls a
+pending run to completion (`_await_terminal`), asserted red-first in
+`TestSteeredRunIsPolled` — both tests fail with the poll removed.
+
+### Route map
+
+All 114 base route declarations, mapped. Zero `unmapped`.
+
+| Former service | Former routes | Surviving route under `automation-domain` (port 8030) |
+|---|---|---|
+| ha-ai-agent-service (8030) | `POST /api/v1/chat`, `POST /api/v1/chat/device-suggestions`, `GET /api/v1/context`, `GET /api/v1/system-prompt`, `GET /api/v1/complete-prompt`, `POST /api/v1/validation/validate`, `GET /api/v1/tools`, `POST /api/v1/tools/execute`, `POST /api/v1/tools/execute-openai`, and the 7 `/api/v1/conversations*` routes — **17** | same paths, unchanged (`src/agent/api/{chat,core,conversation,device_suggestions}_endpoints.py`). `/api/v1/chat` now answers by running `assistant-chat`; `/api/v1/tools*` is deterministic Home Assistant dispatch with no model in the path and stays in-process. |
+| ha-ai-agent-service | the 12 `/api/v1/{model-routing,eval-alerts,cost-tracking,eval-investigation}*` routes in `api/eval_routing_endpoints.py` | **dropped-with-reason: never reachable.** `ha-ai-agent-service/src/main.py:372-376` at base sha mounts `health`, `core`, `chat`, `conversation` and `device_suggestions` and nothing else, so this router was declared and never included — these 12 answered 404 in production while `tests/test_epic69_eval_routing.py` passed against the router object. Deliberately **not** mounted here: doing so would newly expose surface this lane cannot exercise. The module and its tests are retained; a follow-up owns whether to mount it. |
+| ai-automation-service-new (8025) | the 49 non-health routes: `/api/analysis/*` (3), `/api/deploy/*` (11), `/api/patterns/*` (3), `/api/suggestions/*` (11), `/api/synergies/*` (5), `/api/v1/{automations,blueprints,scenes,scripts,setup}/validate` (5), `/api/v1/preferences` (2), `/automation/*` (8), `GET /health/validation-metrics` (1) | same paths, unchanged. `GET /health/validation-metrics` moved onto its own `metrics_router` so the module's `/health` is not registered a second time. |
+| proactive-agent-service (8031) | the 34 non-health routes: `/api/v1/suggestions/*` (17), `/api/v1/tasks/*` (11), `/api/proactive/*` (6) | same paths, unchanged (`src/proactive/api/{suggestions,task_router,proactive_router}.py`). |
+| all three | `GET /health` ×3 | **one** `GET /health` (`src/api/health.py`), reporting a per-slice breakdown plus AgentForge reachability. Only the first registration would ever be reached in one app, so three would have meant two dead handlers. The strictest predecessor's rule is kept: a slice that did not finish startup makes the endpoint 503 and the payload names which. |
+| (new) | — | `GET /ready` via `StandardHealthCheck`. |
+| ai-automation-ui (3001) | no HTTP routes of its own (Vite SPA + nginx proxy) | **dropped-with-reason.** Retired outright; its front-door capability is named in the map as the Home Assistant integration (`custom_components/homeiq`). Its nginx `proxy_pass` entries pointed at services this lane folds or at `automation-miner`, which the map already recommends dropping. |
+
+Head route count, read from the merged app's own OpenAPI document: **102**.
+Reconciles as `114 − 12 (eval_routing, never mounted) = 102`, with the three
+`/health` declarations collapsing to one already counted inside that figure.
+
+**AgentForge reachability is reported separately from configuration.** `/health`
+carries `agentforge.configured` (a key is present — a local fact) and
+`agentforge.reachable` (what startup actually observed). A
+configured-but-unreachable AgentForge is exactly the shape a config-only check
+calls healthy.
+
+### Middleware scope
+
+`AuthenticationMiddleware` and `RateLimitMiddleware` came from
+`ai-automation-service-new`, where they saw that service's routes and nothing
+else. Starlette middleware is process-wide, so mounting them unchanged would
+have silently put the agent and proactive slices behind an auth contract they
+never had. Both now enforce only on `AUTHORING_PATH_PREFIXES`
+(`src/authoring/api/middlewares.py`) and pass everything else through.
+
+### Consumers rewritten (file:line)
+
+`domains/core-platform/admin-api/src/health_endpoints.py` (`service_urls`
+`ai-automation-service` → `automation-domain`; the `proactive-agent-service`
+entry and the `energy-analytics` group removed, `automation-intelligence` now
+lists `automation-domain`); `domains/core-platform/health-dashboard/nginx.conf`
+(the `/ai-automation/` proxy upstream repointed — the dashboard *path* is kept
+stable so its client code needed no change); `infrastructure/prometheus/prometheus.yml`
+(three scrape targets collapse to `homeiq-automation-domain:8030`; the
+`energy-analytics` job is removed rather than left with an empty
+`static_configs`, which would report the group up with zero series);
+`docker-bake.hcl` (three build targets → one `automation-domain`; the
+`energy-analytics` group is **removed**, not emptied — buildx refuses to resolve
+a group with no targets, so an empty one would break every `bake full`);
+`.github/workflows/{ci-automation,ci-frontends,docker-build,docker-release,docker-security-scan,integration-tests}.yml`;
+`.github/workflows/ci-energy-analytics.yml` **deleted** (the domain packages
+nothing); `pytest-unit.ini`, `scripts/simple-unit-tests.py`, root
+`pyproject.toml` (the `proactive-agent-service/src/main.py` E402 per-file-ignore
+follows the file); `scripts/{check-versions.sh,pre-deployment-check.sh,post-deployment-monitor.sh,check-service-health.sh,validate-services.sh,ops/check-all-health.sh,deployment/health-check.sh,deployment/post-deployment-validate.sh}`
+(health-check arrays; the retired UI's vitest block removed).
+
+**Not swept (visible rather than implied away).** `git grep -l` for the four
+retired names still matches ~90 files: one-off PowerShell/analysis scripts under
+`scripts/`, `libs/homeiq-patterns` evaluation fixtures and `libs/homeiq-data`
+docstrings, `tests/e2e` and `tests/integration` suites, historical docs and
+`stories/`. None is a live consumer of a retired hostname on the deployment or CI
+path; the eight operational scripts and every workflow that are were rewritten
+above. Two are out of this lane's reach by instruction and are named as such:
+`domains/blueprints/automation-miner/src/api/main.py` (another program is live in
+`domains/blueprints/**`) holds a stale `ai-automation-service-new` URL, and
+`domains/ml-engine/device-intelligence-service/src/services/device_knowledge.py`
+holds a stale `ha-ai-agent-service` URL.
+
+### Residue on the "no OpenAI credential" criterion
+
+`git grep -ln OPENAI_API_KEY -- 'domains/**/*.py' 'domains/*/compose.yml'` returns
+**two files**, not zero. Neither is a credential in a shipped service.
+
+The first is `domains/automation-core/automation-domain/tests/test_agentforge_fold.py`,
+which contains the literal because it *asserts the key's absence* from the
+compose file this PR ships (`test_no_openai_key_is_shipped`). Splitting the
+string to get the grep to zero would be gaming the check, so the literal stays
+and the count is reported as it is.
+
+The second is `domains/ml-engine/nlp-fine-tuning/src/training/fine_tune_openai.py`.
+It is an offline fine-tuning harness, not a container — it appears in no compose
+file and no `docker-bake.hcl` target — and it sits in `domains/ml-engine/**`,
+which this lane's partition assigns to C3. Its whole purpose is calling OpenAI's
+fine-tuning API, so removing the credential is removing the capability, which is
+a decision this lane is not authorised to take. **Filed rather than dropped
+silently or worked around.** Everything the four retired services and
+`device-intelligence-service` touched is clean.
+
+### Test re-homing
+
+Per-service base collect counts, measured at this lane's own base sha
+(`dbc32495`) in an isolated venv built from the three services' merged
+`requirements.txt` plus the seven `libs/` packages, against a detached worktree:
+**ha-ai-agent-service 537, ai-automation-service-new 256, proactive-agent-service
+112 — sum 905.**
+
+`automation-domain` head collect count: **859**.
+
+Reconciles exactly as `905 − 69 + 23 = 859`.
+
+**The 69 deleted, by name** — every one tests a module this lane deletes, and
+each module's behaviour has a new home:
+
+1. `tests/agent/test_openai_client.py` — 11. The OpenAI client is gone; the
+   AgentForge client is covered by `tests/test_agentforge_fold.py`.
+2. `tests/agent/test_llm_router.py` — 15. There is no provider to route between:
+   model choice is a property of each gene.
+3. `tests/agent/test_anthropic_client.py` — 16. Same.
+4. `tests/agent/test_tool_translator.py` — 16. OpenAI↔Anthropic tool-schema
+   translation, used only by the Anthropic client.
+5. `tests/authoring/clients/test_openai_client.py` — 11. Replaced by
+   `tests/authoring/test_llm_integration.py`, rewritten onto the AgentForge
+   client.
+
+**The 23 added:** 22 in `tests/test_agentforge_fold.py` and a net +1 across the
+rewritten modules (`test_llm_integration.py` re-authored, `test_agent_loop.py`'s
+gpt-5-mini parameter-contract test replaced by a workflow-contract one, and
+`device-intelligence-service`'s `test_openai_key_secret.py` renamed and re-aimed
+at the AgentForge key). No test was deleted to make the arithmetic work.
+
+**One assertion per capability is driven from the producer's real output.**
+`tests/fixtures/agentforge_real_runs.json` holds the run records of nine real,
+non-dry AgentForge runs — run ids in the PR body — and
+`TestRealWorkflowOutputParses` feeds each one into the code that consumes it:
+the draft goes through the real `PlanParser`, `intent-plan`'s answer is checked
+for the envelope-nesting defect, `memory-extract`'s for the null-not-guessed
+rule, `proactive-suggest`'s actions for inventory grounding, `device-name-suggest`'s
+names for brand leakage. A hand-built fixture and an unreachable branch agree
+perfectly; a real run record and a live parser do not.
+
+**Lint gate.** `automation-domain/pyproject.toml` selects the **union** of the
+three merged services' rule sets, then subtracts, per subtree, exactly the rules
+that subtree's own config never selected. The effect is that every relocated file
+faces the gate it faced before the fold — the fold neither relaxes a rule (a
+silent regression) nor imposes a new one on code this lane only moved, which
+would have meant "fixing" 78 pre-existing findings in untouched logic, including
+`TC00x` rewrites the root config itself documents as import-time breakage for
+SQLAlchemy and Pydantic annotations. The modules written for this lane carry no
+carve-out and are held to the full union.
+
+**Not run here:** the suites that need a live Postgres (the conftests open a real
+engine) cannot execute in this environment — `asyncpg` answers
+`InvalidPasswordError` for user `homeiq`. Collection, which is what the arithmetic
+above rests on, needs no database. The modules this lane actually changed and
+that need no database were run: 72 passed.

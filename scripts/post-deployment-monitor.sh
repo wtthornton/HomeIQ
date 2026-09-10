@@ -65,8 +65,7 @@ ALL_SERVICES=(
   "model-server:8026:/health"
   "device-intelligence-service:8028:/health"
   # Tier 4 — Automation Core
-  "ha-ai-agent-service:8030:/health"
-  "ai-automation-service-new:8036:/health"
+  "automation-domain:8030:/health"
   "yaml-validation-service:8037:/health"
   "automation-linter:8016:/health"
   "automation-trace-service:8044:/health"
@@ -76,7 +75,6 @@ ALL_SERVICES=(
   "rule-recommendation-ml:8040:/api/v1/health"
   "automation-miner:8029:/health"
   # Tier 6 — Energy Analytics
-  "proactive-agent-service:8031:/health"
   # Tier 7 — Device Management
   "device-health-monitor:8019:/health"
   "device-context-classifier:8032:/health"
@@ -90,7 +88,6 @@ ALL_SERVICES=(
   # Tier 9 — Frontends
   "jaeger:16686:/"
   "observability-dashboard:8501:/_stcore/health"
-  "ai-automation-ui:3001:/health"
   # Infrastructure
   "influxdb:8086:/health"
   "prometheus:9090:/-/healthy"

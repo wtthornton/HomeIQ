@@ -135,7 +135,6 @@ declare -A REQUIRED_SERVICES=(
     ["automation-miner"]="8029"
     ["ai-pattern-service"]="8034"
     ["health-dashboard"]="3000"
-    ["ai-automation-ui"]="3001"
 )
 
 # Optional services that need API keys (from docker-compose.yml profiles)

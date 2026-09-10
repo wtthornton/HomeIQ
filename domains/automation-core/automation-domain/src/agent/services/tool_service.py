@@ -1,0 +1,197 @@
+"""
+Tool Execution Service
+
+Handles OpenAI tool calls and routes to appropriate handlers.
+Implements tool call routing, result formatting, and error handling.
+"""
+
+import logging
+from typing import Any
+
+from ..clients.ai_automation_client import AIAutomationClient
+from ..clients.data_api_client import DataAPIClient
+from ..clients.ha_client import HomeAssistantClient
+from ..clients.yaml_validation_client import YAMLValidationClient
+from ..tools.device_control_tools import DeviceControlToolHandler
+from ..tools.ha_tools import HAToolHandler
+
+logger = logging.getLogger(__name__)
+
+
+class ToolService:
+    """
+    Service for executing OpenAI tool calls.
+
+    Routes tool calls to appropriate handlers and formats results for OpenAI.
+    """
+
+    def __init__(
+        self,
+        ha_client: HomeAssistantClient,
+        data_api_client: DataAPIClient,
+        ai_automation_client: AIAutomationClient | None = None,
+        yaml_validation_client: YAMLValidationClient | None = None,
+        chat_client: Any = None,
+        device_control_handler: DeviceControlToolHandler | None = None,
+    ):
+        """
+        Initialize tool service.
+
+        Args:
+            ha_client: Home Assistant API client
+            data_api_client: Data API client for entity queries
+            ai_automation_client: AI Automation Service client (legacy, optional)
+            yaml_validation_client: YAML Validation Service client for comprehensive validation (Epic 51, optional)
+            chat_client: AgentForge-backed chat client for enhancement generation (optional)
+            device_control_handler: Device control tool handler (Epic 25, optional)
+        """
+        self.ha_client = ha_client
+        self.data_api_client = data_api_client
+        self.tool_handler = HAToolHandler(
+            ha_client,
+            data_api_client,
+            ai_automation_client,
+            yaml_validation_client,
+            chat_client,
+        )
+        self.device_control_handler = device_control_handler
+
+        # Map tool names to handler methods
+        # 2025 Preview-and-Approval Workflow
+        self.tool_handlers: dict[str, Any] = {
+            "preview_automation_from_prompt": self.tool_handler.preview_automation_from_prompt,
+            "create_automation_from_prompt": self.tool_handler.create_automation_from_prompt,
+            "suggest_automation_enhancements": self.tool_handler.suggest_automation_enhancements,
+        }
+
+        # Epic 25: Device control tools (proxied to ha-device-control service)
+        if self.device_control_handler:
+            self.tool_handlers.update(
+                {
+                    "control_light": self.device_control_handler.control_light,
+                    "control_light_area": self.device_control_handler.control_light_area,
+                    "control_switch": self.device_control_handler.control_switch,
+                    "get_climate": self.device_control_handler.get_climate,
+                    "set_climate": self.device_control_handler.set_climate,
+                    "activate_scene": self.device_control_handler.activate_scene,
+                    "house_status": self.device_control_handler.house_status,
+                    "send_notification": self.device_control_handler.send_notification,
+                }
+            )
+
+        logger.info("ToolService initialized with %d tool(s)", len(self.tool_handlers))
+
+    async def execute_tool(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        """
+        Execute a tool call and return formatted result.
+
+        Args:
+            tool_name: Name of the tool to execute
+            arguments: Tool arguments (parsed from OpenAI function call)
+
+        Returns:
+            Dictionary with tool execution result, formatted for OpenAI
+        """
+        if tool_name not in self.tool_handlers:
+            logger.warning(f"Unknown tool requested: {tool_name}")
+            return {
+                "error": f"Unknown tool: {tool_name}",
+                "available_tools": list(self.tool_handlers.keys()),
+            }
+
+        try:
+            logger.info(f"Executing tool: {tool_name} with arguments: {arguments}")
+
+            # Get handler method
+            handler = self.tool_handlers[tool_name]
+
+            # Execute tool
+            result = await handler(arguments)
+
+            # Log result (without sensitive data)
+            if result.get("success"):
+                logger.info(f"Tool {tool_name} executed successfully")
+            else:
+                logger.warning(
+                    f"Tool {tool_name} returned error: {result.get('error', 'Unknown error')}"
+                )
+
+            return result
+
+        except ValueError as e:
+            # Validation errors
+            logger.warning(f"Tool {tool_name} validation error: {e}")
+            return {"success": False, "error": f"Validation error: {str(e)}", "tool": tool_name}
+        except Exception as e:
+            # Unexpected errors
+            logger.error(f"Tool {tool_name} execution failed: {e}", exc_info=True)
+            return {
+                "success": False,
+                "error": f"Tool execution failed: {str(e)}",
+                "tool": tool_name,
+            }
+
+    async def execute_tool_call(self, tool_call: dict[str, Any]) -> dict[str, Any]:
+        """
+        Execute a tool call from OpenAI Responses API format.
+
+        Args:
+            tool_call: Responses API function_call format:
+                {
+                    "type": "function_call",
+                    "name": "tool_name",
+                    "arguments": "{\"key\": \"value\"}",
+                    "call_id": "call_..."
+                }
+                Also supports legacy Chat Completions format for compatibility.
+
+        Returns:
+            Dictionary with tool execution result
+        """
+        import json
+
+        try:
+            # Extract tool name and arguments (support both formats)
+            if "function" in tool_call:
+                # Legacy Chat Completions format
+                function = tool_call.get("function", {})
+                tool_name = function.get("name")
+                arguments_str = function.get("arguments", "{}")
+                call_id = tool_call.get("id")
+            else:
+                # Responses API format
+                tool_name = tool_call.get("name")
+                arguments_str = tool_call.get("arguments", "{}")
+                call_id = tool_call.get("call_id")
+
+            if not tool_name:
+                return {"success": False, "error": "Tool name not provided in tool call"}
+
+            # Parse arguments JSON
+            try:
+                arguments = (
+                    json.loads(arguments_str) if isinstance(arguments_str, str) else arguments_str
+                )
+            except json.JSONDecodeError as e:
+                return {"success": False, "error": f"Invalid JSON in tool arguments: {str(e)}"}
+
+            # Execute tool
+            result = await self.execute_tool(tool_name, arguments)
+
+            # Add tool call ID for OpenAI response format
+            result["tool_call_id"] = call_id
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Error processing tool call: {e}", exc_info=True)
+            return {"success": False, "error": f"Tool call processing failed: {str(e)}"}
+
+    def get_available_tools(self) -> list[str]:
+        """
+        Get list of available tool names.
+
+        Returns:
+            List of tool function names
+        """
+        return list(self.tool_handlers.keys())

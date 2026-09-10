@@ -1,0 +1,88 @@
+[project]
+name = "automation-domain"
+version = "1.0.0"
+description = "HomeIQ automation domain: agent chat, automation authoring, and proactive suggestions in one process"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+# Lint config is the UNION of the three configs the merged services carried, so
+# the fold cannot quietly relax a rule any of them enforced (TAP-7275):
+#   - ha-ai-agent-service/pyproject.toml     select E,F,W,I,S,B,SIM,UP  line 120
+#   - ai-automation-service-new/pyproject.toml  ruff defaults           line 100
+#   - proactive-agent-service                had none, so the root config
+#     applied: select E,W,F,I,B,C4,UP,ARG,SIM,TCH,PTH  line 100
+# Union of selects, and the *stricter* line length of the three.
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "S", "B", "C4", "UP", "ARG", "SIM", "TCH", "PTH"]
+# E501: ruff format owns line breaking; the lines it cannot wrap are prompt
+# text and JSON tool schemas where a hard wrap would change the payload.
+# B008: the FastAPI Depends() idiom. T201: matches the root config.
+# Every one of these three is ignored by the root config already.
+ignore = ["E501", "B008", "T201"]
+
+# Per-subtree carve-outs. The union above is the set of rules SOME merged
+# service enforced; these entries subtract, per subtree, the rules that
+# subtree's own config never selected. The effect is that every relocated file
+# faces exactly the gate it faced before the fold -- the fold neither relaxes a
+# rule (which would be a silent regression) nor imposes a new one on code this
+# lane only moved (which would mean "fixing" 78 pre-existing findings in
+# untouched logic, including TC00x rewrites the root config documents as
+# import-time breakage for SQLAlchemy and Pydantic annotations).
+#
+# New modules written for this lane -- src/agentforge_client.py, src/main.py,
+# src/api/, and each slice's llm_client.py -- carry no carve-out and are held
+# to the full union.
+[tool.ruff.lint.per-file-ignores]
+# ha-ai-agent-service selected E,F,W,I,S,B,SIM,UP and nothing else.
+"src/agent/**" = ["C4", "ARG", "TC", "PTH"]
+"src/agent/services/llm_client.py" = []
+# ai-automation-service-new used ruff's default select (E4,E7,E9,F) with
+# ignore = ["E501","C901","B008","N806","UP017","UP042"].
+"src/authoring/**" = ["W", "I", "S", "B", "C4", "UP", "ARG", "SIM", "TC", "PTH"]
+"src/authoring/clients/llm_client.py" = []
+# proactive-agent-service had no config of its own, so the root config applied:
+# select E,W,F,I,B,C4,UP,ARG,SIM,TCH,PTH -- everything in the union except S.
+"src/proactive/**" = ["S"]
+# `assert` is pytest's assertion API, so S101 under tests/ flags correct code.
+# S105/S106 fire on obviously fake fixture tokens ("ha_token").
+# ARG001/ARG002: pytest injects fixtures by parameter name, so a fixture
+# requested for its side effect is an argument that is never referenced.
+# E402: test modules set sys.path before importing the service package.
+"tests/**" = ["S101", "S105", "S106", "ARG001", "ARG002", "E402"]
+# Each slice's tests inherit that slice's carve-out, for the same reason the
+# src entries exist: a relocated test faces the gate it faced before the fold.
+"tests/agent/**" = ["S101", "S105", "S106", "ARG", "E402", "C4", "TC", "PTH"]
+"tests/authoring/**" = ["S101", "S105", "S106", "ARG", "E402", "W", "I", "B", "C4", "UP", "SIM", "TC", "PTH"]
+"tests/proactive/**" = ["S101", "S105", "S106", "ARG001", "ARG002", "E402"]
+# src/proactive/main.py sets sys.path before importing (carried from
+# proactive-agent-service's entry in the root config's per-file-ignores).
+"src/proactive/main.py" = ["E402"]
+# Carried from the root config, with the merged package paths. TC001/TC002/TC003
+# assume an annotation is never evaluated at run time, which is false for
+# SQLAlchemy declarative models and Pydantic models -- both eval() the
+# annotation string, so moving such an import into a TYPE_CHECKING block turns a
+# working module into an import-time NameError. Declaring the runtime-evaluated
+# bases makes the rules accurate rather than muting them.
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = [
+    "pydantic.BaseModel",
+    "sqlalchemy.orm.DeclarativeBase",
+    "src.agent.database.Base",
+    "src.authoring.database.models.Base",
+    "src.proactive.database.Base",
+    # Ruff resolves a relative `from ..database import Base` against its own
+    # module root, which for a src/ layout drops the `src.` prefix. Both
+    # spellings are declared so the resolution does not depend on which root
+    # ruff picks.
+    "agent.database.Base",
+    "authoring.database.models.Base",
+    "proactive.database.Base",
+]

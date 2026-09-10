@@ -152,8 +152,11 @@ class HealthEndpoints:
             "websocket-ingestion": os.getenv(
                 "WEBSOCKET_INGESTION_URL", "http://websocket-ingestion:8001"
             ),
-            "ai-automation-service": os.getenv(
-                "AI_AUTOMATION_URL", "http://ai-automation-service-new:8025"
+            # ha-ai-agent-service, ai-automation-service-new and
+            # proactive-agent-service folded into one "automation-domain"
+            # process (TAP-7275).
+            "automation-domain": os.getenv(
+                "AUTOMATION_DOMAIN_URL", "http://automation-domain:8030"
             ),
             "influxdb": os.getenv("INFLUXDB_URL", "http://influxdb:8086"),
             # weather-api, sports-api, electricity-pricing, air-quality, calendar,
@@ -163,10 +166,6 @@ class HealthEndpoints:
             "blueprint-index": os.getenv("BLUEPRINT_INDEX_URL", "http://blueprint-index:8031"),
             "rule-recommendation-ml": os.getenv(
                 "RULE_RECOMMENDATION_URL", "http://rule-recommendation-ml:8035"
-            ),
-            # Energy Analytics
-            "proactive-agent-service": os.getenv(
-                "PROACTIVE_AGENT_URL", "http://proactive-agent-service:8031"
             ),
             # Blueprint services
             "blueprint-suggestion-service": os.getenv(
@@ -216,10 +215,7 @@ class HealthEndpoints:
                 "model-server",
             ],
             "automation-intelligence": [
-                "ai-automation-service",
-            ],
-            "energy-analytics": [
-                "proactive-agent-service",
+                "automation-domain",
             ],
             "blueprints": [
                 "blueprint-index",

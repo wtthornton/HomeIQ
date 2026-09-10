@@ -1,0 +1,47 @@
+# Turn a detected automation pattern into one user-facing description (TAP-7275).
+#
+# Serves automation-domain's authoring slice:
+# AutomationLLMClient.generate_suggestion_description, reached from
+# POST /api/suggestions/generate and the daily suggestion scheduler.
+#
+# Reuses hiq-summarize rather than adding a gene: the job is condensing a
+# pattern record into a sentence a person reads. The transform renames
+# `summary` to `description`, which is the key the HomeIQ caller reads, so the
+# rename lives in the spec rather than in a branch on the caller's side.
+
+name: suggestion-describe
+spec_version: 2
+
+inputs:
+  - name: pattern_data
+    type: string
+    required: true
+    description: "JSON pattern record: what was detected, on which devices, how often"
+
+on_error: fail
+
+nodes:
+  summarize:
+    kind: task
+    agent: hiq-summarize
+    inputs:
+      input: $pattern_data
+      length: short
+      audience: home owner
+    output_repair_retries: 1
+    output_schema:
+      type: object
+      required: [summary, key_points]
+      properties:
+        summary: {type: string}
+        key_points: {type: array, items: {type: string}}
+        open_questions: {type: array, items: {type: string}}
+
+  describe:
+    kind: transform
+    depends_on: [summarize]
+    inputs:
+      summary: $summarize.summary
+    expression: '{"description": summary}'
+
+output: describe

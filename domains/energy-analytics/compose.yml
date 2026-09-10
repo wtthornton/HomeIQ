@@ -1,60 +1,20 @@
 name: homeiq-energy-analytics
 # domains/energy-analytics/compose.yml — Proactive energy recommendations
+#
+# TAP-7275: `proactive-agent-service` folded into
+# `domains/automation-core/automation-domain`. Its routes (/api/v1/suggestions,
+# /api/v1/tasks, /api/proactive) are served unchanged by that process on port
+# 8030, and its Postgres schema is still `energy` — the merged process reads it
+# from ENERGY_DB_SCHEMA so the three folded slices cannot collide on one
+# DATABASE_SCHEMA.
+#
+# This file is kept rather than deleted: the domain still exists in the
+# repository layout (README, compose.env.example, CI group), and a compose file
+# with no services is an honest statement that the domain currently ships no
+# container of its own. `scripts/check-container-budget.py` parses it with a
+# YAML loader and counts zero production services here.
 
-services:
-  proactive-agent-service:
-    build:
-      context: ../..
-      dockerfile: domains/energy-analytics/proactive-agent-service/Dockerfile
-    container_name: homeiq-proactive-agent-service
-    restart: unless-stopped
-    ports:
-      - "8031:8031"
-    env_file:
-      - ../../.env
-    environment:
-      - HA_AI_AGENT_URL=http://ha-ai-agent-service:8030
-      - WEATHER_API_URL=http://collectors:8009
-      - DATA_API_URL=http://data-api:8006
-      - DATA_API_API_KEY=${API_KEY:-}
-      - API_KEY=${API_KEY:-}
-      - HA_AGENT_API_KEY=${API_KEY:-}
-      - DATA_COLLECTORS_API_KEY=${API_KEY:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5-mini}
-      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq
-      - DATABASE_SCHEMA=energy
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - SCHEDULER_ENABLED=${SCHEDULER_ENABLED:-true}
-      - SCHEDULER_TIME=${SCHEDULER_TIME:-03:00}
-    # Cross-domain: depends on automation-core/ha-ai-agent-service
-    networks:
-      - homeiq-network
-    volumes:
-      - proactive_agent_data:/app/data
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '1.0'
-        reservations:
-          memory: 128M
-          cpus: '0.5'
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8031/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        labels: "service=proactive-agent-service,group=energy-analytics,environment=production"
-
-volumes:
-  proactive_agent_data:
+services: {}
 
 networks:
   homeiq-network:

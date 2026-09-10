@@ -1,0 +1,74 @@
+# Propose proactive suggestions and agent-loop actions for one home (TAP-7275).
+#
+# Serves automation-domain's proactive slice twice over: the suggestion pipeline
+# (AIPromptGenerationService._call_llm) reads `suggestions`, and the
+# observe/reason/act loop (ProactiveAgentLoop._reason) reads `actions`. One gene
+# answers both because both describe the same home state at the same moment —
+# two genes could disagree about what the house is doing.
+#
+# HomeIQ validates every returned suggestion against the real device inventory
+# afterwards and discards the ones naming devices that do not exist, so the
+# gene is given the inventory rather than left to infer it.
+
+name: proactive-suggest
+spec_version: 2
+
+inputs:
+  - name: home_context
+    type: string
+    required: true
+    description: "Assembled home context: time, weather, occupancy, recent behaviour, patterns"
+  - name: device_inventory
+    type: string
+    required: false
+    description: "JSON naming the domains and entity ids this home actually has"
+    default: "{}"
+  - name: max_suggestions
+    type: integer
+    required: false
+    description: "Cap on the suggestions array"
+    default: 3
+
+on_error: fail
+
+nodes:
+  suggest:
+    kind: task
+    agent: hiq-proactive-suggest
+    inputs:
+      home_context: $home_context
+      device_inventory: $device_inventory
+      max_suggestions: $max_suggestions
+    output_repair_retries: 2
+    output_schema:
+      type: object
+      required: [suggestions, actions]
+      additionalProperties: false
+      properties:
+        suggestions:
+          type: array
+          maxItems: 10
+          items:
+            type: object
+            required: [prompt, category, priority]
+            additionalProperties: false
+            properties:
+              prompt: {type: string}
+              category: {type: string}
+              priority: {type: string, enum: [low, medium, high]}
+              rationale: {type: string}
+              automation_hints: {type: object}
+        actions:
+          type: array
+          maxItems: 3
+          items:
+            type: object
+            required: [action_type, entity_id, entity_domain, reasoning]
+            additionalProperties: false
+            properties:
+              action_type: {type: string}
+              entity_id: {type: string}
+              entity_domain: {type: string}
+              reasoning: {type: string}
+
+output: suggest

@@ -90,46 +90,10 @@ services:
     profiles:
       - observability
 
-  ai-automation-ui:
-    build:
-      context: ../..
-      dockerfile: domains/frontends/ai-automation-ui/Dockerfile
-      args:
-        - VITE_API_URL=
-        # SECURITY: API key must be provided via environment, not hardcoded
-        # Set API_KEY in .env or pass at runtime: API_KEY=your_key docker compose up
-        - VITE_API_KEY=${API_KEY:-}
-    container_name: homeiq-ai-automation-ui
-    restart: unless-stopped
-    ports:
-      - "${HOMEIQ_UI_HOST_PORT:-3001}:8080"
-    environment:
-      - VITE_API_URL=
-      # SECURITY: API key injected at runtime via nginx proxy, not baked into client
-      - VITE_API_KEY=${API_KEY:-}
-    # Cross-domain: depends on automation-core/ai-automation-service-new
-    networks:
-      - homeiq-network
-    deploy:
-      resources:
-        limits:
-          memory: 96M
-          cpus: '1.0'
-        reservations:
-          memory: 48M
-          cpus: '0.5'
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        labels: "service=ai-ui,group=frontends,environment=production"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
+# TAP-7275: `ai-automation-ui` retired outright. Its front-door capability is
+# the Home Assistant integration (`custom_components/homeiq`), which reaches the
+# same automation, suggestion and chat surfaces directly. The routes it proxied
+# are enumerated in docs/architecture/collapse-map.md section C2.
 
 networks:
   homeiq-network:
