@@ -66,6 +66,9 @@ jobs:
       - name: Validate Dockerfile shared libs
         run: python scripts/validate-dockerfile-libs.py --strict
 
+      - name: Validate Dockerfile local-lib install order
+        run: python scripts/validate-dockerfile-lib-order.py --strict
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
