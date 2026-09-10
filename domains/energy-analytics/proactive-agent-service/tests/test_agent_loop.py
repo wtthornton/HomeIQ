@@ -329,3 +329,81 @@ class TestOpenAIKeySecret:
         # would authenticate with the mask instead of the key.
         assert captured["api_key"] == "sk-real-value"
         assert loop._openai_client is not None
+
+
+class TestReasonStepCallShape:
+    """Regression: gpt-5-mini rejects ``max_tokens`` and any explicit
+    ``temperature``.
+
+    The live circuit breaker opened 1,306x on
+    ``Unsupported parameter: 'max_tokens' is not supported with this model.
+    Use 'max_completion_tokens' instead.`` and
+    ``Unsupported value: 'temperature' does not support 0.3 with this model.
+    Only the default (1) value is supported.`` The fix must send
+    ``max_completion_tokens`` and omit ``temperature`` entirely.
+    """
+
+    @pytest.mark.asyncio
+    async def test_reason_call_omits_temperature_and_uses_max_completion_tokens(
+        self, monkeypatch
+    ):
+        from unittest.mock import AsyncMock
+
+        from src.config import Settings
+        from src.services.agent_loop import ProactiveAgentLoop
+
+        settings = Settings(openai_api_key="sk-real-value")
+
+        preference_service = AsyncMock()
+        preference_service.get_preference_summary.return_value = "no history"
+
+        captured_kwargs: dict = {}
+
+        class FakeMessage:
+            content = "[]"
+
+        class FakeChoice:
+            message = FakeMessage()
+
+        class FakeResponse:
+            choices = [FakeChoice()]
+
+        class FakeCompletions:
+            async def create(self, **kwargs):
+                captured_kwargs.update(kwargs)
+                return FakeResponse()
+
+        class FakeChat:
+            completions = FakeCompletions()
+
+        class FakeOpenAIClient:
+            chat = FakeChat()
+
+        stub = object()
+        loop = ProactiveAgentLoop(
+            settings=settings,
+            context_service=stub,
+            device_control_client=stub,
+            agent_client=stub,
+            confidence_scorer=stub,
+            preference_service=preference_service,
+            feedback_recorder=stub,
+            autonomous_executor=stub,
+        )
+        loop._openai_client = FakeOpenAIClient()
+
+        await loop._reason(
+            {
+                "home_state": {"light.kitchen": "on"},
+                "weather": {},
+                "time": {"utc": "2026-09-09T00:00:00", "hour": 0, "day_of_week": "Tuesday", "time_slot": "night"},
+            }
+        )
+
+        assert "max_tokens" not in captured_kwargs, (
+            "gpt-5-mini rejects 'max_tokens' -- use 'max_completion_tokens'"
+        )
+        assert "temperature" not in captured_kwargs, (
+            "gpt-5-mini rejects any explicit temperature, including the default (1)"
+        )
+        assert "max_completion_tokens" in captured_kwargs
