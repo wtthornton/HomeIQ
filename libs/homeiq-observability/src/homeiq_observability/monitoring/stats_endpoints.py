@@ -68,16 +68,11 @@ class StatsEndpoints:
             "websocket-ingestion": os.getenv(
                 "WEBSOCKET_INGESTION_URL", "http://homeiq-websocket:8001"
             ),
-            "sports-api": os.getenv("SPORTS_API_URL", "http://homeiq-sports-api:8005"),
-            "air-quality-service": os.getenv("AIR_QUALITY_URL", "http://homeiq-air-quality:8012"),
-            "calendar-service": os.getenv("CALENDAR_URL", "http://homeiq-calendar:8013"),
             "data-retention": os.getenv("DATA_RETENTION_URL", "http://homeiq-data-retention:8080"),
-            "electricity-pricing-service": os.getenv(
-                "ELECTRICITY_PRICING_URL", "http://homeiq-electricity-pricing:8011"
-            ),
-            "smart-meter-service": os.getenv("SMART_METER_URL", "http://homeiq-smart-meter:8014"),
             "log-aggregator": os.getenv("LOG_AGGREGATOR_URL", "http://homeiq-log-aggregator:8015"),
-            "weather-api": os.getenv("WEATHER_SERVICE_URL", "http://homeiq-weather-api:8009"),
+            # sports-api, air-quality, calendar, electricity-pricing, smart-meter,
+            # weather-api folded into one "collectors" process (TAP-7274).
+            "collectors": os.getenv("WEATHER_SERVICE_URL", "http://homeiq-collectors:8009"),
         }
 
         self._add_routes()
@@ -690,14 +685,12 @@ class StatsEndpoints:
         # List of data-feeding API services (removed admin-api and data-api)
         api_services = [
             {"name": "websocket-ingestion", "priority": "high", "timeout": 3},
-            {"name": "sports-api", "priority": "medium", "timeout": 5},
-            {"name": "air-quality-service", "priority": "medium", "timeout": 5},
-            {"name": "calendar-service", "priority": "medium", "timeout": 5},
             {"name": "data-retention", "priority": "medium", "timeout": 5},
-            {"name": "electricity-pricing-service", "priority": "medium", "timeout": 5},
-            {"name": "smart-meter-service", "priority": "medium", "timeout": 5},
             {"name": "log-aggregator", "priority": "low", "timeout": 5},
-            {"name": "weather-api", "priority": "low", "timeout": 5},
+            # sports-api, air-quality, calendar, electricity-pricing,
+            # smart-meter, weather-api folded into one "collectors" process
+            # (TAP-7274).
+            {"name": "collectors", "priority": "low", "timeout": 5},
         ]
 
         # Get metrics from each service in parallel with individual timeouts.
@@ -906,63 +899,12 @@ class StatsEndpoints:
                             events_per_hour = data["subscription"]["event_rate_per_minute"] * 60
 
                         # Special handling for specific services to extract real metrics
-                        if service_name == "weather-api":
-                            # Get weather API request metrics from websocket-ingestion service
-                            try:
-                                websocket_url = self.service_urls.get(
-                                    "websocket-ingestion", "http://homeiq-websocket:8001"
-                                )
-                                async with (
-                                    aiohttp.ClientSession() as ws_session,
-                                    ws_session.get(
-                                        f"{websocket_url}/health", timeout=timeout
-                                    ) as ws_resp,
-                                ):
-                                    if ws_resp.status == 200:
-                                        ws_data = await ws_resp.json()
-                                        if (
-                                            "weather_enrichment" in ws_data
-                                            and "weather_client_stats"
-                                            in ws_data["weather_enrichment"]
-                                        ):
-                                            weather_stats = ws_data["weather_enrichment"][
-                                                "weather_client_stats"
-                                            ]
-                                            total_requests = weather_stats.get("total_requests", 0)
-
-                                            # Calculate hourly rate based on uptime
-                                            uptime_str = ws_data.get("uptime", "0:0:0")
-                                            try:
-                                                parts = uptime_str.split(":")
-                                                if len(parts) == 3:
-                                                    hours, minutes, seconds = parts
-                                                    uptime_hours = (
-                                                        float(hours)
-                                                        + float(minutes) / 60
-                                                        + float(seconds) / 3600
-                                                    )
-                                                    if uptime_hours > 0:
-                                                        events_per_hour = (
-                                                            total_requests / uptime_hours
-                                                        )
-                                            except (ValueError, AttributeError):
-                                                # Fallback: assume 1 hour if parsing fails
-                                                events_per_hour = total_requests
-                            except Exception as e:
-                                logger.warning(
-                                    f"Could not get weather API stats from websocket-ingestion: {e}"
-                                )
-                                events_per_hour = 0.0
-
-                        elif service_name in [
-                            "sports-api",
-                            "air-quality-service",
-                            "calendar-service",
-                            "electricity-pricing-service",
-                            "smart-meter-service",
-                        ]:
-                            # These services typically don't process events but provide data
-                            # Set to 0 as they are data providers, not event processors
+                        if service_name == "collectors":
+                            # weather, sports, air-quality, electricity-pricing, calendar,
+                            # smart-meter (TAP-7274): all six are data providers, not event
+                            # processors. websocket-ingestion's weather enrichment was
+                            # already removed (Epic 31), so there is no upstream
+                            # `weather_enrichment` stat left to reach through it for.
                             events_per_hour = 0.0
 
                         elif service_name == "data-retention":

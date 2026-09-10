@@ -78,45 +78,12 @@ group "core-platform" {
 # Group 2: data-collectors
 # ──────────────────────────────────────────────
 
-target "weather-api" {
+target "collectors" {
+  # weather-api, sports-api, air-quality-service, electricity-pricing-service,
+  # calendar-service, smart-meter-service folded into one process (TAP-7274).
   context    = "."
-  dockerfile = "domains/data-collectors/weather-api/Dockerfile"
-  tags       = ["homeiq/weather-api:latest"]
-  labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
-}
-
-target "smart-meter-service" {
-  context    = "."
-  dockerfile = "domains/data-collectors/smart-meter-service/Dockerfile"
-  tags       = ["homeiq/smart-meter-service:latest"]
-  labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
-}
-
-target "sports-api" {
-  context    = "."
-  dockerfile = "domains/data-collectors/sports-api/Dockerfile"
-  tags       = ["homeiq/sports-api:latest"]
-  labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
-}
-
-target "air-quality-service" {
-  context    = "."
-  dockerfile = "domains/data-collectors/air-quality-service/Dockerfile"
-  tags       = ["homeiq/air-quality-service:latest"]
-  labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
-}
-
-target "electricity-pricing-service" {
-  context    = "."
-  dockerfile = "domains/data-collectors/electricity-pricing-service/Dockerfile"
-  tags       = ["homeiq/electricity-pricing-service:latest"]
-  labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
-}
-
-target "calendar-service" {
-  context    = "."
-  dockerfile = "domains/data-collectors/calendar-service/Dockerfile"
-  tags       = ["homeiq/calendar-service:latest"]
+  dockerfile = "domains/data-collectors/collectors-service/Dockerfile"
+  tags       = ["homeiq/collectors:latest"]
   labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
 }
 
@@ -129,12 +96,7 @@ target "log-aggregator" {
 
 group "data-collectors" {
   targets = [
-    "weather-api",
-    "smart-meter-service",
-    "sports-api",
-    "air-quality-service",
-    "electricity-pricing-service",
-    "calendar-service",
+    "collectors",
     "log-aggregator",
   ]
 }

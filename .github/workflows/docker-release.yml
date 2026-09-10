@@ -61,14 +61,10 @@ jobs:
           - websocket-ingestion
           - data-api
           - admin-api
-          - weather-api
+          - collectors-service
           - health-dashboard
           - ai-automation-service-new
           - ai-automation-ui
-          - electricity-pricing-service
-          - air-quality-service
-          - calendar-service
-          - smart-meter-service
           - log-aggregator
           - ml-service
           - ai-pattern-service
@@ -93,7 +89,6 @@ jobs:
           - device-health-monitor
           - rag-service
           - observability-dashboard
-          - sports-api
     permissions:
       contents: read
       packages: write
@@ -179,14 +174,10 @@ jobs:
           - websocket-ingestion
           - data-api
           - admin-api
-          - weather-api
+          - collectors-service
           - health-dashboard
           - ai-automation-service-new
           - ai-automation-ui
-          - electricity-pricing-service
-          - air-quality-service
-          - calendar-service
-          - smart-meter-service
           - log-aggregator
           - ml-service
           - ai-pattern-service

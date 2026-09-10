@@ -30,7 +30,7 @@ jobs:
           - websocket-ingestion
           - data-api
           - admin-api
-          - weather-api
+          - collectors-service
           - health-dashboard
           - ai-automation-service-new
           - ha-ai-agent-service

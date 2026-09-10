@@ -21,7 +21,7 @@ from homeiq_observability.logging_config import log_error_with_context, setup_lo
 from homeiq_resilience import StandardHealthCheck
 from influxdb_client_3 import InfluxDBClient3, Point
 
-from ...config import settings
+from ...config import Settings, settings
 from ..base import CollectorAdapter, with_adapter_timeout
 from .health_check import HealthCheckHandler
 from .meters.base import MeterAdapter
@@ -37,22 +37,31 @@ class SmartMeterService:
     """Generic smart meter integration with meter-adapter support."""
 
     def __init__(self) -> None:
-        """Initialize the smart meter service with adapter and InfluxDB configuration."""
-        self.meter_type = settings.meter_type
-        self.api_token = settings.meter_api_token
-        self.device_id = settings.meter_device_id
+        """Initialize the smart meter service with adapter and InfluxDB configuration.
 
-        self.ha_url = settings.home_assistant_url
-        self.ha_token = settings.home_assistant_token
+        Reads a *fresh* ``Settings()`` rather than the shared module-level
+        ``settings`` singleton — that singleton snapshots first-import state,
+        which is neither what CI exports at run time nor what tests patch
+        (former smart-meter-service's TAP-6180/TAP-6185 fix; preserved here).
+        """
+        local_settings = Settings()
+        self.meter_type = local_settings.meter_type
+        self.api_token = local_settings.meter_api_token
+        self.device_id = local_settings.meter_device_id
 
-        self.influxdb_url = settings.influxdb_url
+        self.ha_url = local_settings.home_assistant_url
+        self.ha_token = local_settings.home_assistant_token
+
+        self.influxdb_url = local_settings.influxdb_url
         self.influxdb_token = (
-            settings.influxdb_token.get_secret_value() if settings.influxdb_token else None
+            local_settings.influxdb_token.get_secret_value()
+            if local_settings.influxdb_token
+            else None
         )
-        self.influxdb_org = settings.influxdb_org
-        self.influxdb_bucket = settings.influxdb_bucket
+        self.influxdb_org = local_settings.influxdb_org
+        self.influxdb_bucket = local_settings.influxdb_bucket
 
-        self.fetch_interval = settings.fetch_interval_seconds
+        self.fetch_interval = local_settings.fetch_interval_seconds
         if self.fetch_interval < 10:
             logger.warning(
                 "Fetch interval %ds too low, setting to 10s minimum", self.fetch_interval

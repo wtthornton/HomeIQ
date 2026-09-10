@@ -18,14 +18,12 @@ import asyncio
 import os
 import time
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 os.environ.setdefault("INFLUXDB_TOKEN", "test-token")
 
 from src.adapters.base import with_adapter_timeout  # noqa: E402
-from src.main import app as collectors_app  # noqa: E402
 
 
 def _build_timeout_probe_app() -> FastAPI:
@@ -79,8 +77,15 @@ def test_healthy_adapter_still_answers_while_a_sibling_hangs():
     assert elapsed < 1.0
 
 
-def test_all_former_routes_answer_through_the_merged_app():
-    """Every former service's route is reachable, unprefixed, on the merged app."""
+def test_all_former_routes_answer_through_the_merged_app(collectors_client):
+    """Every former service's route is reachable, unprefixed, on the merged app.
+
+    Uses the shared session-scoped `collectors_client` fixture rather than a
+    second `TestClient(app)` — a second lifespan cycle over the same app
+    object reassigns every adapter's module-level `service` singleton (e.g.
+    `weather.weather_service`), then nulls it out again on its own shutdown,
+    pulling the rug out from under any later test using the shared client.
+    """
     former_routes = [
         "/",
         "/health",
@@ -94,13 +99,12 @@ def test_all_former_routes_answer_through_the_merged_app():
         "/api/v1/events",
         "/consumption",
     ]
-    with TestClient(collectors_app) as client:
-        for path in former_routes:
-            response = client.get(path)
-            assert response.status_code < 500, f"{path} -> {response.status_code}"
+    for path in former_routes:
+        response = collectors_client.get(path)
+        assert response.status_code < 500, f"{path} -> {response.status_code}"
 
 
-def test_one_adapter_raising_does_not_break_a_sibling_adapter():
+def test_one_adapter_raising_does_not_break_a_sibling_adapter(collectors_client):
     """A request that errors inside one adapter must not affect another adapter's response.
 
     electricity-pricing has no live upstream in this environment, so
@@ -109,9 +113,8 @@ def test_one_adapter_raising_does_not_break_a_sibling_adapter():
     middleware would otherwise turn an unhandled raise into a 500 for that
     request only, still never touching other adapters' state).
     """
-    with TestClient(collectors_app) as client:
-        degraded = client.get("/cheapest-hours")
-        assert degraded.status_code in (200, 503)
+    degraded = collectors_client.get("/cheapest-hours")
+    assert degraded.status_code in (200, 503)
 
-        healthy = client.get("/consumption")
-        assert healthy.status_code == 200
+    healthy = collectors_client.get("/consumption")
+    assert healthy.status_code == 200

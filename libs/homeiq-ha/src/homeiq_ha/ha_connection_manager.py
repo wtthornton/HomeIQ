@@ -26,7 +26,8 @@ The Nabu Casa branch below (``_load_connection_configs``'s
 cloud-specific retry path in :meth:`HAConnectionManager.get_best_connection` /
 :meth:`_test_connection_with_retry`) exists for HomeIQ platform services —
 ``domains/core-platform/websocket-ingestion`` and
-``domains/data-collectors/calendar-service`` are the only importers today —
+``domains/data-collectors/collectors-service`` (calendar adapter) are the
+only importers today —
 that may reach a customer's *pre-existing* Home Assistant over Nabu Casa's
 cloud relay when a local URL is not configured.
 

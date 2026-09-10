@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class WeatherAPIClient:
     """Resilient client for fetching weather data (data-collectors group)."""
 
-    def __init__(self, base_url: str = "http://weather-api:8009"):
+    def __init__(self, base_url: str = "http://collectors:8009"):
         self.base_url = base_url.rstrip("/")
         api_key = os.getenv("DATA_COLLECTORS_API_KEY") or os.getenv("API_KEY")
         self._cross_client = CrossGroupClient(

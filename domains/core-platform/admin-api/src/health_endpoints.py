@@ -156,15 +156,9 @@ class HealthEndpoints:
                 "AI_AUTOMATION_URL", "http://ai-automation-service-new:8025"
             ),
             "influxdb": os.getenv("INFLUXDB_URL", "http://influxdb:8086"),
-            "weather-api": os.getenv("WEATHER_SERVICE_URL", "http://weather-api:8009"),
-            "sports-api": os.getenv("SPORTS_API_URL", "http://sports-api:8005"),
-            # Data source services - Docker Compose service names
-            "electricity-pricing-service": os.getenv(
-                "ELECTRICITY_PRICING_URL", "http://electricity-pricing:8011"
-            ),
-            "air-quality-service": os.getenv("AIR_QUALITY_URL", "http://air-quality:8012"),
-            "calendar-service": os.getenv("CALENDAR_URL", "http://calendar:8013"),
-            "smart-meter-service": os.getenv("SMART_METER_URL", "http://smart-meter:8014"),
+            # weather-api, sports-api, electricity-pricing, air-quality, calendar,
+            # smart-meter folded into one "collectors" process (TAP-7274).
+            "collectors": os.getenv("WEATHER_SERVICE_URL", "http://collectors:8009"),
             # ML & Blueprint services
             "blueprint-index": os.getenv("BLUEPRINT_INDEX_URL", "http://blueprint-index:8031"),
             "rule-recommendation-ml": os.getenv(
@@ -214,12 +208,7 @@ class HealthEndpoints:
                 "data-api",
             ],
             "data-collectors": [
-                "weather-api",
-                "sports-api",
-                "electricity-pricing-service",
-                "air-quality-service",
-                "calendar-service",
-                "smart-meter-service",
+                "collectors",
             ],
             "ml-engine": [
                 "device-intelligence-service",
@@ -613,7 +602,7 @@ class HealthEndpoints:
         try:
             weather_api_key = os.getenv("WEATHER_API_KEY")
             if weather_api_key:
-                weather_url = self.service_urls["weather-api"]
+                weather_url = self.service_urls["collectors"]
                 session = await self._session_for_probes()
                 async with session.get(
                     f"{weather_url}/weather",

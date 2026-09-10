@@ -80,41 +80,11 @@ scrape_configs:
     scrape_interval: 30s
     static_configs:
       - targets:
-          - 'homeiq-weather-api:8009'
+          - 'homeiq-collectors:8009'
         labels:
-          service: 'weather-api'
+          service: 'collectors'
           group: 'data-collectors'
           tier: '2'
-      - targets:
-          - 'homeiq-smart-meter:8014'
-        labels:
-          service: 'smart-meter'
-          group: 'data-collectors'
-          tier: '2'
-      - targets:
-          - 'homeiq-sports-api:8005'
-        labels:
-          service: 'sports-api'
-          group: 'data-collectors'
-          tier: '3'
-      - targets:
-          - 'homeiq-air-quality:8012'
-        labels:
-          service: 'air-quality'
-          group: 'data-collectors'
-          tier: '3'
-      - targets:
-          - 'homeiq-electricity-pricing:8011'
-        labels:
-          service: 'electricity-pricing'
-          group: 'data-collectors'
-          tier: '3'
-      - targets:
-          - 'homeiq-calendar:8013'
-        labels:
-          service: 'calendar'
-          group: 'data-collectors'
-          tier: '3'
       - targets:
           - 'homeiq-log-aggregator:8015'
         labels:

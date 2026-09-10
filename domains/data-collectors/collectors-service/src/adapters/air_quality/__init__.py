@@ -22,7 +22,7 @@ from homeiq_observability.logging_config import (
 from homeiq_resilience import StandardHealthCheck
 from influxdb_client_3 import InfluxDBClient3, Point
 
-from ...config import settings
+from ...config import Settings, settings
 from ..base import CollectorAdapter, with_adapter_timeout
 from .health_check import HealthCheckHandler
 
@@ -36,23 +36,32 @@ class AirQualityService:
     """Fetch and store air quality data from the Open-Meteo air-quality API."""
 
     def __init__(self) -> None:
-        """Initialize the air quality service with location and InfluxDB config."""
-        self.latitude = settings.air_quality_latitude
-        self.longitude = settings.air_quality_longitude
-        self.base_url = settings.air_quality_api_url
+        """Initialize the air quality service with location and InfluxDB config.
 
-        self.ha_url = settings.home_assistant_url or settings.ha_http_url
-        self.ha_token = settings.home_assistant_token or settings.ha_token
+        Reads a *fresh* ``Settings()`` rather than the shared module-level
+        ``settings`` singleton — that singleton snapshots first-import state,
+        which is neither what CI exports at run time nor what tests patch
+        (former air-quality-service's TAP-6180/TAP-6185 fix; preserved here).
+        """
+        local_settings = Settings()
+        self.latitude = local_settings.air_quality_latitude
+        self.longitude = local_settings.air_quality_longitude
+        self.base_url = local_settings.air_quality_api_url
 
-        self.influxdb_url = settings.influxdb_url
+        self.ha_url = local_settings.home_assistant_url or local_settings.ha_http_url
+        self.ha_token = local_settings.home_assistant_token or local_settings.ha_token
+
+        self.influxdb_url = local_settings.influxdb_url
         self.influxdb_token = (
-            settings.influxdb_token.get_secret_value() if settings.influxdb_token else None
+            local_settings.influxdb_token.get_secret_value()
+            if local_settings.influxdb_token
+            else None
         )
-        self.influxdb_org = settings.influxdb_org
-        self.influxdb_bucket = settings.influxdb_bucket
+        self.influxdb_org = local_settings.influxdb_org
+        self.influxdb_bucket = local_settings.influxdb_bucket
 
-        self.fetch_interval = settings.air_quality_fetch_interval
-        self.cache_duration = settings.air_quality_cache_duration_minutes
+        self.fetch_interval = local_settings.air_quality_fetch_interval
+        self.cache_duration = local_settings.air_quality_cache_duration_minutes
         self.retry_delays = [30, 120, 300]
 
         self._rate_limit_max = 60

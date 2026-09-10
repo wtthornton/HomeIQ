@@ -90,9 +90,9 @@ class Settings(BaseServiceSettings):
         description="WebSocket Ingestion Service URL for house status aggregator",
     )
 
-    # Sports API Configuration
+    # Sports API Configuration (folded into collectors, TAP-7274)
     sports_api_url: str = Field(
-        default="http://sports-api:8005",
+        default="http://collectors:8009",
         description="Sports API Service URL for Team Tracker data",
     )
     sports_api_key: SecretStr | None = Field(
@@ -100,9 +100,9 @@ class Settings(BaseServiceSettings):
         description="API key for Sports API (X-API-Key auth)",
     )
 
-    # Weather API Configuration
+    # Weather API Configuration (folded into collectors, TAP-7274)
     weather_api_url: str = Field(
-        default="http://weather-api:8009",
+        default="http://collectors:8009",
         description="Weather API Service URL for weather data",
     )
 

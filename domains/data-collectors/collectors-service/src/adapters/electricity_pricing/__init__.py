@@ -24,7 +24,7 @@ from homeiq_observability.logging_config import (
 from homeiq_resilience import StandardHealthCheck
 from influxdb_client_3 import InfluxDBClient3, Point
 
-from ...config import settings
+from ...config import Settings, settings
 from ..base import CollectorAdapter, with_adapter_timeout
 from .health_check import HealthCheckHandler
 from .providers import AwattarProvider
@@ -40,23 +40,32 @@ class ElectricityPricingService:
     """Fetch and store electricity pricing data."""
 
     def __init__(self) -> None:
-        """Initialize the electricity pricing service with provider and InfluxDB config."""
-        self.provider_name = settings.pricing_provider
+        """Initialize the electricity pricing service with provider and InfluxDB config.
 
-        self.influxdb_url = settings.influxdb_url
+        Reads a *fresh* ``Settings()`` rather than the shared module-level
+        ``settings`` singleton — that singleton snapshots first-import state,
+        which is neither what CI exports at run time nor what tests patch
+        (former electricity-pricing-service's TAP-6174 fix; preserved here).
+        """
+        local_settings = Settings()
+        self.provider_name = local_settings.pricing_provider
+
+        self.influxdb_url = local_settings.influxdb_url
         self.influxdb_token = (
-            settings.influxdb_token.get_secret_value() if settings.influxdb_token else None
+            local_settings.influxdb_token.get_secret_value()
+            if local_settings.influxdb_token
+            else None
         )
-        self.influxdb_org = settings.influxdb_org
-        self.influxdb_bucket = settings.influxdb_bucket
+        self.influxdb_org = local_settings.influxdb_org
+        self.influxdb_bucket = local_settings.influxdb_bucket
 
-        self.fetch_interval = settings.electricity_fetch_interval
-        self.cache_duration = settings.electricity_cache_duration_minutes
+        self.fetch_interval = local_settings.electricity_fetch_interval
+        self.cache_duration = local_settings.electricity_cache_duration_minutes
 
         self.allowed_networks: list[str] | None = None
-        if settings.allowed_networks:
+        if local_settings.allowed_networks:
             self.allowed_networks = [
-                net.strip() for net in settings.allowed_networks.split(",") if net.strip()
+                net.strip() for net in local_settings.allowed_networks.split(",") if net.strip()
             ]
 
         self.cached_data: dict[str, Any] | None = None

@@ -28,8 +28,8 @@ class Settings(BaseServiceSettings):
 
     # External Data Service URLs
     weather_api_url: str = Field(
-        default="http://weather-api:8009",
-        description="Weather API service URL",
+        default="http://collectors:8009",
+        description="Weather API service URL (folded into collectors, TAP-7274)",
     )
     # Note: Sports and carbon intensity data are accessed via data-api
     # (Epic 31 architecture)

@@ -1,0 +1,324 @@
+"""Unit tests for electricity pricing service core logic
+Tests fetching, caching, InfluxDB storage, and API endpoints
+"""
+
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+
+class TestDataFetching:
+    """Test pricing data fetching logic"""
+
+    @pytest.mark.asyncio
+    async def test_fetch_pricing_success(self, service_instance, sample_pricing_data):
+        """GIVEN: Service with mocked provider | WHEN: Fetch pricing | THEN: Data with timestamp"""
+        with patch.object(
+            service_instance.provider, "fetch_pricing", new_callable=AsyncMock
+        ) as mock_fetch:
+            mock_fetch.return_value = {
+                "current_price": sample_pricing_data["current_price"],
+                "currency": sample_pricing_data["currency"],
+                "peak_period": sample_pricing_data["peak_period"],
+                "cheapest_hours": sample_pricing_data["cheapest_hours"],
+                "most_expensive_hours": sample_pricing_data["most_expensive_hours"],
+                "forecast_24h": sample_pricing_data["forecast_24h"],
+            }
+            service_instance.session = AsyncMock()
+
+            data = await service_instance.fetch_pricing()
+
+            assert data is not None
+            assert data["current_price"] == 0.285
+            assert data["currency"] == "EUR"
+            assert "timestamp" in data
+            assert data["provider"] == "awattar"
+
+    @pytest.mark.asyncio
+    async def test_fetch_pricing_updates_cache(self, service_instance, sample_pricing_data):
+        """GIVEN: Fetching | WHEN: Succeeds | THEN: Update cached_data and last_fetch_time"""
+        with patch.object(
+            service_instance.provider, "fetch_pricing", new_callable=AsyncMock
+        ) as mock_fetch:
+            mock_fetch.return_value = sample_pricing_data.copy()
+            service_instance.session = AsyncMock()
+
+            assert service_instance.cached_data is None
+            assert service_instance.last_fetch_time is None
+
+            await service_instance.fetch_pricing()
+
+            assert service_instance.cached_data is not None
+            assert service_instance.last_fetch_time is not None
+            assert service_instance.cached_data["current_price"] == 0.285
+
+    @pytest.mark.asyncio
+    async def test_fetch_pricing_updates_health_stats(self, service_instance, sample_pricing_data):
+        """GIVEN: Fetching | WHEN: Succeeds | THEN: total_fetches and last_successful_fetch update"""
+        with patch.object(
+            service_instance.provider, "fetch_pricing", new_callable=AsyncMock
+        ) as mock_fetch:
+            mock_fetch.return_value = sample_pricing_data.copy()
+            service_instance.session = AsyncMock()
+
+            initial_fetches = service_instance.health_handler.total_fetches
+
+            await service_instance.fetch_pricing()
+
+            assert service_instance.health_handler.total_fetches == initial_fetches + 1
+            assert service_instance.health_handler.last_successful_fetch is not None
+
+    @pytest.mark.asyncio
+    async def test_fetch_pricing_error_increments_failed_fetches(self, service_instance):
+        """GIVEN: Provider fetch fails | WHEN: Fetch | THEN: failed_fetches increments"""
+        with patch.object(
+            service_instance.provider, "fetch_pricing", new_callable=AsyncMock
+        ) as mock_fetch:
+            mock_fetch.side_effect = Exception("API error")
+            service_instance.session = AsyncMock()
+
+            initial_failures = service_instance.health_handler.failed_fetches
+
+            result = await service_instance.fetch_pricing()
+
+            assert result is None
+            assert service_instance.health_handler.failed_fetches == initial_failures + 1
+
+    @pytest.mark.asyncio
+    async def test_fetch_pricing_error_returns_cached_data(
+        self, service_instance, sample_pricing_data
+    ):
+        """GIVEN: Fetch fails but cache exists | WHEN: Fetch | THEN: Return cached data"""
+        service_instance.cached_data = sample_pricing_data.copy()
+        service_instance.last_fetch_time = datetime.now(UTC)
+
+        with patch.object(
+            service_instance.provider, "fetch_pricing", new_callable=AsyncMock
+        ) as mock_fetch:
+            mock_fetch.side_effect = Exception("API error")
+            service_instance.session = AsyncMock()
+
+            result = await service_instance.fetch_pricing()
+
+            assert result is not None
+            assert result == service_instance.cached_data
+
+
+class TestDataCaching:
+    """Test caching logic"""
+
+    @pytest.mark.asyncio
+    async def test_cache_populated_after_fetch(self, service_instance, sample_pricing_data):
+        """GIVEN: Empty cache | WHEN: Successful fetch | THEN: Cache populated"""
+        with patch.object(
+            service_instance.provider, "fetch_pricing", new_callable=AsyncMock
+        ) as mock_fetch:
+            mock_fetch.return_value = sample_pricing_data.copy()
+            service_instance.session = AsyncMock()
+
+            await service_instance.fetch_pricing()
+
+            assert service_instance.cached_data is not None
+            assert "current_price" in service_instance.cached_data
+
+    @pytest.mark.asyncio
+    async def test_cache_updated_on_new_fetch(
+        self, service_instance, sample_pricing_data, sample_cheap_pricing
+    ):
+        """GIVEN: Cached data | WHEN: New fetch | THEN: Cache updated with new data"""
+        with patch.object(
+            service_instance.provider, "fetch_pricing", new_callable=AsyncMock
+        ) as mock_fetch:
+            service_instance.session = AsyncMock()
+
+            mock_fetch.return_value = sample_pricing_data.copy()
+            await service_instance.fetch_pricing()
+            assert service_instance.cached_data["current_price"] == 0.285
+
+            mock_fetch.return_value = sample_cheap_pricing.copy()
+            await service_instance.fetch_pricing()
+            assert service_instance.cached_data["current_price"] == 0.18
+
+    @pytest.mark.asyncio
+    async def test_last_fetch_time_updated(self, service_instance, sample_pricing_data):
+        """GIVEN: Fetching | WHEN: Completes | THEN: last_fetch_time updated"""
+        with patch.object(
+            service_instance.provider, "fetch_pricing", new_callable=AsyncMock
+        ) as mock_fetch:
+            mock_fetch.return_value = sample_pricing_data.copy()
+            service_instance.session = AsyncMock()
+
+            before_fetch = datetime.now(UTC)
+            await service_instance.fetch_pricing()
+            after_fetch = datetime.now(UTC)
+
+            assert service_instance.last_fetch_time is not None
+            assert before_fetch <= service_instance.last_fetch_time <= after_fetch
+
+
+class TestInfluxDBStorage:
+    """Test InfluxDB data storage"""
+
+    @pytest.mark.asyncio
+    async def test_store_in_influxdb_success(
+        self, service_instance, sample_pricing_data, mock_influxdb_client
+    ):
+        """GIVEN: Pricing data | WHEN: Store | THEN: Write point with tags/fields"""
+        service_instance.influxdb_client = mock_influxdb_client
+
+        await service_instance.store_in_influxdb(sample_pricing_data)
+
+        assert mock_influxdb_client.write.called
+        assert mock_influxdb_client.write.call_count >= 1
+
+    @pytest.mark.asyncio
+    async def test_store_in_influxdb_skips_empty_data(self, service_instance, mock_influxdb_client):
+        """GIVEN: None data | WHEN: Store | THEN: Skip writing"""
+        service_instance.influxdb_client = mock_influxdb_client
+
+        await service_instance.store_in_influxdb(None)
+
+        assert not mock_influxdb_client.write.called
+
+    @pytest.mark.asyncio
+    async def test_store_in_influxdb_handles_write_error(
+        self, service_instance, sample_pricing_data, mock_influxdb_client
+    ):
+        """GIVEN: InfluxDB write fails | WHEN: Store | THEN: Handle gracefully"""
+        service_instance.influxdb_client = mock_influxdb_client
+        mock_influxdb_client.write.side_effect = Exception("InfluxDB write failed")
+
+        await service_instance.store_in_influxdb(sample_pricing_data)
+
+
+class TestAPIEndpoints:
+    """Test HTTP API endpoints (/cheapest-hours, mounted on the merged app)"""
+
+    def test_get_cheapest_hours_with_cached_data(self, api_client, service_instance, sample_pricing_data):
+        """GIVEN: Cached pricing data | WHEN: Request | THEN: Return cheapest hours"""
+        service_instance.cached_data = sample_pricing_data
+        service_instance.last_fetch_time = datetime.now()
+
+        response = api_client.get("/cheapest-hours", params={"hours": "4"})
+
+        assert response.status_code == 200
+        assert response.json()["cheapest_hours"] == sample_pricing_data["cheapest_hours"][:4]
+
+    def test_get_cheapest_hours_default_count(self, api_client, service_instance, sample_pricing_data):
+        """GIVEN: Cached data | WHEN: No count param | THEN: Default to 4 hours"""
+        service_instance.cached_data = sample_pricing_data
+        service_instance.last_fetch_time = datetime.now()
+
+        response = api_client.get("/cheapest-hours")
+
+        assert response.status_code == 200
+        assert len(response.json()["cheapest_hours"]) == min(
+            4, len(sample_pricing_data["cheapest_hours"])
+        )
+
+    def test_get_cheapest_hours_no_cached_data(self, api_client, service_instance):
+        """GIVEN: No cached data | WHEN: Request | THEN: 503"""
+        service_instance.cached_data = None
+
+        response = api_client.get("/cheapest-hours", params={"hours": "4"})
+
+        assert response.status_code == 503
+
+    def test_get_cheapest_hours_custom_count(self, api_client, service_instance, sample_pricing_data):
+        """GIVEN: Cached data | WHEN: Specific count requested | THEN: Return requested count"""
+        service_instance.cached_data = sample_pricing_data
+        service_instance.last_fetch_time = datetime.now()
+
+        response = api_client.get("/cheapest-hours", params={"hours": "2"})
+
+        assert response.status_code == 200
+        assert len(response.json()["cheapest_hours"]) == 2
+
+    def test_get_cheapest_hours_service_not_started(self, collectors_client, monkeypatch):
+        """GIVEN: Adapter's module-level `service` is None | WHEN: Request | THEN: 503"""
+        import src.adapters.electricity_pricing as ep_mod
+
+        monkeypatch.setattr(ep_mod, "service", None)
+
+        response = collectors_client.get("/cheapest-hours")
+
+        assert response.status_code == 503
+        assert response.json() == {"error": "Adapter not initialized"}
+
+
+class TestServiceLifecycle:
+    """Test service startup and shutdown"""
+
+    @pytest.mark.asyncio
+    async def test_startup_creates_session(self, service_instance):
+        """GIVEN: Service | WHEN: Startup | THEN: Create aiohttp session"""
+        await service_instance.startup()
+        assert service_instance.session is not None
+        await service_instance.shutdown()
+
+    @pytest.mark.asyncio
+    async def test_startup_creates_influxdb_client(self, service_instance):
+        """GIVEN: Service | WHEN: Startup | THEN: Create InfluxDB client"""
+        await service_instance.startup()
+        assert service_instance.influxdb_client is not None
+        await service_instance.shutdown()
+
+    @pytest.mark.asyncio
+    async def test_shutdown_closes_session(self, service_instance):
+        """GIVEN: Running service | WHEN: Shutdown | THEN: Close aiohttp session"""
+        await service_instance.startup()
+
+        session_close = AsyncMock()
+        service_instance.session.close = session_close
+
+        await service_instance.shutdown()
+
+        assert session_close.called
+
+    @pytest.mark.asyncio
+    async def test_shutdown_closes_influxdb_client(self, service_instance):
+        """GIVEN: Running service | WHEN: Shutdown | THEN: Close InfluxDB client"""
+        await service_instance.startup()
+
+        client_close = MagicMock()
+        service_instance.influxdb_client.close = client_close
+
+        await service_instance.shutdown()
+
+        assert client_close.called
+
+
+class TestHealthHandler:
+    """Test health check handler integration"""
+
+    @pytest.mark.asyncio
+    async def test_successful_fetch_updates_health(self, service_instance, sample_pricing_data):
+        """GIVEN: Fetching | WHEN: Succeeds | THEN: Health handler updated"""
+        with patch.object(
+            service_instance.provider, "fetch_pricing", new_callable=AsyncMock
+        ) as mock_fetch:
+            mock_fetch.return_value = sample_pricing_data.copy()
+            service_instance.session = AsyncMock()
+
+            initial_total = service_instance.health_handler.total_fetches
+
+            await service_instance.fetch_pricing()
+
+            assert service_instance.health_handler.total_fetches == initial_total + 1
+            assert service_instance.health_handler.last_successful_fetch is not None
+
+    @pytest.mark.asyncio
+    async def test_failed_fetch_updates_health(self, service_instance):
+        """GIVEN: Fetching | WHEN: Fails | THEN: Health handler tracks failure"""
+        with patch.object(
+            service_instance.provider, "fetch_pricing", new_callable=AsyncMock
+        ) as mock_fetch:
+            mock_fetch.side_effect = Exception("API error")
+            service_instance.session = AsyncMock()
+
+            initial_failures = service_instance.health_handler.failed_fetches
+
+            await service_instance.fetch_pricing()
+
+            assert service_instance.health_handler.failed_fetches == initial_failures + 1

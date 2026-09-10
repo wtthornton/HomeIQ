@@ -108,11 +108,9 @@ class DockerService:
             "admin-api": "homeiq-admin",
             "health-dashboard": "homeiq-dashboard",
             "influxdb": "homeiq-influxdb",
-            "weather-api": "homeiq-weather-api",
-            "electricity-pricing-service": "homeiq-electricity-pricing",
-            "air-quality-service": "homeiq-air-quality",
-            "calendar-service": "homeiq-calendar",
-            "smart-meter-service": "homeiq-smart-meter",
+            # weather-api, electricity-pricing, air-quality, calendar, smart-meter
+            # folded into one "collectors" container (TAP-7274).
+            "collectors": "homeiq-collectors",
             "data-retention": "homeiq-data-retention",
             "data-api": "homeiq-data-api",
         }
