@@ -362,7 +362,11 @@ CREATE TABLE IF NOT EXISTS indexed_blueprints (
     updated_at TIMESTAMPTZ,
     indexed_at TIMESTAMPTZ,
     last_checked_at TIMESTAMPTZ,
-    yaml_content TEXT
+    yaml_content TEXT,
+    -- Content provenance -- crawled from GitHub/Discourse, never authored by
+    -- this service. server_default so ALTER TABLE ADD COLUMN (see migration
+    -- 007) backfills pre-existing rows instead of rejecting them.
+    content_trust VARCHAR(20) NOT NULL DEFAULT 'untrusted'
 );
 
 CREATE INDEX IF NOT EXISTS ix_blueprints_domain ON indexed_blueprints (domain);

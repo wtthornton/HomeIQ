@@ -1,0 +1,5 @@
+# Test-only dependencies for rule-recommendation-ml.
+# aiosqlite backs the FeedbackStore e2e tests' sqlite+aiosqlite:///:memory:
+# URL; production runs postgresql+asyncpg (see requirements.txt), so this
+# never belongs in the runtime image.
+aiosqlite>=0.20.0

@@ -29,6 +29,19 @@ class TestFeedbackStoreConstructorContract:
 
 
 class TestFeedbackStoreInsertEndToEnd:
+    """Backend-scoped to sqlite+aiosqlite, not the production postgresql+asyncpg path.
+
+    These exercise FeedbackStore's SQL against a real (in-memory) engine, so
+    they establish that the raw-SQL statements are valid SQL and that the
+    insert -> read-back round trip works through SQLAlchemy's async API. They
+    do NOT establish anything Postgres-specific: dialect differences (e.g.
+    the `SERIAL PRIMARY KEY` in `model_retrain_log`'s DDL is Postgres syntax
+    that SQLite merely tolerates without giving it autoincrement semantics),
+    concurrent-session behaviour, or asyncpg driver quirks are unverified by
+    this class. aiosqlite is test-only (requirements-dev.txt); production
+    always constructs FeedbackStore with POSTGRES_URL/DATABASE_URL.
+    """
+
     async def test_insert_then_total_count(self):
         store = FeedbackStore("sqlite+aiosqlite:///:memory:")
 

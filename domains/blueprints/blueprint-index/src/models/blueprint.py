@@ -98,7 +98,9 @@ class IndexedBlueprint(Base):
     # this service. Downstream consumers (blueprint-suggestion-service, any
     # future automation-apply flow) must treat this as untrusted third-party
     # content, not as vetted configuration.
-    content_trust = Column(String(20), nullable=False, default="untrusted")
+    content_trust = Column(
+        String(20), nullable=False, default="untrusted", server_default="untrusted"
+    )
 
     # Relationships
     inputs_rel = relationship(
