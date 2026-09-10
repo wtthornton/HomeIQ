@@ -904,7 +904,8 @@ class AIAutomationApiClient {
 
 /**
  * RAG Service Client - Retrieval-Augmented Generation Metrics
- * Routes to rag-service (port 8027) via /rag-service proxy
+ * TAP-7276: rag-service merged into model-server (port 8019); the
+ * /rag-service nginx path is kept stable and now proxies to model-server.
  */
 class RAGServiceClient extends BaseApiClient {
   constructor() {

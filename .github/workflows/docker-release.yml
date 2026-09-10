@@ -66,13 +66,12 @@ jobs:
           - ai-automation-service-new
           - ai-automation-ui
           - log-aggregator
-          - ml-service
+          - model-server
           - ai-pattern-service
           - ha-ai-agent-service
           - proactive-agent-service
           - device-intelligence-service
           - automation-miner
-          - openvino-service
           - ha-setup-service
           - data-retention
           - device-setup-assistant
@@ -87,7 +86,6 @@ jobs:
           - automation-linter
           - api-automation-edge
           - device-health-monitor
-          - rag-service
           - observability-dashboard
     permissions:
       contents: read
@@ -179,13 +177,12 @@ jobs:
           - ai-automation-service-new
           - ai-automation-ui
           - log-aggregator
-          - ml-service
+          - model-server
           - ai-pattern-service
           - ha-ai-agent-service
           - proactive-agent-service
           - device-intelligence-service
           - automation-miner
-          - openvino-service
           - ha-setup-service
           - data-retention
           - device-setup-assistant

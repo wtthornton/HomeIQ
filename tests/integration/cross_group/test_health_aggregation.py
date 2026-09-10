@@ -26,9 +26,11 @@ DOMAIN_SERVICES = {
         "electricity-pricing-service", "calendar-service", "log-aggregator",
     ],
     "ml-engine": [
-        "ai-core-service", "openvino-service", "ml-service",
-        "rag-service", "ai-training-service", "device-intelligence-service",
-        "model-prep", "nlp-fine-tuning", "ner-service", "openai-service",
+        # TAP-7276: openvino-service + ml-service + rag-service merged into
+        # model-server; ner-service dropped outright (no fold target).
+        "ai-core-service", "model-server",
+        "ai-training-service", "device-intelligence-service",
+        "model-prep", "nlp-fine-tuning", "openai-service",
     ],
     "automation-core": [
         "ha-ai-agent-service", "ai-automation-service-new",

@@ -358,3 +358,152 @@ cases, plus dropping one now-inapplicable per-service `/health` payload assertio
 (`test_service` == the individual service name) since `/health` is shared across all
 six adapters post-merge. No capability lost its test coverage; every surviving route
 above has passing tests in `collectors-service/tests/`. Full accounting is in the PR body.
+
+## Section C3 — model-server (TAP-7276, landed)
+
+`openvino-service`, `ml-service` and `rag-service` fold into one production service
+`model-server`. `ner-service` is **dropped outright** — no fold target, no caller.
+Base sha `073cc5f8820e25f87a02280d0563fc34a0e70fa7`: 37 production services before this
+lane; 34 after (`-4 + 1`, ratcheted in `infrastructure/container-budget.json`).
+
+**device-intelligence-service's ML slice (item 3 of the original brief) is explicitly
+NOT moved in this PR.** `predictions_router.py` and `recommendations_router.py` (the
+sklearn-based failure-prediction/recommendation code in
+`domains/ml-engine/device-intelligence-service/src/core/predictive_analytics.py`,
+`core/recommendation_engine.py`) are deeply coupled to that service's own
+`core.database`/`core.repository`/`core.cache` — the same Postgres `devices` schema
+its CRUD routes use, not an HTTP call to openvino/ml-service the way rag-service's
+embedding calls were. Moving it would mean either giving model-server a live
+dependency on the `devices` schema, or rewriting those two routers to fetch device
+data over HTTP from device-domain instead of direct DB access — a real architecture
+decision the collapse-map evidence never worked out (it only asserts "the ML slice
+of device-intelligence-service" moves, without specifying the DB-coupling mechanics).
+Doing that extraction unreviewed, in the same PR as the openvino/ml/rag merge, risked
+a rushed and unsafe split. `device-intelligence-service` stays as its own container,
+untouched — the `-4 + 1 = -3` ratchet does not depend on this slice moving, since the
+four services actually retired here are openvino-service, ml-service, rag-service and
+ner-service, none of which is device-intelligence-service. Flagging as a follow-up
+rather than silently absorbing it into "done."
+
+### ner-service: dropped-with-reason
+
+Re-confirmed at this lane's base sha (not trusted from the brief, which itself flagged
+its own `## Where` as stale — the real source is
+`domains/ml-engine/ner-service/src/ner_service.py`, not `ner-service/src/main.py`):
+
+- 0 test files (`domains/ml-engine/ner-service/` has only `Dockerfile`,
+  `requirements-prod.txt`, `src/ner_service.py`).
+- `git grep -n 'ner-service\|ner_service' -- domains libs custom_components agentforge
+  tests scripts infrastructure` (full scope — an earlier draft of this section scoped
+  the grep to `domains libs custom_components` only, which silently excludes
+  `scripts/` and `infrastructure/`; re-run at the corrected scope) finds, in addition
+  to ner-service's own compose block and the `homeiq-ner-service` prometheus scrape
+  target (`infrastructure/prometheus/prometheus.yml:120`): two **real callers**,
+  `scripts/ops/check-all-health.sh:31` and `scripts/validate-services.sh:126`, both
+  curling `http://localhost:8031/health` with `ner-service` listed as a
+  `REQUIRED_SERVICE`. **Both were repointed at this lane's head** — the drop is safe.
+  Also a label in health-dashboard's static `public/ai-tier-manifest.json` — no code
+  caller there.
+- No `NERClient`/`ner_client` class anywhere in `domains/` or `libs/`. Its sole
+  documented consumer, `ai-core-service` (`docs/architecture/service-groups.md:200`:
+  "ner-service (NER) --> ai-core-service (orchestrator)"), does not exist in the
+  filesystem — `domains/ml-engine/` has no `ai-core-service` directory at this
+  lane's base sha, re-verified directly (`ls domains/ml-engine/`), not trusted from
+  an earlier program document.
+
+Its 4 routes drop with it: `POST /extract`, `GET /health`, `GET /model-info`,
+`GET /stats`. No caller found — a real one would have been a map amendment, not
+something to fold in silently.
+
+### One process, one model load
+
+The OpenVINO embedding/rerank/classify model (`OpenVINOManager`,
+`domains/ml-engine/model-server/src/openvino/models/openvino_manager.py`) is
+constructed exactly once per process, at startup. rag-service used to call a
+*separate* openvino-service container over HTTP for embeddings
+(`OpenVINOClient` → `http://openvino-service:8019`); in the merged process that
+became `LocalOpenVINOBridge`
+(`domains/ml-engine/model-server/src/rag/clients/openvino_client.py`), an
+in-process adapter around the same manager instance the `/embeddings` and
+`/rerank` routes use — no second model load, no network hop to a container that
+no longer exists. Asserted by
+`domains/ml-engine/model-server/tests/test_shared_model_load.py`: one
+`OpenVINOManager()` construction on startup (mock-counted), RAG's bridge holds
+the identical manager object (`bridge._manager is openvino_manager`), and RAG's
+`get_embeddings()` call is proven to route through that same manager's own
+`generate_embeddings()` (call-count spy, not just an output match). Red-first:
+these three tests were run against a deliberately reintroduced second
+`OpenVINOManager()` instantiation in the RAG startup hook and failed (proving
+they exercise the shared-instance invariant), then reverted to the real fix
+and re-verified green.
+
+### Route map
+
+| Former service | Former route | Surviving route under `model-server` (port 8019) | Consumers rewritten (file:line) |
+|---|---|---|---|
+| openvino-service | `POST /embeddings`, `POST /rerank`, `POST /classify`, `GET /models/status`, `POST /models/warmup` | same paths, unchanged (`src/main.py:366-489`) | `infrastructure/prometheus/prometheus.yml:121,126` (scrape target), `scripts/{check-versions.sh,deploy-phase-5.sh,deploy-tier3.sh,deployment/post-deployment-validate.sh,post-deployment-monitor.sh,pre-deployment-check.sh,deploy-tier3.sh:101,phase1-monitor-rebuild.sh:124,rollback-ml-upgrade.sh:147,quantize-bge-m3.py:128,validate-bge-m3-deployment.sh:27,ops/check-all-health.sh:29-32,validate-services.sh:124-126}`, `.github/workflows/{ci-ml.yml,docker-build.yml,docker-release.yml,docker-security-scan.yml}` (matrix entries), `docker-bake.hcl` (build target), `domains/core-platform/health-dashboard/public/ai-tier-manifest.json`, `tests/integration/cross_group/test_health_aggregation.py:28-33` |
+| ml-service | `POST /cluster`, `POST /anomaly`, `POST /batch/process`, `GET /algorithms/status` | same paths, unchanged (`src/main.py:498-603`) | same deployment/CI surfaces above (shared `model-server:8026` entry); `domains/blueprints/rule-recommendation-ml/requirements.txt:19` (comment) |
+| rag-service | `POST /api/v1/rag/*` (`rag_router`), `GET /api/v1/metrics*` (`metrics_router`) | same paths, unchanged (`src/rag/api/rag_router.py`, `metrics_router.py`, both included by `src/main.py:222-223`) | `domains/core-platform/admin-api/src/health_endpoints.py:185,216` (`service_urls["model-server"]`, `group_mappings["ml-engine"]`), `domains/core-platform/health-dashboard/nginx.conf:618,622` (`/rag-service/` proxy_pass target repointed to `model-server:8019`; the *path* is kept stable so `domains/core-platform/health-dashboard/src/services/api.ts`'s `RAGServiceClient` needed no change), `domains/core-platform/health-dashboard/src/components/ServicesTab.tsx:64,70` (service card), `infrastructure/prometheus/{prometheus.yml:121,126,alerts.yml:498-499}` (scrape target + `MemoryBrainEmbeddingDown` alert expr), `infrastructure/postgres/init-schemas.sql:1134` (comment), `pytest-unit.ini:35` (testpaths), `domains/automation-core/compose.yml:7` (comment) |
+| ner-service | `POST /extract`, `GET /health`, `GET /model-info`, `GET /stats` | **dropped, no surviving route** | none (no caller found — see above) |
+| (cross-cutting) | `GET /health`, `GET /ready` | same paths, via `StandardHealthCheck` (`libs/homeiq-resilience/src/homeiq_resilience/health_check.py:85-93`, `router.add_api_route` — not a `@app.get` decorator, so a decorator grep misses it), registered `domains/ml-engine/model-server/src/main.py:198-203` with checks `openvino-models`, `ml-managers` | none new — **contract change**: ml-service's own `/health` returned a custom dict including `algorithms_available` (base sha `domains/ml-engine/ml-service/src/main.py:130-136`); the generic `StandardHealthCheck` response does not include that field. `git grep -n 'algorithms_available'` at head: 0 hits — no consumer reads it, so this is a response-shape change with no known breakage, not a silent regression. Not re-added; a follow-up story owns whether it's worth restoring. |
+
+**Bare-container-name grep** (`git grep -n 'homeiq-\(openvino\|ml-service\|rag\|ner\)'`)
+after the rewrites above returns **zero matches** in `domains/`, `libs/`, or
+`.claude/` — an earlier draft of this section claimed that command found
+`.claude/settings.local.json`, `zeek-network-service` sources, and
+`libs/homeiq-resilience`, which is false: those three files use the **bare** service
+names (no `homeiq-` prefix), so the `homeiq-`-prefixed pattern above cannot return
+them. The only hits for the prefixed pattern are historical docs
+(`docs/operations/dashboard-triage-2026-08-01.md`, `docs/operations/service-health-checks.md`,
+`docs/planning/phase-3-plan-ml-ai-upgrades.md`, `docs/planning/rebuild-deployment-plan.md`,
+`stories/epic-81-docker-rebuild-aiohttp-cve.md`), none of them live consumer code.
+
+The command that actually produces the three-file result is the **bare-name** grep,
+`git grep -n '\bml-service\b\|\brag-service\b\|\bner-service\b\|\bopenvino-service\b' --
+.claude/settings.local.json domains/data-collectors/zeek-network-service
+libs/homeiq-resilience` — and re-run at that scope: `.claude/settings.local.json`
+(Bash permission allowlist entries, not executable consumer code),
+`domains/data-collectors/zeek-network-service/src/{main.py:735,
+parsers/flowmeter_parser.py:4}` (descriptive comments — the flow-feature data still
+flows to whichever ML consumer wants it, now model-server, but the comment text
+itself wasn't rewritten), and `libs/homeiq-resilience/src/homeiq_resilience/health.py:17`
+/ `libs/homeiq-resilience/tests/test_health.py:25` (a generic `"ml-service"` example
+name in library docstring/test fixtures, unrelated to this repo's actual service —
+same naming-collision shape the brief warned about, verified by reading the call site,
+not just the string match). None of these are live HTTP callers of a retired hostname.
+
+### Test re-homing
+
+Per-service base collect counts, measured in an isolated venv (`fastapi`, `torch`,
+`sentence-transformers`, `scikit-learn`, `sqlalchemy`, `asyncpg` installed from
+`requirements-dev.txt`) against a detached worktree at this lane's own base sha
+(`073cc5f8820e25f87a02280d0563fc34a0e70fa7`), not trusted from any earlier program
+document: openvino-service 42, ml-service 122, rag-service 5, ner-service 0 (no
+`tests/` dir — not an `error` row, a real zero) — **sum 169**.
+
+`model-server` head collect count: **190**. All 169 base tests re-homed with only
+import-path updates (`src.models.openvino_manager` → `src.openvino.models.
+openvino_manager`, `src.middleware`/`src.validation`/`src.algorithms.*` →
+`src.ml.*`, `src.utils.metrics` → `src.rag.utils.metrics`) — no test was deleted to
+make the arithmetic work. The +21 gap is entirely new coverage added in this PR:
+3 tests in `test_shared_model_load.py` (the one-model-load assertions above) and 18
+in `test_rag_service_unit.py`, replacing a single `assert True` placeholder
+(`RAGService.store/retrieve/search/update_success_score` were previously untested;
+merging rag's own `src/rag/api/health_router.py` — dead code, never mounted even in
+the original rag-service — was deleted rather than tested, since testing an
+unreachable route would have asserted nothing real). 169 base → 190 head reconciles
+exactly: 169 + 3 + 18 = 190.
+
+**Coverage gate:** `[coverage:report] fail_under = 70` in `model-server/pytest.ini`
+is a live gate here (confirmed with `--cov-fail-under=70`) — pre-fix coverage was
+67.36% (would have failed); adding the real `test_rag_service_unit.py` tests above
+(not padding) brought it to 74.58%.
+
+**Bonus fix surfaced by this merge:** `OpenVINOManager`'s `model_cache_dir` setting
+was declared in `openvino-service`'s config but never actually passed to the
+manager's constructor (`OpenVINOManager()` always used its hardcoded `/app/models`
+default) — dead config since the service was first written. Real lifespan-startup
+tests (`test_health.py`, `test_shared_model_load.py`) only became possible outside a
+container once `_startup_openvino()` was fixed to pass
+`models_dir=openvino_settings.model_cache_dir`, which is what let `MODEL_CACHE_DIR`
+be pointed at a writable tmp dir in `tests/conftest.py`.

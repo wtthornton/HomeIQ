@@ -36,8 +36,7 @@ jobs:
           - ha-ai-agent-service
           - ai-pattern-service
           - device-intelligence-service
-          - ml-service
-          - openvino-service
+          - model-server
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

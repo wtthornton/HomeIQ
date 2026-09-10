@@ -43,7 +43,7 @@ MODELS = {
     "BAAI/bge-large-en-v1.5": {
         "dimension": 1024,
         "reference_file": "bge-large-en-v1.5_v3.3.1.npz",
-        "description": "Production model for openvino-service",
+        "description": "Production model for model-server (formerly openvino-service, TAP-7276)",
     },
 }
 

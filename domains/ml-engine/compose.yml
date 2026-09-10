@@ -2,29 +2,40 @@ name: homeiq-ml-engine
 # domains/ml-engine/compose.yml — ML model inference, embedding generation, and training
 # Deploy cadence: Frequent — model updates, library upgrades
 #
-# Services: openvino-service, ml-service, ner-service, rag-service,
+# Services: model-server (merged openvino-service + ml-service + rag-service),
 #           device-intelligence-service, model-prep
+# ner-service was dropped outright (no caller; see docs/architecture/collapse-map.md
+# section C3 and TAP-7276) rather than folded into model-server.
 # Depends on: core-platform (data-api for entity/device metadata)
-# Depended on by: automation-core (ML inference via ml-service)
+# Depended on by: automation-core (ML inference via model-server)
 
 services:
-  openvino-service:
+  model-server:
     build:
       context: ../..
-      dockerfile: domains/ml-engine/openvino-service/Dockerfile
-    container_name: homeiq-openvino-service
+      dockerfile: domains/ml-engine/model-server/Dockerfile
+    container_name: homeiq-model-server
     restart: unless-stopped
     ports:
       - "8026:8019"
+    env_file:
+      - ../../.env
+    environment:
+      - RAG_DATABASE_PATH=/app/data/rag_service.db
+      - RAG_CORS_ORIGINS=http://localhost:3000,http://localhost:3001
+      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq
+      - DATABASE_SCHEMA=rag
+    volumes:
+      - ./model-server/data:/app/data
     networks:
       - homeiq-network
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 896M
           cpus: '2.0'
         reservations:
-          memory: 128M
+          memory: 448M
           cpus: '1.5'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8019/health"]
@@ -37,116 +48,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-        labels: "service=openvino-models,group=ml-engine,environment=production"
-
-  ml-service:
-    build:
-      context: ../..
-      dockerfile: domains/ml-engine/ml-service/Dockerfile
-    container_name: homeiq-ml-service
-    restart: unless-stopped
-    ports:
-      - "8025:8020"
-    networks:
-      - homeiq-network
-    deploy:
-      resources:
-        limits:
-          memory: 384M
-          cpus: '2.0'
-        reservations:
-          memory: 192M
-          cpus: '1.0'
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8020/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        labels: "service=ml-algorithms,group=ml-engine,environment=production"
-
-  ner-service:
-    build:
-      context: ../..
-      dockerfile: domains/ml-engine/ner-service/Dockerfile
-    container_name: homeiq-ner-service
-    restart: unless-stopped
-    expose:
-      - "8031"
-    networks:
-      - homeiq-network
-    deploy:
-      resources:
-        limits:
-          memory: 768M
-          cpus: '2.0'
-        reservations:
-          memory: 512M
-          cpus: '1.0'
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8031/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        labels: "service=ner-model,group=ml-engine,environment=production"
-
-  rag-service:
-    build:
-      context: ../..
-      dockerfile: domains/ml-engine/rag-service/Dockerfile
-    container_name: homeiq-rag-service
-    restart: unless-stopped
-    ports:
-      - "8027:8027"
-    env_file:
-      - ../../.env
-    environment:
-      - RAG_SERVICE_PORT=8027
-      - RAG_SERVICE_HOST=0.0.0.0
-      - RAG_DATABASE_PATH=/app/data/rag_service.db
-      - RAG_OPENVINO_SERVICE_URL=http://openvino-service:8019
-      - RAG_LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - RAG_CORS_ORIGINS=http://localhost:3000,http://localhost:3001
-      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq
-      - DATABASE_SCHEMA=rag
-    volumes:
-      - ./rag-service/data:/app/data
-    networks:
-      - homeiq-network
-    depends_on:
-      openvino-service:
-        condition: service_healthy
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '1.0'
-        reservations:
-          memory: 128M
-          cpus: '0.5'
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8027/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        labels: "service=rag-service,group=ml-engine,environment=production"
+        labels: "service=model-server,group=ml-engine,environment=production"
 
   device-intelligence-service:
     build:

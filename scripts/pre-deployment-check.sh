@@ -76,9 +76,8 @@ check_health_endpoints() {
     "collectors:8009"
     "log-aggregator:8015"
     "device-intelligence-service:8028"
-    "openvino-service:8026"
-    "ml-service:8025"
-    "rag-service:8027"
+    # TAP-7276: openvino-service + ml-service + rag-service merged into model-server.
+    "model-server:8026"
     "automation-linter:8016"
     "ha-ai-agent-service:8030"
     "automation-trace-service:8044"

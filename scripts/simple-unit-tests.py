@@ -92,11 +92,13 @@ class SimpleUnitTestRunner:
         "domains/energy-analytics/proactive-agent-service/tests",
         "domains/frontends/observability-dashboard/tests",
         "domains/ml-engine/device-intelligence-service/tests",
-        "domains/ml-engine/ml-service/tests",
-        "domains/ml-engine/openvino-service/tests",
-        "domains/ml-engine/rag-service/tests",
+        "domains/ml-engine/model-server/tests",
         "domains/pattern-analysis/ai-pattern-service/tests",
     ]
+
+    # TEST_DIRS entries that are allowed to be absent (must be listed explicitly;
+    # a directory that is *not* here but doesn't exist is a configuration error).
+    OPTIONAL_TEST_DIRS: set[str] = set()
 
     def run_python_tests(self):
         """Run Python unit tests per-directory to avoid import conflicts."""
@@ -109,6 +111,15 @@ class SimpleUnitTestRunner:
         for test_dir in self.TEST_DIRS:
             test_path = self.project_root / test_dir
             if not test_path.exists():
+                if test_dir in self.OPTIONAL_TEST_DIRS:
+                    continue
+                self.print_progress(
+                    f"  {test_dir}: TEST_DIRS names a path that does not exist "
+                    f"(not in OPTIONAL_TEST_DIRS) - configuration error",
+                    "ERROR",
+                )
+                total_failed += 1
+                failed_dirs.append(test_dir)
                 continue
 
             cmd = [

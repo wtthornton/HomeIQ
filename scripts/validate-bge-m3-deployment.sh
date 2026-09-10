@@ -24,7 +24,7 @@ echo ""
 echo -e "${YELLOW}1. Checking OpenVINO service...${NC}"
 if ! curl -s -f "${OPENVINO_URL}/health" > /dev/null 2>&1; then
     echo -e "${RED}❌ OpenVINO service is not running at ${OPENVINO_URL}${NC}"
-    echo -e "${YELLOW}   Start it with: docker-compose up -d openvino-service${NC}"
+    echo -e "${YELLOW}   Start it with: docker-compose up -d model-server${NC}"
     exit 1
 fi
 echo -e "${GREEN}✅ OpenVINO service is running${NC}"

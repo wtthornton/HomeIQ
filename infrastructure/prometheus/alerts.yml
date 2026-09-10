@@ -493,14 +493,16 @@ groups:
           description: "More than 5 Zeek security alerts are active simultaneously. This may indicate a coordinated attack or widespread network issue."
 
       # Memory Brain health — embedding service down
+      # TAP-7276: rag-service merged into model-server; the prometheus scrape
+      # label changed with it (infrastructure/prometheus/prometheus.yml).
       - alert: MemoryBrainEmbeddingDown
-        expr: up{service="rag-service"} == 0
+        expr: up{service="model-server"} == 0
         for: 3m
         labels:
           severity: warning
         annotations:
-          summary: "Memory Brain embedding service (rag-service) is down"
-          description: "The RAG service used for Memory Brain embeddings has been unreachable for over 3 minutes. Memory search and consolidation are impaired."
+          summary: "Memory Brain embedding service (model-server) is down"
+          description: "The RAG retrieval path (now served by model-server) used for Memory Brain embeddings has been unreachable for over 3 minutes. Memory search and consolidation are impaired."
 
       # Cross-group circuit breaker open
       - alert: CircuitBreakerOpen

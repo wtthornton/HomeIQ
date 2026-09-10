@@ -121,9 +121,9 @@ declare -A REQUIRED_SERVICES=(
     ["influxdb"]="8086"
     ["smart-meter"]="8014"
     ["ai-automation-service"]="8024"
-    ["openvino-service"]="8026"
-    ["ml-service"]="8025"
-    ["ner-service"]="8031"
+    # TAP-7276: openvino-service + ml-service + rag-service merged into
+    # model-server; ner-service dropped outright (no fold target).
+    ["model-server"]="8026"
     ["device-intelligence-service"]="8028"
     ["device-health-monitor"]="8019"
     ["device-context-classifier"]="8032"

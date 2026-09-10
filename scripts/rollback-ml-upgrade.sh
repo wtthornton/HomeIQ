@@ -144,7 +144,7 @@ verify() {
     # Check library versions inside running containers
     echo ""
     echo "Library versions in running containers:"
-    for container in homeiq-device-intelligence-service homeiq-ml-service homeiq-ai-pattern-service; do
+    for container in homeiq-device-intelligence-service homeiq-model-server homeiq-ai-pattern-service; do
         if docker inspect "$container" >/dev/null 2>&1; then
             echo "  $container:"
             docker exec "$container" python -c "

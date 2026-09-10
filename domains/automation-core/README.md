@@ -14,7 +14,7 @@ Core automation engine — NL-to-YAML generation, validation, and deployment. Bo
 
 ## Depends On
 
-core-platform (data-api), ml-engine (AI inference via ml-service)
+core-platform (data-api), ml-engine (AI inference via model-server)
 
 ## Depended On By
 

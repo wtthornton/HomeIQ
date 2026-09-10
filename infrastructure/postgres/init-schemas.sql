@@ -1135,7 +1135,7 @@ CREATE INDEX IF NOT EXISTS ix_spec_versions_spec_id ON spec_versions (spec_id);
 CREATE UNIQUE INDEX IF NOT EXISTS ix_spec_versions_spec_hash ON spec_versions (spec_hash);
 
 -- =============================================================================
--- RAG schema tables (rag-service)
+-- RAG schema tables (model-server, formerly rag-service — TAP-7276)
 -- =============================================================================
 SET search_path TO rag;
 

@@ -13,7 +13,7 @@ Blueprint discovery, indexing, suggestion, and ML-powered recommendations. Crawl
 
 ## Depends On
 
-core-platform (data-api), ml-engine (ml-service for ML inference)
+core-platform (data-api), ml-engine (model-server for ML inference)
 
 ## Depended On By
 

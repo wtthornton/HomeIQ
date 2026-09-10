@@ -125,7 +125,7 @@ def main():
         print(f"✅ Model saved to: {TARGET_DIR}")
         print()
         print("✅ Next steps:")
-        print("   1. Restart OpenVINO service: docker-compose restart openvino-service")
+        print("   1. Restart OpenVINO service: docker-compose restart model-server")
         print("   2. Validate deployment: bash scripts/validate-bge-m3-deployment.sh")
         
         return 0
