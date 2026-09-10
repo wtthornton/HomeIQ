@@ -121,6 +121,39 @@ class LoopResult:
     tool_execution_ids: list = field(default_factory=list)
 
 
+def _normalise_tool_calls(raw: object) -> list[dict]:
+    """Map the workflow's tool-call entries onto the ``ToolCall`` schema.
+
+    The ``assistant-chat`` gene reports each call it made as
+    ``{"tool": ..., "params": {...}}``; ``ToolCall`` requires ``id``, ``name``
+    and ``arguments``. Without this translation every turn that used a tool
+    failed ChatResponse validation and the endpoint answered 500 -- the
+    response model, not the workflow, was what broke. Entries that already
+    carry the ``ToolCall`` field names pass through, and an id is synthesised
+    from the position in the turn when the workflow supplies none.
+    """
+    if not isinstance(raw, list):
+        return []
+    calls = []
+    for index, entry in enumerate(raw):
+        if not isinstance(entry, dict):
+            continue
+        name = entry.get("name") or entry.get("tool")
+        if not name:
+            continue
+        arguments = entry.get("arguments")
+        if arguments is None:
+            arguments = entry.get("params")
+        calls.append(
+            {
+                "id": str(entry.get("id") or index),
+                "name": str(name),
+                "arguments": arguments if isinstance(arguments, dict) else {},
+            }
+        )
+    return calls
+
+
 async def _run_agentforge_turn(
     *,
     conversation_id: str,
@@ -173,7 +206,7 @@ async def _run_agentforge_turn(
         content = answer.get("response") or ""
     result.assistant_content = str(content)
     tool_calls = answer.get("tool_calls")
-    result.tool_calls = tool_calls if isinstance(tool_calls, list) else []
+    result.tool_calls = _normalise_tool_calls(tool_calls)
     result.iterations = int(answer.get("iterations") or 1)
     end_tracking(
         call_id,

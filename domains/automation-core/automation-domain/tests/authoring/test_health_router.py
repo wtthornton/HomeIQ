@@ -22,9 +22,9 @@ class TestHealthRouter:
         # Response should be a dict, not a list
         assert isinstance(data, dict)
         assert "status" in data
-        assert data["status"] in ["healthy", "unhealthy"]
+        assert data["status"] in ["healthy", "degraded", "unhealthy"]
         assert "service" in data
-        assert data["service"] == "ai-automation-service"
+        assert data["service"] == "automation-domain"
 
     @pytest.mark.unit
     @pytest.mark.requires_db
@@ -37,4 +37,4 @@ class TestHealthRouter:
         # Response should be a dict
         assert isinstance(data, dict)
         assert "service" in data
-        assert data["service"] == "ai-automation-service"
+        assert data["service"] == "automation-domain"

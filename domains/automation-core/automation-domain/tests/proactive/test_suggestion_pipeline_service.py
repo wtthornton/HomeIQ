@@ -96,6 +96,11 @@ async def test_generate_suggestions_handles_prompt_generation_failure(
         prompt_service=mock_prompt_service,
         agent_client=mock_agent_client,
         storage_service=mock_storage_service,
+        # TAP-7275: use_ai_generation defaults to True whenever an
+        # AGENTFORGE_API_KEY is present, and tests/conftest.py now supplies one
+        # for every slice. These cases inject prompt_service -- the non-AI
+        # path -- so they say so rather than depending on an unset env var.
+        use_ai_generation=False,
     )
 
     result = await pipeline.generate_suggestions()
@@ -123,6 +128,11 @@ async def test_generate_suggestions_handles_storage_failure(
         prompt_service=mock_prompt_service,
         agent_client=mock_agent_client,
         storage_service=mock_storage_service,
+        # TAP-7275: use_ai_generation defaults to True whenever an
+        # AGENTFORGE_API_KEY is present, and tests/conftest.py now supplies one
+        # for every slice. These cases inject prompt_service -- the non-AI
+        # path -- so they say so rather than depending on an unset env var.
+        use_ai_generation=False,
     )
 
     result = await pipeline.generate_suggestions()
@@ -151,6 +161,11 @@ async def test_generate_suggestions_stores_pending_without_sending(
         prompt_service=mock_prompt_service,
         agent_client=mock_agent_client,
         storage_service=mock_storage_service,
+        # TAP-7275: use_ai_generation defaults to True whenever an
+        # AGENTFORGE_API_KEY is present, and tests/conftest.py now supplies one
+        # for every slice. These cases inject prompt_service -- the non-AI
+        # path -- so they say so rather than depending on an unset env var.
+        use_ai_generation=False,
     )
 
     result = await pipeline.generate_suggestions()
@@ -179,6 +194,11 @@ async def test_generate_suggestions_handles_none_context_analysis(
         prompt_service=mock_prompt_service,
         agent_client=mock_agent_client,
         storage_service=mock_storage_service,
+        # TAP-7275: use_ai_generation defaults to True whenever an
+        # AGENTFORGE_API_KEY is present, and tests/conftest.py now supplies one
+        # for every slice. These cases inject prompt_service -- the non-AI
+        # path -- so they say so rather than depending on an unset env var.
+        use_ai_generation=False,
     )
 
     result = await pipeline.generate_suggestions()
@@ -198,6 +218,11 @@ def _make_pipeline(
         prompt_service=mock_prompt_service,
         agent_client=mock_agent_client,
         storage_service=mock_storage_service,
+        # TAP-7275: use_ai_generation defaults to True whenever an
+        # AGENTFORGE_API_KEY is present, and tests/conftest.py now supplies one
+        # for every slice. These cases inject prompt_service -- the non-AI
+        # path -- so they say so rather than depending on an unset env var.
+        use_ai_generation=False,
     )
 
 

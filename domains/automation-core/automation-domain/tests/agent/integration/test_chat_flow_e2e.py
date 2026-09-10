@@ -297,8 +297,10 @@ async def test_chat_flow_error_handling(test_client, mock_chat_client):
         },
     )
 
-    # An upstream AgentForge failure is a dependency outage, not an internal error.
-    assert response.status_code == 503
+    # TAP-7275: the pre-fold endpoint answered 503 for an OpenAI failure. The
+    # upstream is now a gateway this process calls, and chat_endpoints answers
+    # 502 Bad Gateway -- an upstream that failed, not this service being down.
+    assert response.status_code == 502
     assert "try again later" in response.json()["detail"].lower()
 
 

@@ -35,7 +35,10 @@ class TestAutomationServicePerformance:
         response = await client.get("/health")
         elapsed = (time.time() - start_time) * 1000  # Convert to ms
 
-        assert response.status_code == 200
+        # TAP-7275: the merged endpoint reports all three slices and answers
+        # 503 while any is degraded. Latency is what this test measures, and it
+        # is measured on either answer.
+        assert response.status_code in (200, 503)
         assert elapsed < 100  # Health check should be <100ms
 
     @pytest.mark.performance

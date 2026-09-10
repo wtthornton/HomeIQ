@@ -18,9 +18,15 @@ def fast_startup():
     _startup probes data-api with wait_for_dependency (10 retries, ~3 minutes
     of real sleeps when unreachable), opens HTTP and memory clients, and may
     start the scheduler. None of that is what these tests assert.
+
+    TAP-7275: these now drive the merged lifespan, so the proactive slice's
+    hooks run too. src/proactive/main.py binds wait_for_dependency at module
+    import, which the homeiq_resilience patch below cannot reach -- its two
+    unreachable probes were 300s of real sleeps each.
     """
     with (
         patch("homeiq_resilience.wait_for_dependency", new_callable=AsyncMock, return_value=False),
+        patch("src.proactive.main.wait_for_dependency", new_callable=AsyncMock, return_value=False),
         patch("src.authoring.main.init_clients", new_callable=MagicMock),
         patch("src.authoring.main.init_memory_client", new_callable=AsyncMock),
         patch("src.authoring.main._start_scheduler", new_callable=MagicMock),
@@ -39,7 +45,12 @@ class TestMainApplication:
         assert response.status_code == 200
         data = response.json()
         # Served by homeiq_resilience.create_app: service is the app title.
-        assert data == {"service": "AI Automation Service", "version": "1.0.0", "status": "running"}
+        # TAP-7275: the three services are one app, titled for the merged one.
+        assert data == {
+            "service": "HomeIQ automation-domain",
+            "version": "1.0.0",
+            "status": "running",
+        }
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -105,11 +116,15 @@ class TestLifespanManagement:
 
         mock_init_db.side_effect = Exception("Database connection failed")
 
-        # ServiceLifespan is graceful: the failing "services" hook is logged and
-        # the app comes up degraded. The rest of that hook (rate limiting) is
-        # skipped, which is the observable consequence.
-        async with lifespan.handler(app):
-            _mock_start_cleanup.assert_not_called()
+        # TAP-7275: the merged lifespan is graceful=False -- the strictest of
+        # the three predecessors, inherited from the agent slice, so a process
+        # serving a broken slice does not report itself up. A startup hook that
+        # raises now aborts startup instead of degrading, and the rest of that
+        # hook (rate limiting) is still skipped.
+        with pytest.raises(Exception, match="Database connection failed"):
+            async with lifespan.handler(app):
+                pass
+        _mock_start_cleanup.assert_not_called()
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -141,8 +156,12 @@ class TestMiddlewareConfiguration:
     @pytest.mark.unit
     async def test_authentication_middleware_enabled(self, client: AsyncClient):
         """Test that authentication middleware is enabled."""
-        # Try to access protected endpoint without auth
-        response = await client.get("/api/v1/suggestions")
+        # TAP-7275: /api/v1/suggestions belongs to the proactive slice now and
+        # AUTHORING_PATH_PREFIXES does not cover it, so the authoring auth
+        # middleware waves it straight through to a database this fixture never
+        # opened. /api/suggestions is an authoring prefix -- the route this
+        # test means to find guarded.
+        response = await client.get("/api/suggestions")
         # Should return 401 (unauthorized) or 403 (forbidden), not 200
         assert response.status_code in [401, 403, 404]
 
@@ -213,10 +232,12 @@ class TestConfiguration:
         """Test application metadata is correctly configured."""
         from src.main import app
 
-        assert app.title == "AI Automation Service"
+        # TAP-7275: one app for all three slices.
+        assert app.title == "HomeIQ automation-domain"
         assert (
             app.description
-            == "Automation service for suggestion generation, YAML generation, and deployment to Home Assistant"
+            == "Conversational agent, automation authoring, and proactive suggestions. "
+            "LLM inference runs on AgentForge."
         )
         assert app.version == "1.0.0"
 
