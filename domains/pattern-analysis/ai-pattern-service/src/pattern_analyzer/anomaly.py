@@ -42,6 +42,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+DEFAULT_TIME_ZONE = "UTC"
+
 logger = logging.getLogger(__name__)
 
 EXCLUDED_DOMAINS = {
@@ -252,6 +254,7 @@ class AnomalyPatternDetector:
         min_events_for_baseline: int = 10,
         filter_system_noise: bool = True,
         aggregate_client: Any = None,
+        time_zone: str = DEFAULT_TIME_ZONE,
     ):
         """
         Initialize anomaly detector.
@@ -264,6 +267,7 @@ class AnomalyPatternDetector:
             min_events_for_baseline: Minimum events to establish baseline (default: 10)
             filter_system_noise: Filter out system sensors/trackers (default: True)
             aggregate_client: PatternAggregateClient for storing results
+            time_zone: IANA timezone to derive hour/date features in (default: UTC)
         """
         self.min_baseline_days = min_baseline_days
         self.sensitivity = sensitivity
@@ -272,6 +276,7 @@ class AnomalyPatternDetector:
         self.min_events_for_baseline = min_events_for_baseline
         self.filter_system_noise = filter_system_noise
         self.aggregate_client = aggregate_client
+        self.time_zone = time_zone
 
         self._baselines: dict[str, DeviceBaseline] = {}
         self.if_detector = IsolationForestDetector(contamination=0.05)
@@ -330,6 +335,9 @@ class AnomalyPatternDetector:
 
         events = events.sort_values("timestamp").copy()
         events = events.reset_index(drop=True)
+        if events["timestamp"].dt.tz is None:
+            events["timestamp"] = events["timestamp"].dt.tz_localize("UTC")
+        events["timestamp"] = events["timestamp"].dt.tz_convert(self.time_zone)
 
         self._build_baselines(events)
 

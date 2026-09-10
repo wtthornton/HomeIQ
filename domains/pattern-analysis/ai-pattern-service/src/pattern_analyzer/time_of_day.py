@@ -16,6 +16,8 @@ from sklearn.cluster import KMeans
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_TIME_ZONE = "UTC"
+
 
 class TimeOfDayPatternDetector:
     """
@@ -35,6 +37,7 @@ class TimeOfDayPatternDetector:
         aggregate_client=None,
         domain_occurrence_overrides: dict[str, int] | None = None,
         domain_confidence_overrides: dict[str, float] | None = None,
+        time_zone: str = DEFAULT_TIME_ZONE,
     ):
         """
         Initialize pattern detector.
@@ -43,12 +46,14 @@ class TimeOfDayPatternDetector:
             min_occurrences: Minimum number of occurrences for a pattern (default: 3)
             min_confidence: Minimum confidence threshold (0.0-1.0, default: 0.7)
             aggregate_client: PatternAggregateClient for storing daily aggregates (Story AI5.3)
+            time_zone: IANA timezone to derive hour/minute features in (default: UTC)
         """
         self.min_occurrences = min_occurrences
         self.min_confidence = min_confidence
         self.aggregate_client = aggregate_client
         self.domain_occurrence_overrides = domain_occurrence_overrides or {}
         self.domain_confidence_overrides = domain_confidence_overrides or {}
+        self.time_zone = time_zone
         logger.info(
             "TimeOfDayPatternDetector initialized: min_occurrences=%s, min_confidence=%s, domain_occurrence_overrides=%s, domain_confidence_overrides=%s",
             min_occurrences,
@@ -93,6 +98,9 @@ class TimeOfDayPatternDetector:
         logger.info(f"Analyzing {len(events)} events for time-of-day patterns")
 
         events = events.copy()  # Avoid modifying original
+        if events["timestamp"].dt.tz is None:
+            events["timestamp"] = events["timestamp"].dt.tz_localize("UTC")
+        events["timestamp"] = events["timestamp"].dt.tz_convert(self.time_zone)
         events["hour"] = events["timestamp"].dt.hour
         events["minute"] = events["timestamp"].dt.minute
         events["time_decimal"] = events["hour"] + events["minute"] / 60.0

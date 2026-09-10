@@ -16,6 +16,8 @@ import httpx
 import pandas as pd
 from homeiq_resilience import CircuitBreaker, CircuitOpenError, CrossGroupClient
 
+from ..config import settings
+
 logger = logging.getLogger(__name__)
 
 # Module-level shared breaker — all DataAPIClient instances share one circuit.
@@ -66,9 +68,17 @@ class DataAPIClient:
         entity_id: str | None = None,
         device_id: str | None = None,
         event_type: str | None = None,
-        limit: int = 10000,
+        limit: int | None = 10000,
     ) -> pd.DataFrame:
-        """Fetch historical events from Data API."""
+        """
+        Fetch historical events from Data API.
+
+        Args:
+            limit: Maximum events to fetch, or ``None`` to page through the
+                full time window regardless of size (TAP-7308) — the 7-day
+                window holds well over 100K rows, so a caller analyzing the
+                full window must not pass a fixed cap.
+        """
         try:
             if start_time is None:
                 start_time = datetime.now(UTC) - timedelta(days=7)
@@ -95,8 +105,12 @@ class DataAPIClient:
 
             events: list[dict[str, Any]] = []
             offset = 0
-            while len(events) < limit:
-                page_size = min(_EVENTS_PAGE_SIZE, limit - len(events))
+            while limit is None or len(events) < limit:
+                page_size = (
+                    _EVENTS_PAGE_SIZE
+                    if limit is None
+                    else min(_EVENTS_PAGE_SIZE, limit - len(events))
+                )
                 response = await self._cross_client.call(
                     "GET",
                     "/api/v1/events",
@@ -300,6 +314,31 @@ class DataAPIClient:
         except Exception as e:
             logger.warning("Unexpected error fetching activity history: %s", e)
             return []
+
+    async def fetch_ha_timezone(self) -> str:
+        """
+        Fetch Home Assistant's configured local timezone from /api/config.
+
+        Epic 39 (TAP-7307): pattern detectors derive hour/day-of-week/seasonal
+        features from event timestamps, and must do so in HA's local time —
+        not raw UTC, and not the container's TZ (the event series is already
+        tz-aware UTC, so container TZ has no effect on it). Called once per
+        analysis run. Falls back to "UTC" on any failure, consistent with the
+        graceful degradation used elsewhere in this client.
+        """
+        headers = {"Authorization": f"Bearer {settings.ha_token}"} if settings.ha_token else {}
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(f"{settings.ha_url}/api/config", headers=headers)
+                response.raise_for_status()
+                time_zone = response.json().get("time_zone")
+                if time_zone:
+                    return time_zone
+                logger.warning("HA /api/config response missing time_zone — defaulting to UTC")
+                return "UTC"
+        except Exception as e:
+            logger.warning("Failed to fetch HA timezone (%s) — defaulting to UTC", e)
+            return "UTC"
 
     async def get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """Generic GET request to the Data API."""

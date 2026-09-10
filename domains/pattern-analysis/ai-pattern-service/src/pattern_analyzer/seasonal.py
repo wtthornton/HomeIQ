@@ -34,6 +34,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+DEFAULT_TIME_ZONE = "UTC"
+
 logger = logging.getLogger(__name__)
 
 EXCLUDED_DOMAINS = {
@@ -136,6 +138,7 @@ class SeasonalPatternDetector:
         shift_threshold: float = 0.3,
         filter_system_noise: bool = True,
         aggregate_client: Any = None,
+        time_zone: str = DEFAULT_TIME_ZONE,
     ):
         self.min_days_total = min_days_total
         self.min_events_per_season = min_events_per_season
@@ -143,6 +146,7 @@ class SeasonalPatternDetector:
         self.shift_threshold = shift_threshold
         self.filter_system_noise = filter_system_noise
         self.aggregate_client = aggregate_client
+        self.time_zone = time_zone
 
         logger.info(
             "SeasonalPatternDetector initialized: "
@@ -163,6 +167,11 @@ class SeasonalPatternDetector:
         events = self._validate_and_prepare(events)
         if events is None:
             return []
+
+        events = events.copy()
+        if events["timestamp"].dt.tz is None:
+            events["timestamp"] = events["timestamp"].dt.tz_localize("UTC")
+        events["timestamp"] = events["timestamp"].dt.tz_convert(self.time_zone)
 
         total_days = (events["timestamp"].max() - events["timestamp"].min()).days + 1
         if total_days < self.min_days_total:
