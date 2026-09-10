@@ -344,9 +344,7 @@ class TestReasonStepCallShape:
     """
 
     @pytest.mark.asyncio
-    async def test_reason_call_omits_temperature_and_uses_max_completion_tokens(
-        self, monkeypatch
-    ):
+    async def test_reason_call_omits_temperature_and_uses_max_completion_tokens(self, monkeypatch):
         from unittest.mock import AsyncMock
 
         from src.config import Settings
@@ -396,7 +394,12 @@ class TestReasonStepCallShape:
             {
                 "home_state": {"light.kitchen": "on"},
                 "weather": {},
-                "time": {"utc": "2026-09-09T00:00:00", "hour": 0, "day_of_week": "Tuesday", "time_slot": "night"},
+                "time": {
+                    "utc": "2026-09-09T00:00:00",
+                    "hour": 0,
+                    "day_of_week": "Tuesday",
+                    "time_slot": "night",
+                },
             }
         )
 
