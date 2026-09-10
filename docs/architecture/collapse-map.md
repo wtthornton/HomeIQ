@@ -393,10 +393,17 @@ its own `## Where` as stale — the real source is
 
 - 0 test files (`domains/ml-engine/ner-service/` has only `Dockerfile`,
   `requirements-prod.txt`, `src/ner_service.py`).
-- `git grep -n 'ner-service\|ner_service' -- domains libs custom_components` at base
-  sha finds only ner-service's own compose block, the `homeiq-ner-service` prometheus
-  scrape target, and a label in health-dashboard's static
-  `public/ai-tier-manifest.json` — no code caller.
+- `git grep -n 'ner-service\|ner_service' -- domains libs custom_components agentforge
+  tests scripts infrastructure` (full scope — an earlier draft of this section scoped
+  the grep to `domains libs custom_components` only, which silently excludes
+  `scripts/` and `infrastructure/`; re-run at the corrected scope) finds, in addition
+  to ner-service's own compose block and the `homeiq-ner-service` prometheus scrape
+  target (`infrastructure/prometheus/prometheus.yml:120`): two **real callers**,
+  `scripts/ops/check-all-health.sh:31` and `scripts/validate-services.sh:126`, both
+  curling `http://localhost:8031/health` with `ner-service` listed as a
+  `REQUIRED_SERVICE`. **Both were repointed at this lane's head** — the drop is safe.
+  Also a label in health-dashboard's static `public/ai-tier-manifest.json` — no code
+  caller there.
 - No `NERClient`/`ner_client` class anywhere in `domains/` or `libs/`. Its sole
   documented consumer, `ai-core-service` (`docs/architecture/service-groups.md:200`:
   "ner-service (NER) --> ai-core-service (orchestrator)"), does not exist in the
@@ -438,12 +445,25 @@ and re-verified green.
 | ml-service | `POST /cluster`, `POST /anomaly`, `POST /batch/process`, `GET /algorithms/status` | same paths, unchanged (`src/main.py:498-603`) | same deployment/CI surfaces above (shared `model-server:8026` entry); `domains/blueprints/rule-recommendation-ml/requirements.txt:19` (comment) |
 | rag-service | `POST /api/v1/rag/*` (`rag_router`), `GET /api/v1/metrics*` (`metrics_router`) | same paths, unchanged (`src/rag/api/rag_router.py`, `metrics_router.py`, both included by `src/main.py:222-223`) | `domains/core-platform/admin-api/src/health_endpoints.py:185,216` (`service_urls["model-server"]`, `group_mappings["ml-engine"]`), `domains/core-platform/health-dashboard/nginx.conf:618,622` (`/rag-service/` proxy_pass target repointed to `model-server:8019`; the *path* is kept stable so `domains/core-platform/health-dashboard/src/services/api.ts`'s `RAGServiceClient` needed no change), `domains/core-platform/health-dashboard/src/components/ServicesTab.tsx:64,70` (service card), `infrastructure/prometheus/{prometheus.yml:121,126,alerts.yml:498-499}` (scrape target + `MemoryBrainEmbeddingDown` alert expr), `infrastructure/postgres/init-schemas.sql:1134` (comment), `pytest-unit.ini:35` (testpaths), `domains/automation-core/compose.yml:7` (comment) |
 | ner-service | `POST /extract`, `GET /health`, `GET /model-info`, `GET /stats` | **dropped, no surviving route** | none (no caller found — see above) |
+| (cross-cutting) | `GET /health`, `GET /ready` | same paths, via `StandardHealthCheck` (`libs/homeiq-resilience/src/homeiq_resilience/health_check.py:85-93`, `router.add_api_route` — not a `@app.get` decorator, so a decorator grep misses it), registered `domains/ml-engine/model-server/src/main.py:198-203` with checks `openvino-models`, `ml-managers` | none new — **contract change**: ml-service's own `/health` returned a custom dict including `algorithms_available` (base sha `domains/ml-engine/ml-service/src/main.py:130-136`); the generic `StandardHealthCheck` response does not include that field. `git grep -n 'algorithms_available'` at head: 0 hits — no consumer reads it, so this is a response-shape change with no known breakage, not a silent regression. Not re-added; a follow-up story owns whether it's worth restoring. |
 
 **Bare-container-name grep** (`git grep -n 'homeiq-\(openvino\|ml-service\|rag\|ner\)'`)
-after the rewrites above: only historical docs/stories and three low-traffic
-ops-tooling references remain, listed here rather than silently left —
-`.claude/settings.local.json` (Bash permission allowlist entries, not executable
-consumer code), `domains/data-collectors/zeek-network-service/src/{main.py:735,
+after the rewrites above returns **zero matches** in `domains/`, `libs/`, or
+`.claude/` — an earlier draft of this section claimed that command found
+`.claude/settings.local.json`, `zeek-network-service` sources, and
+`libs/homeiq-resilience`, which is false: those three files use the **bare** service
+names (no `homeiq-` prefix), so the `homeiq-`-prefixed pattern above cannot return
+them. The only hits for the prefixed pattern are historical docs
+(`docs/operations/dashboard-triage-2026-08-01.md`, `docs/operations/service-health-checks.md`,
+`docs/planning/phase-3-plan-ml-ai-upgrades.md`, `docs/planning/rebuild-deployment-plan.md`,
+`stories/epic-81-docker-rebuild-aiohttp-cve.md`), none of them live consumer code.
+
+The command that actually produces the three-file result is the **bare-name** grep,
+`git grep -n '\bml-service\b\|\brag-service\b\|\bner-service\b\|\bopenvino-service\b' --
+.claude/settings.local.json domains/data-collectors/zeek-network-service
+libs/homeiq-resilience` — and re-run at that scope: `.claude/settings.local.json`
+(Bash permission allowlist entries, not executable consumer code),
+`domains/data-collectors/zeek-network-service/src/{main.py:735,
 parsers/flowmeter_parser.py:4}` (descriptive comments — the flow-feature data still
 flows to whichever ML consumer wants it, now model-server, but the comment text
 itself wasn't rewritten), and `libs/homeiq-resilience/src/homeiq_resilience/health.py:17`

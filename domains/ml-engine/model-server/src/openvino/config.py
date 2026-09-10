@@ -1,7 +1,6 @@
 """Configuration settings for OpenVINO Service."""
 
 from homeiq_data import BaseServiceSettings
-from pydantic import SecretStr
 
 
 class Settings(BaseServiceSettings):
@@ -20,9 +19,6 @@ class Settings(BaseServiceSettings):
     openvino_max_pattern_length: int = 4000
     openvino_preload_models: bool = False
     model_cache_dir: str = "/app/models"
-
-    # Optional API key authentication (SEC-2)
-    openvino_api_key: SecretStr | None = None
 
 
 settings = Settings()
