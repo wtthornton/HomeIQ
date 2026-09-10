@@ -11,6 +11,12 @@ import tiktoken
 
 logger = logging.getLogger(__name__)
 
+# TAP-7275: the model that actually answers is a property of the AgentForge
+# gene, not of this process, so there is no model setting left to read here.
+# Budgeting still needs *an* encoding, and cl100k_base -- which every gpt-4*
+# name resolves to below -- is the one every candidate shares.
+DEFAULT_TOKENIZER_MODEL = "gpt-4o"
+
 
 def get_encoding(model: str) -> tiktoken.Encoding:
     """
@@ -35,7 +41,7 @@ def get_encoding(model: str) -> tiktoken.Encoding:
         return tiktoken.get_encoding("cl100k_base")
 
 
-def count_tokens(text: str, model: str = "gpt-4o") -> int:
+def count_tokens(text: str, model: str = DEFAULT_TOKENIZER_MODEL) -> int:
     """
     Count tokens for a given text and model.
 
@@ -53,7 +59,7 @@ def count_tokens(text: str, model: str = "gpt-4o") -> int:
     return len(encoding.encode(text))
 
 
-def count_message_tokens(messages: list[dict], model: str = "gpt-4o") -> int:
+def count_message_tokens(messages: list[dict], model: str = DEFAULT_TOKENIZER_MODEL) -> int:
     """
     Count tokens in OpenAI message format.
 

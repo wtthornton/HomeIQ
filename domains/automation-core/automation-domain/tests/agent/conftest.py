@@ -1,18 +1,11 @@
 """Pytest hooks for the agent slice of automation-domain.
 
-`main.py` instantiates Settings at import time and the lifespan requires a
-non-empty AGENTFORGE_API_KEY (TAP-7275: chat runs as an AgentForge workflow, so
-that is the credential the slice cannot start without). CI and local runs
-without .env must still load the app for ASGI tests.
+The AGENTFORGE_API_KEY default that used to live here moved up to
+``tests/conftest.py``: after the fold all three slices load the same merged app
+and hit the same credential check, so one slice's conftest was the wrong scope.
 """
 
 from __future__ import annotations
-
-import os
-
-if not os.environ.get("AGENTFORGE_API_KEY", "").strip():
-    os.environ["AGENTFORGE_API_KEY"] = "afp-test-not-real-key-for-pytest"
-
 
 import pytest_asyncio
 

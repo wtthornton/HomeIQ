@@ -37,7 +37,7 @@ def blacklist():
     """Use real blacklist config."""
     from pathlib import Path
 
-    cfg = Path(__file__).resolve().parent.parent / "src" / "config" / "entity_blacklist.yaml"
+    cfg = Path(__file__).resolve().parents[2] / "src" / "agent" / "config" / "entity_blacklist.yaml"
     return EntityBlacklist(cfg)
 
 

@@ -24,8 +24,8 @@ class TestYAMLValidation:
     """Unit tests for YAML syntax and structure validation."""
 
     @pytest.fixture
-    def mock_openai_client(self):
-        """Mock OpenAI client."""
+    def mock_llm_client(self):
+        """Mock AgentForge-backed LLM client."""
         client = AsyncMock(spec=AutomationLLMClient)
         return client
 
@@ -44,10 +44,10 @@ class TestYAMLValidation:
         return client
 
     @pytest.fixture
-    def yaml_service(self, mock_openai_client, mock_data_api_client):
+    def yaml_service(self, mock_llm_client, mock_data_api_client):
         """Create YAML generation service instance."""
         return YAMLGenerationService(
-            openai_client=mock_openai_client, data_api_client=mock_data_api_client
+            llm_client=mock_llm_client, data_api_client=mock_data_api_client
         )
 
     @pytest.mark.asyncio
@@ -197,8 +197,8 @@ class TestYAMLCleaning:
     """Unit tests for YAML content cleaning."""
 
     @pytest.fixture
-    def mock_openai_client(self):
-        """Mock OpenAI client."""
+    def mock_llm_client(self):
+        """Mock AgentForge-backed LLM client."""
         client = AsyncMock(spec=AutomationLLMClient)
         return client
 
@@ -209,10 +209,10 @@ class TestYAMLCleaning:
         return client
 
     @pytest.fixture
-    def yaml_service(self, mock_openai_client, mock_data_api_client):
+    def yaml_service(self, mock_llm_client, mock_data_api_client):
         """Create YAML generation service instance."""
         return YAMLGenerationService(
-            openai_client=mock_openai_client, data_api_client=mock_data_api_client
+            llm_client=mock_llm_client, data_api_client=mock_data_api_client
         )
 
     def test_clean_yaml_removes_markdown_code_blocks(self, yaml_service: YAMLGenerationService):
@@ -282,8 +282,8 @@ class TestEntityValidation:
     """Unit tests for entity ID validation."""
 
     @pytest.fixture
-    def mock_openai_client(self):
-        """Mock OpenAI client."""
+    def mock_llm_client(self):
+        """Mock AgentForge-backed LLM client."""
         client = AsyncMock(spec=AutomationLLMClient)
         return client
 
@@ -302,10 +302,10 @@ class TestEntityValidation:
         return client
 
     @pytest.fixture
-    def yaml_service(self, mock_openai_client, mock_data_api_client):
+    def yaml_service(self, mock_llm_client, mock_data_api_client):
         """Create YAML generation service instance."""
         return YAMLGenerationService(
-            openai_client=mock_openai_client, data_api_client=mock_data_api_client
+            llm_client=mock_llm_client, data_api_client=mock_data_api_client
         )
 
     @pytest.mark.asyncio
@@ -497,8 +497,8 @@ class TestYAMLGeneration:
     """Unit tests for YAML generation from suggestions."""
 
     @pytest.fixture
-    def mock_openai_client(self):
-        """Mock OpenAI client."""
+    def mock_llm_client(self):
+        """Mock AgentForge-backed LLM client."""
         client = AsyncMock(spec=AutomationLLMClient)
         client.generate_yaml = AsyncMock(
             return_value="""id: 'test-123'
@@ -525,10 +525,10 @@ action:
         return client
 
     @pytest.fixture
-    def yaml_service(self, mock_openai_client, mock_data_api_client):
+    def yaml_service(self, mock_llm_client, mock_data_api_client):
         """Create YAML generation service instance."""
         return YAMLGenerationService(
-            openai_client=mock_openai_client, data_api_client=mock_data_api_client
+            llm_client=mock_llm_client, data_api_client=mock_data_api_client
         )
 
     @pytest.mark.asyncio
@@ -543,7 +543,7 @@ action:
         assert "alias:" in yaml_content or "id:" in yaml_content
         assert "trigger:" in yaml_content
         assert "action:" in yaml_content
-        yaml_service.openai_client.generate_homeiq_automation_json.assert_called_once()
+        yaml_service.llm_client.generate_homeiq_automation_json.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_generate_yaml_from_suggestion_dict(self, yaml_service: YAMLGenerationService):
@@ -555,7 +555,7 @@ action:
         assert "alias:" in yaml_content or "trigger:" in yaml_content
         assert "trigger:" in yaml_content
         assert "action:" in yaml_content
-        yaml_service.openai_client.generate_homeiq_automation_json.assert_called_once()
+        yaml_service.llm_client.generate_homeiq_automation_json.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_generate_yaml_fails_without_description(
@@ -587,7 +587,7 @@ action:
     async def test_generate_yaml_validates_syntax(self, yaml_service: YAMLGenerationService):
         """Test that invalid HomeIQ JSON from OpenAI raises YAMLGenerationError."""
         # Mock OpenAI to return invalid HomeIQ JSON (missing required fields)
-        yaml_service.openai_client.generate_homeiq_automation_json = AsyncMock(
+        yaml_service.llm_client.generate_homeiq_automation_json = AsyncMock(
             return_value={"alias": "Test", "triggers": [], "actions": []}  # invalid: empty triggers
         )
 
@@ -604,9 +604,9 @@ action:
         )
 
     @pytest.mark.asyncio
-    async def test_generate_yaml_handles_openai_error(self, yaml_service: YAMLGenerationService):
+    async def test_generate_yaml_handles_llm_error(self, yaml_service: YAMLGenerationService):
         """Test that OpenAI errors are handled gracefully (HomeIQ JSON flow)."""
-        yaml_service.openai_client.generate_homeiq_automation_json = AsyncMock(
+        yaml_service.llm_client.generate_homeiq_automation_json = AsyncMock(
             side_effect=Exception("OpenAI API Error")
         )
 

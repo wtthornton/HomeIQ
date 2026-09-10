@@ -20,7 +20,7 @@ from homeiq_ha.homeiq_automation.schema import (
 from homeiq_ha.yaml_validation_service.version_aware_renderer import VersionAwareRenderer
 
 # Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "src"))
 
 from src.authoring.database.models import Suggestion
 

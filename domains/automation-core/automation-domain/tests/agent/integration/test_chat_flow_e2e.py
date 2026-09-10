@@ -281,10 +281,11 @@ async def test_chat_flow_create_automation(test_client, mock_chat_client, mock_t
 @pytest.mark.asyncio
 async def test_chat_flow_error_handling(test_client, mock_chat_client):
     """Test error handling in chat flow"""
-    # Mock OpenAI error
-    from src.agent.services.llm_client import OpenAIError
+    # TAP-7275: the upstream is AgentForge now, and its failure type is
+    # AgentChatError -- what chat_endpoints maps to 503.
+    from src.agent.services.llm_client import AgentChatError
 
-    mock_chat_client.chat_turn.side_effect = OpenAIError("OpenAI API error")
+    mock_chat_client.chat_turn.side_effect = AgentChatError("AgentForge run failed")
 
     # Send chat message
     response = await test_client.post(
@@ -296,7 +297,7 @@ async def test_chat_flow_error_handling(test_client, mock_chat_client):
         },
     )
 
-    # An upstream OpenAI failure is a dependency outage, not an internal error.
+    # An upstream AgentForge failure is a dependency outage, not an internal error.
     assert response.status_code == 503
     assert "try again later" in response.json()["detail"].lower()
 

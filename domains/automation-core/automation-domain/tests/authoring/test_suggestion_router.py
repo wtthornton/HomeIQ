@@ -67,13 +67,13 @@ class TestSuggestionRouter:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_usage_stats_endpoint(self, client: AsyncClient, auth_headers: dict):
-        """Test usage stats endpoint (returns total, by_status, openai_usage)."""
+        """Test usage stats endpoint (returns total, by_status, llm_usage)."""
         response = await client.get("/api/suggestions/usage/stats", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert "total" in data
         assert "by_status" in data
-        assert "openai_usage" in data
+        assert "llm_usage" in data
 
     @pytest.mark.unit
     @pytest.mark.asyncio

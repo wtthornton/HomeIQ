@@ -26,7 +26,7 @@ def mock_data_api_client():
 
 
 @pytest.fixture
-def mock_openai_client():
+def mock_llm_client():
     """Mock AutomationLLMClient for testing."""
     client = AsyncMock(spec=AutomationLLMClient)
     return client
@@ -40,12 +40,12 @@ def mock_yaml_validation_client():
 
 
 @pytest.fixture
-def yaml_service(mock_data_api_client, mock_openai_client, mock_yaml_validation_client):
+def yaml_service(mock_data_api_client, mock_llm_client, mock_yaml_validation_client):
     """Create YAMLGenerationService instance with mocked dependencies."""
     # Create service with minimal dependencies (similar to test_yaml_validation.py)
     # The service will use default None values for optional dependencies
     service = YAMLGenerationService(
-        openai_client=mock_openai_client,
+        llm_client=mock_llm_client,
         data_api_client=mock_data_api_client,
         yaml_validation_client=mock_yaml_validation_client,
     )
@@ -387,7 +387,7 @@ class TestEntityValidationIntegration:
 
     @pytest.mark.asyncio
     async def test_full_flow_fetch_generate_validate(
-        self, yaml_service, mock_data_api_client, mock_openai_client, sample_entities
+        self, yaml_service, mock_data_api_client, mock_llm_client, sample_entities
     ):
         """Test full flow: fetch → generate → validate."""
         # Setup mocks
@@ -405,7 +405,7 @@ class TestEntityValidationIntegration:
             "    target:\n"
             "      entity_id: light.office_main\n"
         )
-        mock_openai_client.generate_yaml.return_value = valid_yaml
+        mock_llm_client.generate_yaml.return_value = valid_yaml
 
         # Test the flow
         suggestion = {
@@ -424,7 +424,7 @@ class TestEntityValidationIntegration:
 
     @pytest.mark.asyncio
     async def test_validation_blocks_invalid_yaml(
-        self, yaml_service, mock_data_api_client, mock_openai_client, sample_entities
+        self, yaml_service, mock_data_api_client, mock_llm_client, sample_entities
     ):
         """Test validation blocks invalid YAML."""
         # Setup mocks
@@ -442,7 +442,7 @@ class TestEntityValidationIntegration:
             "    target:\n"
             "      entity_id: light.fictional_light\n"
         )
-        mock_openai_client.generate_yaml.return_value = invalid_yaml
+        mock_llm_client.generate_yaml.return_value = invalid_yaml
 
         # Test that validation fails
         suggestion = {
@@ -461,8 +461,8 @@ class TestEntityValidationIntegration:
         ) or "light.fictional_light" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_entity_context_passed_to_openai(
-        self, yaml_service, mock_data_api_client, mock_openai_client, sample_entities
+    async def test_entity_context_passed_to_llm(
+        self, yaml_service, mock_data_api_client, mock_llm_client, sample_entities
     ):
         """Test entity context passed to OpenAI client."""
         # Setup mocks
@@ -479,7 +479,7 @@ class TestEntityValidationIntegration:
             "    target:\n"
             "      entity_id: light.office_main\n"
         )
-        mock_openai_client.generate_yaml.return_value = valid_yaml
+        mock_llm_client.generate_yaml.return_value = valid_yaml
 
         suggestion = {"title": "Test Automation", "description": "Test automation"}
 
@@ -488,8 +488,8 @@ class TestEntityValidationIntegration:
         )
 
         # Verify entity_context was passed to OpenAI client
-        assert mock_openai_client.generate_yaml.called
-        call_kwargs = mock_openai_client.generate_yaml.call_args[1]
+        assert mock_llm_client.generate_yaml.called
+        call_kwargs = mock_llm_client.generate_yaml.call_args[1]
         assert "entity_context" in call_kwargs
 
         entity_context = call_kwargs["entity_context"]

@@ -18,6 +18,30 @@ def set_scheduler_service_for_health(service: Any):
     _scheduler_service = service
 
 
+def scheduler_status() -> dict[str, Any]:
+    """Report the suggestion scheduler's state.
+
+    TAP-7275: the merged ``/health`` calls this too. The scheduler is the one
+    thing the proactive slice reported that a database probe cannot see, so
+    folding the three endpoints into one must not drop it.
+    """
+    if _scheduler_service is None:
+        return {"enabled": False, "running": False, "next_run": None}
+    try:
+        next_run = _scheduler_service.get_next_run_time()
+        return {
+            "enabled": True,
+            "running": _scheduler_service.is_running(),
+            "next_run": next_run.isoformat() if next_run else None,
+        }
+    except Exception:  # noqa: BLE001 - reported, not raised
+        return {
+            "enabled": True,
+            "running": False,
+            "error": "Failed to get scheduler status",
+        }
+
+
 @router.get("/health")
 async def health_check():
     """Health check with group-level status and scheduler info.
@@ -45,27 +69,6 @@ async def health_check():
     if response.get("status") == "unhealthy":
         response["status"] = "degraded"
 
-    # Add scheduler status
-    if _scheduler_service is not None:
-        try:
-            scheduler_running = _scheduler_service.is_running()
-            next_run = _scheduler_service.get_next_run_time()
-            response["scheduler"] = {
-                "enabled": True,
-                "running": scheduler_running,
-                "next_run": next_run.isoformat() if next_run else None,
-            }
-        except Exception:
-            response["scheduler"] = {
-                "enabled": True,
-                "running": False,
-                "error": "Failed to get scheduler status",
-            }
-    else:
-        response["scheduler"] = {
-            "enabled": False,
-            "running": False,
-            "next_run": None,
-        }
+    response["scheduler"] = scheduler_status()
 
     return response

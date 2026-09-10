@@ -9,7 +9,9 @@ import pytest
 from src.agent.config.entity_blacklist import EntityBlacklist
 
 # Path to the real config shipped with the service
-_REAL_CONFIG = Path(__file__).resolve().parent.parent / "src" / "config" / "entity_blacklist.yaml"
+_REAL_CONFIG = (
+    Path(__file__).resolve().parents[2] / "src" / "agent" / "config" / "entity_blacklist.yaml"
+)
 
 
 class TestEntityBlacklistLoading:

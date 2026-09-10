@@ -37,7 +37,7 @@ class TestYAMLGenerationServiceFormatEntityContext:
         from unittest.mock import MagicMock
 
         return YAMLGenerationService(
-            openai_client=MagicMock(),
+            llm_client=MagicMock(),
             data_api_client=MagicMock(),
             yaml_validation_client=None,
         )
@@ -102,7 +102,7 @@ class TestYAMLGenerationServiceCleanYaml:
         from unittest.mock import MagicMock
 
         return YAMLGenerationService(
-            openai_client=MagicMock(),
+            llm_client=MagicMock(),
             data_api_client=MagicMock(),
         )
 
@@ -144,7 +144,7 @@ class TestYAMLGenerationServiceExtractEntityIds:
         from unittest.mock import MagicMock
 
         return YAMLGenerationService(
-            openai_client=MagicMock(),
+            llm_client=MagicMock(),
             data_api_client=MagicMock(),
         )
 

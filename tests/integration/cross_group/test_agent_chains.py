@@ -23,9 +23,11 @@ from homeiq_resilience.circuit_breaker import CircuitState
 
 # Import confidence_scorer directly by file path to avoid namespace collision
 # with zeek-network-service's identically-named ``services/`` package.
+# TAP-7275: proactive-agent-service folded into automation-domain; the scorer
+# now lives under that service's ``src/proactive/`` slice, byte-identical.
 _PA_SRC = (
     Path(__file__).resolve().parents[3]
-    / "domains" / "energy-analytics" / "proactive-agent-service" / "src"
+    / "domains" / "automation-core" / "automation-domain" / "src" / "proactive"
 )
 _mod_name = "pa_confidence_scorer"
 _cs_spec = importlib.util.spec_from_file_location(

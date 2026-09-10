@@ -17,7 +17,7 @@ from src.agent.services.conversation_service import Conversation, ConversationSe
 from src.agent.services.prompt_assembly_service import PromptAssemblyService
 from tests.agent.conftest import attach_context_cache
 
-api_models_path = Path(__file__).parent.parent / "src" / "api" / "models.py"
+api_models_path = Path(__file__).resolve().parents[2] / "src" / "agent" / "api" / "models.py"
 if api_models_path.exists():
     import importlib.util
 

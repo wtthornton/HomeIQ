@@ -18,7 +18,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 # Add service root to path for package imports
-service_root = Path(__file__).parent.parent.parent
+service_root = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(service_root))
 
 from src.agent.config import Settings

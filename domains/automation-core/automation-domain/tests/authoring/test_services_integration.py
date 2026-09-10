@@ -24,7 +24,7 @@ class TestSuggestionService:
     """Integration tests for SuggestionService."""
 
     @pytest.fixture
-    def mock_openai_client_suggestion(self):
+    def mock_llm_client_suggestion(self):
         """Mock AutomationLLMClient for SuggestionService (needs .client and generate_suggestion_description)."""
         client = AsyncMock(spec=AutomationLLMClient)
         client.client = MagicMock()
@@ -56,7 +56,7 @@ class TestSuggestionService:
         return client
 
     @pytest.fixture
-    def mock_openai_client(self):
+    def mock_llm_client(self):
         """Mock AutomationLLMClient."""
         client = AsyncMock(spec=AutomationLLMClient)
         client.generate_yaml = AsyncMock(
@@ -75,13 +75,13 @@ action:
 
     @pytest.fixture
     def suggestion_service(
-        self, test_db: AsyncSession, mock_data_api_client, mock_openai_client_suggestion
+        self, test_db: AsyncSession, mock_data_api_client, mock_llm_client_suggestion
     ):
         """Create SuggestionService instance."""
         return SuggestionService(
             db=test_db,
             data_api_client=mock_data_api_client,
-            openai_client=mock_openai_client_suggestion,
+            llm_client=mock_llm_client_suggestion,
         )
 
     @pytest.mark.asyncio
@@ -202,7 +202,7 @@ class TestYAMLGenerationService:
         return client
 
     @pytest.fixture
-    def mock_openai_client(self):
+    def mock_llm_client(self):
         """Mock AutomationLLMClient (generate_homeiq_automation_json for default flow)."""
         sample_json = {
             "alias": "Test Automation",
@@ -241,10 +241,10 @@ class TestYAMLGenerationService:
         return client
 
     @pytest.fixture
-    def yaml_service(self, mock_data_api_client, mock_openai_client):
+    def yaml_service(self, mock_data_api_client, mock_llm_client):
         """Create YAMLGenerationService instance."""
         return YAMLGenerationService(
-            data_api_client=mock_data_api_client, openai_client=mock_openai_client
+            data_api_client=mock_data_api_client, llm_client=mock_llm_client
         )
 
     @pytest.mark.asyncio

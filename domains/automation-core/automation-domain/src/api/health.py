@@ -43,7 +43,8 @@ async def health_check() -> JSONResponse:
     from ..agent.api.dependencies import chat_dependencies_ready
     from ..agent.database import get_session as agent_session
     from ..main import agentforge_reachable, settings
-    from ..proactive.database import get_session as proactive_session
+    from ..proactive.api.health import scheduler_status
+    from ..proactive.database import get_db as proactive_session
 
     slices: dict[str, Any] = {}
     unhealthy: list[str] = []
@@ -65,7 +66,10 @@ async def health_check() -> JSONResponse:
         logger.warning("health: authoring database probe failed: %s", exc)
         slices["authoring"] = {"database": {"status": "unhealthy", "error": str(exc)[:200]}}
 
-    slices["proactive"] = {"database": await _probe_schema(proactive_session, "proactive")}
+    slices["proactive"] = {
+        "database": await _probe_schema(proactive_session, "proactive"),
+        "scheduler": scheduler_status(),
+    }
 
     for name, body in slices.items():
         db_status = (body.get("database") or {}).get("status")

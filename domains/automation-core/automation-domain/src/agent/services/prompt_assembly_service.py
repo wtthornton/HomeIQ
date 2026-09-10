@@ -13,7 +13,11 @@ from typing import Any
 
 from ..clients.data_api_client import DataAPIClient
 from ..config import Settings
-from ..utils.token_counter import count_message_tokens, count_tokens
+from ..utils.token_counter import (
+    DEFAULT_TOKENIZER_MODEL,
+    count_message_tokens,
+    count_tokens,
+)
 from .context_builder import ContextBuilder
 from .conversation_service import Conversation, ConversationService, is_generic_welcome_message
 from .entity_resolution.entity_resolution_service import EntityResolutionService
@@ -49,7 +53,11 @@ class PromptAssemblyService:
         self.settings = settings
         self.context_builder = context_builder
         self.conversation_service = conversation_service
-        self.model = settings.openai_model
+        # TAP-7275: ``settings.openai_model`` is gone -- this process no longer
+        # picks a model, AgentForge does. This attribute only ever selected a
+        # tiktoken encoding for the context budget below, so it names the
+        # tokenizer now, not the responder.
+        self.model = DEFAULT_TOKENIZER_MODEL
         self.max_input_tokens = MAX_INPUT_TOKENS
         # Initialize EntityResolutionService and DataAPIClient for entity extraction
         self.data_api_client = DataAPIClient(

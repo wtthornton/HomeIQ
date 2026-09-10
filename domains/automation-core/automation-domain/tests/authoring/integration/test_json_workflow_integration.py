@@ -94,7 +94,7 @@ def mock_data_api_client():
 
 
 @pytest.fixture
-def mock_openai_client():
+def mock_llm_client():
     """Mock AutomationLLMClient for testing."""
     client = MagicMock(spec=AutomationLLMClient)
     return client
@@ -102,14 +102,14 @@ def mock_openai_client():
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-async def test_json_generation_workflow(mock_openai_client, sample_homeiq_json):
+async def test_json_generation_workflow(mock_llm_client, sample_homeiq_json):
     """Test complete JSON generation workflow."""
     # Mock OpenAI response
-    mock_openai_client.generate_homeiq_automation_json = AsyncMock(return_value=sample_homeiq_json)
+    mock_llm_client.generate_homeiq_automation_json = AsyncMock(return_value=sample_homeiq_json)
 
     # Create YAML generation service
     yaml_service = YAMLGenerationService(
-        openai_client=mock_openai_client, data_api_client=MagicMock(), yaml_validation_client=None
+        llm_client=mock_llm_client, data_api_client=MagicMock(), yaml_validation_client=None
     )
 
     # Generate JSON
@@ -216,12 +216,12 @@ async def test_automation_combiner(sample_homeiq_json):
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-async def test_json_rebuilder_from_yaml(mock_openai_client, sample_homeiq_json):
+async def test_json_rebuilder_from_yaml(mock_llm_client, sample_homeiq_json):
     """Test JSON rebuilder from YAML."""
     # Mock OpenAI response
-    mock_openai_client.generate_homeiq_automation_json = AsyncMock(return_value=sample_homeiq_json)
+    mock_llm_client.generate_homeiq_automation_json = AsyncMock(return_value=sample_homeiq_json)
 
-    rebuilder = JSONRebuilder(mock_openai_client)
+    rebuilder = JSONRebuilder(mock_llm_client)
 
     # Sample YAML
     yaml_content = """
@@ -248,12 +248,12 @@ action:
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-async def test_json_rebuilder_from_description(mock_openai_client, sample_homeiq_json):
+async def test_json_rebuilder_from_description(mock_llm_client, sample_homeiq_json):
     """Test JSON rebuilder from description."""
     # Mock OpenAI response
-    mock_openai_client.generate_homeiq_automation_json = AsyncMock(return_value=sample_homeiq_json)
+    mock_llm_client.generate_homeiq_automation_json = AsyncMock(return_value=sample_homeiq_json)
 
-    rebuilder = JSONRebuilder(mock_openai_client)
+    rebuilder = JSONRebuilder(mock_llm_client)
 
     # Rebuild from description
     result = await rebuilder.rebuild_from_description(
@@ -314,16 +314,14 @@ async def test_version_aware_rendering(sample_homeiq_json):
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-async def test_end_to_end_json_workflow(
-    mock_openai_client, mock_data_api_client, sample_homeiq_json
-):
+async def test_end_to_end_json_workflow(mock_llm_client, mock_data_api_client, sample_homeiq_json):
     """Test complete end-to-end JSON workflow."""
     # Mock OpenAI response
-    mock_openai_client.generate_homeiq_automation_json = AsyncMock(return_value=sample_homeiq_json)
+    mock_llm_client.generate_homeiq_automation_json = AsyncMock(return_value=sample_homeiq_json)
 
     # Step 1: Generate JSON
     yaml_service = YAMLGenerationService(
-        openai_client=mock_openai_client,
+        llm_client=mock_llm_client,
         data_api_client=mock_data_api_client,
         yaml_validation_client=None,
     )

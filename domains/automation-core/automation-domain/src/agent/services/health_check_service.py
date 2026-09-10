@@ -106,14 +106,21 @@ class HealthCheckService:
                 "message": f"Device Intelligence Service connection failed: {str(e)}",
             }
 
-    async def check_openai(self) -> dict[str, Any]:
-        """Check OpenAI configuration (doesn't make API call, just checks config)"""
-        if not self.settings.openai_api_key or not self.settings.openai_api_key.get_secret_value():
-            return {"status": "warning", "message": "OpenAI API key not configured"}
+    async def check_agentforge(self) -> dict[str, Any]:
+        """Check AgentForge configuration (config only, no workflow run).
+
+        TAP-7275: this slice no longer holds a provider credential. Every model
+        call is an AgentForge workflow run, so the key worth probing is the
+        project key, and the endpoint worth naming is the AgentForge base URL.
+        """
+        api_key = self.settings.agentforge_api_key
+        if not api_key or not api_key.get_secret_value():
+            return {"status": "warning", "message": "AgentForge project key not configured"}
         return {
             "status": "healthy",
-            "message": "OpenAI API key configured",
-            "model": self.settings.openai_model,
+            "message": "AgentForge project key configured",
+            "url": self.settings.agentforge_url,
+            "project": self.settings.agentforge_project_slug,
         }
 
     async def check_context_builder(self) -> dict[str, Any]:
@@ -162,7 +169,7 @@ class HealthCheckService:
             "home_assistant": await self.check_home_assistant(),
             "data_api": await self.check_data_api(),
             "device_intelligence": await self.check_device_intelligence(),
-            "openai": await self.check_openai(),
+            "agentforge": await self.check_agentforge(),
             "context_builder": await self.check_context_builder(),
         }
 

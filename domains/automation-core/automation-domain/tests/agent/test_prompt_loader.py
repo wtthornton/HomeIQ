@@ -10,7 +10,7 @@ from pathlib import Path
 import yaml
 
 # ── Path setup ──────────────────────────────────────────────────────
-SRC_DIR = Path(__file__).parent.parent / "src"
+SRC_DIR = Path(__file__).resolve().parents[2] / "src"
 import sys
 
 sys.path.insert(0, str(SRC_DIR))
