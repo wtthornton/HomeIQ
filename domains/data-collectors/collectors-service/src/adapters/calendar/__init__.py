@@ -49,7 +49,7 @@ class CalendarService:
             settings.influxdb_token.get_secret_value() if settings.influxdb_token else ""
         )
         self.influxdb_org = settings.influxdb_org
-        self.influxdb_bucket = settings.calendar_influxdb_bucket
+        self.influxdb_bucket = settings.influxdb_bucket
 
         self.fetch_interval = settings.calendar_fetch_interval
 

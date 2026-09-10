@@ -65,10 +65,6 @@ class Settings(BaseServiceSettings):
     calendar_fetch_interval: int = 900
     calendar_timezone: str = "UTC"
     default_travel_time_minutes: int = 30
-    # calendar wrote to the "events" bucket while the other five (and the
-    # BaseServiceSettings default) use "home_assistant_events" — kept as its
-    # own field rather than overriding the shared influxdb_bucket.
-    calendar_influxdb_bucket: str = "events"
 
     # --- smart-meter adapter (already adapter-shaped; unchanged) ---
     meter_type: str = "home_assistant"

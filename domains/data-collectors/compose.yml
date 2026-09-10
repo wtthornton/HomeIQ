@@ -55,8 +55,8 @@ services:
       - NABU_CASA_TOKEN=${NABU_CASA_TOKEN:-}
       - HOME_ASSISTANT_URL=${HOME_ASSISTANT_URL:-}
       - HOME_ASSISTANT_TOKEN=${HOME_ASSISTANT_TOKEN:-}
-      # --- shared InfluxDB (every adapter writes here; calendar keeps its
-      #     own "events" bucket internally via CALENDAR_INFLUXDB_BUCKET) ---
+      # --- shared InfluxDB (all six adapters, including calendar, write to
+      #     the one bucket configured by INFLUXDB_BUCKET) ---
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
