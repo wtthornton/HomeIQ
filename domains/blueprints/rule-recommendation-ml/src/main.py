@@ -25,10 +25,11 @@ logger = setup_logging("rule-recommendation-ml", group_name="blueprints")
 
 async def _startup_init() -> None:
     """Initialize feedback store, memory client, and load model."""
-    # Initialize feedback store (must be before model load)
-    db_path = Path(settings.feedback_db_path)
-    init_feedback_store(db_path)
-    logger.info("Feedback store ready (path=%s)", db_path)
+    # Initialize feedback store (must be before model load). FeedbackStore
+    # is PostgreSQL-backed and needs a DB URL string, never a filesystem path.
+    db_url = settings.effective_database_url or None
+    init_feedback_store(db_url)
+    logger.info("Feedback store ready (db_url=%s)", db_url)
 
     # Initialize memory client (Story 30.3: Rating & Feedback Memory)
     await init_memory_client()

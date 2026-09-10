@@ -88,6 +88,12 @@ class FeedbackStore:
     """
 
     def __init__(self, db_url: str | None = None) -> None:
+        if db_url is not None and not isinstance(db_url, str):
+            raise TypeError(
+                "FeedbackStore requires a DB URL string (e.g. "
+                "'postgresql+asyncpg://user:pass@host/db'), not "
+                f"{type(db_url).__name__}: {db_url!r}"
+            )
         self._db_url = db_url or DEFAULT_DB_URL
         self._engine = None
         self._session_maker = None

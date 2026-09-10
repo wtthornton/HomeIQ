@@ -19,6 +19,9 @@ httpx>=0.27.0,<0.29.0  # Phase 1: aligned
 # YAML parsing
 pyyaml>=6.0.1,<7.0.0  # Phase 2: standardized
 
+# Scheduling (periodic catalogue refresh)
+apscheduler>=3.10.0,<4.0.0
+
 # Logging and monitoring
 python-json-logger>=2.0.7
 

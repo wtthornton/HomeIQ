@@ -8,7 +8,6 @@ class Settings(BaseServiceSettings):
 
     # Model paths
     model_path: str = "./models/rule_recommender.pkl"
-    feedback_db_path: str = "/data/feedback.db"
 
     # Debug mode
     debug: bool = False

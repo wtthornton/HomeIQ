@@ -25,6 +25,21 @@ class TestBlueprintParser:
 
         assert result is None
 
+    def test_parse_blueprint_marks_content_untrusted(self, sample_blueprint_yaml):
+        """Crawled YAML must carry an explicit untrusted-content marker (TAP-7311).
+
+        Both crawl sources (GitHub, HA community forum) are third-party --
+        nothing in this pipeline authors or vets the YAML it stores.
+        """
+        blueprint = self.parser.parse_blueprint(
+            yaml_content=sample_blueprint_yaml,
+            source_url="https://example.com/blueprint.yaml",
+            source_type="github",
+        )
+
+        assert blueprint is not None
+        assert blueprint.content_trust == "untrusted"
+
     def test_is_blueprint(self, sample_blueprint_yaml):
         """Test blueprint detection."""
         data = self.parser.parse_yaml(sample_blueprint_yaml)
