@@ -25,12 +25,12 @@ from ..clients.breakers import openai_breaker
 from ..config import Settings
 
 try:
-    from homeiq_ha.prompt_guidance.builder import PromptBuilder
+    from homeiq_patterns.prompt_guidance.builder import PromptBuilder
 except ImportError:
     # Fallback if shared module not available
     PromptBuilder = None  # type: ignore
     logging.warning(
-        "Could not import PromptBuilder from homeiq_ha.prompt_guidance.builder - using fallback prompt"
+        "Could not import PromptBuilder from homeiq_patterns.prompt_guidance.builder - using fallback prompt"
     )
 
 from .device_validation_service import DeviceValidationService  # noqa: E402

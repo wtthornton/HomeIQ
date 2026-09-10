@@ -250,11 +250,14 @@ class ProactiveAgentLoop:
             from ..clients.breakers import openai_breaker
 
             async with openai_breaker:
+                # gpt-5-mini (and the rest of the GPT-5/o-series reasoning
+                # models) reject the legacy token-limit param and any
+                # explicit sampling temperature -- omit temperature
+                # entirely, not even the default (1).
                 response = await self._openai_client.chat.completions.create(
                     model=self.settings.openai_model,
                     messages=[{"role": "user", "content": prompt}],
-                    temperature=0.3,
-                    max_tokens=1500,
+                    max_completion_tokens=1500,
                     response_format={"type": "json_object"},
                 )
 
