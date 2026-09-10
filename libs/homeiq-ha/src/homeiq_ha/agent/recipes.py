@@ -249,8 +249,9 @@ def default_recipes(
         # power sensor, never a HACS download. TAP-5431.
         PowercalcRecipe(),
         # NWS deliberately absent: the stack already carries three weather
-        # feeds (data-collectors/weather-api, websocket-ingestion's
-        # OpenWeatherMap client, HA's met.no entry) — owner call 2026-08-12.
+        # feeds (data-collectors/collectors-service's weather adapter,
+        # websocket-ingestion's OpenWeatherMap client, HA's met.no entry) —
+        # owner call 2026-08-12.
         TeamTrackerRecipe(
             needs_user_input=(
                 "Add Team Tracker in Settings > Integrations: league and team "
@@ -258,8 +259,9 @@ def default_recipes(
                 "sensor so its entity_id contains 'team_tracker'."
             ),
         ),
-        # Local Calendar (phase 6): feeds calendar-service once the entity
-        # exists and CALENDAR_ENTITIES names it. TAP-5431.
+        # Local Calendar (phase 6): feeds collectors-service's calendar
+        # adapter once the entity exists and CALENDAR_ENTITIES names it.
+        # TAP-5431.
         LocalCalendarRecipe(),
         ZHARecipe(zha_serial_path),
         # The FP1E reports presence on Aqara's 0xFCC0 cluster, which no

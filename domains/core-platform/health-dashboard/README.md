@@ -415,7 +415,7 @@ The production nginx config handles:
 2. **Optional Services (Variable-based proxy_pass):**
    ```nginx
    location /weather/ {
-       set $weather_service "http://weather-api:8009";
+       set $weather_service "http://collectors:8009";
        proxy_pass $weather_service/;
    }
    ```

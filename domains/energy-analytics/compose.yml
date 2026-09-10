@@ -14,7 +14,7 @@ services:
       - ../../.env
     environment:
       - HA_AI_AGENT_URL=http://ha-ai-agent-service:8030
-      - WEATHER_API_URL=http://weather-api:8009
+      - WEATHER_API_URL=http://collectors:8009
       - DATA_API_URL=http://data-api:8006
       - DATA_API_API_KEY=${API_KEY:-}
       - API_KEY=${API_KEY:-}

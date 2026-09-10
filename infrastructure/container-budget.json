@@ -6,7 +6,7 @@
     "ref": "TAP-5283"
   },
   "ceiling": {
-    "services": 42,
+    "services": 37,
     "memory_mib": 7406
   },
   "measured": {
@@ -15,14 +15,13 @@
       "ai-automation-service-new",
       "ai-automation-ui",
       "ai-pattern-service",
-      "air-quality",
       "api-automation-edge",
       "automation-linter",
       "automation-miner",
       "automation-trace-service",
       "blueprint-index",
       "blueprint-suggestion-service",
-      "calendar",
+      "collectors",
       "data-api",
       "data-retention",
       "device-context-classifier",
@@ -31,7 +30,6 @@
       "device-intelligence-service",
       "device-recommender",
       "device-setup-assistant",
-      "electricity-pricing",
       "ha-ai-agent-service",
       "ha-device-control",
       "ha-setup-service",
@@ -46,9 +44,6 @@
       "proactive-agent-service",
       "rag-service",
       "rule-recommendation-ml",
-      "smart-meter",
-      "sports-api",
-      "weather-api",
       "websocket-ingestion",
       "yaml-validation-service",
       "zeek",
@@ -56,7 +51,7 @@
     ],
     "memory_mib": 7406,
     "containers": 85,
-    "at": "2026-08-23",
+    "at": "2026-09-09",
     "how": "production-profile services parsed from domains/*/compose.yml; memory is the resident total from docker stats across running non-agentforge containers",
     "memory_measured_at": "2026-08-18",
     "memory_note": "Service count re-measured 2026-08-23 when the six observability services (grafana, prometheus, alertmanager, postgres-exporter, jaeger, observability-dashboard) moved to a non-production 'observability' profile. Memory was NOT re-measured: those containers were still running, so docker stats would have reported the old total and recorded it as current. Re-run --update-baseline without --no-memory once the stack is up on the new profile set; the figure should fall by roughly 2.7 GB of image weight plus their resident share."

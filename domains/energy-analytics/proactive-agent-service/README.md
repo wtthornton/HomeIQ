@@ -34,7 +34,7 @@ The Proactive Agent Service generates context-aware automation suggestions by an
 Environment variables:
 - `PROACTIVE_AGENT_ALLOWED_ORIGINS` - Comma-delimited CORS origins
 - `HA_AI_AGENT_URL` - HA AI Agent Service URL (default: http://ha-ai-agent-service:8030)
-- `WEATHER_API_URL` - Weather API service URL (default: http://weather-api:8009)
+- `WEATHER_API_URL` - Weather API service URL (default: http://collectors:8009 — folded from weather-api, TAP-7274)
 - Note: Sports data is accessed via DATA_API_URL (Epic 31 architecture - sports-api writes to InfluxDB, data-api queries it)
 - `DATA_API_URL` - Data API service URL (default: http://data-api:8006)
 - `DATABASE_URL` - PostgreSQL database URL

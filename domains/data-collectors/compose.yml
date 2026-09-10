@@ -3,17 +3,22 @@ name: homeiq-data-collectors
 # Stateless data fetchers. Each polls an external API and writes to InfluxDB.
 # Deploy cadence: Medium — per-API contract change
 #
-# Services: weather-api, smart-meter, sports-api, air-quality, electricity-pricing,
-#           calendar, log-aggregator, zeek, zeek-network-service
+# Services: collectors (weather+sports+air-quality+electricity-pricing+
+#           calendar+smart-meter folded into one process, TAP-7274),
+#           log-aggregator, zeek, zeek-network-service
 # Depends on: Group 1 (influxdb write, data-api metadata)
 # Depended on by: Groups 3, 4 (indirect — via InfluxDB data)
 
 services:
-  weather-api:
+  collectors:
+    # One process for the six former pure-HTTP collectors — weather-api,
+    # sports-api, air-quality, electricity-pricing, calendar, smart-meter —
+    # folded per docs/architecture/collapse-map.md section C1. No `profiles`
+    # key: it is production, same as the services it replaces.
     build:
       context: ../..
-      dockerfile: domains/data-collectors/weather-api/Dockerfile
-    container_name: homeiq-weather-api
+      dockerfile: domains/data-collectors/collectors-service/Dockerfile
+    container_name: homeiq-collectors
     restart: unless-stopped
     ports:
       - "8009:8009"
@@ -21,19 +26,40 @@ services:
       - ../../.env
     environment:
       - SERVICE_PORT=8009
-      # Open-Meteo's non-commercial tier needs no API key, so this service
-      # holds no credential. It is queried by coordinate; WEATHER_LOCATION is
-      # the display label and the InfluxDB `location` tag.
+      # --- weather (Open-Meteo needs no API key; queried by coordinate) ---
       - WEATHER_LOCATION=${WEATHER_LOCATION:-Las Vegas}
       - WEATHER_LATITUDE=${LATITUDE:-35.9561663}
       - WEATHER_LONGITUDE=${LONGITUDE:--115.1833246}
       - CACHE_TTL_SECONDS=900
+      # --- sports ---
+      - SPORTS_POLL_INTERVAL=${SPORTS_POLL_INTERVAL:-60}
+      # --- air-quality (Open-Meteo air-quality also needs no API key) ---
+      - AIR_QUALITY_LATITUDE=${LATITUDE:-36.1699}
+      - AIR_QUALITY_LONGITUDE=${LONGITUDE:--115.1398}
+      # --- electricity-pricing ---
+      - PRICING_PROVIDER=${PRICING_PROVIDER:-awattar}
+      - PRICING_API_KEY=${PRICING_API_KEY:-}
+      # --- calendar ---
+      - CALENDAR_ENTITIES=${CALENDAR_ENTITIES:-}
+      - CALENDAR_FETCH_INTERVAL=${CALENDAR_FETCH_INTERVAL:-900}
+      # --- smart-meter ---
+      - METER_TYPE=${METER_TYPE:-home_assistant}
+      - METER_API_TOKEN=${METER_API_TOKEN:-}
+      - METER_DEVICE_ID=${METER_DEVICE_ID:-}
       - FETCH_INTERVAL_SECONDS=300
+      # --- shared Home Assistant connection (unprefixed across all six) ---
+      - HA_HTTP_URL=${HA_HTTP_URL:-}
+      - HA_WS_URL=${HA_WS_URL:-}
+      - HA_TOKEN=${HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
+      - NABU_CASA_URL=${NABU_CASA_URL:-}
+      - NABU_CASA_TOKEN=${NABU_CASA_TOKEN:-}
+      - HOME_ASSISTANT_URL=${HOME_ASSISTANT_URL:-}
+      - HOME_ASSISTANT_TOKEN=${HOME_ASSISTANT_TOKEN:-}
+      # --- shared InfluxDB (every adapter writes here; calendar keeps its
+      #     own "events" bucket internally via CALENDAR_INFLUXDB_BUCKET) ---
       - INFLUXDB_URL=http://influxdb:8086
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
-      # Every other collector writes to this bucket; `weather_data` was never
-      # provisioned in InfluxDB, so weather writes had nowhere to land.
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     # Cross-group depends_on removed (influxdb is in core-platform)
@@ -42,259 +68,23 @@ services:
     deploy:
       resources:
         limits:
+          memory: 768M
+          cpus: '1.0'
+        reservations:
           memory: 384M
           cpus: '0.5'
-        reservations:
-          memory: 192M
-          cpus: '0.25'
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-        labels: "service=weather-api,group=data-collectors,environment=production"
+        labels: "service=collectors,group=data-collectors,environment=production"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8009/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-
-  smart-meter:
-    build:
-      context: ../..
-      dockerfile: domains/data-collectors/smart-meter-service/Dockerfile
-    container_name: homeiq-smart-meter
-    restart: unless-stopped
-    ports:
-      - "8014:8014"
-    env_file:
-      - ../../.env
-    environment:
-      - METER_TYPE=${METER_TYPE:-home_assistant}
-      - HA_HTTP_URL=${HA_HTTP_URL:-}
-      - HA_WS_URL=${HA_WS_URL:-}
-      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
-      - NABU_CASA_URL=${NABU_CASA_URL:-}
-      - NABU_CASA_TOKEN=${NABU_CASA_TOKEN:-}
-      - HOME_ASSISTANT_URL=${HOME_ASSISTANT_URL:-}
-      - HOME_ASSISTANT_TOKEN=${HOME_ASSISTANT_TOKEN:-}
-      - METER_API_TOKEN=${METER_API_TOKEN:-}
-      - METER_DEVICE_ID=${METER_DEVICE_ID:-}
-      - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
-      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
-      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
-      - SERVICE_PORT=8014
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    # Cross-group depends_on removed (influxdb is in core-platform)
-    networks:
-      - homeiq-network
-    deploy:
-      resources:
-        limits:
-          memory: 384M
-          cpus: '0.5'
-        reservations:
-          memory: 192M
-          cpus: '0.25'
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        labels: "service=smart-meter,group=data-collectors,environment=production"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8014/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
-  sports-api:
-    build:
-      context: ../..
-      dockerfile: domains/data-collectors/sports-api/Dockerfile
-    container_name: homeiq-sports-api
-    restart: unless-stopped
-    ports:
-      - "8005:8005"
-    env_file:
-      - ../../.env
-    environment:
-      - SERVICE_PORT=8005
-      - HA_HTTP_URL=${HA_HTTP_URL:-}
-      - HA_TOKEN=${HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
-      - SPORTS_POLL_INTERVAL=${SPORTS_POLL_INTERVAL:-60}
-      - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
-      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
-      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    # Cross-group depends_on removed (influxdb is in core-platform)
-    networks:
-      - homeiq-network
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.5'
-        reservations:
-          memory: 128M
-          cpus: '0.25'
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        labels: "service=sports-api,group=data-collectors,environment=production"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  air-quality:
-    build:
-      context: ../..
-      dockerfile: domains/data-collectors/air-quality-service/Dockerfile
-    container_name: homeiq-air-quality
-    restart: unless-stopped
-    ports:
-      - "8012:8012"
-    env_file:
-      - ../../.env
-    environment:
-      # Open-Meteo air-quality needs no API key; location only.
-      - LATITUDE=${LATITUDE:-36.1699}
-      - LONGITUDE=${LONGITUDE:--115.1398}
-      - HOME_ASSISTANT_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-}}
-      - HOME_ASSISTANT_TOKEN=${HOME_ASSISTANT_TOKEN:-}
-      - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
-      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
-      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
-      - SERVICE_PORT=8012
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    # Cross-group depends_on removed (influxdb is in core-platform)
-    networks:
-      - homeiq-network
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.5'
-        reservations:
-          memory: 128M
-          cpus: '0.25'
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        labels: "service=air-quality,group=data-collectors,environment=production"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8012/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    profiles:
-      - production
-
-  electricity-pricing:
-    build:
-      context: ../..
-      dockerfile: domains/data-collectors/electricity-pricing-service/Dockerfile
-    container_name: homeiq-electricity-pricing
-    restart: unless-stopped
-    ports:
-      - "8011:8011"
-    env_file:
-      - ../../.env
-    environment:
-      - PRICING_PROVIDER=${PRICING_PROVIDER:-awattar}
-      - PRICING_API_KEY=${PRICING_API_KEY:-}
-      - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
-      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
-      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
-      - SERVICE_PORT=8011
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    # Cross-group depends_on removed (influxdb is in core-platform)
-    networks:
-      - homeiq-network
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.5'
-        reservations:
-          memory: 128M
-          cpus: '0.25'
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        labels: "service=electricity-pricing,group=data-collectors,environment=production"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8011/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    profiles:
-      - production
-
-  calendar:
-    build:
-      context: ../..
-      dockerfile: domains/data-collectors/calendar-service/Dockerfile
-    container_name: homeiq-calendar
-    restart: unless-stopped
-    ports:
-      - "8013:8013"
-    env_file:
-      - ../../.env
-    environment:
-      - HA_HTTP_URL=${HA_HTTP_URL:-}
-      - HA_WS_URL=${HA_WS_URL:-}
-      - HA_TOKEN=${HA_TOKEN:-${HOME_ASSISTANT_TOKEN:-}}
-      - CALENDAR_ENTITIES=${CALENDAR_ENTITIES:-}
-      - CALENDAR_FETCH_INTERVAL=${CALENDAR_FETCH_INTERVAL:-900}
-      - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
-      - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
-      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
-      - SERVICE_PORT=8013
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    # Cross-group depends_on removed (influxdb is in core-platform)
-    networks:
-      - homeiq-network
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.5'
-        reservations:
-          memory: 128M
-          cpus: '0.25'
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        labels: "service=calendar,group=data-collectors,environment=production"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8013/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    profiles:
-      - production
 
   log-aggregator:
     build:

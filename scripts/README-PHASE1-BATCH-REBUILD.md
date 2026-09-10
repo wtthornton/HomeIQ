@@ -187,8 +187,8 @@ docker images | grep pre-phase1
 
 # Rollback single service
 BACKUP_TAG="pre-phase1-rebuild-20260204_140000"
-docker tag homeiq-weather-api:${BACKUP_TAG} homeiq-weather-api:latest
-docker-compose up -d weather-api
+docker tag homeiq-collectors:${BACKUP_TAG} homeiq-collectors:latest
+docker-compose up -d collectors
 
 # Rollback all (use Phase 0 backup)
 cd backups/phase0_20260204_111804/

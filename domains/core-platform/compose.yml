@@ -276,7 +276,7 @@ services:
       - DATA_API_URL=http://data-api:8006
       - DEVICE_INTELLIGENCE_API_KEY=${API_KEY:-}
       - AI_AUTOMATION_URL=http://ai-automation-service-new:8025
-      - WEATHER_SERVICE_URL=http://weather-api:8009
+      - WEATHER_SERVICE_URL=http://collectors:8009
       - OTLP_ENDPOINT=${HOMEIQ_OTLP_ENDPOINT:-}
     depends_on:
       influxdb:

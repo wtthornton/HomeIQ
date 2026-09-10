@@ -86,7 +86,7 @@ async def _startup_dependencies() -> None:
     """Probe cross-group dependencies (non-fatal)."""
     if wait_for_dependency is not None:
         await wait_for_dependency(url="http://data-api:8006", name="data-api", max_retries=10)
-        await wait_for_dependency(url="http://weather-api:8009", name="weather-api", max_retries=10)
+        await wait_for_dependency(url="http://collectors:8009", name="collectors", max_retries=10)
 
     global _group_health
     if GroupHealthCheck is not None:
@@ -95,7 +95,7 @@ async def _startup_dependencies() -> None:
             version="1.0.0",
         )
         _group_health.register_dependency("data-api", "http://data-api:8006")
-        _group_health.register_dependency("weather-api", "http://weather-api:8009")
+        _group_health.register_dependency("collectors", "http://collectors:8009")
 
 
 async def _startup_db() -> None:

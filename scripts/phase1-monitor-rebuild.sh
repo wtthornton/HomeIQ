@@ -121,7 +121,7 @@ display_dashboard() {
     # Docker container status
     echo ""
     echo -e "${CYAN}Docker Container Status:${NC}"
-    docker ps --format "table {{.Names}}\t{{.Status}}" | grep -E "homeiq-weather-api|homeiq-device-intelligence|homeiq-automation-linter|homeiq-ml-service|homeiq-health-dashboard" | head -6
+    docker ps --format "table {{.Names}}\t{{.Status}}" | grep -E "homeiq-collectors|homeiq-device-intelligence|homeiq-automation-linter|homeiq-ml-service|homeiq-health-dashboard" | head -6
 
     # Resource usage
     echo ""

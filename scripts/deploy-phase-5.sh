@@ -167,12 +167,7 @@ deploy_tier_2() {
   local tier2_services=(
     "health-dashboard:3000"
     "data-retention:8080"
-    "weather-api:8009"
-    "smart-meter-service:8014"
-    "sports-api:8005"
-    "calendar-service:8013"
-    "electricity-pricing:8011"
-    "air-quality:8012"
+    "collectors:8009"
     "log-aggregator:8015"
   )
 

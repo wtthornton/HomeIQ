@@ -38,7 +38,7 @@ class LogValidator:
         "data-retention",
         "admin-api",
         "health-dashboard",
-        "weather-api",
+        "collectors",
     }
 
     def __init__(self):

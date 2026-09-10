@@ -58,12 +58,7 @@ ALL_SERVICES=(
   # Tier 2 — Essential
   "health-dashboard:3000:/health"
   "data-retention:8080:/health"
-  "weather-api:8009:/health"
-  "smart-meter-service:8014:/health"
-  "sports-api:8005:/health"
-  "calendar-service:8013:/health"
-  "electricity-pricing:8011:/health"
-  "air-quality:8012:/health"
+  "collectors:8009:/health"
   "log-aggregator:8015:/health"
   # Tier 3 — ML/AI
   "openvino-service:8026:/health"

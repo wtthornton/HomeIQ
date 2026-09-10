@@ -114,7 +114,7 @@ class TestDataAPIClientResilience:
 def _make_weather_client():
     from src.clients.weather_api_client import WeatherAPIClient
 
-    return WeatherAPIClient(base_url="http://weather-api:8009")
+    return WeatherAPIClient(base_url="http://collectors:8009")
 
 
 class TestWeatherAPIClientResilience:

@@ -138,11 +138,11 @@ class TestMultipleDependencies:
     """Verify services with multiple cross-group dependencies."""
 
     def test_proactive_agent_has_two_deps(self):
-        """proactive-agent should monitor data-api + weather-api."""
+        """proactive-agent should monitor data-api + collectors (weather adapter)."""
         data = _get_health("proactive-agent")
         deps = data["dependencies"]
         assert "data-api" in deps, "Should monitor data-api"
-        assert "weather-api" in deps, "Should monitor weather-api"
+        assert "collectors" in deps, "Should monitor collectors (weather adapter, TAP-7274)"
 
     def test_device_health_has_two_deps(self):
         """device-health-monitor should monitor data-api + device-intelligence."""

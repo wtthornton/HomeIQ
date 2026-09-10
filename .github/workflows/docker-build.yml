@@ -31,14 +31,10 @@ jobs:
           - websocket-ingestion
           - data-api
           - admin-api
-          - weather-api
+          - collectors-service
           - health-dashboard
           - ai-automation-service-new
           - ai-automation-ui
-          - electricity-pricing-service
-          - air-quality-service
-          - calendar-service
-          - smart-meter-service
           - log-aggregator
           - ml-service
           - ai-pattern-service
@@ -63,7 +59,6 @@ jobs:
           - device-health-monitor
           - rag-service
           - observability-dashboard
-          - sports-api
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -166,14 +161,10 @@ jobs:
           - websocket-ingestion
           - data-api
           - admin-api
-          - weather-api
+          - collectors-service
           - health-dashboard
           - ai-automation-service-new
           - ai-automation-ui
-          - electricity-pricing-service
-          - air-quality-service
-          - calendar-service
-          - smart-meter-service
           - log-aggregator
           - ml-service
           - ai-pattern-service
