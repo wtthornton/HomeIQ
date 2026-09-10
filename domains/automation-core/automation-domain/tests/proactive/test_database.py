@@ -10,13 +10,17 @@ from unittest.mock import patch
 import pytest
 
 from src.proactive.config import Settings
-from src.proactive.database import get_async_session_maker, init_database
+from src.proactive.database import db, get_async_session_maker, init_database
 
 
 def test_get_async_session_maker_returns_none_before_init():
     """Test that get_async_session_maker returns None before database initialization"""
-    # Ensure database is not initialized by patching the global variable
-    with patch("src.proactive.database._async_session_maker", None):
+    # get_async_session_maker returns db.session_maker; the module-level
+    # _async_session_maker this used to patch is a vestigial alias the function
+    # never reads, so the patch was inert and the assertion only held while
+    # nothing had initialised db first. In the merged suite something always
+    # has (TAP-7275), which is what exposed it.
+    with patch.object(db, "_session_maker", None):
         session_maker = get_async_session_maker()
         assert session_maker is None
 

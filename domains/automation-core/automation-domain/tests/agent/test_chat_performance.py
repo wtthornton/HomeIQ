@@ -102,28 +102,14 @@ async def test_client(
         yield client
 
 
-def create_fast_mock_completion(content: str):
-    """Create mock OpenAI Responses API response (fast)"""
-    from types import SimpleNamespace
+def create_fast_mock_completion(content: str) -> dict:
+    """Build the answer shape the ``assistant-chat`` workflow returns.
 
-    return SimpleNamespace(
-        id="resp-perf",
-        output_text=content,
-        output=[
-            SimpleNamespace(
-                type="message",
-                role="assistant",
-                content=content,
-            )
-        ],
-        model="gpt-4o-mini",
-        stop_reason="stop",
-        usage=SimpleNamespace(
-            input_tokens=100,
-            output_tokens=len(content.split()),
-            output_tokens_details=None,
-        ),
-    )
+    TAP-7275: this used to assemble a fake OpenAI Responses-API object.
+    ``chat_turn`` returns the workflow's JSON answer now, and the endpoint
+    reads it with ``.get`` -- a SimpleNamespace made every request 500.
+    """
+    return {"answer": content, "iterations": 1}
 
 
 @pytest.mark.asyncio

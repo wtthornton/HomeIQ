@@ -155,20 +155,10 @@ async def test_chat_flow_with_tool_call(test_client, mock_chat_client, mock_tool
     )
     mock_chat_client.chat_turn.return_value = mock_response
 
-    # Mock tool execution
-    mock_tool_service.execute_tool_call.return_value = {
-        "entity_id": "light.kitchen",
-        "state": "on",
-        "attributes": {"brightness": 255},
-    }
-
-    # Mock second OpenAI call (after tool execution)
-    mock_response2 = create_mock_completion(
-        "The kitchen light is currently on with 100% brightness."
-    )
-    mock_chat_client.chat_turn.side_effect = [mock_response, mock_response2]
-
-    # Send chat message
+    # TAP-7275: the tool loop runs inside the workflow, which reaches the same
+    # house data through the homeiq MCP read tools. This process no longer
+    # executes a tool or makes a second call to settle the turn -- it reports
+    # what the run says it used, so that is what is asserted.
     response = await test_client.post(
         "/api/v1/chat",
         json={
@@ -181,11 +171,15 @@ async def test_chat_flow_with_tool_call(test_client, mock_chat_client, mock_tool
     assert response.status_code == 200
     data = response.json()
     assert "message" in data
-    assert "tool_calls" in data
-    assert len(data["tool_calls"]) >= 0  # Tool calls may be in metadata
-
-    # Verify tool was executed
-    mock_tool_service.execute_tool_call.assert_called()
+    assert data["tool_calls"] == [
+        {
+            "id": "0",
+            "name": "get_entity_state",
+            "arguments": {"entity_id": "light.kitchen"},
+        }
+    ]
+    mock_tool_service.execute_tool_call.assert_not_called()
+    mock_chat_client.chat_turn.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -246,20 +240,11 @@ async def test_chat_flow_create_automation(test_client, mock_chat_client, mock_t
         tool_calls=[tool_call],
     )
 
-    # Second: Agent confirms success
-    mock_response2 = create_mock_completion(
-        "I've successfully created the automation 'Turn On Lights at Sunset'."
-    )
+    # TAP-7275: one workflow run settles the turn. The gene calls
+    # create_automation itself and reports it, so there is no second round trip
+    # here and no local tool execution to mock.
+    mock_chat_client.chat_turn.return_value = mock_response1
 
-    mock_chat_client.chat_turn.side_effect = [mock_response1, mock_response2]
-
-    # Mock tool execution (create automation)
-    mock_tool_service.execute_tool_call.return_value = {
-        "success": True,
-        "automation_id": "automation.test_automation",
-    }
-
-    # Send chat message
     response = await test_client.post(
         "/api/v1/chat",
         json={
@@ -273,16 +258,15 @@ async def test_chat_flow_create_automation(test_client, mock_chat_client, mock_t
     data = response.json()
     assert "message" in data
     assert "automation" in data["message"].lower() or "created" in data["message"].lower()
-
-    # Verify tool was executed
-    mock_tool_service.execute_tool_call.assert_called()
+    assert [c["name"] for c in data["tool_calls"]] == ["create_automation"]
+    mock_tool_service.execute_tool_call.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_chat_flow_error_handling(test_client, mock_chat_client):
     """Test error handling in chat flow"""
     # TAP-7275: the upstream is AgentForge now, and its failure type is
-    # AgentChatError -- what chat_endpoints maps to 503.
+    # AgentChatError -- what chat_endpoints maps to 502.
     from src.agent.services.llm_client import AgentChatError
 
     mock_chat_client.chat_turn.side_effect = AgentChatError("AgentForge run failed")
@@ -301,7 +285,7 @@ async def test_chat_flow_error_handling(test_client, mock_chat_client):
     # upstream is now a gateway this process calls, and chat_endpoints answers
     # 502 Bad Gateway -- an upstream that failed, not this service being down.
     assert response.status_code == 502
-    assert "try again later" in response.json()["detail"].lower()
+    assert "agentforge could not answer" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
