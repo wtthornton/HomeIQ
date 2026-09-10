@@ -16,7 +16,7 @@ def mock_settings():
         mock.influxdb_url = "http://localhost:8086"
         mock.influxdb_token = SecretStr("test-token")
         mock.influxdb_org = "test-org"
-        mock.calendar_influxdb_bucket = "events"
+        mock.influxdb_bucket = "home_assistant_events"
         mock.calendar_fetch_interval = 60
         mock.calendar_timezone = "UTC"
         mock.default_travel_time_minutes = 30
