@@ -1,0 +1,65 @@
+# Propose graded enhancements of an existing automation (TAP-7275).
+#
+# Serves automation-domain's agent slice: AutomationEnhancementService, reached
+# through the suggest_enhancements Home Assistant tool. The service used to make
+# up to nine separate provider calls per automation — one per variant, per shape.
+# This workflow answers every graded variant in one run.
+
+name: automation-enhance
+spec_version: 2
+
+inputs:
+  - name: original_prompt
+    type: string
+    required: true
+    description: "The request the automation was built from, in the user's words"
+  - name: automation_yaml
+    type: string
+    required: false
+    description: "The current automation. Empty when the caller wants enhanced requests only."
+    default: ""
+  - name: entity_inventory
+    type: string
+    required: false
+    description: "Newline-separated `DOMAIN: id, id, ...` lines naming the entity ids this home has"
+    default: ""
+  - name: context
+    type: string
+    required: false
+    description: "JSON with detected patterns and cross-device synergies to draw on"
+    default: "{}"
+
+on_error: fail
+
+nodes:
+  enhance:
+    kind: task
+    agent: hiq-automation-enhance
+    inputs:
+      original_prompt: $original_prompt
+      automation_yaml: $automation_yaml
+      entity_inventory: $entity_inventory
+      context: $context
+    output_repair_retries: 2
+    output_schema:
+      type: object
+      required: [enhancements]
+      additionalProperties: false
+      properties:
+        enhancements:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: object
+            required: [level, title, description, enhanced_prompt]
+            additionalProperties: false
+            properties:
+              level: {type: string, enum: [small, medium, large]}
+              title: {type: string}
+              description: {type: string}
+              enhanced_prompt: {type: string}
+              automation_yaml: {type: [string, "null"]}
+              entities_referenced: {type: array, items: {type: string}}
+
+output: enhance

@@ -1,0 +1,55 @@
+# Draft one Home Assistant automation from a plain-text requirement (TAP-7275).
+#
+# Serves automation-domain's authoring slice: AutomationLLMClient.generate_yaml
+# and .generate_structured_plan both run this workflow. The plan-then-render path
+# existed only to turn a JSON plan into the same YAML this gene answers with, so
+# both callers reach one workflow and the plan is reconstructed from the YAML
+# (see plan_from_draft in src/authoring/clients/llm_client.py).
+#
+# Distinct from `automation-proposal`, which wraps the same drafting gene in an
+# injection scan, a judge and a human gate. That one is the reviewed pipeline;
+# this one is the synchronous call a HomeIQ endpoint makes and then validates
+# with its own deterministic entity-check, linter and YAML validator.
+
+name: automation-draft
+spec_version: 2
+
+inputs:
+  - name: behavior_requirement
+    type: string
+    required: true
+    description: "Plain-text behavioural requirement, e.g. 'Turn on the patio lights at sunset'"
+  - name: entity_inventory
+    type: string
+    required: false
+    description: "Newline-separated `DOMAIN: id, id, ...` lines naming the entity ids this home has. Empty means none was supplied."
+    default: ""
+
+on_error: fail
+
+nodes:
+  draft:
+    kind: task
+    agent: hiq-draft-automation
+    inputs:
+      behavior_requirement: $behavior_requirement
+      ha_inventory: $entity_inventory
+    output_repair_retries: 2
+    output_schema:
+      type: object
+      required: [automation_yaml, alias, assumptions, entities_referenced, refused]
+      additionalProperties: false
+      properties:
+        automation_yaml:
+          type: [string, "null"]
+          description: "Complete Home Assistant 2026.x automation YAML (null if refused)"
+        alias: {type: string}
+        assumptions: {type: array, items: {type: string}}
+        entities_referenced: {type: array, items: {type: string}}
+        refused:
+          type: [object, "null"]
+          properties:
+            rule_id: {type: string}
+            reason: {type: string}
+
+output: draft

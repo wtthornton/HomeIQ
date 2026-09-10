@@ -110,13 +110,24 @@ class Settings(BaseServiceSettings):
         default=False,
         description="Automatically generate name suggestions during device discovery",
     )
-    OPENAI_API_KEY: SecretStr | None = Field(
-        default=None,
-        description="OpenAI API key for AI name generation (optional)",
+    # TAP-7275: AI name generation runs as the AgentForge `device-name-suggest`
+    # workflow. The OpenAI key and the Ollama fallback are gone -- this service
+    # holds no model credential and no provider SDK.
+    AGENTFORGE_URL: str = Field(
+        default="http://localhost:8010",
+        description="AgentForge base URL",
     )
-    ENABLE_LOCAL_LLM: bool = Field(
-        default=False,
-        description="Enable local LLM (Ollama) for name generation (optional)",
+    AGENTFORGE_API_KEY: SecretStr | None = Field(
+        default=None,
+        description="AgentForge project API key for AI name generation (optional)",
+    )
+    AGENTFORGE_PROJECT_SLUG: str = Field(
+        default="homeiq",
+        description="AgentForge project slug",
+    )
+    AGENTFORGE_TIMEOUT: float = Field(
+        default=180.0,
+        description="AgentForge workflow run timeout in seconds",
     )
 
     # Authentication Configuration (CRIT-3)

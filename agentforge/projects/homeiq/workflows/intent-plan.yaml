@@ -1,0 +1,73 @@
+# Select a HomeIQ automation template and fill its parameters (TAP-7275).
+#
+# Serves automation-domain's authoring slice: IntentPlanner, reached from
+# POST /automation/plan. Replaces the raw structured-output provider call that
+# used to live in src/authoring/services/intent_planner.py.
+
+name: intent-plan
+spec_version: 2
+
+inputs:
+  - name: user_text
+    type: string
+    required: true
+    description: "The automation request in the user's own words"
+  - name: template_catalog
+    type: string
+    required: true
+    description: "The templates that may be chosen from, with ids, versions, parameters and hardware requirements"
+  - name: context
+    type: string
+    required: false
+    description: "JSON context: conversation, entity summary, area inventory, sports entities"
+    default: "{}"
+
+on_error: fail
+
+nodes:
+  plan:
+    kind: task
+    agent: hiq-intent-plan
+    inputs:
+      user_text: $user_text
+      template_catalog: $template_catalog
+      context: $context
+    output_repair_retries: 2
+    output_schema:
+      type: object
+      required: [template_id, parameters, confidence, clarifications_needed, safety_class]
+      additionalProperties: false
+      properties:
+        template_id: {type: string}
+        template_version: {type: [integer, "null"]}
+        # `not/anyOf` forbids the envelope's own field names inside parameters.
+        # Without it a gene that answers {"parameters": <whole envelope>} still
+        # validates, and HomeIQ passes that envelope straight to the template
+        # renderer as if it were the template's parameters. Observed on the
+        # first real run of this workflow (TAP-7275); output_repair_retries
+        # turns the violation into a repair instead of a bad plan.
+        parameters:
+          type: object
+          not:
+            anyOf:
+              - {required: [template_id]}
+              - {required: [template_version]}
+              - {required: [parameters]}
+              - {required: [confidence]}
+              - {required: [clarifications_needed]}
+              - {required: [safety_class]}
+              - {required: [explanation]}
+        confidence: {type: number, minimum: 0, maximum: 1}
+        clarifications_needed:
+          type: array
+          items:
+            type: object
+            required: [question]
+            additionalProperties: false
+            properties:
+              question: {type: string}
+              parameter: {type: string}
+        safety_class: {type: string, enum: [low, medium, high]}
+        explanation: {type: [string, "null"]}
+
+output: plan

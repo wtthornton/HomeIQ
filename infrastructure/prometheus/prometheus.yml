@@ -141,16 +141,13 @@ scrape_configs:
     metrics_path: /metrics
     scrape_interval: 15s
     static_configs:
+      # TAP-7275: one target replaces homeiq-ha-ai-agent-service:8030,
+      # homeiq-ai-automation-service-new:8025 and
+      # homeiq-proactive-agent-service:8031.
       - targets:
-          - 'homeiq-ha-ai-agent-service:8030'
+          - 'homeiq-automation-domain:8030'
         labels:
-          service: 'ha-ai-agent-service'
-          group: 'automation-core'
-          tier: '2'
-      - targets:
-          - 'homeiq-ai-automation-service-new:8025'
-        labels:
-          service: 'ai-automation-service-new'
+          service: 'automation-domain'
           group: 'automation-core'
           tier: '2'
       - targets:
@@ -204,17 +201,10 @@ scrape_configs:
           tier: '4'
 
   # --- Group 6: Energy Analytics ---
-  # Energy monitoring and proactive analytics.
-  - job_name: 'energy-analytics'
-    metrics_path: /metrics
-    scrape_interval: 30s
-    static_configs:
-      - targets:
-          - 'homeiq-proactive-agent-service:8031'
-        labels:
-          service: 'proactive-agent-service'
-          group: 'energy-analytics'
-          tier: '3'
+  # TAP-7275: no scrape job. proactive-agent-service, the group's only
+  # container, folded into automation-core/automation-domain and is scraped
+  # under that job. A job with an empty static_configs would report the group as
+  # up with zero series, which reads as "healthy and quiet" rather than "gone".
 
   # --- Group 7: Device Management ---
   # Device lifecycle, health, and onboarding.

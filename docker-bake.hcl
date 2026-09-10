@@ -140,17 +140,12 @@ group "ml-engine" {
 # Group 4: automation-core
 # ──────────────────────────────────────────────
 
-target "ha-ai-agent-service" {
+# TAP-7275: ha-ai-agent-service, ai-automation-service-new and
+# energy-analytics/proactive-agent-service build as one image.
+target "automation-domain" {
   context    = "."
-  dockerfile = "domains/automation-core/ha-ai-agent-service/Dockerfile"
-  tags       = ["homeiq/ha-ai-agent-service:latest"]
-  labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
-}
-
-target "ai-automation-service-new" {
-  context    = "."
-  dockerfile = "domains/automation-core/ai-automation-service-new/Dockerfile"
-  tags       = ["homeiq/ai-automation-service-new:latest"]
+  dockerfile = "domains/automation-core/automation-domain/Dockerfile"
+  tags       = ["homeiq/automation-domain:latest"]
   labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
 }
 
@@ -177,8 +172,7 @@ target "automation-trace-service" {
 
 group "automation-core" {
   targets = [
-    "ha-ai-agent-service",
-    "ai-automation-service-new",
+    "automation-domain",
     "automation-linter",
     "yaml-validation-service",
     "automation-trace-service",
@@ -231,18 +225,11 @@ group "blueprints" {
 # Group 6: energy-analytics
 # ──────────────────────────────────────────────
 
-target "proactive-agent-service" {
-  context    = "."
-  dockerfile = "domains/energy-analytics/proactive-agent-service/Dockerfile"
-  tags       = ["homeiq/proactive-agent-service:latest"]
-  labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
-}
-
-group "energy-analytics" {
-  targets = [
-    "proactive-agent-service",
-  ]
-}
+# TAP-7275: energy-analytics ships no image of its own any more —
+# proactive-agent-service folded into automation-core/automation-domain. The
+# group is removed rather than left empty: buildx refuses to resolve a group
+# with no targets ("failed to find target energy-analytics"), so an empty one
+# would break every `bake full` instead of only the group nobody needs.
 
 # ──────────────────────────────────────────────
 # Group 7: device-management
@@ -339,17 +326,11 @@ target "observability-dashboard" {
   labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
 }
 
-target "ai-automation-ui" {
-  context    = "."
-  dockerfile = "domains/frontends/ai-automation-ui/Dockerfile"
-  tags       = ["homeiq/ai-automation-ui:latest"]
-  labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
-}
-
+# TAP-7275: ai-automation-ui retired; its front door is the Home Assistant
+# integration (custom_components/homeiq).
 group "frontends" {
   targets = [
     "observability-dashboard",
-    "ai-automation-ui",
   ]
 }
 
@@ -364,7 +345,6 @@ group "full" {
     "ml-engine",
     "automation-core",
     "blueprints",
-    "energy-analytics",
     "device-management",
     "pattern-analysis",
     "frontends",

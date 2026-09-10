@@ -1,0 +1,51 @@
+# Extract durable household facts from one chat message (TAP-7275).
+#
+# Serves automation-domain's agent slice: MemoryExtractor, which runs
+# fire-and-forget on each chat turn and writes what it finds to Memory Brain.
+#
+# Uses hiq-extract because its contract is exactly the property memory
+# extraction needs: a field the source does not state comes back null and listed
+# in unsourced_fields rather than guessed. A guessed "fact" here becomes a stored
+# memory that the assistant then treats as something the person said.
+
+name: memory-extract
+spec_version: 2
+
+inputs:
+  - name: text
+    type: string
+    required: true
+    description: "The message to transcribe facts from"
+  - name: target_schema
+    type: string
+    required: true
+    description: "JSON Schema the extracted instance must conform to"
+
+on_error: fail
+
+nodes:
+  extract:
+    kind: task
+    agent: hiq-extract
+    inputs:
+      item: $text
+      schema: $target_schema
+    output_repair_retries: 1
+    output_schema:
+      type: object
+      required: [instance, manifest]
+      properties:
+        instance: {type: object}
+        manifest:
+          type: array
+          items:
+            type: object
+            required: [field, value, source]
+            properties:
+              field: {type: string}
+              value: {}
+              source: {type: [string, "null"]}
+              confidence: {type: number}
+        unsourced_fields: {type: array, items: {type: string}}
+
+output: extract

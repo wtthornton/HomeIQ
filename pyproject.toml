@@ -54,7 +54,7 @@ markers = [
 "domains/core-platform/admin-api/src/main.py" = ["E402"]
 "domains/core-platform/data-api/src/main.py" = ["E402"]
 "domains/core-platform/websocket-ingestion/src/main.py" = ["E402"]
-"domains/energy-analytics/proactive-agent-service/src/main.py" = ["E402"]
+"domains/automation-core/automation-domain/src/proactive/main.py" = ["E402"]
 
 # Tests, for the same E402 reason as above plus one specific to pytest.
 #

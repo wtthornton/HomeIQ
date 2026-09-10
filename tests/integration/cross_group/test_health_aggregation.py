@@ -33,7 +33,9 @@ DOMAIN_SERVICES = {
         "model-prep", "nlp-fine-tuning", "openai-service",
     ],
     "automation-core": [
-        "ha-ai-agent-service", "ai-automation-service-new",
+        # TAP-7275: ha-ai-agent-service + ai-automation-service-new +
+        # proactive-agent-service folded into automation-domain.
+        "automation-domain",
         "ai-query-service", "automation-linter",
         "yaml-validation-service", "ai-code-executor",
         "automation-trace-service",
@@ -43,7 +45,8 @@ DOMAIN_SERVICES = {
         "rule-recommendation-ml", "automation-miner",
     ],
     "energy-analytics": [
-        "energy-correlator", "energy-forecasting", "proactive-agent-service",
+        # TAP-7275: proactive-agent-service moved to automation-core/automation-domain.
+        "energy-correlator", "energy-forecasting",
     ],
     "device-management": [
         "device-health-monitor", "device-context-classifier",

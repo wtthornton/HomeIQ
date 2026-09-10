@@ -1,0 +1,65 @@
+# Emit the HomeIQ JSON Automation envelope for a requirement (TAP-7275).
+#
+# Serves automation-domain's authoring slice:
+# AutomationLLMClient.generate_homeiq_automation_json, reached from
+# POST /api/suggestions/{id}/rebuild-json, GET /api/suggestions/{id}/json and
+# the YAML generation service's HomeIQ-JSON strategy.
+#
+# Separate from `automation-draft` because the callers parse a structured object
+# with HomeIQ metadata, not a YAML string; feeding them the drafting gene's
+# answer would have meant reshaping YAML into an envelope this side of the wire.
+
+name: automation-json
+spec_version: 2
+
+inputs:
+  - name: behavior_requirement
+    type: string
+    required: true
+    description: "Plain-text behavioural requirement for the automation"
+  - name: entity_inventory
+    type: string
+    required: false
+    description: "Newline-separated `DOMAIN: id, id, ...` lines naming the entity ids this home has"
+    default: ""
+  - name: homeiq_context
+    type: string
+    required: false
+    description: "JSON with this home's patterns, devices and areas"
+    default: "{}"
+
+on_error: fail
+
+nodes:
+  build:
+    kind: task
+    agent: hiq-automation-json
+    inputs:
+      behavior_requirement: $behavior_requirement
+      entity_inventory: $entity_inventory
+      homeiq_context: $homeiq_context
+    output_repair_retries: 2
+    output_schema:
+      type: object
+      required: [automation, refused]
+      additionalProperties: false
+      properties:
+        automation:
+          type: [object, "null"]
+          required: [alias, triggers, actions]
+          properties:
+            alias: {type: string}
+            description: {type: string}
+            mode: {type: string, enum: [single, restart, queued, parallel]}
+            triggers: {type: array, items: {type: object}}
+            conditions: {type: array, items: {type: object}}
+            actions: {type: array, items: {type: object}}
+            entities_referenced: {type: array, items: {type: string}}
+            metadata: {type: object}
+        refused:
+          type: [object, "null"]
+          properties:
+            rule_id: {type: string}
+            reason: {type: string}
+
+output: build

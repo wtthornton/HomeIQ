@@ -1,14 +1,19 @@
 """
 AI Name Suggester
 
-AI-powered name generation using GPT-5.1 with prompt caching (2025 best practices).
+TAP-7275: name generation runs as the AgentForge `device-name-suggest`
+workflow. This service holds no OpenAI credential and no provider SDK; what
+stays here is the device record it builds, the naming convention it enforces,
+and the `strip_brands` guard that is applied to every name the gene returns --
+a prompt forbidding brands is a request, not a guarantee, so the rule is
+enforced in code (TAP-6234 round 3).
 """
 
 import json
 import logging
 from typing import Any
 
-from openai import AsyncOpenAI
+import httpx
 
 from ...models.database import Device, DeviceEntity
 from ..naming_convention.name_builder import strip_brands
@@ -16,36 +21,51 @@ from .name_generator import NameSuggestion
 
 logger = logging.getLogger(__name__)
 
+WORKFLOW_DEVICE_NAME = "device-name-suggest"
+
+#: The naming convention handed to the gene as a workflow input. It used to be
+#: the system prompt of a provider call; it is data now, and the gene's own
+#: instructions own how to apply it.
+NAMING_CONVENTION = """Use natural, conversational language.
+Include the location when it helps uniqueness.
+Be descriptive but concise: two to four words is ideal.
+Avoid technical terms and model numbers.
+NEVER include a brand or manufacturer word (Hue, Aqara, IKEA, Sonoff, ...) -- the
+HomeIQ naming rubric penalises them.
+Make the device's purpose obvious.
+
+Examples:
+- "Hue Color Downlight 1 7" -> "Office Back Left Light"
+- "TRADFRI bulb E27 WS opal" -> "Kitchen Ceiling Light"
+- "Xiaomi Motion Sensor" -> "Front Door Motion Sensor"
+"""
+
 
 class AINameSuggester:
     """AI name generation with 2025 optimizations"""
 
     def __init__(self, settings: Any):
         self.settings = settings
-        self.openai_client = None
-        self.local_llm_client = None
-
-        # 2025 Best Practice: GPT-5.1 with caching
-        if hasattr(settings, "OPENAI_API_KEY") and settings.OPENAI_API_KEY:
-            self.openai_client = AsyncOpenAI(
-                api_key=settings.OPENAI_API_KEY.get_secret_value(),
-                default_headers={
-                    "OpenAI-Beta": "assistants=v2"  # Enable prompt caching
-                },
+        self.agentforge_url = getattr(settings, "AGENTFORGE_URL", "http://localhost:8010").rstrip(
+            "/"
+        )
+        key = getattr(settings, "AGENTFORGE_API_KEY", None)
+        self.api_key = (
+            key.get_secret_value()
+            if key is not None and hasattr(key, "get_secret_value")
+            else (key or "")
+        )
+        self.project_slug = getattr(settings, "AGENTFORGE_PROJECT_SLUG", "homeiq")
+        self.timeout = float(getattr(settings, "AGENTFORGE_TIMEOUT", 180.0))
+        if not self.api_key:
+            logger.warning(
+                "AGENTFORGE_API_KEY not set - AI name suggestion unavailable; "
+                "the deterministic name generator still runs."
             )
-            # Use GPT-4o-mini as fallback (GPT-5.1-mini doesn't exist yet, use current best)
-            self.model = "gpt-4o-mini"  # Cost-optimized: $0.15/1M input
 
-        # Optional: Local LLM (will be implemented in next step)
-        if hasattr(settings, "ENABLE_LOCAL_LLM") and settings.ENABLE_LOCAL_LLM:
-            try:
-                self.local_llm_client = AsyncOpenAI(
-                    base_url="http://ollama:11434/v1",  # Ollama server
-                    api_key="not-needed",
-                )
-                self.local_model = "llama3.2:3b"  # 3B model for NUC
-            except Exception as e:
-                logger.warning(f"Failed to initialize local LLM client: {e}")
+    @property
+    def configured(self) -> bool:
+        return bool(self.api_key)
 
     async def suggest_name(
         self,
@@ -66,227 +86,104 @@ class AINameSuggester:
         - Without caching: 1-2s per device
         - Local LLM: 3-5s per device (no cost)
         """
-        # Try OpenAI first (if available)
-        if self.openai_client:
-            try:
-                return await self._suggest_with_openai(device, entity, context)
-            except Exception as e:
-                logger.warning(f"OpenAI suggestion failed: {e}, trying local LLM")
+        if not self.configured:
+            logger.warning("No AgentForge key available for name suggestion")
+            return []
+        try:
+            return await self._suggest_with_agentforge(device, entity, context)
+        except Exception as e:
+            logger.warning("AgentForge name suggestion failed: %s", e)
+            return []
 
-        # Fallback to local LLM (if available)
-        if self.local_llm_client:
-            try:
-                return await self._suggest_with_local_llm(device, entity)
-            except Exception as e:
-                logger.warning(f"Local LLM suggestion failed: {e}")
-
-        # No AI available, return empty list
-        logger.warning("No AI client available for name suggestion")
-        return []
-
-    async def _suggest_with_openai(
+    async def _suggest_with_agentforge(
         self,
         device: Device,
         entity: DeviceEntity | None = None,
         context: dict[str, Any] | None = None,
     ) -> list[NameSuggestion]:
-        """Generate suggestions using OpenAI GPT-4o-mini"""
-        prompt = self._build_prompt(device, entity, context)
-
-        try:
-            response = await self.openai_client.responses.create(
-                model=self.model,
-                instructions=self._get_system_prompt(),
-                input=prompt,
-                temperature=0.7,
-                max_output_tokens=200,
-                store=False,
+        """Run the `device-name-suggest` workflow for one device."""
+        payload = {
+            "inputs": {
+                "device": json.dumps(self._build_device_record(device, entity, context)),
+                "convention": NAMING_CONVENTION,
+            },
+            "dry_run": False,
+        }
+        url = f"{self.agentforge_url}/projects/{self.project_slug}/workflows/{WORKFLOW_DEVICE_NAME}/run"
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            response = await client.post(
+                url,
+                json=payload,
+                params={"kickoff": "sync"},
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
             )
-
-            suggestions = []
-            content = response.output_text or ""
-            content = content.strip()
-            # Remove markdown code blocks if present
-            if content.startswith("```"):
-                parts = content.split("```")
-                if len(parts) >= 2:
-                    content = parts[1]
-                    if content.startswith("json"):
-                        content = content[4:]
-            content = content.strip()
-
-            try:
-                parsed = json.loads(content)
-                # The response may be a single object or an array of suggestions
-                # strip_brands on every AI-produced name: the prompt forbids
-                # brands, but a prompt is a request, not a guarantee — the
-                # no-brand rule is enforced in code (TAP-6234 round 3).
-                if isinstance(parsed, list):
-                    for suggestion_data in parsed[:3]:
-                        suggestions.append(
-                            NameSuggestion(
-                                name=strip_brands(suggestion_data.get("name", "")),
-                                confidence=float(suggestion_data.get("confidence", 0.8)),
-                                source="ai",
-                                reasoning=suggestion_data.get("reasoning", ""),
-                            )
-                        )
-                elif isinstance(parsed, dict):
-                    suggestions.append(
-                        NameSuggestion(
-                            name=strip_brands(parsed.get("name", "")),
-                            confidence=float(parsed.get("confidence", 0.8)),
-                            source="ai",
-                            reasoning=parsed.get("reasoning", ""),
-                        )
-                    )
-            except (json.JSONDecodeError, KeyError, ValueError) as e:
-                logger.warning(f"Failed to parse AI suggestion: {e}, content: {content[:100]}")
-                # Fallback: use raw content as name
-                if content:
-                    suggestions.append(
-                        NameSuggestion(
-                            # Unparseable model output is not a suggestion:
-                            # strip brands and keep it below the 0.7 storage
-                            # gate so raw text never lands as a name
-                            # (TAP-6234 round 3).
-                            name=strip_brands(content[:50]) or "Device",
-                            confidence=0.3,
-                            source="ai",
-                            reasoning="AI-generated name",
-                        )
-                    )
-
-            return suggestions[:3]  # Return up to 3 suggestions
-
-        except Exception as e:
-            logger.error(f"OpenAI API error: {e}")
-            raise
-
-    async def _suggest_with_local_llm(
-        self, device: Device, entity: DeviceEntity | None = None
-    ) -> list[NameSuggestion]:
-        """Generate suggestions using local LLM (Ollama)"""
-        prompt = self._build_prompt(device, entity)
-
-        try:
-            response = await self.local_llm_client.chat.completions.create(
-                model=self.local_model,
-                messages=[
-                    {"role": "system", "content": self._get_system_prompt()},
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=0.7,
-                max_tokens=200,
+        response.raise_for_status()
+        record = response.json()
+        if record.get("state") != "complete":
+            raise RuntimeError(
+                f"device-name-suggest run {record.get('run_id')} ended in state "
+                f"{record.get('state')!r}"
             )
+        raw = record.get("output")
+        answer = json.loads(raw) if isinstance(raw, str) else (raw or {})
 
-            # Parse response (local LLM may not return JSON)
-            content = response.choices[0].message.content.strip()
-
-            # Try to extract name from response
-            # Simple extraction: look for quoted text or first line
-            import re
-
-            name_match = re.search(r'"([^"]+)"', content)
-            # Fall back to the first line when the model did not quote the name.
-            name = name_match.group(1) if name_match else content.split("\n")[0].strip()[:50]
-
-            return [
+        suggestions: list[NameSuggestion] = []
+        for item in (answer.get("suggestions") or [])[:3]:
+            if not isinstance(item, dict):
+                continue
+            # strip_brands on every gene-produced name: the convention forbids
+            # brands, but a convention is a request, not a guarantee -- the
+            # no-brand rule is enforced here, in code (TAP-6234 round 3).
+            name = strip_brands(str(item.get("name", "")))
+            if not name:
+                continue
+            suggestions.append(
                 NameSuggestion(
                     name=name,
-                    confidence=0.75,  # Slightly lower confidence for local LLM
-                    source="local_llm",
-                    reasoning="Generated by local LLM",
+                    confidence=float(item.get("confidence", 0.8)),
+                    source="ai",
+                    reasoning=str(item.get("reasoning", "")),
                 )
-            ]
+            )
+        return suggestions
 
-        except Exception as e:
-            logger.error(f"Local LLM error: {e}")
-            raise
-
-    def _get_system_prompt(self) -> str:
-        """
-        System prompt (cached - 90% discount on repeated calls).
-
-        Keep under 500 tokens for optimal caching.
-        """
-        return """You are a device naming expert for home automation systems. Generate human-readable, descriptive names for smart home devices.
-
-REQUIREMENTS:
-1. Use natural, conversational language
-2. Include location if helpful for uniqueness
-3. Be descriptive but concise (2-4 words ideal)
-4. Avoid technical terms and model numbers
-5. NEVER include a brand or manufacturer word (Hue, Aqara, IKEA, Sonoff, ...) — the naming rubric penalizes them
-6. Make it easy for AI to understand device purpose
-
-EXAMPLES:
-- "Hue Color Downlight 1 7" → "Office Back Left Light"
-- "TRADFRI bulb E27 WS opal" → "Kitchen Ceiling Light"
-- "Xiaomi Motion Sensor" → "Front Door Motion Sensor"
-
-Return your response as JSON with this structure:
-{
-  "name": "Suggested device name",
-  "confidence": 0.0-1.0,
-  "reasoning": "Brief explanation"
-}"""
-
-    def _build_prompt(
+    def _build_device_record(
         self,
         device: Device,
         entity: DeviceEntity | None = None,
         context: dict[str, Any] | None = None,
-    ) -> str:
+    ) -> dict[str, Any]:
+        """Assemble the device facts the gene names from.
+
+        Structured rather than prose: the gene's contract is that every
+        suggestion says which supplied field it came from, and a field it never
+        received cannot be one of them.
         """
-        Build optimized prompt for name generation.
-
-        Prompt structure (optimized for caching):
-        1. System prompt (cached - 90% discount)
-        2. Device information (varies per device)
-        3. Existing names in area (for uniqueness)
-        4. Instructions (cached)
-
-        Token optimization:
-        - Keep system prompt under 500 tokens (cached)
-        - Device info: ~200 tokens
-        - Total: ~700 tokens per request
-        """
-        parts = []
-
-        # Device information
-        parts.append("DEVICE INFORMATION:")
-        parts.append(f"- Manufacturer: {device.manufacturer or 'Unknown'}")
-        parts.append(f"- Model: {device.model or 'Unknown'}")
-        # Phase 3: Include model_id if available (more precise model identification)
-        if hasattr(device, "model_id") and device.model_id:
-            parts.append(f"- Model ID: {device.model_id}")
-        if entity:
-            parts.append(f"- Type: {entity.domain} ({entity.domain})")
-        elif device.device_class:
-            parts.append(f"- Type: {device.device_class}")
-        parts.append(f"- Location: {device.area_name or device.area_id or 'Unknown'}")
-        parts.append(f"- Current Name: {device.name or 'Unknown'}")
-        # Phase 1: Include name_by_user if available (user-customized name)
-        if hasattr(device, "name_by_user") and device.name_by_user:
-            parts.append(f"- User Custom Name: {device.name_by_user}")
-        # Phase 2: Include labels if available (organizational context)
-        if hasattr(device, "labels") and device.labels:
-            parts.append(f"- Labels: {', '.join(device.labels)}")
-        if entity:
-            parts.append(f"- Entity ID: {entity.entity_id}")
-            # Phase 1: Include entity aliases if available
-            if hasattr(entity, "aliases") and entity.aliases:
-                parts.append(f"- Entity Aliases: {', '.join(entity.aliases)}")
-
-        # Existing devices in same area (for uniqueness)
-        if context and "existing_devices" in context:
-            parts.append("\nEXISTING DEVICES IN SAME AREA:")
-            for existing in context["existing_devices"][:5]:  # Limit to 5
-                parts.append(f"- {existing}")
-
-        # Instructions
-        parts.append("\nGenerate 3 name suggestions, ranked by quality.")
-        parts.append("Return as JSON array with name, confidence, and reasoning for each.")
-
-        return "\n".join(parts)
+        record: dict[str, Any] = {
+            "manufacturer": device.manufacturer or None,
+            "model": device.model or None,
+            "area": device.area_name or device.area_id or None,
+            "current_name": device.name or None,
+            "device_class": device.device_class or None,
+        }
+        if getattr(device, "model_id", None):
+            record["model_id"] = device.model_id
+        if getattr(device, "name_by_user", None):
+            record["name_by_user"] = device.name_by_user
+        if getattr(device, "labels", None):
+            record["labels"] = list(device.labels)
+        if entity is not None:
+            record["entities"] = [
+                {
+                    "domain": entity.domain,
+                    "entity_id": entity.entity_id,
+                    "role": "primary",
+                    "aliases": list(getattr(entity, "aliases", None) or []),
+                }
+            ]
+        if context and context.get("existing_devices"):
+            record["existing_devices_in_area"] = list(context["existing_devices"])[:5]
+        return record

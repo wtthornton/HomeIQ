@@ -167,7 +167,7 @@ jobs:
           done
 
           # Automation-core consumers
-          for svc in ha-ai-agent-service ai-automation-service-new; do
+          for svc in automation-domain; do
             if [ -f "domains/automation-core/$svc/requirements.txt" ]; then
               pip install -r "domains/automation-core/$svc/requirements.txt"
             fi

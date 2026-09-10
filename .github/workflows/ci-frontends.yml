@@ -29,4 +29,6 @@ jobs:
     with:
       group_name: frontends
       domain_dir: frontends
-      services: '["observability-dashboard","ai-automation-ui"]'
+      # TAP-7275: ai-automation-ui retired; its front door is the Home Assistant
+      # integration (custom_components/homeiq).
+      services: '["observability-dashboard"]'

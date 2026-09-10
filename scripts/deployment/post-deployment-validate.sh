@@ -84,16 +84,14 @@ validate_health() {
     # TAP-7276: openvino-service + ml-service + rag-service merged into model-server.
     "model-server:8026"
     "automation-linter:8016"
-    "ha-ai-agent-service:8030"
+    "automation-domain:8030"
     "automation-trace-service:8044"
-    "ai-automation-service-new:8036"
     "yaml-validation-service:8037"
     "ha-device-control:8046"
     "blueprint-suggestion-service:8039"
     "blueprint-index:8038"
     "automation-miner:8029"
     "rule-recommendation-ml:8040:/api/v1/health"
-    "proactive-agent-service:8031"
     "device-health-monitor:8019"
     "device-database-client:8022"
     "device-recommender:8023"
@@ -104,7 +102,6 @@ validate_health() {
     "api-automation-edge:8041"
     "jaeger:16686:/"
     "observability-dashboard:8501:/_stcore/health"
-    "ai-automation-ui:3001:/health"
   )
 
   local healthy=0
@@ -249,20 +246,8 @@ validate_frontend_tests() {
     fi
   fi
 
-  # AI Automation UI
-  local ai_dir="$PROJECT_ROOT/domains/frontends/ai-automation-ui"
-  if [ -f "$ai_dir/package.json" ]; then
-    local ai_output="$RESULTS_DIR/frontend_ai.txt"
-    if (cd "$ai_dir" && npx vitest run --reporter=verbose 2>&1 | tee "$ai_output"); then
-      local ai_count
-      ai_count=$(grep -c "✓\|PASS" "$ai_output" 2>/dev/null || echo "?")
-      detail="$detail, AI UI: ${ai_count} pass"
-      total_pass=$((total_pass + 1))
-    else
-      detail="$detail, AI UI: FAILURES"
-      total_fail=$((total_fail + 1))
-    fi
-  fi
+  # TAP-7275: ai-automation-ui retired. Its vitest suite was removed with the
+  # directory; the surviving front door is the Home Assistant integration.
 
   # Observability Dashboard (Python/pytest)
   local obs_dir="$PROJECT_ROOT/domains/frontends/observability-dashboard"

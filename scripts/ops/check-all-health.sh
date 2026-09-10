@@ -31,8 +31,7 @@ declare -A SERVICES=(
   ["model-server"]=8026
   ["device-intelligence-service"]=8019
   # Automation Core
-  ["ha-ai-agent-service"]=8030
-  ["ai-automation-service-new"]=8036
+  ["automation-domain"]=8030
   ["yaml-validation-service"]=8037
   ["automation-linter"]=8016
   ["automation-trace-service"]=8046
@@ -42,7 +41,6 @@ declare -A SERVICES=(
   ["rule-recommendation-ml"]=8040
   ["automation-miner"]=8029
   # Energy Analytics
-  ["proactive-agent-service"]=8031
   # Device Management
   ["device-health-monitor"]=8019
   ["device-setup-assistant"]=8021

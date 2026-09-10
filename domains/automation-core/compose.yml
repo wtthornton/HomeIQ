@@ -2,17 +2,20 @@ name: homeiq-automation-core
 # domains/automation-core/compose.yml — Core automation generation, validation, and deployment
 # Deploy cadence: High — most active feature development
 #
-# Services: ha-ai-agent-service, ai-automation-service-new, yaml-validation-service,
+# Services: automation-domain, yaml-validation-service,
 #           automation-linter, automation-trace-service, ha-device-control
 # Depends on: core-platform (data-api), ml-engine (model-server)
 # Depended on by: frontends (display automation results), blueprints
 
 services:
-  ha-ai-agent-service:
+  automation-domain:
+    # TAP-7275: ha-ai-agent-service (8030), ai-automation-service-new (8025) and
+    # energy-analytics/proactive-agent-service (8031) folded into one process.
+    # Every route keeps its path; only the hostname and port changed.
     build:
       context: ../..
-      dockerfile: domains/automation-core/ha-ai-agent-service/Dockerfile
-    container_name: homeiq-ha-ai-agent-service
+      dockerfile: domains/automation-core/automation-domain/Dockerfile
+    container_name: homeiq-automation-domain
     restart: unless-stopped
     ports:
       - "8030:8030"
@@ -22,94 +25,67 @@ services:
       - HA_URL=${HA_HTTP_URL:-http://homeassistant:8123}
       - HA_TOKEN=${HA_TOKEN:-}
       - DATA_API_URL=http://data-api:8006
+      - DATA_API_KEY=${API_KEY:-}
+      - DATA_API_API_KEY=${API_KEY:-}
       - DEVICE_INTELLIGENCE_URL=http://device-intelligence-service:8019
       - DEVICE_INTELLIGENCE_API_KEY=${API_KEY:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5.2-codex}
+      - PATTERN_SERVICE_URL=http://ai-pattern-service:8020
+      - YAML_VALIDATION_SERVICE_URL=http://yaml-validation-service:8037
+      - WEATHER_API_URL=http://collectors:8009
       - AI_AUTOMATION_API_KEY=${API_KEY:-}
-      - DATA_API_KEY=${API_KEY:-}
+      - API_KEY=${API_KEY:-}
+      - HA_AGENT_API_KEY=${API_KEY:-}
+      - DATA_COLLECTORS_API_KEY=${API_KEY:-}
+      # AgentForge: every LLM call this process makes is a workflow run there.
+      # No provider API key, no provider SDK and no model name in this block.
+      - AGENTFORGE_URL=${AGENTFORGE_URL:-http://localhost:8010}
+      - AGENTFORGE_API_KEY=${AGENTFORGE_API_KEY:-}
+      - AGENTFORGE_PROJECT_SLUG=${AGENTFORGE_PROJECT_SLUG:-homeiq}
+      - AGENTFORGE_TIMEOUT=${AGENTFORGE_TIMEOUT:-180}
       - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq
-      - DATABASE_SCHEMA=agent
+      # One schema per slice. A single DATABASE_SCHEMA would bind all three to
+      # whichever value was set last, and the two that lost would read and write
+      # the wrong schema without erroring.
+      - AGENT_DB_SCHEMA=${AGENT_DB_SCHEMA:-agent}
+      - AUTOMATION_DB_SCHEMA=${AUTOMATION_DB_SCHEMA:-automation}
+      - ENERGY_DB_SCHEMA=${ENERGY_DB_SCHEMA:-energy}
+      - SERVICE_PORT=8030
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    # Cross-group depends_on removed (data-api in core, device-intelligence in ml-engine)
+      - SCHEDULER_ENABLED=${SCHEDULER_ENABLED:-true}
+      - SCHEDULER_TIME=${SCHEDULER_TIME:-03:00}
+    depends_on:
+      yaml-validation-service:
+        condition: service_healthy
+      # Cross-group depends_on removed (data-api in core, device-intelligence in ml-engine)
     networks:
       - homeiq-network
     volumes:
-      - ha_ai_agent_data:/app/data
+      - automation_domain_data:/app/data
+      - ai_automation_data:/app/authoring-data
     deploy:
       resources:
         limits:
-          memory: 256M
+          # 256M each for three containers becomes 512M for one process: the
+          # three interpreters, engine pools and FastAPI apps collapse into one,
+          # but the merged process still holds all three slices' models and
+          # schedulers.
+          memory: 512M
           cpus: '1.0'
         reservations:
-          memory: 128M
+          memory: 256M
           cpus: '0.5'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8030/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 40s
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-        labels: "service=ha-ai-agent,group=automation-core,environment=production"
-
-  ai-automation-service-new:
-    build:
-      context: ../..
-      dockerfile: domains/automation-core/ai-automation-service-new/Dockerfile
-    container_name: homeiq-ai-automation-service-new
-    restart: unless-stopped
-    ports:
-      - "8036:8025"
-    env_file:
-      - ../../.env
-    environment:
-      - DATA_API_URL=http://data-api:8006
-      - PATTERN_SERVICE_URL=http://ai-pattern-service:8020
-      - YAML_VALIDATION_SERVICE_URL=http://yaml-validation-service:8037
-      - HA_URL=${HA_HTTP_URL:-${HOME_ASSISTANT_URL:-}}
-      - HA_TOKEN=${HOME_ASSISTANT_TOKEN:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5-mini}
-      - OPENAI_YAML_MODEL=${OPENAI_YAML_MODEL:-gpt-5.2-codex}
-      - OPENAI_REASONING_EFFORT=high
-      - OPENAI_TIMEOUT=90
-      - POSTGRES_URL=postgresql+asyncpg://${POSTGRES_USER:-homeiq}:${POSTGRES_PASSWORD:?required}@postgres:5432/homeiq
-      - DATABASE_SCHEMA=automation
-      - SERVICE_PORT=8025
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    depends_on:
-      yaml-validation-service:
-        condition: service_healthy
-      # Cross-group depends_on removed (data-api in core)
-    volumes:
-      - ai_automation_data:/app/data
-    networks:
-      - homeiq-network
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '1.0'
-        reservations:
-          memory: 128M
-          cpus: '0.5'
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8025/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-        labels: "service=ai-automation-service-new,group=automation-core,environment=production"
+        labels: "service=automation-domain,group=automation-core,environment=production"
 
   yaml-validation-service:
     build:
@@ -284,10 +260,14 @@ services:
 
 # Automation-core volumes — ai_automation_data owned by ml-engine
 volumes:
+  # The authoring slice's existing external volume is kept and mounted by the
+  # merged process, so its on-disk state survives the fold. The two retired
+  # containers' /app/data volumes were local, and automation_domain_data
+  # replaces both.
   ai_automation_data:
     external: true
     name: ${AI_AUTOMATION_DATA_VOLUME:-homeiq-ml-engine_ai_automation_data}
-  ha_ai_agent_data:
+  automation_domain_data:
 
 networks:
   homeiq-network:

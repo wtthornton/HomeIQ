@@ -1,0 +1,58 @@
+# automation-domain dependencies (TAP-7275)
+#
+# Union of ha-ai-agent-service, ai-automation-service-new and
+# proactive-agent-service, minus the LLM provider SDKs. `openai` and
+# `anthropic` are deliberately absent: every model call this process used to
+# make is now an AgentForge workflow run over HTTP, so no provider SDK and no
+# provider credential ships in this image.
+
+# Web Framework
+fastapi>=0.115.0,<1.0.0  # Phase 1: aligned
+uvicorn[standard]>=0.30.0,<1.0.0  # Phase 1: aligned
+
+# Data Validation
+pydantic>=2.9.0,<3.0.0  # Phase 1: aligned
+pydantic-settings>=2.6.0,<3.0.0  # Phase 1: aligned
+
+# HTTP Client
+aiohttp>=3.13.3,<4.0.0  # CVE-2025-69223..69230 fix — min 3.13.3
+httpx>=0.27.0,<0.29.0  # Phase 1: aligned — also the AgentForge workflow client
+tenacity>=8.2.0,<10.0.0  # Phase 2: standardized
+
+# WebSocket Client (area registry via HA WebSocket API)
+websockets>=13.0,<18.0.0  # >=13.0: homeiq-ha needs websockets.asyncio (absent in 12.0)
+
+# Database
+sqlalchemy>=2.0.36,<2.1.0  # Phase 1: aligned
+alembic>=1.13.0,<2.0.0  # Phase 1: aligned
+asyncpg>=0.30.0  # Phase 1C: PostgreSQL migration
+
+# Scheduling
+apscheduler>=3.10.4,<3.11.0  # Daily suggestion generation + proactive task scheduler
+
+# Token accounting for prompt assembly (context budget, not billing)
+tiktoken>=0.12.0,<1.0.0
+
+# Observability
+opentelemetry-api>=1.24.0,<2.0.0
+opentelemetry-sdk>=1.24.0,<2.0.0
+opentelemetry-instrumentation-fastapi>=0.45b0,<1.0.0
+opentelemetry-exporter-otlp-proto-grpc>=1.24.0,<2.0.0
+opentelemetry-instrumentation-requests>=0.45b0,<1.0.0
+opentelemetry-instrumentation-sqlalchemy>=0.45b0,<1.0.0
+
+# Utilities
+python-dotenv>=1.0.0,<2.0.0  # Phase 2: standardized
+pyyaml>=6.0.1,<7.0.0  # YAML parsing for automation validation
+
+# Testing
+pytest>=8.3.0,<10.0.0  # Phase 2: standardized
+pytest-asyncio>=0.23.0,<2.0.0  # Phase 2: standardized
+
+# HomeIQ shared libraries (installed from libs/ in Docker)
+homeiq-patterns>=1.0.0
+homeiq-resilience>=1.0.0
+homeiq-observability>=1.0.0
+homeiq-data>=1.0.0
+homeiq-ha>=1.0.0
+homeiq-memory>=1.0.0

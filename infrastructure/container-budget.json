@@ -6,16 +6,15 @@
     "ref": "TAP-5283"
   },
   "ceiling": {
-    "services": 34,
+    "services": 31,
     "memory_mib": 7406
   },
   "measured": {
     "services": [
       "admin-api",
-      "ai-automation-service-new",
-      "ai-automation-ui",
       "ai-pattern-service",
       "api-automation-edge",
+      "automation-domain",
       "automation-linter",
       "automation-miner",
       "automation-trace-service",
@@ -30,7 +29,6 @@
       "device-intelligence-service",
       "device-recommender",
       "device-setup-assistant",
-      "ha-ai-agent-service",
       "ha-device-control",
       "ha-setup-service",
       "health-dashboard",
@@ -39,7 +37,6 @@
       "log-aggregator",
       "model-server",
       "postgres",
-      "proactive-agent-service",
       "rule-recommendation-ml",
       "websocket-ingestion",
       "yaml-validation-service",

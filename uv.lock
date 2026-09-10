@@ -1203,6 +1203,7 @@ version = "1.0.0"
 source = { editable = "libs/homeiq-ha" }
 dependencies = [
     { name = "aiohttp" },
+    { name = "cryptography" },
     { name = "jsonschema" },
     { name = "pydantic" },
     { name = "pyyaml" },
@@ -1212,6 +1213,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.13.3" },
+    { name = "cryptography", specifier = ">=49.0.0" },
     { name = "jsonschema", specifier = ">=4.17" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pyyaml", specifier = ">=6.0" },

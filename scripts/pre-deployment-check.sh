@@ -79,16 +79,14 @@ check_health_endpoints() {
     # TAP-7276: openvino-service + ml-service + rag-service merged into model-server.
     "model-server:8026"
     "automation-linter:8016"
-    "ha-ai-agent-service:8030"
+    "automation-domain:8030"
     "automation-trace-service:8044"
-    "ai-automation-service-new:8036"
     "yaml-validation-service:8037"
     "ha-device-control:8046"
     "blueprint-suggestion-service:8039"
     "blueprint-index:8038"
     "automation-miner:8029"
     "rule-recommendation-ml:8040:/api/v1/health"
-    "proactive-agent-service:8031"
     "device-health-monitor:8019"
     "device-database-client:8022"
     "device-recommender:8023"
@@ -99,7 +97,6 @@ check_health_endpoints() {
     "api-automation-edge:8041"
     "jaeger:16686:/"
     "observability-dashboard:8501:/_stcore/health"
-    "ai-automation-ui:3001:/health"
   )
 
   local healthy=0

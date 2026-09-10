@@ -1,0 +1,259 @@
+"""
+Unit tests for AI Automation Service Main Application
+
+Epic 39, Story 39.10: Automation Service Foundation
+Tests for main.py application initialization, lifespan, and configuration.
+"""
+
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+from httpx import AsyncClient
+
+
+@pytest.fixture
+def fast_startup():
+    """Keep lifespan tests in-process.
+
+    _startup probes data-api with wait_for_dependency (10 retries, ~3 minutes
+    of real sleeps when unreachable), opens HTTP and memory clients, and may
+    start the scheduler. None of that is what these tests assert.
+
+    TAP-7275: these now drive the merged lifespan, so the proactive slice's
+    hooks run too. src/proactive/main.py binds wait_for_dependency at module
+    import, which the homeiq_resilience patch below cannot reach -- its two
+    unreachable probes were 300s of real sleeps each.
+    """
+    with (
+        patch("homeiq_resilience.wait_for_dependency", new_callable=AsyncMock, return_value=False),
+        patch("src.proactive.main.wait_for_dependency", new_callable=AsyncMock, return_value=False),
+        patch("src.authoring.main.init_clients", new_callable=MagicMock),
+        patch("src.authoring.main.init_memory_client", new_callable=AsyncMock),
+        patch("src.authoring.main._start_scheduler", new_callable=MagicMock),
+    ):
+        yield
+
+
+class TestMainApplication:
+    """Test suite for main application initialization and configuration."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_root_endpoint(self, client: AsyncClient):
+        """Test root endpoint returns service information."""
+        response = await client.get("/")
+        assert response.status_code == 200
+        data = response.json()
+        # Served by homeiq_resilience.create_app: service is the app title.
+        # TAP-7275: the three services are one app, titled for the merged one.
+        assert data == {
+            "service": "HomeIQ automation-domain",
+            "version": "1.0.0",
+            "status": "running",
+        }
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_cors_headers(self, client: AsyncClient):
+        """Test CORS headers are properly configured."""
+        response = await client.options(
+            "/", headers={"Origin": "http://localhost:3000", "Access-Control-Request-Method": "GET"}
+        )
+        # CORS middleware should handle OPTIONS requests
+        assert response.status_code in [200, 204]
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_app_includes_routers(self, client: AsyncClient):
+        """Test that all routers are included in the application."""
+        # Health router
+        response = await client.get("/health")
+        assert response.status_code in [200, 503]  # 503 if DB unavailable
+
+        # Suggestion router (may require auth; 404 if routes not mounted)
+        response = await client.get("/api/suggestions")
+        assert response.status_code in [200, 401, 404]
+
+        # Deployment router (may require auth; 404 if routes not mounted)
+        response = await client.get("/api/deploy/automations")
+        assert response.status_code in [200, 401, 404]
+
+
+@pytest.mark.usefixtures("fast_startup")
+class TestLifespanManagement:
+    """Test suite for application lifespan (startup/shutdown) management."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    @patch("src.authoring.main.init_db")
+    @patch("src.authoring.main.start_rate_limit_cleanup")
+    @patch("src.authoring.main.stop_rate_limit_cleanup")
+    async def test_lifespan_startup_success(
+        self, mock_stop_cleanup, mock_start_cleanup, mock_init_db
+    ):
+        """Test lifespan startup initializes all components successfully."""
+        from src.main import app, lifespan
+
+        mock_init_db.return_value = None
+        mock_start_cleanup.return_value = None
+
+        # Test lifespan context manager
+        async with lifespan.handler(app):
+            # During startup
+            mock_init_db.assert_called_once()
+            mock_start_cleanup.assert_called_once()
+
+        # During shutdown
+        mock_stop_cleanup.assert_called_once()
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    @patch("src.authoring.main.init_db")
+    @patch("src.authoring.main.start_rate_limit_cleanup")
+    async def test_lifespan_startup_database_failure(self, _mock_start_cleanup, mock_init_db):
+        """Test lifespan startup handles database initialization failure."""
+        from src.main import app, lifespan
+
+        mock_init_db.side_effect = Exception("Database connection failed")
+
+        # TAP-7275: the merged lifespan is graceful=False -- the strictest of
+        # the three predecessors, inherited from the agent slice, so a process
+        # serving a broken slice does not report itself up. A startup hook that
+        # raises now aborts startup instead of degrading, and the rest of that
+        # hook (rate limiting) is still skipped.
+        with pytest.raises(Exception, match="Database connection failed"):
+            async with lifespan.handler(app):
+                pass
+        _mock_start_cleanup.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    @patch("src.authoring.main.init_db")
+    @patch("src.authoring.main.start_rate_limit_cleanup")
+    @patch("src.authoring.main.stop_rate_limit_cleanup")
+    async def test_lifespan_shutdown_handles_errors(
+        self, mock_stop_cleanup, mock_start_cleanup, mock_init_db
+    ):
+        """Test lifespan shutdown handles errors gracefully."""
+        from src.main import app, lifespan
+
+        mock_init_db.return_value = None
+        mock_start_cleanup.return_value = None
+        mock_stop_cleanup.side_effect = Exception("Cleanup error")
+
+        # Should not raise exception during shutdown
+        async with lifespan.handler(app):
+            pass
+
+        # Cleanup should have been attempted
+        mock_stop_cleanup.assert_called_once()
+
+
+class TestMiddlewareConfiguration:
+    """Test suite for middleware configuration."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_authentication_middleware_enabled(self, client: AsyncClient):
+        """Test that authentication middleware is enabled."""
+        # TAP-7275: /api/v1/suggestions belongs to the proactive slice now and
+        # AUTHORING_PATH_PREFIXES does not cover it, so the authoring auth
+        # middleware waves it straight through to a database this fixture never
+        # opened. /api/suggestions is an authoring prefix -- the route this
+        # test means to find guarded.
+        response = await client.get("/api/suggestions")
+        # Should return 401 (unauthorized) or 403 (forbidden), not 200
+        assert response.status_code in [401, 403, 404]
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_rate_limiting_middleware_enabled(self, client: AsyncClient):
+        """Test that rate limiting middleware is enabled."""
+        # Make multiple rapid requests
+        responses = []
+        for _ in range(10):
+            response = await client.get("/")
+            responses.append(response.status_code)
+
+        # All should succeed (root endpoint may not be rate limited)
+        # But middleware should be active
+        assert all(status in [200, 429] for status in responses)
+
+
+class TestErrorHandling:
+    """Test suite for error handling configuration."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_error_handler_registered(self, client: AsyncClient):
+        """Test that error handlers are registered."""
+        # Try to access non-existent endpoint
+        # May return 401 (auth middleware) or 404 (not found)
+        response = await client.get("/nonexistent")
+        assert response.status_code in [401, 404]
+
+        # Error response should be JSON
+        assert "application/json" in response.headers.get("content-type", "")
+
+
+@pytest.mark.usefixtures("fast_startup")
+class TestObservability:
+    """Test suite for observability configuration."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_observability_initialized_when_available(self):
+        """Test that observability lifespan completes (use context manager to avoid fixture conflict)."""
+        from src.main import app, lifespan
+
+        with (
+            patch("src.authoring.main.init_db") as mock_init_db,
+            patch("src.authoring.main.start_rate_limit_cleanup") as mock_start_cleanup,
+            patch("src.authoring.main.stop_rate_limit_cleanup"),
+            patch("src.authoring.main.setup_tracing") as mock_setup_tracing,
+            patch("src.authoring.main.instrument_fastapi") as mock_instrument,
+            patch("src.authoring.main.OBSERVABILITY_AVAILABLE", True),
+        ):
+            mock_init_db.return_value = None
+            mock_start_cleanup.return_value = None
+            mock_setup_tracing.return_value = None
+            mock_instrument.return_value = None
+
+            async with lifespan.handler(app):
+                pass
+
+
+class TestConfiguration:
+    """Test suite for application configuration."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_app_metadata(self, client: AsyncClient):
+        """Test application metadata is correctly configured."""
+        from src.main import app
+
+        # TAP-7275: one app for all three slices.
+        assert app.title == "HomeIQ automation-domain"
+        assert (
+            app.description
+            == "Conversational agent, automation authoring, and proactive suggestions. "
+            "LLM inference runs on AgentForge."
+        )
+        assert app.version == "1.0.0"
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    @patch.dict("os.environ", {"CORS_ORIGINS": "http://localhost:3000,http://localhost:3001"})
+    async def test_cors_configuration(self):
+        """Test CORS configuration from environment variables."""
+        from src.main import app
+
+        # CORS middleware should be added
+        assert len(app.user_middleware) > 0
+
+        # Check that CORS middleware is present (check class name or module)
+        middleware_info = [str(middleware.cls) for middleware in app.user_middleware]
+        # CORS middleware will be in the middleware stack
+        assert any(
+            "cors" in str(mid).lower() or "CORSMiddleware" in str(mid) for mid in middleware_info
+        )
