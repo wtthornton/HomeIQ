@@ -57,7 +57,9 @@ def test_hung_adapter_returns_504_within_its_own_timeout():
 
     assert response.status_code == 504
     assert "hung-adapter" in response.json()["detail"]
-    assert elapsed < 2.0, "the hang must be bounded by the adapter's own timeout, not asyncio's default (none)"
+    assert elapsed < 2.0, (
+        "the hang must be bounded by the adapter's own timeout, not asyncio's default (none)"
+    )
 
 
 def test_healthy_adapter_still_answers_while_a_sibling_hangs():

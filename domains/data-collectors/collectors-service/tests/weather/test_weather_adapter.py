@@ -12,7 +12,9 @@ from datetime import UTC, datetime
 import pytest
 from src.adapters import weather as weather_mod
 
-pytest.importorskip("influxdb_client_3", reason="influxdb_client_3 required by src.adapters.weather")
+pytest.importorskip(
+    "influxdb_client_3", reason="influxdb_client_3 required by src.adapters.weather"
+)
 
 
 def test_current_weather_endpoint_exists(collectors_client):
@@ -39,9 +41,7 @@ def test_cache_stats_endpoint(collectors_client, monkeypatch):
 
 def test_health_endpoint_reflects_weather_recent_fetch(collectors_client, monkeypatch):
     """`/health` includes the weather adapter's recent-fetch readiness check."""
-    monkeypatch.setattr(
-        weather_mod.weather_service, "last_successful_fetch", datetime.now(UTC)
-    )
+    monkeypatch.setattr(weather_mod.weather_service, "last_successful_fetch", datetime.now(UTC))
 
     response = collectors_client.get("/health")
 

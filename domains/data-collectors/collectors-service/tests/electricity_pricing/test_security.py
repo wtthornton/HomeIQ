@@ -9,7 +9,6 @@ from unittest.mock import MagicMock
 
 import pytest
 from fastapi import HTTPException
-
 from src.adapters.electricity_pricing.security import (
     require_internal_network,
     validate_hours_parameter,

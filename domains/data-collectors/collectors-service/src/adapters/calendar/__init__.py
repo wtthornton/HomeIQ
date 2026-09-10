@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
@@ -20,7 +20,6 @@ from aiohttp import ClientError
 from fastapi import APIRouter
 from homeiq_ha.enhanced_ha_connection_manager import ha_connection_manager
 from homeiq_observability.logging_config import log_error_with_context, setup_logging
-from homeiq_resilience import StandardHealthCheck
 from influxdb_client_3 import InfluxDBClient3, Point
 
 from ...config import settings
@@ -28,6 +27,9 @@ from ..base import CollectorAdapter, with_adapter_timeout
 from .event_parser import CalendarEventParser
 from .ha_client import HomeAssistantCalendarClient
 from .health_check import HealthCheckState
+
+if TYPE_CHECKING:
+    from homeiq_resilience import StandardHealthCheck
 
 NAME = "calendar"
 ADAPTER_TIMEOUT_SECONDS = 15.0

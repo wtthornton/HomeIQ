@@ -195,7 +195,9 @@ class TestInfluxDBStorage:
 class TestAPIEndpoints:
     """Test HTTP API endpoints (/cheapest-hours, mounted on the merged app)"""
 
-    def test_get_cheapest_hours_with_cached_data(self, api_client, service_instance, sample_pricing_data):
+    def test_get_cheapest_hours_with_cached_data(
+        self, api_client, service_instance, sample_pricing_data
+    ):
         """GIVEN: Cached pricing data | WHEN: Request | THEN: Return cheapest hours"""
         service_instance.cached_data = sample_pricing_data
         service_instance.last_fetch_time = datetime.now()
@@ -205,7 +207,9 @@ class TestAPIEndpoints:
         assert response.status_code == 200
         assert response.json()["cheapest_hours"] == sample_pricing_data["cheapest_hours"][:4]
 
-    def test_get_cheapest_hours_default_count(self, api_client, service_instance, sample_pricing_data):
+    def test_get_cheapest_hours_default_count(
+        self, api_client, service_instance, sample_pricing_data
+    ):
         """GIVEN: Cached data | WHEN: No count param | THEN: Default to 4 hours"""
         service_instance.cached_data = sample_pricing_data
         service_instance.last_fetch_time = datetime.now()
@@ -225,7 +229,9 @@ class TestAPIEndpoints:
 
         assert response.status_code == 503
 
-    def test_get_cheapest_hours_custom_count(self, api_client, service_instance, sample_pricing_data):
+    def test_get_cheapest_hours_custom_count(
+        self, api_client, service_instance, sample_pricing_data
+    ):
         """GIVEN: Cached data | WHEN: Specific count requested | THEN: Return requested count"""
         service_instance.cached_data = sample_pricing_data
         service_instance.last_fetch_time = datetime.now()

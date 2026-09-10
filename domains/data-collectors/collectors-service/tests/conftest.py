@@ -27,7 +27,6 @@ def collectors_client():
     each adapter's own readiness/error-handling code is built to tolerate.
     """
     from fastapi.testclient import TestClient
-
     from src.main import app
 
     with TestClient(app) as client:

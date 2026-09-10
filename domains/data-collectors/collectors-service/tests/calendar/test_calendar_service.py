@@ -72,7 +72,9 @@ class TestCalendarService:
             return_value=["calendar.personal", "calendar.work"]
         )
 
-        with patch("src.adapters.calendar.HomeAssistantCalendarClient", return_value=mock_ha_client):
+        with patch(
+            "src.adapters.calendar.HomeAssistantCalendarClient", return_value=mock_ha_client
+        ):
             await service.startup()
 
         assert service.ha_client is not None
@@ -286,7 +288,9 @@ class TestCalendarService:
         service.health_state.ha_connected = False
 
         with (
-            patch("src.adapters.calendar.asyncio.sleep", AsyncMock(side_effect=asyncio.CancelledError)),
+            patch(
+                "src.adapters.calendar.asyncio.sleep", AsyncMock(side_effect=asyncio.CancelledError)
+            ),
             pytest.raises(asyncio.CancelledError),
         ):
             await service.run_continuous()

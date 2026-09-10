@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import aiohttp
 import pytest
-
 from src.adapters.calendar.ha_client import HomeAssistantCalendarClient
 
 
