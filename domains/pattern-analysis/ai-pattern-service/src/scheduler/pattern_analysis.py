@@ -16,11 +16,11 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from .. import database
 from ..clients.data_api_client import DataAPIClient
 from ..clients.mqtt_client import MQTTNotificationClient
 from ..config import settings
 from ..crud import store_patterns, store_synergy_opportunities
-from ..database import AsyncSessionLocal
 from ..pattern_analyzer.anomaly import AnomalyPatternDetector
 from ..pattern_analyzer.co_occurrence import CoOccurrencePatternDetector
 from ..pattern_analyzer.contextual import ContextualPatternDetector
@@ -185,7 +185,13 @@ class PatternAnalysisScheduler:
                     await self._handle_empty_events(job_result)
                     return
 
-                all_patterns = await self._detect_patterns(events_df, job_result)
+                # TAP-7307: derive time-of-day/seasonal features in HA's local
+                # timezone, not raw UTC. Fetched once per run — container TZ
+                # does not affect the already-tz-aware event series.
+                time_zone = await data_client.fetch_ha_timezone()
+                logger.info(f"Using timezone for feature derivation: {time_zone}")
+
+                all_patterns = await self._detect_patterns(events_df, job_result, time_zone)
 
                 # Story 40.8: Cross-detector pattern fusion
                 try:
@@ -200,7 +206,7 @@ class PatternAnalysisScheduler:
 
                 # Create database session for pattern validation and storage
                 # Patterns are stored first, then synergies are detected with pattern validation
-                async with AsyncSessionLocal() as db:
+                async with database.AsyncSessionLocal() as db:
                     # Store patterns first (needed for synergy validation)
                     if all_patterns:
                         automation_validator = None  # Placeholder for future integration
@@ -314,10 +320,14 @@ class PatternAnalysisScheduler:
         end_time = datetime.now(UTC)
         start_time_events = end_time - timedelta(days=7)
 
+        # TAP-7308: the 7-day window holds well over 100K rows on a live
+        # instance; a fixed limit here silently truncates detectors to
+        # whatever the newest ~N rows happen to cover. Page through the full
+        # window instead of capping it.
         events_df = await data_client.fetch_events(
             start_time=start_time_events,
             end_time=end_time,
-            limit=50000,  # Reasonable limit for pattern detection
+            limit=None,
         )
 
         if not events_df.empty:
@@ -338,7 +348,7 @@ class PatternAnalysisScheduler:
         await self._publish_notification(job_result)
 
     async def _detect_patterns(
-        self, events_df: pd.DataFrame, job_result: dict[str, Any]
+        self, events_df: pd.DataFrame, job_result: dict[str, Any], time_zone: str = "UTC"
     ) -> list[dict[str, Any]]:
         """
         Detect patterns using all registered detectors.
@@ -349,6 +359,7 @@ class PatternAnalysisScheduler:
         Args:
             events_df: DataFrame containing events (already pre-filtered)
             job_result: Job result dictionary to update with errors
+            time_zone: HA's local IANA timezone, for hour/day-of-week features (TAP-7307)
 
         Returns:
             List of detected patterns
@@ -360,7 +371,10 @@ class PatternAnalysisScheduler:
 
         # Define detector pipeline — each entry: (name, coroutine)
         detectors = [
-            ("time_of_day", self._detect_time_of_day_patterns(events_df, job_result)),
+            (
+                "time_of_day",
+                self._detect_time_of_day_patterns(events_df, job_result, time_zone),
+            ),
             ("co_occurrence", self._detect_co_occurrence_patterns(events_df, job_result)),
             (
                 "sequence",
@@ -376,12 +390,17 @@ class PatternAnalysisScheduler:
             ),
             (
                 "anomaly",
-                self._run_sync_detector("anomaly", AnomalyPatternDetector(), events_df, job_result),
+                self._run_sync_detector(
+                    "anomaly", AnomalyPatternDetector(time_zone=time_zone), events_df, job_result
+                ),
             ),
             (
                 "day_type",
                 self._run_sync_detector(
-                    "day_type", DayTypePatternDetector(), events_df, job_result
+                    "day_type",
+                    DayTypePatternDetector(time_zone=time_zone),
+                    events_df,
+                    job_result,
                 ),
             ),
             (
@@ -393,13 +412,19 @@ class PatternAnalysisScheduler:
             (
                 "room_based",
                 self._run_sync_detector(
-                    "room_based", RoomBasedPatternDetector(), events_df, job_result
+                    "room_based",
+                    RoomBasedPatternDetector(time_zone=time_zone),
+                    events_df,
+                    job_result,
                 ),
             ),
             (
                 "seasonal",
                 self._run_sync_detector(
-                    "seasonal", SeasonalPatternDetector(min_days_total=10), events_df, job_result
+                    "seasonal",
+                    SeasonalPatternDetector(min_days_total=10, time_zone=time_zone),
+                    events_df,
+                    job_result,
                 ),
             ),
             (
@@ -409,6 +434,7 @@ class PatternAnalysisScheduler:
                     ContextualPatternDetector(
                         latitude=settings.contextual_latitude,
                         longitude=settings.contextual_longitude,
+                        time_zone=time_zone,
                     ),
                     events_df,
                     job_result,
@@ -458,7 +484,7 @@ class PatternAnalysisScheduler:
             return []
 
     async def _detect_time_of_day_patterns(
-        self, events_df: pd.DataFrame, job_result: dict[str, Any]
+        self, events_df: pd.DataFrame, job_result: dict[str, Any], time_zone: str = "UTC"
     ) -> list[dict[str, Any]]:
         """
         Detect time-of-day patterns.
@@ -466,6 +492,7 @@ class PatternAnalysisScheduler:
         Args:
             events_df: DataFrame containing events
             job_result: Job result dictionary to update with errors
+            time_zone: HA's local IANA timezone, for hour/minute features (TAP-7307)
 
         Returns:
             List of time-of-day patterns
@@ -475,6 +502,7 @@ class PatternAnalysisScheduler:
             tod_detector = TimeOfDayPatternDetector(
                 min_occurrences=settings.time_of_day_occurrence_overrides.get("min_occurrences", 3),
                 min_confidence=settings.time_of_day_confidence_overrides.get("min_confidence", 0.6),
+                time_zone=time_zone,
             )
             tod_patterns = await asyncio.to_thread(tod_detector.detect_patterns, events_df)
             logger.info(f"    ✅ Found {len(tod_patterns)} time-of-day patterns")
@@ -879,7 +907,7 @@ class PatternAnalysisScheduler:
         # This is a placeholder for future integration
         # For now, external data filtering in EventFilter handles most cases
 
-        async with AsyncSessionLocal() as db:
+        async with database.AsyncSessionLocal() as db:
             try:
                 if all_patterns:
                     stored_patterns = await store_patterns(

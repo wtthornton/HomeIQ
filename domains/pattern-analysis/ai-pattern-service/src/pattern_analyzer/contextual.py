@@ -36,6 +36,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+DEFAULT_TIME_ZONE = "UTC"
+
 logger = logging.getLogger(__name__)
 
 EXCLUDED_DOMAINS = {
@@ -130,6 +132,7 @@ class ContextualPatternDetector:
         longitude: float = -0.1,
         filter_system_noise: bool = True,
         aggregate_client: Any = None,
+        time_zone: str = DEFAULT_TIME_ZONE,
     ):
         self.sun_window_minutes = sun_window_minutes
         self.min_events = min_events
@@ -139,6 +142,7 @@ class ContextualPatternDetector:
         self.longitude = longitude
         self.filter_system_noise = filter_system_noise
         self.aggregate_client = aggregate_client
+        self.time_zone = time_zone
 
         logger.info(
             "ContextualPatternDetector initialized: "
@@ -199,7 +203,11 @@ class ContextualPatternDetector:
             return None
 
         events = events.sort_values("timestamp").copy()
-        return events.reset_index(drop=True)
+        events = events.reset_index(drop=True)
+        if events["timestamp"].dt.tz is None:
+            events["timestamp"] = events["timestamp"].dt.tz_localize("UTC")
+        events["timestamp"] = events["timestamp"].dt.tz_convert(self.time_zone)
+        return events
 
     def _enrich_with_sun_times(self, events: pd.DataFrame) -> pd.DataFrame:
         """Add sunrise/sunset hours to events if not already present."""

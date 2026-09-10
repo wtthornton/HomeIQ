@@ -355,7 +355,8 @@ class TestResultStorage:
 
         with (
             patch(
-                "src.scheduler.pattern_analysis.AsyncSessionLocal", return_value=mock_session_local
+                "src.scheduler.pattern_analysis.database.AsyncSessionLocal",
+                return_value=mock_session_local,
             ),
             patch(
                 "src.scheduler.pattern_analysis.store_patterns", new_callable=AsyncMock
@@ -395,7 +396,8 @@ class TestResultStorage:
 
         with (
             patch(
-                "src.scheduler.pattern_analysis.AsyncSessionLocal", return_value=mock_session_local
+                "src.scheduler.pattern_analysis.database.AsyncSessionLocal",
+                return_value=mock_session_local,
             ),
             patch(
                 "src.scheduler.pattern_analysis.store_patterns",

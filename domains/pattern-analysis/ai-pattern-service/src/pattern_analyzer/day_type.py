@@ -34,6 +34,8 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_TIME_ZONE = "UTC"
+
 EXCLUDED_DOMAINS = {
     "image",
     "event",
@@ -125,6 +127,7 @@ class DayTypePatternDetector:
         variance_threshold: float = 0.3,
         filter_system_noise: bool = True,
         aggregate_client: Any = None,
+        time_zone: str = DEFAULT_TIME_ZONE,
     ):
         """
         Initialize day type pattern detector.
@@ -135,12 +138,14 @@ class DayTypePatternDetector:
             variance_threshold: Minimum variance to flag (0.0-1.0, default: 0.3)
             filter_system_noise: Filter out system sensors/trackers (default: True)
             aggregate_client: PatternAggregateClient for storing daily aggregates
+            time_zone: IANA timezone to derive day-of-week/hour features in (default: UTC)
         """
         self.min_events_per_type = min_events_per_type
         self.min_confidence = min_confidence
         self.variance_threshold = variance_threshold
         self.filter_system_noise = filter_system_noise
         self.aggregate_client = aggregate_client
+        self.time_zone = time_zone
 
         logger.info(
             "DayTypePatternDetector initialized: "
@@ -189,6 +194,9 @@ class DayTypePatternDetector:
 
         events = events.sort_values("timestamp").copy()
         events = events.reset_index(drop=True)
+        if events["timestamp"].dt.tz is None:
+            events["timestamp"] = events["timestamp"].dt.tz_localize("UTC")
+        events["timestamp"] = events["timestamp"].dt.tz_convert(self.time_zone)
 
         # Partition events by day type
         weekday_events, weekend_events = self._partition_by_day_type(events)

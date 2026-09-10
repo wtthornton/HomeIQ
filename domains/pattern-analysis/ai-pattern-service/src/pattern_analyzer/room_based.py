@@ -34,6 +34,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+DEFAULT_TIME_ZONE = "UTC"
+
 logger = logging.getLogger(__name__)
 
 EXCLUDED_DOMAINS = {
@@ -135,6 +137,7 @@ class RoomBasedPatternDetector:
         max_devices: int = 8,
         filter_system_noise: bool = True,
         aggregate_client: Any = None,
+        time_zone: str = DEFAULT_TIME_ZONE,
     ):
         """
         Initialize room-based pattern detector.
@@ -147,6 +150,7 @@ class RoomBasedPatternDetector:
             max_devices: Maximum devices in room pattern (default: 8)
             filter_system_noise: Filter out system sensors/trackers (default: True)
             aggregate_client: PatternAggregateClient for storing daily aggregates
+            time_zone: IANA timezone to derive time-of-day period features in (default: UTC)
         """
         self.window_minutes = window_minutes
         self.min_occurrences = min_occurrences
@@ -155,6 +159,7 @@ class RoomBasedPatternDetector:
         self.max_devices = max_devices
         self.filter_system_noise = filter_system_noise
         self.aggregate_client = aggregate_client
+        self.time_zone = time_zone
 
         logger.info(
             "RoomBasedPatternDetector initialized: "
@@ -210,6 +215,9 @@ class RoomBasedPatternDetector:
         # Sort by timestamp
         events = events.sort_values("timestamp").copy()
         events = events.reset_index(drop=True)
+        if events["timestamp"].dt.tz is None:
+            events["timestamp"] = events["timestamp"].dt.tz_localize("UTC")
+        events["timestamp"] = events["timestamp"].dt.tz_convert(self.time_zone)
 
         # Group events by area and find co-occurring windows
         activity_windows = self._find_activity_windows(events)
