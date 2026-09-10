@@ -71,6 +71,23 @@ class TestServiceConfiguration:
             service = ElectricityPricingService()
             assert service.fetch_interval == 3600
 
+    def test_fetch_interval_from_env(self):
+        """GIVEN: ELECTRICITY_FETCH_INTERVAL=1800 | WHEN: Initialize | THEN: Override takes effect
+
+        Base's bare ``FETCH_INTERVAL`` was renamed to ``ELECTRICITY_FETCH_INTERVAL``
+        when the field moved into the shared ``Settings`` (collision with
+        air-quality's own fetch_interval) — see src/config.py's module docstring.
+        """
+        from src.adapters.electricity_pricing import ElectricityPricingService
+
+        with patch.dict(
+            os.environ,
+            {"INFLUXDB_TOKEN": "test-token", "ELECTRICITY_FETCH_INTERVAL": "1800"},
+            clear=True,
+        ):
+            service = ElectricityPricingService()
+            assert service.fetch_interval == 1800
+
     def test_cache_duration_default(self):
         """GIVEN: Service instance | WHEN: Check cache_duration | THEN: 60 minutes"""
         from src.adapters.electricity_pricing import ElectricityPricingService

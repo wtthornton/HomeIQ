@@ -80,19 +80,19 @@ docker start homeiq-postgres > /dev/null 2>&1
 wait_healthy "homeiq-postgres" 30
 
 # =========================================================================
-# Test 3: Weather API Down
+# Test 3: Collectors Service Down (weather is one of six adapters inside it)
 # =========================================================================
 echo ""
-echo -e "${CYAN}Test 3: Weather API Down${NC}"
-echo "  Stopping homeiq-weather-api..."
-docker stop homeiq-weather-api > /dev/null 2>&1
+echo -e "${CYAN}Test 3: Collectors Service Down${NC}"
+echo "  Stopping homeiq-collectors..."
+docker stop homeiq-collectors > /dev/null 2>&1
 sleep 3
 
-check_not_500 "http://localhost:8006/health" "data-api /health (weather-api down)"
+check_not_500 "http://localhost:8006/health" "data-api /health (collectors down)"
 
-echo "  Restarting homeiq-weather-api..."
-docker start homeiq-weather-api > /dev/null 2>&1
-wait_healthy "homeiq-weather-api" 30
+echo "  Restarting homeiq-collectors..."
+docker start homeiq-collectors > /dev/null 2>&1
+wait_healthy "homeiq-collectors" 30
 
 # =========================================================================
 # Test 4: Data API Down

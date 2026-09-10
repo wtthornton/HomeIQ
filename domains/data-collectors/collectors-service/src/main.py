@@ -82,10 +82,13 @@ app = create_app(
     cors_origins=settings.get_cors_origins_list(),
 )
 
-# create_app() registers a generic GET "/" root endpoint. The sports adapter
-# owns "/" (it always has, as sports-api's own root) — drop the generic one
-# so the sports router's "/" is the only handler for that path, rather than
-# forking the shared app_factory just to make its root endpoint optional.
+# create_app() registers a generic GET "/" root endpoint before the ADAPTERS
+# loop below includes the sports router, and FastAPI matches routes in
+# registration order — so without this, the factory's generic root would win
+# and sports-api's own "/" would never be reached. Drop the generic one so
+# the sports router's "/" is the only handler for that path (a capability
+# gain: sports-api's root is now actually reachable), rather than forking
+# the shared app_factory just to make its root endpoint optional.
 app.router.routes = [
     route
     for route in app.router.routes

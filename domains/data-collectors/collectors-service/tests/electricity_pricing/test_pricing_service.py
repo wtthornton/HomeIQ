@@ -246,6 +246,27 @@ class TestAPIEndpoints:
         assert response.status_code == 503
         assert response.json() == {"error": "Adapter not initialized"}
 
+    def test_get_cheapest_hours_rejects_non_allowed_network(self, collectors_client, monkeypatch):
+        """GIVEN: allowed_networks restricted | WHEN: Request from outside it | THEN: 403
+
+        End-to-end through the real merged app and the shared session-scoped
+        `collectors_client` (never a second `TestClient` — that reintroduces
+        the lifespan-reassignment bug this PR fixed). `TestClient`'s synthetic
+        peer address is not a parseable IP, so it never matches any CIDR,
+        exercising the same rejection path a real out-of-network client hits.
+        """
+        import src.adapters.electricity_pricing as ep_mod
+
+        assert ep_mod.service is not None
+        monkeypatch.setattr(ep_mod.service, "allowed_networks", ["192.168.0.0/16"])
+
+        response = collectors_client.get("/cheapest-hours")
+
+        assert response.status_code == 403
+        assert response.json() == {
+            "detail": "Access denied. This endpoint is only accessible from internal networks."
+        }
+
 
 class TestServiceLifecycle:
     """Test service startup and shutdown"""

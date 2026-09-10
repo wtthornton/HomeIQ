@@ -302,8 +302,8 @@ were re-homed under `collectors-service/tests/`.
 
 | Former service | Former route | Surviving route under `collectors` | Consumers rewritten (file:line) |
 |---|---|---|---|
-| weather-api | `GET /current-weather`, `GET /cache/stats` | same paths, port 8009 (`src/adapters/weather/__init__.py:480,495`) | `domains/core-platform/health-dashboard/nginx.conf:585` (proxy_pass), `domains/core-platform/compose.yml:279` (`WEATHER_SERVICE_URL`), `domains/core-platform/admin-api/src/health_endpoints.py:159,610` (`service_urls["collectors"]`), `domains/core-platform/admin-api/src/docker_service.py:105-106` (`container_mapping`), `domains/energy-analytics/compose.yml:17` (`WEATHER_API_URL`), `domains/energy-analytics/proactive-agent-service/src/{config.py:29,clients/weather_api_client.py:25,main.py:89,98}`, `domains/automation-core/ha-ai-agent-service/src/config/__init__.py:93-105`, `infrastructure/prometheus/prometheus.yml:82-86` (scrape target), `libs/homeiq-observability/src/homeiq_observability/monitoring/stats_endpoints.py` (`service_urls`, `api_services`, per-service metrics branch) |
-| sports-api | `GET /`, `GET /sports-data`, `GET /stats` | same paths, port 8009 (`src/adapters/sports/__init__.py:570,582,603`) | same admin-api / stats_endpoints.py rewrites above (shared `collectors` entry); `domains/automation-core/ha-ai-agent-service/src/config/__init__.py:87-90` |
+| weather-api | `GET /current-weather`, `GET /cache/stats` | same paths, port 8009 (`src/adapters/weather/__init__.py:480,495`) | `domains/core-platform/health-dashboard/nginx.conf:586-587` (`set $weather_service`, proxy_pass), `domains/core-platform/compose.yml:279` (`WEATHER_SERVICE_URL`), `domains/core-platform/admin-api/src/health_endpoints.py:159,605` (`service_urls["collectors"]`), `domains/core-platform/admin-api/src/docker_service.py:105-106` (`container_mapping`), `domains/energy-analytics/compose.yml:17` (`WEATHER_API_URL`), `domains/energy-analytics/proactive-agent-service/src/{config.py:29,clients/weather_api_client.py:25,main.py:89,98}`, `domains/automation-core/ha-ai-agent-service/src/config/__init__.py:103-107`, `infrastructure/prometheus/prometheus.yml:82-86` (scrape target), `libs/homeiq-observability/src/homeiq_observability/monitoring/stats_endpoints.py` (`service_urls`, `api_services`, per-service metrics branch) |
+| sports-api | `GET /`, `GET /sports-data`, `GET /stats` | same paths, port 8009 (`src/adapters/sports/__init__.py:570,582,603`) | same admin-api / stats_endpoints.py rewrites above (shared `collectors` entry); `domains/automation-core/ha-ai-agent-service/src/config/__init__.py:93-97` |
 | air-quality-service | `GET /current-aqi` | same path, port 8009 (`src/adapters/air_quality/__init__.py:395`) | same admin-api / stats_endpoints.py / prometheus rewrites above |
 | electricity-pricing-service | `GET /cheapest-hours` | same path, port 8009 (`src/adapters/electricity_pricing/__init__.py:259`) | same admin-api / stats_endpoints.py / prometheus rewrites above |
 | calendar-service | `GET /api/v1/prediction`, `GET /api/v1/events` | same paths, port 8009 (`src/adapters/calendar/__init__.py:394,410`) | same admin-api / stats_endpoints.py / prometheus rewrites above; `libs/homeiq-ha/src/homeiq_ha/ha_connection_manager.py:29` (doc comment), `libs/homeiq-ha/src/homeiq_ha/agent/recipes.py:261` (doc comment) |
@@ -319,6 +319,15 @@ docker-build.yml,docker-release.yml,docker-security-scan.yml}` (matrix entries c
 one `collectors-service` directory-name entry); `tests/e2e/test_resilience_e2e.py:145`
 (dependency-name assertion `"weather-api"` → `"collectors"`, matching
 `proactive-agent-service`'s renamed `GroupHealthCheck` dependency key).
+
+**Deployment/CI surfaces still naming `homeiq-weather-api` (missed by this PR, fixed in
+lane C1-fix):** `scripts/degradation-test.sh` (Test 3's `docker stop`/`wait_healthy` target and
+surrounding echo text — the stop was silently swallowing its own failure, making the test
+unable to go red); `scripts/phase1-monitor-rebuild.sh` (a `docker ps | grep -E` status filter
+that would never match); `scripts/README-PHASE1-BATCH-REBUILD.md` (a `docker tag` rollback
+example in the runbook prose). Unlike the surfaces above, these three were not part of this
+PR's own rewrite pass — the original sweep was not complete, and this list exists so the gap
+is visible rather than implied away by the paragraph above.
 
 **Dropped-with-reason (not a real consumer):** `domains/core-platform/admin-api/
 review-results.json:2397` — a frozen JSON blob of a prior code-review tool run over

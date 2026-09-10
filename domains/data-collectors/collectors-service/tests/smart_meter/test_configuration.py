@@ -19,6 +19,14 @@ class TestConfiguration:
         ):
             SmartMeterService()
 
+    def test_influxdb_config(self):
+        """GIVEN: INFLUXDB_TOKEN=test-token | WHEN: Initialize | THEN: Stored on the service"""
+        from src.adapters.smart_meter import SmartMeterService
+
+        with patch.dict(os.environ, {"INFLUXDB_TOKEN": "test-token"}, clear=True):
+            service = SmartMeterService()
+            assert service.influxdb_token == "test-token"
+
     def test_default_meter_type(self):
         """GIVEN: No METER_TYPE | WHEN: Initialize | THEN: Default to 'home_assistant'"""
         from src.adapters.smart_meter import SmartMeterService
