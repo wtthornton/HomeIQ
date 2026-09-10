@@ -60,13 +60,14 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
 
   // ML Engine
   { id: 'device-intelligence-service', name: 'Device Intelligence', icon: '🧪', type: 'core', port: 8028, description: 'Device behavior analysis', group: 'ml-engine' },
-  { id: 'rag-service', name: 'RAG Service', icon: '📚', type: 'core', port: 8027, description: 'Retrieval-augmented generation', group: 'ml-engine' },
+  // TAP-7276: openvino-service + ml-service + rag-service merged into model-server.
+  { id: 'model-server', name: 'Model Server', icon: '📚', type: 'core', port: 8019, description: 'Embeddings, rerank, classify, clustering, RAG retrieval', group: 'ml-engine' },
 ];
 
 export const GROUP_DEFINITIONS: Record<ServiceGroupId, { label: string; description: string }> = {
   'core-platform': { label: 'Core Platform', description: 'InfluxDB, Data API, WebSocket Ingestion, Admin API, Health Dashboard' },
   'data-collectors': { label: 'Data Collectors', description: 'Weather, Sports, Smart Meter, Air Quality, Electricity, Calendar' },
-  'ml-engine': { label: 'ML Engine', description: 'Device Intelligence, RAG Service' },
+  'ml-engine': { label: 'ML Engine', description: 'Device Intelligence, Model Server' },
   'automation-intelligence': { label: 'Automation Intelligence', description: 'HA AI Agent, AI Automation' },
   'energy-analytics': { label: 'Energy Analytics', description: 'Proactive Agent' },
   'blueprints': { label: 'Blueprints', description: 'Blueprint Index, Suggestions, Rule Recommendation' },

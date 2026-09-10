@@ -31,10 +31,9 @@ SERVICES=(
   "collectors:8009"
   "log-aggregator:8015"
   # Tier 3: ML/AI
-  "openvino-service:8026"
-  "ml-service:8025"
+  # TAP-7276: openvino-service + ml-service + rag-service merged into model-server.
+  "model-server:8026"
   "device-intelligence-service:8028"
-  "rag-service:8027"
   # Tier 4: Automation Core
   "ha-ai-agent-service:8030"
   "ai-automation-service-new:8036"

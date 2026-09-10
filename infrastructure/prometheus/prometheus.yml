@@ -116,32 +116,16 @@ scrape_configs:
 
   # --- Group 3: ML Engine ---
   # Model inference, embedding generation, and training.
+  # TAP-7276: openvino-service + ml-service + rag-service merged into
+  # model-server; ner-service dropped outright (no fold target).
   - job_name: 'ml-engine'
     metrics_path: /metrics
     scrape_interval: 30s
     static_configs:
       - targets:
-          - 'homeiq-openvino-service:8019'
+          - 'homeiq-model-server:8019'
         labels:
-          service: 'openvino-service'
-          group: 'ml-engine'
-          tier: '3'
-      - targets:
-          - 'homeiq-ml-service:8020'
-        labels:
-          service: 'ml-service'
-          group: 'ml-engine'
-          tier: '3'
-      - targets:
-          - 'homeiq-ner-service:8031'
-        labels:
-          service: 'ner-service'
-          group: 'ml-engine'
-          tier: '3'
-      - targets:
-          - 'homeiq-rag-service:8027'
-        labels:
-          service: 'rag-service'
+          service: 'model-server'
           group: 'ml-engine'
           tier: '3'
       - targets:

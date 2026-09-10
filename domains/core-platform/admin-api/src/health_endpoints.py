@@ -181,7 +181,8 @@ class HealthEndpoints:
             "device-intelligence-service": os.getenv(
                 "DEVICE_INTELLIGENCE_URL", "http://device-intelligence-service:8019"
             ),
-            "rag-service": os.getenv("RAG_SERVICE_URL", "http://rag-service:8027"),
+            # TAP-7276: openvino-service + ml-service + rag-service merged into model-server.
+            "model-server": os.getenv("MODEL_SERVER_URL", "http://model-server:8019"),
             # Device Management
             "device-health-monitor": os.getenv(
                 "DEVICE_HEALTH_URL", "http://device-health-monitor:8019"
@@ -212,7 +213,7 @@ class HealthEndpoints:
             ],
             "ml-engine": [
                 "device-intelligence-service",
-                "rag-service",
+                "model-server",
             ],
             "automation-intelligence": [
                 "ai-automation-service",

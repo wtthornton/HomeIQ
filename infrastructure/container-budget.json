@@ -6,7 +6,7 @@
     "ref": "TAP-5283"
   },
   "ceiling": {
-    "services": 37,
+    "services": 34,
     "memory_mib": 7406
   },
   "measured": {
@@ -37,12 +37,9 @@
       "homeiq-mcp",
       "influxdb",
       "log-aggregator",
-      "ml-service",
-      "ner-service",
-      "openvino-service",
+      "model-server",
       "postgres",
       "proactive-agent-service",
-      "rag-service",
       "rule-recommendation-ml",
       "websocket-ingestion",
       "yaml-validation-service",

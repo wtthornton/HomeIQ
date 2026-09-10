@@ -103,34 +103,14 @@ group "data-collectors" {
 
 # ──────────────────────────────────────────────
 # Group 3: ml-engine
-# ner-service now has a proper Dockerfile
+# TAP-7276: openvino-service + ml-service + rag-service merged into
+# model-server; ner-service dropped outright (no fold target, no caller).
 # ──────────────────────────────────────────────
 
-target "openvino-service" {
+target "model-server" {
   context    = "."
-  dockerfile = "domains/ml-engine/openvino-service/Dockerfile"
-  tags       = ["homeiq/openvino-service:latest"]
-  labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
-}
-
-target "ml-service" {
-  context    = "."
-  dockerfile = "domains/ml-engine/ml-service/Dockerfile"
-  tags       = ["homeiq/ml-service:latest"]
-  labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
-}
-
-target "ner-service" {
-  context    = "."
-  dockerfile = "domains/ml-engine/ner-service/Dockerfile"
-  tags       = ["homeiq/ner-service:latest"]
-  labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
-}
-
-target "rag-service" {
-  context    = "."
-  dockerfile = "domains/ml-engine/rag-service/Dockerfile"
-  tags       = ["homeiq/rag-service:latest"]
+  dockerfile = "domains/ml-engine/model-server/Dockerfile"
+  tags       = ["homeiq/model-server:latest"]
   labels     = { "org.opencontainers.image.source" = "https://github.com/homeiq/homeiq" }
 }
 
@@ -150,10 +130,7 @@ target "model-prep" {
 
 group "ml-engine" {
   targets = [
-    "openvino-service",
-    "ml-service",
-    "ner-service",
-    "rag-service",
+    "model-server",
     "device-intelligence-service",
     "model-prep",
   ]

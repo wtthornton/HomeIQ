@@ -26,10 +26,9 @@ declare -A SERVICES=(
   ["calendar-service"]=8013
   ["log-aggregator"]=8015
   # ML Engine
-  ["openvino-service"]=8026
-  ["ml-service"]=8025
-  ["ner-service"]=8020
-  ["rag-service"]=8018
+  # TAP-7276: openvino-service + ml-service + rag-service merged into
+  # model-server; ner-service dropped outright (no fold target).
+  ["model-server"]=8026
   ["device-intelligence-service"]=8019
   # Automation Core
   ["ha-ai-agent-service"]=8030

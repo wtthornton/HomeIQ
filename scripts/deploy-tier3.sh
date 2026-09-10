@@ -41,11 +41,10 @@ ML_COMPOSE="domains/ml-engine/compose.yml"
 START_TIME=$(date +%s)
 
 # ML services with their external ports
+# TAP-7276: openvino-service + ml-service + rag-service merged into model-server.
 TIER3_SERVICES=(
-  "openvino-service:8026"
-  "ml-service:8025"
+  "model-server:8026"
   "device-intelligence-service:8028"
-  "rag-service:8027"
 )
 
 # --- Rollback ---
@@ -99,7 +98,7 @@ log_info "  ML services may take up to 5 minutes to become healthy."
 if ! wait_for_services "Tier 3" "${TIER3_SERVICES[@]}"; then
   log_error "Tier 3 health checks FAILED"
   log_error "Some ML services may need more time for model loading."
-  log_error "Check logs: docker logs homeiq-openvino-service"
+  log_error "Check logs: docker logs homeiq-model-server"
   log_error "Rollback with: $0 --rollback"
   exit 1
 fi

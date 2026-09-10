@@ -4,7 +4,7 @@ name: homeiq-automation-core
 #
 # Services: ha-ai-agent-service, ai-automation-service-new, yaml-validation-service,
 #           automation-linter, automation-trace-service, ha-device-control
-# Depends on: core-platform (data-api), ml-engine (ml-service)
+# Depends on: core-platform (data-api), ml-engine (model-server)
 # Depended on by: frontends (display automation results), blueprints
 
 services:

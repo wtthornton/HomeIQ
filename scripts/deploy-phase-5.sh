@@ -195,11 +195,10 @@ deploy_tier_3() {
   sleep 30
 
   # Check Tier 3 services
+  # TAP-7276: openvino-service + ml-service + rag-service merged into model-server.
   local tier3_services=(
-    "openvino-service:8026"
-    "ml-service:8025"
+    "model-server:8026"
     "device-intelligence-service:8028"
-    "rag-service:8027"
   )
 
   if ! wait_for_tier_health "Tier 3" "${tier3_services[@]}"; then
