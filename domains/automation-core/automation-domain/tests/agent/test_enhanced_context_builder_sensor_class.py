@@ -69,9 +69,7 @@ class TestRenamedFp1eSurvivesClassification:
         assert "binary_sensor.zone_beta_3" in result
 
     @pytest.mark.asyncio
-    async def test_an_unrelated_sensor_with_a_stray_product_keyword_is_not_included(
-        self, builder
-    ):
+    async def test_an_unrelated_sensor_with_a_stray_product_keyword_is_not_included(self, builder):
         """A non-presence device whose entity_id happens to contain a
         product-name substring must not be swept in — classification reads
         manufacturer/model, not the name."""

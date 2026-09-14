@@ -276,13 +276,18 @@ class EnhancedContextBuilder:
                 # decided by the shared taxonomy (device manufacturer/model),
                 # never by a keyword scan over entity_id — see TAP-7590.
                 device = device_by_id.get(entity.get("device_id")) or {}
-                if device_class not in [
-                    "motion",
-                    "presence",
-                    "occupancy",
-                    "door",
-                    "window",
-                ] and classify_from_records(entity, device) not in PRESENCE_RELEVANT_SENSOR_CLASSES:
+                if (
+                    device_class
+                    not in [
+                        "motion",
+                        "presence",
+                        "occupancy",
+                        "door",
+                        "window",
+                    ]
+                    and classify_from_records(entity, device)
+                    not in PRESENCE_RELEVANT_SENSOR_CLASSES
+                ):
                     continue
 
                 # Resolve area: entity → device → name-based fallback
