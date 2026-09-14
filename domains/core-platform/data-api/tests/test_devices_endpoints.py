@@ -737,6 +737,112 @@ class TestListAreasEndpoint:
         assert resp.json()["count"] == 0
 
 
+class TestListAreasEndpointTap7584:
+    """GET /api/areas — TAP-7584: areas are first-class rows, not SELECT DISTINCT.
+
+    Areas are now sourced from the `Area` table (LEFT JOIN'd to entities for
+    counts), so a row with zero matching entities still appears, and each row
+    carries a `floor_id` sourced from the Area model rather than a fabricated
+    default.
+    """
+
+    @pytest.mark.asyncio
+    async def test_area_with_zero_entities_still_appears(self):
+        """A row with entity_count=0 must not be dropped from the response —
+        proving the list is not derived by grouping over entities (a real
+        SELECT DISTINCT over entities can never produce a zero-entity area)."""
+        from src.cache import cache
+        from src.database import get_db
+        from src.devices_endpoints import router
+
+        await cache.clear()
+
+        mock_row = MagicMock()
+        mock_row.area_id = "empty_attic"
+        mock_row.name = "Empty Attic"
+        mock_row.floor_id = None
+        mock_row.entity_count = 0
+        mock_row.domains = []
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.all.return_value = [mock_row]
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        app = FastAPI()
+        app.include_router(router)
+        app.dependency_overrides[get_db] = _make_db_override(mock_session)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get("/api/areas")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["count"] == 1
+        assert data["areas"][0]["area_id"] == "empty_attic"
+        assert data["areas"][0]["entity_count"] == 0
+
+    @pytest.mark.asyncio
+    async def test_floor_id_present_when_area_has_a_floor(self):
+        from src.cache import cache
+        from src.database import get_db
+        from src.devices_endpoints import router
+
+        await cache.clear()
+
+        mock_row = MagicMock()
+        mock_row.area_id = "kitchen"
+        mock_row.name = "Kitchen"
+        mock_row.floor_id = "ground_floor"
+        mock_row.entity_count = 3
+        mock_row.domains = ["light"]
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.all.return_value = [mock_row]
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        app = FastAPI()
+        app.include_router(router)
+        app.dependency_overrides[get_db] = _make_db_override(mock_session)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get("/api/areas")
+        assert resp.status_code == 200
+        assert resp.json()["areas"][0]["floor_id"] == "ground_floor"
+
+    @pytest.mark.asyncio
+    async def test_floor_id_null_when_area_has_no_floor(self):
+        """No floor assigned returns floor_id null, never a fabricated default."""
+        from src.cache import cache
+        from src.database import get_db
+        from src.devices_endpoints import router
+
+        await cache.clear()
+
+        mock_row = MagicMock()
+        mock_row.area_id = "garage"
+        mock_row.name = "Garage"
+        mock_row.floor_id = None
+        mock_row.entity_count = 1
+        mock_row.domains = ["switch"]
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.all.return_value = [mock_row]
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        app = FastAPI()
+        app.include_router(router)
+        app.dependency_overrides[get_db] = _make_db_override(mock_session)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get("/api/areas")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert "floor_id" in body["areas"][0]
+        assert body["areas"][0]["floor_id"] is None
+
+
 class TestListLabelsEndpoint:
     """GET /api/labels"""
 

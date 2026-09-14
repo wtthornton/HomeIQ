@@ -22,7 +22,7 @@ from .cache import cache
 # Story 22.2: Database models
 from .database import get_db
 from .flux_utils import sanitize_flux_value
-from .models import Device, Entity, Service
+from .models import Area, Device, Entity, Service
 from .services.capability_discovery import get_capability_service
 from .services.device_classifier import get_classifier_service
 from .services.device_database import get_device_database_service
@@ -191,12 +191,15 @@ class IntegrationResponse(BaseModel):
 
 
 class AreaResponse(BaseModel):
-    """Area response model — Story 62.1"""
+    """Area response model — Story 62.1, floor_id added by TAP-7584"""
 
     area_id: str = Field(description="Area identifier (e.g., 'kitchen')")
     display_name: str = Field(description="Human-readable name (e.g., 'Kitchen')")
     entity_count: int = Field(description="Number of entities in this area")
     domains: list[str] = Field(description="Distinct entity domains in this area")
+    floor_id: str | None = Field(
+        default=None, description="Floor this area belongs to, or null if unassigned"
+    )
 
 
 class AreasListResponse(BaseModel):
@@ -631,22 +634,35 @@ async def list_areas(db: AsyncSession = Depends(get_db)):
         return cached
 
     try:
-        # Distinct areas with entity counts. HA's entity registry leaves entity.area_id
-        # NULL when the entity inherits its device's area, so the effective area is
-        # coalesce(entity.area_id, device.area_id).
+        # TAP-7584: areas are first-class rows in `areas`, LEFT JOIN'd to
+        # entities for counts — not derived by grouping over entities, so an
+        # area with zero entities still appears. HA's entity registry leaves
+        # entity.area_id NULL when the entity inherits its device's area, so
+        # the effective area used for the join is coalesce(entity.area_id,
+        # device.area_id).
         effective_area = _effective_area_column()
-        query = (
+        entity_areas = (
             select(
+                Entity.entity_id.label("entity_id"),
+                Entity.domain.label("domain"),
                 effective_area.label("area_id"),
-                func.count(Entity.entity_id).label("entity_count"),
-                func.array_agg(func.distinct(Entity.domain)).label("domains"),
             )
             .select_from(Entity)
             .outerjoin(Device, Device.device_id == Entity.device_id)
-            .where(effective_area.isnot(None))
-            .where(effective_area != "")
-            .group_by(effective_area)
-            .order_by(effective_area)
+            .subquery()
+        )
+        query = (
+            select(
+                Area.area_id.label("area_id"),
+                Area.name.label("name"),
+                Area.floor_id.label("floor_id"),
+                func.count(entity_areas.c.entity_id).label("entity_count"),
+                func.array_agg(func.distinct(entity_areas.c.domain)).label("domains"),
+            )
+            .select_from(Area)
+            .outerjoin(entity_areas, entity_areas.c.area_id == Area.area_id)
+            .group_by(Area.area_id, Area.name, Area.floor_id)
+            .order_by(Area.area_id)
         )
         result = await db.execute(query)
         rows = result.all()
@@ -654,9 +670,12 @@ async def list_areas(db: AsyncSession = Depends(get_db)):
         areas = [
             AreaResponse(
                 area_id=row.area_id,
-                display_name=row.area_id.replace("_", " ").title(),
+                display_name=row.name
+                if isinstance(row.name, str) and row.name
+                else row.area_id.replace("_", " ").title(),
                 entity_count=row.entity_count,
-                domains=sorted(row.domains) if row.domains else [],
+                domains=sorted(d for d in (row.domains or []) if d),
+                floor_id=row.floor_id if isinstance(row.floor_id, str) else None,
             )
             for row in rows
         ]
