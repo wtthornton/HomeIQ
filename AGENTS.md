@@ -1,4 +1,4 @@
-<!-- tapps-agents-version: 3.12.72 -->
+<!-- tapps-agents-version: 3.12.78 -->
 # TappsMCP - instructions for AI assistants
 
 When the **TappsMCP** MCP server is configured, you have access to tools for **code quality, doc lookup, and domain expert advice**. Use them to avoid hallucinated APIs, missed quality steps, and inconsistent output.
@@ -148,7 +148,7 @@ The checklist uses this to decide which tools are required vs recommended vs opt
 | **Side effects** | None (read-only) | Writes files, warms caches |
 | **Typical flow** | Call at session start, then work | Call once to bootstrap, or `dry_run: true` to preview |
 
-**Session start** -> `tapps_session_start`. Use this as the first call in every session. Returns server info and project context.
+**Session start** -> `tapps_session_start`. Use this as the first call in every session. Returns server info and project context — the compact payload by default; pass `quick=False` for full diagnostics.
 
 **Pipeline/bootstrap** -> `tapps_init`. Use when you need to set up TappsMCP in a project (AGENTS.md, TECH_STACK.md, platform rules) or upgrade existing files.
 
@@ -205,7 +205,7 @@ The bare `mcp__tapps-mcp` entry is needed as a reliable fallback - the wildcard 
 
 | Tool | When to use |
 |------|--------------|
-| **tapps_session_start** | **FIRST call in every session** - server info only |
+| **tapps_session_start** | **FIRST call in every session** - server info only; pass `quick=False` for full diagnostics |
 | **tapps_quick_check** | **After editing any Python file** - quick score + gate + security |
 | **tapps_validate_changed** | **Before declaring multi-file work complete** - score + gate on changed files. **Always pass explicit `file_paths`** (comma-separated). Default is quick mode; only use `quick=false` as a last resort. |
 | **tapps_checklist** | **Before declaring work complete** - reports missing required steps. Response includes an inline `usage_gaps` payload (same data as `tapps_usage`) - read it before declaring done. |

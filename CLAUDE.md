@@ -1,5 +1,5 @@
-<!-- tapps-claude-version: 3.12.72 -->
-<!-- BEGIN: tapps-obligations v3.12.72 -->
+<!-- tapps-claude-version: 3.12.78 -->
+<!-- BEGIN: tapps-obligations v3.12.78 -->
 # TAPPS Quality Pipeline
 
 This project uses the TAPPS MCP server for code quality enforcement.
@@ -26,6 +26,8 @@ You should follow these steps to avoid broken, insecure, or hallucinated code.
 
 You should call `tapps_session_start()` as the first action in every session.
 This returns server info (version, checkers, config) and project context.
+The default payload is compact; pass `quick=False` (or call `tapps_doctor`)
+when you need brain health, memory status, and install-drift diagnostics.
 
 ### Before Using Any Library API
 

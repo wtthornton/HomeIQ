@@ -6,6 +6,7 @@ description: Post a structured Linear project update document on a version relea
 allowed-tools: mcp__nlt-release-ship__tapps_release_update mcp__nlt-release-ship__docs_generate_release_update mcp__nlt-release-ship__docs_validate_release_update mcp__nlt-release-ship__docs_release_gate mcp__plugin_linear_linear__save_document mcp__nlt-linear-issues__tapps_linear_snapshot_invalidate
 argument-hint: "--version vX.Y.Z --prev-version vX.Y.W [--team <team>] [--project <project>] [--dry-run]"
 ---
+<!-- upgrade-policy: overwrite. tapps_upgrade replaces this file wholesale on every run and local edits are lost (tapps_init leaves an existing copy alone; upgrade does not). Fold the change upstream into the platform template, or pin the whole directory with an upgrade_skip_files token. -->
 
 Post a structured Linear project update document when a new version is released. The user's request to post a release update is standing authorization for the full pipeline — do NOT pause mid-flow to ask "should I post this?"
 

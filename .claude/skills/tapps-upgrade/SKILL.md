@@ -11,6 +11,7 @@ description: >-
 allowed-tools: Bash mcp__nlt-build__tapps_session_start mcp__nlt-setup__tapps_doctor mcp__nlt-build__tapps_checklist
 argument-hint: "[--from-checkout <path> | --from-tag vX.Y.Z]"
 ---
+<!-- upgrade-policy: overwrite. tapps_upgrade replaces this file wholesale on every run and local edits are lost (tapps_init leaves an existing copy alone; upgrade does not). Fold the change upstream into the platform template, or pin the whole directory with an upgrade_skip_files token. -->
 
 Upgrade tapps-mcp / docs-mcp end-to-end. The user's request to upgrade is standing authorization for the full pipeline — do NOT pause mid-flow.
 
@@ -28,7 +29,7 @@ Upgrade tapps-mcp / docs-mcp end-to-end. The user's request to upgrade is standi
 
 1. **Reinstall global CLIs.** Run both `uv tool install --reinstall ...` commands. Verify: `uv tool list | grep -E '(tapps-mcp|docs-mcp)'` — both must show the same version.
 2. **Restart MCP servers.** The running processes still hold old code. Tell the user to exit/reopen (or `/mcp` reconnect), then re-invoke this skill. Stop here on the first invocation.
-3. **Verify new version is live.** Call `mcp__nlt-build__tapps_session_start(force=true)`. Confirm `server.version` matches target and `diagnostics.install_drift.drift_detected == false`. If drift persists, the server wasn't restarted — go back to step 2.
+3. **Verify new version is live.** Call `mcp__nlt-build__tapps_session_start(quick=false, force=true)`. Confirm `server.version` matches target and `diagnostics.install_drift.drift_detected == false`. If drift persists, the server wasn't restarted — go back to step 2.
 4. **Dry-run the scaffolding refresh.** Run `tapps-mcp upgrade --dry-run`. Review the diff for AGENTS.md, CLAUDE.md, .claude/hooks/, .claude/rules/, .claude/agents/, .claude/skills/, .mcp.json. Note `mcp_bundle` / `mcp_bundle_note` in the result — custom trimmed Cursor sets are preserved; explicit yaml wins. The smart-merge preserves customizations in non-canonical sections; canonical sections are replaced wholesale. Pause if a customized canonical section will be overwritten.
 5. **Apply the upgrade.** Run `tapps-mcp upgrade` (writes timestamped backup to `.tapps-mcp/backups/<ts>/`).
 6. **Verify.** Run `tapps-mcp doctor` AND `mcp__nlt-build__tapps_checklist(task_type="upgrade")`. Surface any problems — do not declare done on a failure. Doctor NLT row shows eager (Claude) vs listed (Cursor).

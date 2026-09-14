@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# tapps-mcp-hook-version: 3.12.72
-# tapps-mcp-hook-content-sha: 18cfa7f8
+# tapps-mcp-hook-version: 3.12.78
+# tapps-mcp-hook-content-sha: ce07282e
 # TappsMCP Stop hook — TAP-1326 / TAP-1327
 # Phase 1 (always when transcript exists): scan tool calls, write loop-metrics.jsonl
 #   + write .tapps-mcp/.completion-gate-violations.jsonl when files were edited
@@ -67,7 +67,7 @@ except Exception:
     pass
 seen=set()
 edits=[p for p in edited_from_transcript if not (p in seen or seen.add(p))]
-needs_gate=any(p.endswith(('.py','.pyi','.ts','.tsx','.js','.jsx','.go','.rs')) for p in edits)
+needs_gate=any(p.endswith(('.cjs', '.go', '.js', '.jsx', '.mjs', '.py', '.pyi', '.rs', '.ts', '.tsx')) for p in edits)
 miss=[]
 gate_skipped=[]
 if needs_gate and not gate_called:

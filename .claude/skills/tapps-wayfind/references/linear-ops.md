@@ -1,3 +1,5 @@
+<!-- upgrade-policy: managed-block. Edits made inside this BEGIN/END block are regenerated and lost on the next tapps_upgrade — put project-specific customizations below the END marker instead, where they survive every upgrade untouched. -->
+<!-- BEGIN: tapps-skill-asset tapps-wayfind/references/linear-ops.md v3.12.78 -->
 # Wayfind Linear operations
 
 Linear is the system of record for maps, tickets, claims, and blocking.
@@ -28,3 +30,4 @@ Linear is the system of record for maps, tickets, claims, and blocking.
 
 - Save resume/rationale with a key tied to the ticket id after resolve.
 - Do **not** mirror status, assignee, or frontier into brain — Linear wins.
+<!-- END: tapps-skill-asset -->

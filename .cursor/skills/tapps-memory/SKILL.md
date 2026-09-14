@@ -8,6 +8,7 @@ mcp_tools:
   - tapps_session_start
   - tapps_session_notes
 ---
+<!-- upgrade-policy: overwrite. tapps_upgrade replaces this file wholesale on every run and local edits are lost (tapps_init leaves an existing copy alone; upgrade does not). Fold the change upstream into the platform template, or pin the whole directory with an upgrade_skip_files token. -->
 
 `tapps_memory` on the **`nlt-memory`** MCP server is a slim facade (TAP-3895). Default consumer path is **`uv run tapps-mcp memory`** (bridge-only — never add direct `tapps-brain` to `.mcp.json`).
 
@@ -18,7 +19,7 @@ mcp_tools:
 | Cross-chat handoff | `tapps-handoff-session` then `tapps-continue-session` |
 | Session-local notes | `tapps_session_notes(action="save", ...)` |
 | Save / recall / search brain | `uv run tapps-mcp memory <subcommand>` |
-| Brain health | `tapps_session_start()` → `brain_bridge_health` |
+| Brain health | `tapps_session_start(quick=false)` → `brain_bridge_health` |
 
 ## CLI (daily drivers)
 

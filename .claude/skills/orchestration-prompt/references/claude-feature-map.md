@@ -1,3 +1,5 @@
+<!-- upgrade-policy: managed-block. Edits made inside this BEGIN/END block are regenerated and lost on the next tapps_upgrade — put project-specific customizations below the END marker instead, where they survive every upgrade untouched. -->
+<!-- BEGIN: tapps-skill-asset orchestration-prompt/references/claude-feature-map.md v3.12.78 -->
 # Claude feature map — intent → mechanism → model tier
 
 Read this when choosing how a chunk of an orchestration prompt should run. Put each
@@ -175,3 +177,4 @@ multi-day orchestrators:
 | Serial feature execution | Serial writes / one repo at a time; parallel read-only OK |
 | Structured handoffs | Record fields: completed · undone · cmds+exits · issues |
 | Fix features after fail | Expected-fail fix loop ≤3 rounds, then escalate/stop |
+<!-- END: tapps-skill-asset -->

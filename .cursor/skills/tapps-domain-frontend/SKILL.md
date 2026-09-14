@@ -11,6 +11,7 @@ mcp_tools:
   - tapps_checklist
   - tapps_score_file
 ---
+<!-- upgrade-policy: overwrite. tapps_upgrade replaces this file wholesale on every run and local edits are lost (tapps_init leaves an existing copy alone; upgrade does not). Fold the change upstream into the platform template, or pin the whole directory with an upgrade_skip_files token. -->
 
 Domain playbook workflow — same quality gate as the standard TAPPS pipeline.
 

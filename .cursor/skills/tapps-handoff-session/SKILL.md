@@ -9,12 +9,15 @@ mcp_tools:
   - tapps_handoff_save
   - tapps_session_start
 ---
+<!-- upgrade-policy: overwrite. tapps_upgrade replaces this file wholesale on every run and local edits are lost (tapps_init leaves an existing copy alone; upgrade does not). Fold the change upstream into the platform template, or pin the whole directory with an upgrade_skip_files token. -->
 
 End the session with a durable handoff the next chat loads via `tapps-continue-session`.
 
 0. **Session bootstrap (if needed).** If `tapps_session_start()` was not called this session, call it now (cached is fine) so flywheel scope and checker context are correct. Skip when already called.
 
-1. **Draft handoff (5-10 bullets):** Done, Open, Next (P0), Blockers (`- none` when clear), optional Changed files, Verify, Success criterion.
+1. **Draft handoff (5-10 bullets):** Done, Open, Next (P0), Blockers (`- none` when clear), optional Changed files, Verify, Success criterion.**Checkpoint trigger:** when the user says "checkpoint", "context full", or an
+   orchestration prompt prints a `CHECKPOINT` block — include the **Cumulative**
+   section above (not optional). Cross-ref: orchestration-prompt method §7.
 
 **P0 gate.** Before persisting: when **Open** has real items (not `none` / `- ...` placeholders), **Next (P0)** must name one concrete next action. Set **Linear P0:** to the TAP id when known. If P0 is missing, ask the user once — do not persist an incomplete handoff.
 
@@ -44,6 +47,13 @@ End the session with a durable handoff the next chat loads via `tapps-continue-s
 
 ## Success criterion
 - ...
+
+## Cumulative (loop checkpoints — required for shift boundaries)
+- Sub-goal: <k> · VAL IDs: <…>
+- Attempt: <a> of <cap> (cumulative across shifts)
+- Budget spent: <spent>/<ceiling>
+- Refuted strategies: <bullets>
+- Resume line: <exact cold-start launch line from prompt>
 ```
 
 2. **Persist (one atomic call when MCP is available).** Do **not** write the file separately before MCP — `tapps_handoff_save` writes `.tapps-mcp/session-handoff.md`, lints, mirrors to brain, and can close the session lifecycle.

@@ -1,3 +1,5 @@
+<!-- upgrade-policy: managed-block. Edits made inside this BEGIN/END block are regenerated and lost on the next tapps_upgrade — put project-specific customizations below the END marker instead, where they survive every upgrade untouched. -->
+<!-- BEGIN: tapps-skill-asset tapps-wayfind/assets/map-template.md v3.12.78 -->
 # Wayfind map template
 
 Paste into the Linear parent issue body when charting. Open tickets are **not**
@@ -37,3 +39,4 @@ listed here — they are open children found by query.
 
 Optional below the Question (keep short): context links, blockers already
 expressed as Linear relations, asset pointers.
+<!-- END: tapps-skill-asset -->

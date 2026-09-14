@@ -11,6 +11,7 @@ origin: ECC
 version: 2.1.0
 model: claude-sonnet-4-6
 ---
+<!-- upgrade-policy: overwrite. tapps_upgrade replaces this file wholesale on every run and local edits are lost (tapps_init leaves an existing copy alone; upgrade does not). Fold the change upstream into the platform template, or pin the whole directory with an upgrade_skip_files token. -->
 
 # Continuous Learning v2.1 - Instinct-Based Architecture
 

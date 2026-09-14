@@ -9,6 +9,7 @@ description: >-
 allowed-tools: mcp__nlt-setup__tapps_server_info
 argument-hint: "[tool-name or 'all']"
 ---
+<!-- upgrade-policy: overwrite. tapps_upgrade replaces this file wholesale on every run and local edits are lost (tapps_init leaves an existing copy alone; upgrade does not). Fold the change upstream into the platform template, or pin the whole directory with an upgrade_skip_files token. -->
 
 When the user asks about TappsMCP tools (e.g. "when do I use tapps_score_file?",
 "what tools does TappsMCP have?", "tapps_quick_check vs tapps_quality_gate"),
@@ -40,7 +41,7 @@ provide the full tool reference from this skill.
 | **`tapps-mcp memory` CLI** | Save/search/get architectural or pattern decisions (`memory save`, `search`, `get`) |
 | **tapps_session_notes** | Session-local notes during the chat |
 | **tapps-handoff-session / tapps-continue-session** | Cross-chat transfer via `.tapps-mcp/session-handoff.md` |
-| **tapps_session_start** | `brain_bridge_health` before memory writes; hooks auto-recall |
+| **tapps_session_start** | `brain_bridge_health` (needs `quick=false`) before memory writes; hooks auto-recall |
 
 ## Validation & analysis
 | Tool | When to use it |
