@@ -15,13 +15,16 @@ from pathlib import Path
 import pytest
 from homeiq_patterns import VerificationResult, VerificationResultStore, VerificationWarning
 
-# Import InfluxDB store directly
+# Import InfluxDB store directly.
+# ai-automation-service-new folded into automation-domain's authoring slice
+# (e8583910).
 _store_path = (
     Path(__file__).resolve().parents[3]
     / "domains"
     / "automation-core"
-    / "ai-automation-service-new"
+    / "automation-domain"
     / "src"
+    / "authoring"
     / "services"
 )
 sys.path.insert(0, str(_store_path.parent.parent))
