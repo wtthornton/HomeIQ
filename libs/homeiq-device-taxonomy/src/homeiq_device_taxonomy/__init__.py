@@ -23,6 +23,20 @@ from .patterns import (
     get_device_category,
     match_device_pattern,
 )
+from .sensor_class import (
+    PRESENCE_RELEVANT_SENSOR_CLASSES,
+    SENSOR_CLASS_PROFILES,
+    PriorStatus,
+    ReliabilityPrior,
+    SensorClass,
+    SensorClassProfile,
+    Transport,
+    UnfittedPriorError,
+    classify_from_records,
+    classify_sensor,
+    fails_on_stillness,
+    require_fitted,
+)
 
 __all__ = [
     "DEVICE_PATTERNS",
@@ -31,4 +45,16 @@ __all__ = [
     "device_type_vocabulary",
     "get_device_category",
     "match_device_pattern",
+    "PRESENCE_RELEVANT_SENSOR_CLASSES",
+    "SENSOR_CLASS_PROFILES",
+    "PriorStatus",
+    "ReliabilityPrior",
+    "SensorClass",
+    "SensorClassProfile",
+    "Transport",
+    "UnfittedPriorError",
+    "classify_from_records",
+    "classify_sensor",
+    "fails_on_stillness",
+    "require_fitted",
 ]

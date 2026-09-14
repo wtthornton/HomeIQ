@@ -15,6 +15,8 @@ Key Improvements:
 import logging
 from collections import defaultdict
 
+from homeiq_device_taxonomy import PRESENCE_RELEVANT_SENSOR_CLASSES, classify_from_records
+
 from ..clients.data_api_client import DataAPIClient
 from ..clients.ha_client import HomeAssistantClient
 from ..config import Settings
@@ -226,11 +228,12 @@ class EnhancedContextBuilder:
             if not entities:
                 return "BINARY_SENSORS: No sensors found"
 
-            # Fetch device registry for area resolution
+            # Fetch device registry for area resolution and taxonomy classification
             devices = await self.ha_client.get_device_registry()
             device_area_map = {
                 d.get("id"): d.get("area_id") for d in devices if d.get("id") and d.get("area_id")
             }
+            device_by_id = {d.get("id"): d for d in devices if d.get("id")}
 
             # Fetch areas for friendly names
             areas = await self.ha_client.get_area_registry()
@@ -268,17 +271,18 @@ class EnhancedContextBuilder:
                 # Check device_class at top level (data-api format) AND in attributes (HA state format)
                 device_class = entity.get("device_class") or attributes.get("device_class", "")
 
-                # Only include motion/presence/occupancy sensors
+                # Only include motion/presence/occupancy/door/window sensors.
+                # Presence relevance beyond the explicit device_class list is
+                # decided by the shared taxonomy (device manufacturer/model),
+                # never by a keyword scan over entity_id — see TAP-7590.
+                device = device_by_id.get(entity.get("device_id")) or {}
                 if device_class not in [
                     "motion",
                     "presence",
                     "occupancy",
                     "door",
                     "window",
-                ] and not any(
-                    kw in entity_id.lower()
-                    for kw in ["motion", "presence", "occupancy", "fp2", "fp300"]
-                ):
+                ] and classify_from_records(entity, device) not in PRESENCE_RELEVANT_SENSOR_CLASSES:
                     continue
 
                 # Resolve area: entity → device → name-based fallback

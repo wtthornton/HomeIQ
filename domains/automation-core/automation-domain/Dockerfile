@@ -19,7 +19,8 @@ RUN pip install --no-cache-dir --user \
     /tmp/libs/homeiq-observability/ \
     /tmp/libs/homeiq-data/ \
     /tmp/libs/homeiq-ha/ \
-    /tmp/libs/homeiq-memory/
+    /tmp/libs/homeiq-memory/ \
+    /tmp/libs/homeiq-device-taxonomy/
 
 COPY domains/automation-core/automation-domain/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
