@@ -37,6 +37,14 @@ dict), add the **off-contract shape**: strings where objects were expected, null
 mixed arrays. The invariant is that every item is honoured or the call raises —
 never silently shorter.
 
+A suite that drives real tool handlers opts into the machine check rather than
+writing that assertion by hand: `pytestmark = pytest.mark.usefixtures("envelope_guard")`.
+The fixture records every envelope the test builds and fails at teardown if one
+claims plain success over a nested failure. Where a payload legitimately embeds
+failure-shaped records, name those keys with `@pytest.mark.envelope_allow(...)`
+and say why in a comment above the mark — an unexplained `allow` is a silenced
+test, not a documented exception.
+
 ## Coverage
 
 - New public functions need a corresponding test

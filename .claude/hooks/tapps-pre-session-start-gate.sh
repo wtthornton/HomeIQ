@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# tapps-mcp-hook-version: 3.12.72
-# tapps-mcp-hook-content-sha: 6a781275
+# tapps-mcp-hook-version: 3.12.78
+# tapps-mcp-hook-content-sha: 47a26fe8
 # TappsMCP PreToolUse hook — session-start enforcement gate.
 # Blocks TappsMCP quality tools until tapps_session_start has actually run this
 # Claude session (proven by a tool-written .session-start-done-<SID> sentinel,
@@ -8,7 +8,7 @@
 # "warn" logs to .session-start-gate-violations.jsonl and allows; "block"
 # exits 2. Bypass with TAPPS_SKIP_SESSION_START_GATE=1 (logged to
 # .tapps-mcp/.bypass-log.jsonl).
-MODE="warn"
+MODE="block"
 INPUT=$(cat)
 TOOL=$(printf '%s' "$INPUT" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
 SID=$(printf '%s' "$INPUT" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)

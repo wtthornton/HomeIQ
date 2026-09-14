@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# tapps-mcp-hook-version: 3.12.72
-# tapps-mcp-hook-content-sha: 24d4b24f
+# tapps-mcp-hook-version: 3.12.78
+# tapps-mcp-hook-content-sha: c9dc8b49
 # TappsMCP PostToolUse hook — Linear list_issues auto-populate (TAP-1412)
 # After a successful mcp__plugin_linear_linear__list_issues call, write the
 # response into .tapps-mcp-cache/linear-snapshots/<key>.json so the next
@@ -12,14 +12,14 @@ if [ -z "$PYBIN" ]; then
   exit 0
 fi
 ROOT="${CLAUDE_PROJECT_DIR:-$PWD}"
-echo "$INPUT" | TAPPS_PROJECT_ROOT="$ROOT" "$PYBIN" -c "
+HOOK_ERR=$(echo "$INPUT" | TAPPS_PROJECT_ROOT="$ROOT" "$PYBIN" -c "
 import sys, os, json, hashlib, time
 try:
     d = json.load(sys.stdin)
 except Exception:
     sys.exit(0)
 name = d.get('tool_name') or d.get('toolName') or ''
-if name not in {'mcp__claude_ai_Linear__list_issues', 'list_issues', 'mcp__plugin_linear_linear__list_issues'}:
+if name not in {'list_issues', 'mcp__claude_ai_Linear__list_issues', 'mcp__plugin_linear_linear__list_issues'}:
     sys.exit(0)
 inp = d.get('tool_input') or d.get('toolInput') or {}
 team = (inp.get('team') or '').strip()
@@ -55,6 +55,32 @@ key = '__'.join([
     (canon.replace('/', '_') or 'any'),
     fhash,
 ])
+# TAP-6581: refusals used to be a bare sys.exit(0) — the cache silently did
+# not get written and nobody could tell a refusal from a no-op. Every refusal
+# now names itself on stderr (the wrapper forwards only these marked lines) and
+# appends a durable record, mirroring the .cache-gate-violations.jsonl channel.
+root = os.environ.get('TAPPS_PROJECT_ROOT') or os.getcwd()
+def _refuse(reason, rows):
+    line = (
+        'tapps-post-linear-list: refused cache write'
+        ' reason=' + reason + ' key=' + key + ' rows=' + str(rows)
+    )
+    sys.stderr.write(line + chr(10))
+    try:
+        d2 = os.path.join(root, '.tapps-mcp')
+        os.makedirs(d2, exist_ok=True)
+        rec = {
+            'ts': time.time(), 'key': key, 'reason': reason, 'rows': rows,
+            'hook': 'tapps-post-linear-list',
+        }
+        with open(
+            os.path.join(d2, '.linear-cache-write-refusals.jsonl'),
+            'a', encoding='utf-8',
+        ) as fh:
+            fh.write(json.dumps(rec) + chr(10))
+    except OSError:
+        pass
+    sys.exit(0)
 resp = d.get('tool_response') or d.get('toolResponse') or {}
 if isinstance(resp, str):
     try:
@@ -125,7 +151,20 @@ issues = [
 # open: no write, and the next read repopulates.
 state_lc = state.lower()
 if not issues:
-    sys.exit(0)
+    _refuse('empty_issue_list', 0)
+# TAP-6581 contents-level guard. The guard above tests the CONTAINER (is the
+# list empty?); a list of one-field rows from list_issues(fields=['id']) sailed
+# past it and was served for the whole 30-min open-bucket TTL as if it were a
+# full projection. _COMPACT_FIELDS is the ceiling of a compact row; identity +
+# title is the floor. A row below the floor is neither addressable nor
+# readable, so refuse the WRITE rather than let the reader discover it later.
+IDENTITY_FIELDS = ('identifier', 'id')
+def _row_ok(it):
+    if not isinstance(it, dict):
+        return False
+    return any(k in it for k in IDENTITY_FIELDS) and 'title' in it
+if not all(_row_ok(i) for i in issues):
+    _refuse('rows_below_compact_floor', len(issues))
 # TTL aligned with server-side _ttl_for_state defaults (30 min open, 1 h closed).
 # Keep in lockstep with Settings.linear_cache_ttl_open_seconds /
 # linear_cache_ttl_closed_seconds — a writer that expires sooner than the reader
@@ -142,11 +181,35 @@ out = {
     'auto_populated': True,
     'limit': limit,
 }
-root = os.environ.get('TAPPS_PROJECT_ROOT') or os.getcwd()
 cache_dir = os.path.join(root, '.tapps-mcp-cache', 'linear-snapshots')
+target = os.path.join(cache_dir, key + '.json')
+# TAP-6581: a narrow fields= read must not DEGRADE a richer entry already
+# cached under the same key. Richness = the fields guaranteed on EVERY row
+# (their intersection); a strict subset of what is already stored is a
+# downgrade and is refused. Equal or incomparable field sets still write, so
+# a genuine refresh is never blocked.
+def _guaranteed_fields(rows):
+    covered = None
+    for it in rows:
+        if not isinstance(it, dict):
+            return set()
+        keys = set(it)
+        covered = keys if covered is None else (covered & keys)
+    return covered or set()
+try:
+    with open(target, encoding='utf-8') as fh:
+        prior = json.load(fh)
+except (OSError, ValueError):
+    prior = None
+if isinstance(prior, dict) and float(prior.get('expires_at') or 0) > time.time():
+    prior_rows = prior.get('issues') or []
+    if prior_rows:
+        prior_fields = _guaranteed_fields(prior_rows)
+        new_fields = _guaranteed_fields(issues)
+        if new_fields < prior_fields:
+            _refuse('would_degrade_cached_entry', len(issues))
 try:
     os.makedirs(cache_dir, exist_ok=True)
-    target = os.path.join(cache_dir, key + '.json')
     tmp = target + '.tmp'
     with open(tmp, 'w', encoding='utf-8') as fh:
         json.dump(out, fh)
@@ -159,5 +222,14 @@ try:
         fh.write(str(int(now)))
 except OSError:
     pass
-" 2>/dev/null
+" 2>&1 >/dev/null)
+# TAP-6581: stderr was piped to /dev/null wholesale, so a refusal was
+# indistinguishable from a successful write. Forward only our own marked lines
+# (incidental interpreter noise stays suppressed, keeping the hook fail-open).
+case "$HOOK_ERR" in
+  *"tapps-post-linear-list: refused"*)
+    printf '%s
+' "$HOOK_ERR" >&2
+    ;;
+esac
 exit 0

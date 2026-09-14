@@ -9,6 +9,7 @@ mcp_tools:
   - tapps_research
   - tapps_lookup_docs
 ---
+<!-- upgrade-policy: overwrite. tapps_upgrade replaces this file wholesale on every run and local edits are lost (tapps_init leaves an existing copy alone; upgrade does not). Fold the change upstream into the platform template, or pin the whole directory with an upgrade_skip_files token. -->
 
 Research using TappsMCP's unified front door (ADR-0030):
 

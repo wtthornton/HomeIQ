@@ -9,9 +9,11 @@ if [ "$ACTIVE" = "True" ] || [ "$ACTIVE" = "true" ]; then
   exit 0
 fi
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-.}"
+mkdir -p "$PROJECT_DIR/.tapps-mcp" 2>/dev/null || true
+LOG="$PROJECT_DIR/.tapps-mcp/auto-capture.log"
 if command -v tapps-mcp >/dev/null 2>&1; then
-  echo "$INPUT" | tapps-mcp auto-capture --project-root "$PROJECT_DIR" 2>/dev/null || true
+  echo "$INPUT" | tapps-mcp auto-capture --project-root "$PROJECT_DIR" >> "$LOG" 2>&1 || true
 elif [ -n "$PYBIN" ]; then
-  echo "$INPUT" | "$PYBIN" -m tapps_mcp.cli auto-capture --project-root "$PROJECT_DIR" 2>/dev/null || true
+  echo "$INPUT" | "$PYBIN" -m tapps_mcp.cli auto-capture --project-root "$PROJECT_DIR" >> "$LOG" 2>&1 || true
 fi
 exit 0

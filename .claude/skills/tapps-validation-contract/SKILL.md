@@ -10,7 +10,9 @@ description: >-
   needs a contract; or when the user invokes /tapps-validation-contract.
 argument-hint: "[draft | claim <VAL-id> | mark-verified]"
 ---
-<!-- BEGIN: tapps-skill tapps-validation-contract v3.12.72 -->
+<!-- BEGIN: tapps-skill tapps-validation-contract v3.12.78 -->
+<!-- upgrade-policy: managed-block. Edits made inside this BEGIN/END block are regenerated and lost on the next tapps_upgrade — put project-specific customizations below the END marker instead, where they survive every upgrade untouched. -->
+
 # tapps-validation-contract
 
 You produce a **validation contract** — a finite checklist of testable behavioral

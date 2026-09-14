@@ -28,6 +28,7 @@ You should follow these steps to avoid broken, insecure, or hallucinated code.
 
 You should call `tapps_session_start()` as the first action in every session.
 This returns server info (version, checkers, config) and project context.
+Default payload is compact; use `quick=False` (or `tapps_doctor`) for brain/memory/install-drift diagnostics.
 
 ### Before Using Any Library API
 
@@ -38,7 +39,6 @@ This prevents hallucinated APIs. Prefer looking up docs over guessing from memor
 
 You should call `tapps_quick_check(file_path)` after editing any Python file.
 This runs scoring + quality gate + security scan in one call.
-Alternatively, call `tapps_score_file`, `tapps_quality_gate`, and `tapps_security_scan` individually.
 
 ### Before Declaring Work Complete
 
@@ -94,7 +94,6 @@ Recommended order for every code task:
 | `tapps_quality_gate` | No quality bar enforced - regressions may go unnoticed |
 | `tapps_security_scan` | Vulnerabilities may ship to production |
 | `tapps_checklist` | No verification that process was followed |
-| `tapps_lookup_docs` | Hallucinated APIs and uninformed domain decisions |
 | `tapps_impact_analysis` | Refactoring may break unknown dependents |
 | `tapps_call_graph` | Function refactors may break unknown callers |
 | `tapps_dead_code` | Unused code may accumulate |

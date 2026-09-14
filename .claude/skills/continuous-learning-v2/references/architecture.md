@@ -1,3 +1,5 @@
+<!-- upgrade-policy: managed-block. Edits made inside this BEGIN/END block are regenerated and lost on the next tapps_upgrade — put project-specific customizations below the END marker instead, where they survive every upgrade untouched. -->
+<!-- BEGIN: tapps-skill-asset continuous-learning-v2/references/architecture.md v3.12.78 -->
 # Continuous Learning — Architecture
 
 ## What's New in v2.1
@@ -108,3 +110,4 @@ Session Activity (in a git repo)
 
 Each project gets a 12-character hash ID. Registry:
 `~/.claude/homunculus/projects.json`.
+<!-- END: tapps-skill-asset -->

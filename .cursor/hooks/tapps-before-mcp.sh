@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tapps-mcp-hook-version: 3.12.65
+# tapps-mcp-hook-version: 3.12.78
 # tapps-mcp-hook-content-sha: a2a806a0
 # TappsMCP beforeMCPExecution hook
 # Logs MCP tool invocations and reminds to call session_start.

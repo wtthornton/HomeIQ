@@ -6,6 +6,7 @@ description: >-
   because the server runs in Docker and cannot write files directly.
 mcp_tools: []
 ---
+<!-- upgrade-policy: overwrite. tapps_upgrade replaces this file wholesale on every run and local edits are lost (tapps_init leaves an existing copy alone; upgrade does not). Fold the change upstream into the platform template, or pin the whole directory with an upgrade_skip_files token. -->
 
 When a TappsMCP or DocsMCP tool returns `content_return: true` with a `file_manifest`,
 the server could not write files (Docker / read-only filesystem).  Apply the files:

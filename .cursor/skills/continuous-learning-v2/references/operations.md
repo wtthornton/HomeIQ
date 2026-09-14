@@ -1,3 +1,5 @@
+<!-- upgrade-policy: managed-block. Edits made inside this BEGIN/END block are regenerated and lost on the next tapps_upgrade — put project-specific customizations below the END marker instead, where they survive every upgrade untouched. -->
+<!-- BEGIN: tapps-skill-asset continuous-learning-v2/references/operations.md v3.12.78 -->
 # Continuous Learning — Operations
 
 ## Quick Start: Hooks
@@ -147,3 +149,4 @@ v2.1 remains compatible with v2.0 and v1:
 - Only **instincts** (patterns) can be exported — not raw observations
 - No actual code or conversation content is shared
 - You control what gets exported and promoted
+<!-- END: tapps-skill-asset -->
