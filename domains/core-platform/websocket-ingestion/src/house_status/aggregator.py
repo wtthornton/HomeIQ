@@ -19,6 +19,7 @@ from .models import (
     ClimateStatus,
     HouseStatusResponse,
     PresenceStatus,
+    RoomOccupancy,
     SensorStatus,
 )
 
@@ -30,10 +31,16 @@ _BINARY_SENSOR_LABELS: dict[str, tuple[str, str]] = {
     "window": ("open", "closed"),
     "motion": ("detected", "clear"),
     "occupancy": ("detected", "clear"),
+    "presence": ("detected", "clear"),
     "garage_door": ("open", "closed"),
     "opening": ("open", "closed"),
     "lock": ("unlocked", "locked"),
 }
+
+# Device classes that indicate a sensor can speak to whether a room is
+# occupied. TAP-7585: the room roll-up must key off this single constant,
+# never an inlined device-class literal at a call site.
+_PRESENCE_DEVICE_CLASSES: frozenset[str] = frozenset({"motion", "occupancy", "presence"})
 
 
 class HouseStatusAggregator:
@@ -57,6 +64,10 @@ class HouseStatusAggregator:
         self._lights: dict[str, dict[str, Any]] = {}
         # binary_sensors: entity_id -> {name, state, device_class}
         self._binary_sensors: dict[str, dict[str, Any]] = {}
+        # room occupancy roll-up, keyed by area_id (including "unknown" for
+        # entities whose area can't be resolved):
+        # area_id -> {entities: {entity_id: raw_state}, last_changed}
+        self._room_occupancy: dict[str, dict[str, Any]] = {}
         self._switches: dict[str, str] = {}  # entity_id -> state
         self._automations: dict[str, str] = {}  # entity_id -> state
 
@@ -157,6 +168,9 @@ class HouseStatusAggregator:
             "state": human,
             "device_class": device_class,
         }
+        if device_class in _PRESENCE_DEVICE_CLASSES:
+            area_id = self._resolve_area(entity_id)
+            self._update_room_occupancy(area_id, entity_id, raw_state)
         return {"section": "sensors", "data": self._binary_sensors[entity_id]}
 
     async def _handle_switch(
@@ -203,6 +217,30 @@ class HouseStatusAggregator:
             return self._discovery.device_to_area.get(device_id, "unknown")
         return "unknown"
 
+    def _update_room_occupancy(self, area_id: str, entity_id: str, raw_state: str) -> None:
+        """Record a presence-capable sensor's latest state under its area."""
+        room = self._room_occupancy.setdefault(area_id, {"entities": {}, "last_changed": ""})
+        room["entities"][entity_id] = raw_state
+        room["last_changed"] = datetime.now(UTC).isoformat()
+
+    def _resolve_room_occupancy(self, area_id: str) -> RoomOccupancy:
+        """Return the roll-up for one area.
+
+        An area with no presence-capable sensor reports ``"unknown"`` — it
+        must never be indistinguishable from an area whose sensors are all
+        clear.
+        """
+        room = self._room_occupancy.get(area_id)
+        if not room or not room["entities"]:
+            return RoomOccupancy(area_id=area_id, state="unknown")
+        state = "detected" if any(s == "on" for s in room["entities"].values()) else "clear"
+        return RoomOccupancy(
+            area_id=area_id,
+            state=state,
+            contributing_entity_ids=sorted(room["entities"]),
+            last_changed=room["last_changed"],
+        )
+
     def _aggregate_lights(self) -> list[dict[str, Any]]:
         """Aggregate light on/off counts by area."""
         areas: dict[str, dict[str, int]] = {}
@@ -246,6 +284,11 @@ class HouseStatusAggregator:
                 sensor_groups[dc] = []
             sensor_groups[dc].append(SensorStatus(**info))
 
+        # Room occupancy roll-up, for every area a presence sensor has been seen in
+        room_occupancy = [
+            self._resolve_room_occupancy(area_id) for area_id in sorted(self._room_occupancy)
+        ]
+
         # Switches currently on
         switches_on = [eid for eid, st in self._switches.items() if st == "on"]
 
@@ -257,6 +300,7 @@ class HouseStatusAggregator:
             presence=presence,
             lights_by_area=lights_by_area,
             sensors=sensor_groups,
+            room_occupancy=room_occupancy,
             switches_on=switches_on,
             active_automations=active_automations,
             timestamp=datetime.now(UTC).isoformat(),

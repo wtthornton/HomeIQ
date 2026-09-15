@@ -43,6 +43,20 @@ class SensorStatus(BaseModel):
     device_class: str = ""
 
 
+class RoomOccupancy(BaseModel):
+    """Presence roll-up for a single area.
+
+    ``state`` is ``"detected"`` when any contributing sensor is tripped,
+    ``"clear"`` when all are clear, and ``"unknown"`` when the area has no
+    presence-capable sensor at all — never conflated with ``"clear"``.
+    """
+
+    area_id: str
+    state: str = "unknown"  # detected, clear, unknown
+    contributing_entity_ids: list[str] = Field(default_factory=list)
+    last_changed: str = ""
+
+
 class HouseStatusResponse(BaseModel):
     """Full house status snapshot returned by GET /api/status/house."""
 
@@ -50,6 +64,7 @@ class HouseStatusResponse(BaseModel):
     presence: list[PresenceStatus] = Field(default_factory=list)
     lights_by_area: list[AreaLightStatus] = Field(default_factory=list)
     sensors: dict[str, list[SensorStatus]] = Field(default_factory=dict)
+    room_occupancy: list[RoomOccupancy] = Field(default_factory=list)
     switches_on: list[str] = Field(default_factory=list)
     active_automations: list[str] = Field(default_factory=list)
     timestamp: str = ""

@@ -87,6 +87,28 @@ entities:
     unit_of_measurement: "%"
     friendly_name: "Home Assistant Core CPU Percent"
 
+  # TAP-7585: two presence-capable sensors in one area, so the house_status
+  # room occupancy roll-up is testable without real Zigbee hardware.
+  - entity_id: "binary_sensor.office_motion"
+    domain: "binary_sensor"
+    device_class: "motion"
+    base_value: "off"
+    variance: null
+    update_interval: 30  # seconds
+    unit_of_measurement: null
+    friendly_name: "Office Motion"
+    area_id: "office"
+
+  - entity_id: "binary_sensor.office_occupancy"
+    domain: "binary_sensor"
+    device_class: "occupancy"
+    base_value: "off"
+    variance: null
+    update_interval: 30  # seconds
+    unit_of_measurement: null
+    friendly_name: "Office Occupancy"
+    area_id: "office"
+
 # Simulation scenarios
 scenarios:
   - name: "normal_operation"
