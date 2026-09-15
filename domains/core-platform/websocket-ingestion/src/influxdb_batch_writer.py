@@ -187,6 +187,11 @@ class InfluxDBBatchWriter:
                 logger.warning("Failed to create InfluxDB point from room occupancy data")
                 return False
 
+            # TAP-7586 round 2: route to the dedicated, finite-retention
+            # bucket instead of the default (unbounded, in practice) bucket
+            # every other measurement shares.
+            point._target_bucket = self.schema.BUCKET_ROOM_OCCUPANCY
+
             return await self._enqueue_point(point)
 
         except Exception as e:
@@ -340,8 +345,18 @@ class InfluxDBBatchWriter:
                     logger.error("No valid points in batch")
                     return False
 
-                # Write points to InfluxDB
-                success = await self.connection_manager.write_points(valid_points)
+                # Points route to whatever bucket they were tagged with at
+                # enqueue time (e.g. room_occupancy's dedicated bucket);
+                # everything else falls through to the connection manager's
+                # default bucket.
+                by_bucket: dict[str | None, list[Point]] = {}
+                for point in valid_points:
+                    by_bucket.setdefault(getattr(point, "_target_bucket", None), []).append(point)
+
+                success = True
+                for bucket, points in by_bucket.items():
+                    if not await self.connection_manager.write_points(points, bucket=bucket):
+                        success = False
 
                 if success:
                     logger.debug(

@@ -237,12 +237,13 @@ class InfluxDBConnectionManager:
             logger.warning(f"InfluxDB health check failed: {e}")
             self.is_connected = False
 
-    async def write_points(self, points: list[Point]) -> bool:
+    async def write_points(self, points: list[Point], bucket: str | None = None) -> bool:
         """
         Write points to InfluxDB
 
         Args:
             points: List of InfluxDB Point objects
+            bucket: Bucket name (defaults to self.bucket)
 
         Returns:
             True if successful, False otherwise
@@ -251,10 +252,12 @@ class InfluxDBConnectionManager:
             logger.error("InfluxDB not connected")
             return False
 
+        target_bucket = bucket or self.bucket
+
         try:
             # Write points asynchronously
             await asyncio.to_thread(
-                self.write_api.write, bucket=self.bucket, org=self.org, record=points
+                self.write_api.write, bucket=target_bucket, org=self.org, record=points
             )
 
             logger.debug(f"Successfully wrote {len(points)} points to InfluxDB")

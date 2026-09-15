@@ -24,6 +24,12 @@ class Settings(BaseServiceSettings):
     service_name: str = "websocket-ingestion"
     influxdb_bucket: str = "home_assistant_events"
     influxdb_org: str = "homeiq"
+    # TAP-7586 round 2: room_occupancy gets its own bucket so InfluxDB itself
+    # enforces retention — home_assistant_events is unbounded in practice.
+    # This default must match infrastructure/influxdb/init-influxdb.sh's
+    # fallback, the single source both sides read (INFLUXDB_ROOM_OCCUPANCY_*).
+    influxdb_room_occupancy_bucket: str = "room_occupancy"
+    influxdb_room_occupancy_retention: str = "90d"
 
     # Home Assistant connection (supports old + new variable names)
     ha_http_url: str | None = Field(default=None)
