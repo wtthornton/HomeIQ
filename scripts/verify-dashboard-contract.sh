@@ -190,6 +190,7 @@ read -r -d '' CONTRACT <<'EOF'
 /api/v1/sports	404	http	404 (decided) bare path unused; app calls /api/v1/sports/games/* (TAP-5411)
 /api/v1/ha/status	404	http	404 (decided) no such route; data-api exposes /api/v1/ha/game-status/{team}
 /api/v1/energy	404	http	404 (decided) bare prefix is not a route; the app calls /api/v1/energy/* leaves
+/api/status/rooms	200	http	websocket-ingestion via its own nginx location (TAP-7587); reports "unknown" per area rather than 503 when there are no sensors, so 200 is the expected steady-state response
 EOF
 
 probe_http() {
