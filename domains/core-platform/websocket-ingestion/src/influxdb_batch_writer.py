@@ -161,6 +161,38 @@ class InfluxDBBatchWriter:
             logger.error(f"Error writing weather data to InfluxDB: {e}")
             return False
 
+    async def write_room_occupancy(
+        self, area_id: str, state: str, contributing_entity_count: int
+    ) -> bool:
+        """
+        Write a room-occupancy state transition to InfluxDB.
+
+        Callers must invoke this only on an actual state transition — a
+        point per inbound event would blow up cardinality.
+
+        Args:
+            area_id: The area whose occupancy state transitioned
+            state: The new rolled-up state ("detected", "clear", "unknown")
+            contributing_entity_count: Count of presence-capable sensors
+                contributing to this roll-up
+
+        Returns:
+            True if the point was queued successfully, False otherwise
+        """
+        try:
+            point = self.schema.create_room_occupancy_point(
+                area_id, state, contributing_entity_count
+            )
+            if not point:
+                logger.warning("Failed to create InfluxDB point from room occupancy data")
+                return False
+
+            return await self._enqueue_point(point)
+
+        except Exception as e:
+            logger.error(f"Error writing room occupancy to InfluxDB: {e}")
+            return False
+
     async def _processing_loop(self):
         """Main processing loop"""
         while self.is_running:

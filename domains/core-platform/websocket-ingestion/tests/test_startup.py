@@ -388,6 +388,54 @@ class TestStartInfluxdbPipeline:
 
         mock_aep.add_event_handler.assert_called_once_with(svc._write_event_to_influxdb)
 
+    async def test_wires_batch_writer_into_house_status_aggregator(self):
+        """TAP-7586: the aggregator gets the batch writer so room-occupancy
+        transitions can be persisted (mirrors the discovery-service late
+        binding in start_ha_connection)."""
+        aggregator_mock = MagicMock()
+        svc = make_svc(house_status_aggregator=aggregator_mock)
+
+        mock_mgr = AsyncMock()
+        historical_mock = AsyncMock()
+        historical_mock.initialize_historical_totals = AsyncMock(
+            return_value={"total_events_received": 0}
+        )
+        batch_writer_mock = AsyncMock()
+
+        with (
+            patch(_INFLUXDB_CONN_MANAGER, return_value=mock_mgr),
+            patch(_HISTORICAL_COUNTER, return_value=historical_mock),
+            patch(_INFLUXDB_BATCH_WRITER, return_value=batch_writer_mock),
+        ):
+            from src._startup import start_influxdb_pipeline
+
+            await start_influxdb_pipeline(svc, "corr-002")
+
+        assert aggregator_mock._batch_writer is batch_writer_mock
+
+    async def test_skips_wiring_when_house_status_aggregator_is_none(self):
+        """House status aggregation is an optional layer (Epic 28) — when init
+        failed and left it None, batch-writer wiring must not raise."""
+        svc = make_svc(house_status_aggregator=None)
+
+        mock_mgr = AsyncMock()
+        historical_mock = AsyncMock()
+        historical_mock.initialize_historical_totals = AsyncMock(
+            return_value={"total_events_received": 0}
+        )
+        batch_writer_mock = AsyncMock()
+
+        with (
+            patch(_INFLUXDB_CONN_MANAGER, return_value=mock_mgr),
+            patch(_HISTORICAL_COUNTER, return_value=historical_mock),
+            patch(_INFLUXDB_BATCH_WRITER, return_value=batch_writer_mock),
+        ):
+            from src._startup import start_influxdb_pipeline
+
+            await start_influxdb_pipeline(svc, "corr-002")  # must not raise
+
+        assert svc.house_status_aggregator is None
+
 
 # ---------------------------------------------------------------------------
 # Tests: start_ha_connection

@@ -175,3 +175,55 @@ def test_room_occupancy_model_fields() -> None:
     assert room.state == "clear"
     assert room.contributing_entity_ids == ["binary_sensor.office_motion"]
     assert room.last_changed == "2026-09-14T00:00:00+00:00"
+
+
+class _FakeBatchWriter:
+    """Records every room-occupancy write instead of touching InfluxDB."""
+
+    def __init__(self) -> None:
+        self.room_occupancy_writes: list[tuple[str, str, int]] = []
+
+    async def write_room_occupancy(
+        self, area_id: str, state: str, contributing_entity_count: int
+    ) -> bool:
+        self.room_occupancy_writes.append((area_id, state, contributing_entity_count))
+        return True
+
+
+async def test_state_transition_writes_exactly_one_point_per_change() -> None:
+    """TAP-7586 VAL-0/VAL-2: a real transition writes one point; the same
+    transition observed again (same resolved state) writes zero more.
+
+    office: unknown -> detected (motion on)         => +1 point
+            detected -> detected (occupancy also on) => +0 (state unchanged)
+            detected -> clear (both sensors off)      => +1 point
+            clear -> clear (motion off again)         => +0 (state unchanged)
+    """
+    discovery = make_discovery(
+        {
+            "binary_sensor.office_motion": "office",
+            "binary_sensor.office_occupancy": "office",
+        }
+    )
+    writer = _FakeBatchWriter()
+    aggregator = HouseStatusAggregator(discovery_service=discovery, influxdb_batch_writer=writer)
+
+    await aggregator.process_state_change(
+        "binary_sensor.office_motion", binary_sensor_state("motion", "on"), None
+    )
+    await aggregator.process_state_change(
+        "binary_sensor.office_occupancy", binary_sensor_state("occupancy", "on"), None
+    )
+    await aggregator.process_state_change(
+        "binary_sensor.office_motion", binary_sensor_state("motion", "off"), None
+    )
+    await aggregator.process_state_change(
+        "binary_sensor.office_occupancy", binary_sensor_state("occupancy", "off"), None
+    )
+    await aggregator.process_state_change(
+        "binary_sensor.office_motion", binary_sensor_state("motion", "off"), None
+    )
+
+    assert len(writer.room_occupancy_writes) == 2
+    assert writer.room_occupancy_writes[0] == ("office", "detected", 1)
+    assert writer.room_occupancy_writes[1] == ("office", "clear", 2)

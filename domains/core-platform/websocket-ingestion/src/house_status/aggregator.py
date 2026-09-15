@@ -51,11 +51,20 @@ class HouseStatusAggregator:
     discovery_service:
         Optional ``DiscoveryService`` used to resolve entity-to-area
         mappings.  When *None* lights are grouped under ``"unknown"``.
+    influxdb_batch_writer:
+        Optional ``InfluxDBBatchWriter`` (duck-typed via ``write_room_occupancy``)
+        used to persist room-occupancy state transitions. When *None* the
+        roll-up is still maintained in memory but nothing is written.
     """
 
-    def __init__(self, discovery_service: Any | None = None) -> None:
+    def __init__(
+        self,
+        discovery_service: Any | None = None,
+        influxdb_batch_writer: Any | None = None,
+    ) -> None:
         self._lock = asyncio.Lock()
         self._discovery = discovery_service
+        self._batch_writer = influxdb_batch_writer
 
         # Category caches keyed by entity_id unless noted otherwise.
         self._climate: dict[str, dict[str, Any]] = {}
@@ -68,6 +77,10 @@ class HouseStatusAggregator:
         # entities whose area can't be resolved):
         # area_id -> {entities: {entity_id: raw_state}, last_changed}
         self._room_occupancy: dict[str, dict[str, Any]] = {}
+        # area_id -> last resolved state persisted to InfluxDB. Used to
+        # detect a transition; a repeated identical resolved state must
+        # never enqueue another point (cardinality bound).
+        self._room_occupancy_last_written_state: dict[str, str] = {}
         self._switches: dict[str, str] = {}  # entity_id -> state
         self._automations: dict[str, str] = {}  # entity_id -> state
 
@@ -170,7 +183,7 @@ class HouseStatusAggregator:
         }
         if device_class in _PRESENCE_DEVICE_CLASSES:
             area_id = self._resolve_area(entity_id)
-            self._update_room_occupancy(area_id, entity_id, raw_state)
+            await self._update_room_occupancy(area_id, entity_id, raw_state)
         return {"section": "sensors", "data": self._binary_sensors[entity_id]}
 
     async def _handle_switch(
@@ -217,11 +230,29 @@ class HouseStatusAggregator:
             return self._discovery.device_to_area.get(device_id, "unknown")
         return "unknown"
 
-    def _update_room_occupancy(self, area_id: str, entity_id: str, raw_state: str) -> None:
-        """Record a presence-capable sensor's latest state under its area."""
+    async def _update_room_occupancy(self, area_id: str, entity_id: str, raw_state: str) -> None:
+        """Record a presence-capable sensor's latest state under its area.
+
+        Persists a point to InfluxDB only when the area's rolled-up state
+        actually transitions (TAP-7586) — a point per inbound event would
+        blow up cardinality, so a repeated identical resolved state writes
+        nothing.
+        """
         room = self._room_occupancy.setdefault(area_id, {"entities": {}, "last_changed": ""})
         room["entities"][entity_id] = raw_state
         room["last_changed"] = datetime.now(UTC).isoformat()
+
+        resolved = self._resolve_room_occupancy(area_id)
+        if self._room_occupancy_last_written_state.get(area_id) == resolved.state:
+            return
+
+        self._room_occupancy_last_written_state[area_id] = resolved.state
+        if self._batch_writer is not None:
+            await self._batch_writer.write_room_occupancy(
+                area_id=area_id,
+                state=resolved.state,
+                contributing_entity_count=len(resolved.contributing_entity_ids),
+            )
 
     def _resolve_room_occupancy(self, area_id: str) -> RoomOccupancy:
         """Return the roll-up for one area.

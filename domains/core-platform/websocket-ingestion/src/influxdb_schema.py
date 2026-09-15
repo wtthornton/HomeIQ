@@ -59,6 +59,9 @@ class InfluxDBSchema:
         self.MEASUREMENT_WEATHER = "weather_data"  # weather_data bucket
         self.MEASUREMENT_SPORTS = "sports_data"  # sports_data bucket
         self.MEASUREMENT_SYSTEM = "system_metrics"  # system_metrics bucket
+        # TAP-7586: first measurement about people rather than devices — a
+        # point per room-occupancy state transition, never per inbound event.
+        self.MEASUREMENT_ROOM_OCCUPANCY = "room_occupancy"
 
         # Tag keys for efficient querying (Epic 23 Enhanced)
         self.TAG_ENTITY_ID = "entity_id"
@@ -97,6 +100,8 @@ class InfluxDBSchema:
         self.FIELD_MANUFACTURER = "manufacturer"
         self.FIELD_MODEL = "model"
         self.FIELD_SW_VERSION = "sw_version"
+        # TAP-7586: room_occupancy fields
+        self.FIELD_CONTRIBUTING_ENTITY_COUNT = "contributing_entity_count"
 
         # Retention policies (Current Configuration - January 2025)
         #
@@ -114,6 +119,8 @@ class InfluxDBSchema:
         self.RETENTION_SPORTS_DATA = "90d"  # sports_data bucket — DECLARED, bucket empty
         self.RETENTION_WEATHER_DATA = "180d"  # weather_data bucket — DECLARED, bucket empty
         self.RETENTION_SYSTEM_METRICS = "30d"  # system_metrics bucket — DECLARED, bucket empty
+        # TAP-7586: explicit finite retention — never inherit an unbounded default.
+        self.RETENTION_ROOM_OCCUPANCY = "90d"
 
     def create_event_point(self, event_data: dict[str, Any]) -> Point | None:
         """
@@ -227,6 +234,41 @@ class InfluxDBSchema:
 
         except Exception as e:
             logger.error(f"Error creating weather point: {e}")
+            return None
+
+    def create_room_occupancy_point(
+        self, area_id: str, state: str, contributing_entity_count: int
+    ) -> Point | None:
+        """
+        Create InfluxDB Point for a room-occupancy state transition.
+
+        Callers must invoke this only when the rolled-up state actually
+        changed — one point per transition, never one per inbound event.
+
+        Args:
+            area_id: The area whose occupancy state transitioned
+            state: The new rolled-up state ("detected", "clear", "unknown")
+            contributing_entity_count: Count of presence-capable sensors
+                contributing to this roll-up
+
+        Returns:
+            InfluxDB Point object or None if invalid
+        """
+        if not Point:
+            logger.warning("InfluxDB Point not available")
+            return None
+
+        try:
+            point = Point(self.MEASUREMENT_ROOM_OCCUPANCY).time(
+                datetime.now(UTC), WritePrecision.MS
+            )
+            point = point.tag(self.TAG_AREA_ID, area_id)
+            point = point.field(self.FIELD_STATE, state)
+            point = point.field(self.FIELD_CONTRIBUTING_ENTITY_COUNT, contributing_entity_count)
+            return point
+
+        except Exception as e:
+            logger.error(f"Error creating room occupancy point: {e}")
             return None
 
     def _extract_attributes(self, event_data: dict[str, Any]) -> dict[str, Any]:
@@ -500,6 +542,13 @@ class InfluxDBSchema:
                 "shard_duration": "7d",
                 "replication": 1,
                 "description": "System metrics retention for 30 days",
+            },
+            {
+                "name": self.MEASUREMENT_ROOM_OCCUPANCY,
+                "duration": self.RETENTION_ROOM_OCCUPANCY,
+                "shard_duration": "7d",
+                "replication": 1,
+                "description": "Room occupancy transition retention for 90 days",
             },
         ]
 
