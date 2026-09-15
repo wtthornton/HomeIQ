@@ -266,9 +266,7 @@ class TestInfluxDBSchema:
         default silently.
         """
         measurement_names = {
-            value
-            for attr, value in vars(self.schema).items()
-            if attr.startswith("MEASUREMENT_")
+            value for attr, value in vars(self.schema).items() if attr.startswith("MEASUREMENT_")
         }
         policy_names = {p["name"] for p in self.schema.get_retention_policies()}
 

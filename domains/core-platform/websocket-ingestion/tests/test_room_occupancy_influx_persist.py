@@ -76,7 +76,7 @@ async def test_seven_day_flux_query_would_return_the_simulated_transition() -> N
 
     # The Flux query this box requires: 7-day range, named area.
     query = flux_seven_day_query_for_area(area_id)
-    assert 'range(start: -7d)' in query
+    assert "range(start: -7d)" in query
     assert f'r.area_id == "{area_id}"' in query
 
     # Mechanically verify the point satisfies every predicate the query filters on.
