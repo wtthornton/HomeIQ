@@ -40,13 +40,18 @@ the developer's tree.
 ## Current inventory (11 containers, 20 bind sources into the checkout)
 
 This is every bind source that resolves inside the checkout, `logs`
-included. TAP-7646's own text enumerates 18 sources over a narrower
-population: it explicitly excludes the gitignored `logs` mount ("it has
-zero tracked files, so git never touches it") and never names
-`homeiq-device-intelligence`, which this table does list. This document's
-20 is the number `check-bind-mounts.py` measures and enforces — it counts
-live bind sources, not tracked-file status — so it is the number this repo
-gates on.
+included. TAP-7646 itself states **20** in three places — its title ("20
+bind-mounts make the git checkout live production config"), `## What`
+("Twenty bind-mounts") and `## Why` ("Twenty bind sources") — but its own
+itemized list only sums to **18** (prometheus 4, postgres 3, grafana 2,
+admin 2, automation-linter 3, data-api 1, setup-service 1, rag-service 1,
+alertmanager 1 = 18). The list is short by exactly the two sources it never
+names: `homeiq-device-intelligence` (1 source) and the `logs` mount under
+`homeiq-log-aggregator` (1 source). This is an inconsistency internal to
+TAP-7646 — it asserts 20 and enumerates 18 — not a disagreement between the
+issue and this document. This table's 20 is the number `check-bind-mounts.py`
+measures and enforces, and it is also the number that resolves the issue's
+own internal gap.
 
 | Container | Bind source (relative to repo root) | Destination after the move |
 |---|---|---|
@@ -64,19 +69,21 @@ gates on.
 | `homeiq-postgres` | `infrastructure/postgres/init-schemas.sql` | same relative path under the deploy root |
 | `homeiq-postgres` | `infrastructure/postgres/init-monitoring.sql` | same relative path under the deploy root |
 | `homeiq-postgres` | `infrastructure/postgres/postgresql.conf` | same relative path under the deploy root |
-| `homeiq-rag-service` | `domains/ml-engine/rag-service/data` | **see below — not tracked on `master`** |
+| `homeiq-rag-service` | `domains/ml-engine/rag-service/data` | **see below — already served by `model-server` on `master`; container to be stopped, not seeded** |
 | `homeiq-prometheus` | `infrastructure/prometheus/alerts.yml` | same relative path under the deploy root |
 | `homeiq-prometheus` | `infrastructure/prometheus/prometheus.yml` | same relative path under the deploy root |
 | `homeiq-prometheus` | `infrastructure/prometheus/sla-rules.yml` | same relative path under the deploy root |
 | `homeiq-prometheus` | `infrastructure/prometheus/zeek-alerts.yml` | same relative path under the deploy root |
 | `homeiq-alertmanager` | `infrastructure/alertmanager` | same relative path under the deploy root |
 
-For every row except `rag-service` and `logs`, the fix is mechanical: the
-same path exists under `master`, so checking out `master` at the deploy
-root and redeploying from there reproduces the file at the new location —
-the mount source string just moves with the tree.
+For every row except `logs`, the fix is mechanical: the same path (or, for
+`rag-service`, the same bytes tracked under a different, already-existing
+path) exists under `master`, so checking out `master` at the deploy root and
+redeploying from there reproduces the content at the new location — no seed
+copy needed. `rag-service` is mechanical for the data; what it needs instead
+is a retirement action, covered below.
 
-## The two rows that aren't mechanical: `logs` and `rag-service`
+## The one row that needs a seed, and the one that was misdiagnosed: `logs` and `rag-service`
 
 ### `logs`
 
@@ -93,38 +100,48 @@ container itself populates it from empty.
 
 `domains/ml-engine/rag-service/` carries **0 tracked files on `master`** (the
 service was merged into `model-server`; the old branch had 31 files there).
-The running `homeiq-rag-service` container still binds
-`domains/ml-engine/rag-service/data` from the old, untracked checkout state —
-content that git does not know about and a fresh clone will not produce.
+That is true, but its data is **not** lost: it moved with the merge and is
+tracked, byte-identical, under `model-server`'s path:
 
-The destination is already decided: a path under
-`/home/wtthornton/deploy-roots/homeiq-master`, same as every other row. What
-makes that safe here is narrower than "survives deletion or re-clone" — the
-deploy root **is** a git working tree (`git -C
-/home/wtthornton/deploy-roots/homeiq-master rev-parse
---is-inside-work-tree` returns `true`), and its `HEAD` advances at every
-deploy. What protects `domains/ml-engine/rag-service/data` is that it has
-**0 tracked files on `master`**
-(`git -C <deploy root> ls-tree -r origin/master --
-domains/ml-engine/rag-service/` returns nothing), so it is untracked at
-that path — and advancing the deploy root's `HEAD` does not touch untracked
-files. A fresh clone, however, does **not** reproduce this content at all:
-there is nothing in git to clone.
+```
+md5 /home/wtthornton/code/HomeIQ/domains/ml-engine/rag-service/data/rag_service.db
+  = 95f214551a83d3b209b08729d92c01f6
+md5 of git show origin/master:domains/ml-engine/model-server/data/rag_service.db
+  = 95f214551a83d3b209b08729d92c01f6
+git ls-tree -r --name-only origin/master -- domains/ml-engine/model-server/data/
+  = domains/ml-engine/model-server/data/rag_service.db
+```
 
-Before the deploy-window move, whoever re-points this mount must:
+`rag-service` is not a service on `master` at all — the four services folded
+into `model-server` are openvino-service, ml-service, rag-service and a
+fourth (`docs/architecture/collapse-map.md:384`), so nothing on `master`
+mounts `domains/ml-engine/rag-service/`. The successor already reads its own
+copy of the same bytes:
 
-1. Copy the live `data/` directory's current contents out of the old checkout
-   (not out of git — it was never tracked) to
-   `domains/ml-engine/rag-service/data` under the deploy root, as a one-time
-   copy: `cp -a /home/wtthornton/code/HomeIQ/domains/ml-engine/rag-service/data
-   /home/wtthornton/deploy-roots/homeiq-master/domains/ml-engine/rag-service/`.
-2. Record that one-time seed command in the deploy runbook so a future fresh
-   install does not silently start `rag-service` with an empty data
-   directory.
+```
+domains/ml-engine/compose.yml:24   - RAG_DATABASE_PATH=/app/data/rag_service.db
+domains/ml-engine/compose.yml:29   - ./model-server/data:/app/data
+```
 
-This document exists to make both the `logs` and `rag-service` gaps visible
-before the move, not to close them — closing them is the deploying
-operator's job in the approved window.
+A `master` checkout at the deploy root reproduces that file with no copy
+step — the row needs no seed, and the fresh-clone framing this section used
+to carry ("content that git does not know about and a fresh clone will not
+produce") is backwards: a fresh clone reproduces it exactly, under
+`model-server`'s path.
+
+The `homeiq-rag-service` bind mount is live today only because the **old**
+checkout still has the pre-merge `rag-service` directory and its data file
+on disk; `master` never creates that path and `model-server` never reads
+from it. What this row needs during the deploy-window move is not a seed
+command but a retirement step: stop the `homeiq-rag-service` container (it
+is already scheduled for retirement, having been folded into `model-server`)
+so nothing keeps a mount open into the old tree after cutover. Do not copy
+`domains/ml-engine/rag-service/data` anywhere — that would seed a path
+nothing on `master` reads.
+
+This document exists to make the `logs` seed step and the `rag-service`
+retirement step visible before the move, not to perform them — that is the
+deploying operator's job in the approved window.
 
 ## Verifying the fix later
 
