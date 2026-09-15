@@ -19,6 +19,7 @@ import { DataFreshnessIndicator } from '../DataFreshnessIndicator';
 import { ServiceHealthResponse } from '../../types/health';
 import { apiService, dataApi } from '../../services/api';
 import { ConventionComplianceCard } from '../ConventionComplianceCard';
+import { RoomOccupancyCard } from '../RoomOccupancyCard';
 import { TabProps } from './types';
 
 // Enhanced status color system (Phase 2.2)
@@ -701,6 +702,14 @@ export const OverviewTab: React.FC<TabProps> = ({ darkMode }) => {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Room Occupancy (TAP-7587) */}
+      <div className="mb-8" data-testid="room-occupancy-section">
+        <h2 className={`text-xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+          🚪 Room Occupancy
+        </h2>
+        <RoomOccupancyCard />
       </div>
 
       {/* RAG Status Monitor - Option 1: Integrated RAG Status Card */}

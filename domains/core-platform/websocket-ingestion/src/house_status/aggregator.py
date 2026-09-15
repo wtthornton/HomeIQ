@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .models import (
     AreaLightStatus,
@@ -22,6 +22,9 @@ from .models import (
     RoomOccupancy,
     SensorStatus,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +121,18 @@ class HouseStatusAggregator:
         """Return a full snapshot of the current house status."""
         async with self._lock:
             return self._build_snapshot()
+
+    async def get_rooms(self, known_area_ids: Iterable[str]) -> list[RoomOccupancy]:
+        """Return the presence roll-up for every known area (TAP-7587).
+
+        Unlike ``room_occupancy`` on the full snapshot — which only lists
+        areas a presence sensor has reported for — this unions in
+        ``known_area_ids`` (data-api's area registry) so a zero-sensor area
+        is still returned, with state ``"unknown"`` rather than omitted.
+        """
+        async with self._lock:
+            area_ids = set(known_area_ids) | set(self._room_occupancy)
+            return [self._resolve_room_occupancy(area_id) for area_id in sorted(area_ids)]
 
     # -- private handlers per domain ------------------------------------------
 
@@ -332,6 +347,9 @@ class HouseStatusAggregator:
             lights_by_area=lights_by_area,
             sensors=sensor_groups,
             room_occupancy=room_occupancy,
+            # Sensor-only default; a caller with the known-area set from
+            # data-api (house_status.known_areas) upgrades this via get_rooms().
+            rooms=room_occupancy,
             switches_on=switches_on,
             active_automations=active_automations,
             timestamp=datetime.now(UTC).isoformat(),
