@@ -224,6 +224,64 @@ class TestDiscoveryService:
         assert entries == []
 
     @pytest.mark.asyncio
+    async def test_discover_areas_success(self):
+        """TAP-7584: discover_areas returns HA's area registry, including a
+        zero-entity area — the whole point of reading the registry directly
+        rather than deriving areas from entities."""
+        mock_areas = [
+            {"area_id": "kitchen", "name": "Kitchen", "floor_id": "ground_floor"},
+            {"area_id": "empty_attic", "name": "Empty Attic", "floor_id": None},
+        ]
+        ha = FakeHomeAssistant(self.service).on("config/area_registry/list", result=mock_areas)
+
+        areas = await self.service.discover_areas(ha.websocket)
+
+        assert len(areas) == 2
+        assert areas[1]["area_id"] == "empty_attic"
+        assert ha.command_of("config/area_registry/list")["type"] == "config/area_registry/list"
+
+    @pytest.mark.asyncio
+    async def test_discover_areas_failure(self):
+        """A failed area registry command returns an empty list, not a crash"""
+        ha = FakeHomeAssistant(self.service).on(
+            "config/area_registry/list", success=False, error={"message": "nope"}
+        )
+
+        areas = await self.service.discover_areas(ha.websocket)
+
+        assert areas == []
+
+    @pytest.mark.asyncio
+    async def test_discover_areas_without_transport(self):
+        """No websocket and no connection manager means nothing to send on"""
+        areas = await self.service.discover_areas()
+
+        assert areas == []
+
+    @pytest.mark.asyncio
+    async def test_discover_floors_success(self):
+        """TAP-7584: discover_floors returns HA's floor registry"""
+        mock_floors = [{"floor_id": "ground_floor", "name": "Ground Floor"}]
+        ha = FakeHomeAssistant(self.service).on("config/floor_registry/list", result=mock_floors)
+
+        floors = await self.service.discover_floors(ha.websocket)
+
+        assert len(floors) == 1
+        assert floors[0]["name"] == "Ground Floor"
+        assert ha.command_of("config/floor_registry/list")["type"] == "config/floor_registry/list"
+
+    @pytest.mark.asyncio
+    async def test_discover_floors_failure(self):
+        """A failed floor registry command returns an empty list, not a crash"""
+        ha = FakeHomeAssistant(self.service).on(
+            "config/floor_registry/list", success=False, error={"message": "nope"}
+        )
+
+        floors = await self.service.discover_floors(ha.websocket)
+
+        assert floors == []
+
+    @pytest.mark.asyncio
     async def test_discover_all_success(self):
         """Test complete discovery of all registries"""
         ha = (
@@ -231,6 +289,8 @@ class TestDiscoveryService:
             .on("config/device_registry/list", result=[{"id": "dev1", "name": "Device 1"}])
             .on("config/entity_registry/list", result=[{"entity_id": "light.test"}])
             .on("config_entries/list", result=[{"entry_id": "entry1", "title": "Test"}])
+            .on("config/area_registry/list", result=[{"area_id": "office", "name": "Office"}])
+            .on("config/floor_registry/list", result=[])
         )
 
         result = await self.service.discover_all(ha.websocket, store=False)
@@ -238,6 +298,8 @@ class TestDiscoveryService:
         assert len(result["devices"]) == 1
         assert len(result["entities"]) == 1
         assert len(result["config_entries"]) == 1
+        assert len(result["areas"]) == 1
+        assert result["floors"] == []
         assert "services" in result
         self.service.store_discovery_results.assert_not_awaited()
 
@@ -249,6 +311,8 @@ class TestDiscoveryService:
             .on("config/device_registry/list", result=[{"id": "dev1"}])
             .on("config/entity_registry/list", result=[{"entity_id": "light.test"}])
             .on("config_entries/list", result=[])
+            .on("config/area_registry/list", result=[])
+            .on("config/floor_registry/list", result=[])
         )
 
         await self.service.discover_all(ha.websocket, store=True)
@@ -263,6 +327,8 @@ class TestDiscoveryService:
             .on("config/device_registry/list", result=[{"id": "dev1"}])
             .on("config/entity_registry/list", success=False, error={"message": "boom"})
             .on("config_entries/list", success=False, error={"message": "boom"})
+            .on("config/area_registry/list", success=False, error={"message": "boom"})
+            .on("config/floor_registry/list", success=False, error={"message": "boom"})
         )
 
         result = await self.service.discover_all(ha.websocket, store=False)
@@ -271,6 +337,8 @@ class TestDiscoveryService:
         assert len(result["devices"]) == 1
         assert result["entities"] == []
         assert result["config_entries"] == []
+        assert result["areas"] == []
+        assert result["floors"] == []
 
     @pytest.mark.asyncio
     async def test_wait_for_response_success(self):

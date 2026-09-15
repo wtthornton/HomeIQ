@@ -203,3 +203,50 @@ async def test_store_discovery_results_posts_to_data_api(
         )
     assert ok is True
     assert mock_post.called
+
+
+@pytest.mark.asyncio
+async def test_store_discovery_results_posts_areas_with_floor_name_merged(discovery_service):
+    """TAP-7584: store_discovery_results posts areas to data-api, merging in the
+    floor registry's name — HA's area registry entry itself only carries
+    floor_id, not the floor's name. Box 5: an area with no floor gets
+    floor_id/floor_name null in the payload, never a fabricated default.
+    """
+    with patch("aiohttp.ClientSession") as MockSession:
+        mock_post = AsyncMock()
+        mock_resp = MagicMock()
+        mock_resp.status = 200
+        mock_resp.json = AsyncMock(return_value={"upserted": 2})
+        mock_post.return_value.__aenter__.return_value = mock_resp
+        mock_post.return_value.__aexit__ = AsyncMock(return_value=None)
+
+        mock_sess = MagicMock()
+        mock_sess.post = mock_post
+        mock_sess.__aenter__ = AsyncMock(return_value=mock_sess)
+        mock_sess.__aexit__ = AsyncMock(return_value=None)
+        MockSession.return_value = mock_sess
+
+        ok = await discovery_service.store_discovery_results(
+            [],
+            [],
+            [],
+            None,
+            [
+                {"area_id": "kitchen", "name": "Kitchen", "floor_id": "ground_floor"},
+                {"area_id": "empty_attic", "name": "Empty Attic"},
+            ],
+            [{"floor_id": "ground_floor", "name": "Ground Floor"}],
+        )
+
+    assert ok is True
+    areas_call = next(
+        call
+        for call in mock_post.call_args_list
+        if call.args and call.args[0].endswith("/internal/areas/bulk_upsert")
+    )
+    areas_payload = areas_call.kwargs["json"]
+    by_id = {a["area_id"]: a for a in areas_payload}
+    assert by_id["kitchen"]["floor_id"] == "ground_floor"
+    assert by_id["kitchen"]["floor_name"] == "Ground Floor"
+    assert by_id["empty_attic"]["floor_id"] is None
+    assert by_id["empty_attic"]["floor_name"] is None

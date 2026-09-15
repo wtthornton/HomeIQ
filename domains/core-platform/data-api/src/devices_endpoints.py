@@ -693,6 +693,66 @@ async def internal_list_areas(db: AsyncSession = Depends(get_db)):
     return await list_areas(db=db)
 
 
+@router.post("/internal/areas/bulk_upsert")
+async def bulk_upsert_areas(areas: list[dict[str, Any]], db: AsyncSession = Depends(get_db)):
+    """
+    Internal endpoint for websocket-ingestion to bulk upsert areas from HA's
+    area registry (TAP-7584).
+
+    This is the only writer of ``source="ha_registry"`` — the only other value
+    an Area row can carry is "inferred", from the one-time migration backfill.
+    Upsert on area_id so a repeated discovery pass does not duplicate or error.
+    ``floor_id``/``floor_name`` are left null when HA supplies no floor for an
+    area rather than being defaulted (box 5).
+    """
+    try:
+        upserted_count = 0
+
+        for area_data in areas:
+            area_id = area_data.get("area_id")
+            if not area_id:
+                logger.warning("Skipping area without area_id")
+                continue
+
+            result = await db.execute(select(Area).where(Area.area_id == area_id))
+            existing_area = result.scalar_one_or_none()
+
+            area_values = {
+                "area_id": area_id,
+                "name": area_data.get("name") or area_id,
+                "floor_id": area_data.get("floor_id"),
+                "floor_name": area_data.get("floor_name"),
+                "source": "ha_registry",
+            }
+
+            if existing_area:
+                for key, value in area_values.items():
+                    if key != "area_id":
+                        setattr(existing_area, key, value)
+            else:
+                db.add(Area(**area_values))
+
+            upserted_count += 1
+
+        await db.commit()
+
+        logger.info(f"Bulk upserted {upserted_count} areas from HA area registry")
+
+        return {
+            "success": True,
+            "upserted": upserted_count,
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Error bulk upserting areas: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to bulk upsert areas: {str(e)}",
+        ) from e
+
+
 # ============================================================================
 # Story 62.2: Labels endpoint
 # ============================================================================
