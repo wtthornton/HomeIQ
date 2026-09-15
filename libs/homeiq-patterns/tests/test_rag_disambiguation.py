@@ -14,13 +14,15 @@ _project_root = str(Path(__file__).resolve().parents[3])
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-# Load RAG service modules directly (avoid __init__.py import chain)
+# Load RAG service modules directly (avoid __init__.py import chain).
+# ha-ai-agent-service folded into automation-domain's agent slice (e8583910).
 _agent_services = (
     Path(__file__).resolve().parents[3]
     / "domains"
     / "automation-core"
-    / "ha-ai-agent-service"
+    / "automation-domain"
     / "src"
+    / "agent"
     / "services"
 )
 
