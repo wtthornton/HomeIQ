@@ -200,6 +200,9 @@ class AreaResponse(BaseModel):
     floor_id: str | None = Field(
         default=None, description="Floor this area belongs to, or null if unassigned"
     )
+    floor_name: str | None = Field(
+        default=None, description="Human-readable name of the floor, or null if unassigned"
+    )
 
 
 class AreasListResponse(BaseModel):
@@ -656,12 +659,13 @@ async def list_areas(db: AsyncSession = Depends(get_db)):
                 Area.area_id.label("area_id"),
                 Area.name.label("name"),
                 Area.floor_id.label("floor_id"),
+                Area.floor_name.label("floor_name"),
                 func.count(entity_areas.c.entity_id).label("entity_count"),
                 func.array_agg(func.distinct(entity_areas.c.domain)).label("domains"),
             )
             .select_from(Area)
             .outerjoin(entity_areas, entity_areas.c.area_id == Area.area_id)
-            .group_by(Area.area_id, Area.name, Area.floor_id)
+            .group_by(Area.area_id, Area.name, Area.floor_id, Area.floor_name)
             .order_by(Area.area_id)
         )
         result = await db.execute(query)
@@ -676,6 +680,7 @@ async def list_areas(db: AsyncSession = Depends(get_db)):
                 entity_count=row.entity_count,
                 domains=sorted(d for d in (row.domains or []) if d),
                 floor_id=row.floor_id if isinstance(row.floor_id, str) else None,
+                floor_name=row.floor_name if isinstance(row.floor_name, str) else None,
             )
             for row in rows
         ]

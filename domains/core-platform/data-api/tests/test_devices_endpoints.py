@@ -842,6 +842,106 @@ class TestListAreasEndpointTap7584:
         assert "floor_id" in body["areas"][0]
         assert body["areas"][0]["floor_id"] is None
 
+    @pytest.mark.asyncio
+    async def test_floor_name_present_when_area_has_a_floor(self):
+        """TAP-7671: an area whose floor has a name returns that name."""
+        from src.cache import cache
+        from src.database import get_db
+        from src.devices_endpoints import router
+
+        await cache.clear()
+
+        mock_row = MagicMock()
+        mock_row.area_id = "kitchen"
+        mock_row.name = "Kitchen"
+        mock_row.floor_id = "ground_floor"
+        mock_row.floor_name = "Ground Floor"
+        mock_row.entity_count = 3
+        mock_row.domains = ["light"]
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.all.return_value = [mock_row]
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        app = FastAPI()
+        app.include_router(router)
+        app.dependency_overrides[get_db] = _make_db_override(mock_session)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get("/api/areas")
+        assert resp.status_code == 200
+        assert resp.json()["areas"][0]["floor_name"] == "Ground Floor"
+
+    @pytest.mark.asyncio
+    async def test_floor_name_null_when_area_has_no_floor(self):
+        """TAP-7671: no floor assigned returns floor_name null, never a
+        fabricated default, asserted separately from the floor_id null case
+        so either can fail independently."""
+        from src.cache import cache
+        from src.database import get_db
+        from src.devices_endpoints import router
+
+        await cache.clear()
+
+        mock_row = MagicMock()
+        mock_row.area_id = "garage"
+        mock_row.name = "Garage"
+        mock_row.floor_id = None
+        mock_row.floor_name = None
+        mock_row.entity_count = 1
+        mock_row.domains = ["switch"]
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.all.return_value = [mock_row]
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        app = FastAPI()
+        app.include_router(router)
+        app.dependency_overrides[get_db] = _make_db_override(mock_session)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get("/api/areas")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert "floor_name" in body["areas"][0]
+        assert body["areas"][0]["floor_name"] is None
+
+    @pytest.mark.asyncio
+    async def test_floor_id_and_floor_name_agree_on_same_row(self):
+        """TAP-7671: floor_id and floor_name must come from the same row, so
+        a future change cannot populate one and drop the other."""
+        from src.cache import cache
+        from src.database import get_db
+        from src.devices_endpoints import router
+
+        await cache.clear()
+
+        mock_row = MagicMock()
+        mock_row.area_id = "office"
+        mock_row.name = "Office"
+        mock_row.floor_id = "upstairs"
+        mock_row.floor_name = "Upstairs"
+        mock_row.entity_count = 2
+        mock_row.domains = ["sensor"]
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.all.return_value = [mock_row]
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        app = FastAPI()
+        app.include_router(router)
+        app.dependency_overrides[get_db] = _make_db_override(mock_session)
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            resp = await c.get("/api/areas")
+        assert resp.status_code == 200
+        area = resp.json()["areas"][0]
+        assert area["floor_id"] == "upstairs"
+        assert area["floor_name"] == "Upstairs"
+
 
 class TestListLabelsEndpoint:
     """GET /api/labels"""
