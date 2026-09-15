@@ -192,7 +192,10 @@ services:
       - LOG_FILE_PATH=${LOG_FILE_PATH:-/app/logs}
       - LOG_FORMAT=json
       - LOG_OUTPUT=both
-      - API_KEY=${API_KEY:-}
+      # Required (TAP-7318): also the bearer token /api/status/house and
+      # /ws/status now check. An empty default would let the stack start
+      # with those endpoints unreachable by anyone, dashboard included.
+      - API_KEY=${API_KEY:?required}
       - WEBSOCKET_MAX_RETRIES=${WEBSOCKET_MAX_RETRIES:--1}
       - WEBSOCKET_MAX_RETRY_DELAY=${WEBSOCKET_MAX_RETRY_DELAY:-300}
       - STORE_DEVICE_HISTORY_IN_INFLUXDB=${STORE_DEVICE_HISTORY_IN_INFLUXDB:-false}
@@ -330,7 +333,10 @@ services:
       # container start and injects it as the Authorization header, so the
       # credential never reaches the browser. The VITE_* values below are build
       # -time inputs; they are kept here only for parity with the build args.
-      - DASHBOARD_API_KEY=${API_KEY:-}
+      # Required (TAP-7318): websocket-ingestion now checks this same value on
+      # /ws/status and /api/status/house — an empty default would start the
+      # stack with the dashboard unable to authenticate to either.
+      - DASHBOARD_API_KEY=${API_KEY:?required}
       - VITE_API_BASE_URL=
       - VITE_DATA_API_URL=
       - VITE_WS_INGESTION_URL=${HOMEIQ_WS_INGESTION_URL:-}
@@ -822,7 +828,8 @@ services:
       - LOG_FILE_PATH=${LOG_FILE_PATH:-/app/logs}
       - LOG_FORMAT=json
       - LOG_OUTPUT=both
-      - API_KEY=${API_KEY:-}
+      # Required (TAP-7318): matches the production service — see its comment.
+      - API_KEY=${API_KEY:?required}
       - WEBSOCKET_MAX_RETRIES=${WEBSOCKET_MAX_RETRIES:--1}
       - WEBSOCKET_MAX_RETRY_DELAY=${WEBSOCKET_MAX_RETRY_DELAY:-300}
       - STORE_DEVICE_HISTORY_IN_INFLUXDB=${STORE_DEVICE_HISTORY_IN_INFLUXDB:-false}
