@@ -79,6 +79,34 @@ describe('RoomOccupancyCard', () => {
     expect(screen.getByText(/No known areas yet/i)).toBeTruthy();
   });
 
+  it('exposes the full contributing sensor list for a room with four long entity ids', () => {
+    const longIds = [
+      'binary_sensor.living_room_south_wall_motion_sensor_occupancy',
+      'binary_sensor.living_room_north_wall_motion_sensor_occupancy',
+      'binary_sensor.living_room_ceiling_mounted_presence_sensor',
+      'binary_sensor.living_room_east_window_motion_sensor_occupancy',
+    ];
+    mockUseRoomOccupancy.mockReturnValue({
+      rooms: [
+        {
+          area_id: 'living_room',
+          state: 'detected',
+          contributing_entity_ids: longIds,
+          last_changed: '2026-09-15T00:00:00+00:00',
+        },
+      ],
+      loading: false,
+      error: null,
+    });
+
+    render(<RoomOccupancyCard />);
+
+    const list = screen.getByTitle(longIds.join(', '));
+    for (const id of longIds) {
+      expect(list.getAttribute('title')).toContain(id);
+    }
+  });
+
   it('shows an error message when the fetch fails', () => {
     mockUseRoomOccupancy.mockReturnValue({
       rooms: null,

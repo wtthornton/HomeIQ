@@ -52,7 +52,10 @@ export const RoomOccupancyCard: React.FC = () => {
                   </Badge>
                 </div>
                 {room.contributing_entity_ids.length > 0 && (
-                  <p className="mt-1 truncate text-xs text-muted-foreground">
+                  <p
+                    className="mt-1 truncate text-xs text-muted-foreground"
+                    title={room.contributing_entity_ids.join(', ')}
+                  >
                     {room.contributing_entity_ids.join(', ')}
                   </p>
                 )}
