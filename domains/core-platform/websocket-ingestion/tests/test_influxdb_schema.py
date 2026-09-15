@@ -228,12 +228,13 @@ class TestInfluxDBSchema:
         policies = self.schema.get_retention_policies()
 
         # One policy per measurement bucket
-        assert len(policies) == 4
+        assert len(policies) == 5
         assert [p["name"] for p in policies] == [
             "home_assistant_events",
             "weather_data",
             "sports_data",
             "system_metrics",
+            "room_occupancy",
         ]
 
         by_name = {p["name"]: p for p in policies}
@@ -251,6 +252,43 @@ class TestInfluxDBSchema:
 
         assert by_name["system_metrics"]["duration"] == "30d"
         assert by_name["system_metrics"]["shard_duration"] == "7d"
+
+        assert by_name["room_occupancy"]["duration"] == "90d"
+        assert by_name["room_occupancy"]["shard_duration"] == "7d"
+
+    def test_every_declared_measurement_has_a_retention_policy(self):
+        """TAP-7586 VAL-3: a structural guard, not a room_occupancy-specific one.
+
+        Every ``MEASUREMENT_*`` constant must have a matching entry in
+        ``get_retention_policies()``. This is the durable part of the story:
+        it fails the moment a future measurement is declared without an
+        explicit finite retention, rather than inheriting an unbounded
+        default silently.
+        """
+        measurement_names = {
+            value for attr, value in vars(self.schema).items() if attr.startswith("MEASUREMENT_")
+        }
+        policy_names = {p["name"] for p in self.schema.get_retention_policies()}
+
+        assert measurement_names == policy_names
+
+    def test_create_room_occupancy_point_transition(self):
+        """Room-occupancy points carry area_id as a tag and entity count as a field."""
+        point = self.schema.create_room_occupancy_point(
+            area_id="office", state="detected", contributing_entity_count=2
+        )
+
+        if point:  # Only test if Point is available
+            assert point._name == "room_occupancy"
+            assert point._tags["area_id"] == "office"
+            assert point._fields["state_value"] == "detected"
+            assert point._fields["contributing_entity_count"] == 2
+        else:
+            assert point is None
+
+    def test_room_occupancy_measurement_is_declared_with_finite_retention(self):
+        assert self.schema.MEASUREMENT_ROOM_OCCUPANCY == "room_occupancy"
+        assert self.schema.RETENTION_ROOM_OCCUPANCY == "90d"
 
     def test_get_schema_validation_rules(self):
         """Test getting schema validation rules"""

@@ -130,6 +130,12 @@ async def start_influxdb_pipeline(
 
     svc.async_event_processor.add_event_handler(svc._write_event_to_influxdb)
 
+    # TAP-7586: wire the batch writer into the house status aggregator so
+    # room-occupancy transitions get persisted (mirrors the discovery-service
+    # late-binding below in start_ha_connection).
+    if getattr(svc, "house_status_aggregator", None) is not None:
+        svc.house_status_aggregator._batch_writer = svc.influxdb_batch_writer
+
 
 async def start_ha_connection(
     svc: Any,

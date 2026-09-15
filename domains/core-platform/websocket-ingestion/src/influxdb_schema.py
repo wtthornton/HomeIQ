@@ -37,6 +37,8 @@ except ImportError:
     Point = None
     WritePrecision = None
 
+from .config import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -59,6 +61,14 @@ class InfluxDBSchema:
         self.MEASUREMENT_WEATHER = "weather_data"  # weather_data bucket
         self.MEASUREMENT_SPORTS = "sports_data"  # sports_data bucket
         self.MEASUREMENT_SYSTEM = "system_metrics"  # system_metrics bucket
+        # TAP-7586: first measurement about people rather than devices — a
+        # point per room-occupancy state transition, never per inbound event.
+        self.MEASUREMENT_ROOM_OCCUPANCY = "room_occupancy"
+        # TAP-7586 round 2: its own bucket, not home_assistant_events, so
+        # InfluxDB's own retention enforces the 90d limit instead of a label
+        # nothing reads. Same settings field infrastructure/influxdb/
+        # init-influxdb.sh reads when it provisions the bucket.
+        self.BUCKET_ROOM_OCCUPANCY = settings.influxdb_room_occupancy_bucket
 
         # Tag keys for efficient querying (Epic 23 Enhanced)
         self.TAG_ENTITY_ID = "entity_id"
@@ -97,6 +107,8 @@ class InfluxDBSchema:
         self.FIELD_MANUFACTURER = "manufacturer"
         self.FIELD_MODEL = "model"
         self.FIELD_SW_VERSION = "sw_version"
+        # TAP-7586: room_occupancy fields
+        self.FIELD_CONTRIBUTING_ENTITY_COUNT = "contributing_entity_count"
 
         # Retention policies (Current Configuration - January 2025)
         #
@@ -114,6 +126,12 @@ class InfluxDBSchema:
         self.RETENTION_SPORTS_DATA = "90d"  # sports_data bucket — DECLARED, bucket empty
         self.RETENTION_WEATHER_DATA = "180d"  # weather_data bucket — DECLARED, bucket empty
         self.RETENTION_SYSTEM_METRICS = "30d"  # system_metrics bucket — DECLARED, bucket empty
+        # TAP-7586: explicit finite retention — never inherit an unbounded
+        # default. Round 2: this is now also the value the room_occupancy
+        # bucket is provisioned with (see BUCKET_ROOM_OCCUPANCY above and
+        # infrastructure/influxdb/init-influxdb.sh) — one settings field,
+        # not two literals that can drift.
+        self.RETENTION_ROOM_OCCUPANCY = settings.influxdb_room_occupancy_retention
 
     def create_event_point(self, event_data: dict[str, Any]) -> Point | None:
         """
@@ -227,6 +245,41 @@ class InfluxDBSchema:
 
         except Exception as e:
             logger.error(f"Error creating weather point: {e}")
+            return None
+
+    def create_room_occupancy_point(
+        self, area_id: str, state: str, contributing_entity_count: int
+    ) -> Point | None:
+        """
+        Create InfluxDB Point for a room-occupancy state transition.
+
+        Callers must invoke this only when the rolled-up state actually
+        changed — one point per transition, never one per inbound event.
+
+        Args:
+            area_id: The area whose occupancy state transitioned
+            state: The new rolled-up state ("detected", "clear", "unknown")
+            contributing_entity_count: Count of presence-capable sensors
+                contributing to this roll-up
+
+        Returns:
+            InfluxDB Point object or None if invalid
+        """
+        if not Point:
+            logger.warning("InfluxDB Point not available")
+            return None
+
+        try:
+            point = Point(self.MEASUREMENT_ROOM_OCCUPANCY).time(
+                datetime.now(UTC), WritePrecision.MS
+            )
+            point = point.tag(self.TAG_AREA_ID, area_id)
+            point = point.field(self.FIELD_STATE, state)
+            point = point.field(self.FIELD_CONTRIBUTING_ENTITY_COUNT, contributing_entity_count)
+            return point
+
+        except Exception as e:
+            logger.error(f"Error creating room occupancy point: {e}")
             return None
 
     def _extract_attributes(self, event_data: dict[str, Any]) -> dict[str, Any]:
@@ -501,6 +554,13 @@ class InfluxDBSchema:
                 "replication": 1,
                 "description": "System metrics retention for 30 days",
             },
+            {
+                "name": self.MEASUREMENT_ROOM_OCCUPANCY,
+                "duration": self.RETENTION_ROOM_OCCUPANCY,
+                "shard_duration": "7d",
+                "replication": 1,
+                "description": "Room occupancy transition retention for 90 days",
+            },
         ]
 
     def get_schema_validation_rules(self) -> dict[str, Any]:
@@ -545,29 +605,31 @@ class InfluxDBSchema:
             if not measurement:
                 errors.append("Missing measurement name")
 
-            # Check required tags
             tags = point._tags
-            required_tags = self.get_schema_validation_rules()["required_tags"]
+            fields = point._fields
+            rules = self.get_schema_validation_rules()
 
-            for required_tag in required_tags:
-                if required_tag not in tags:
-                    errors.append(f"Missing required tag: {required_tag}")
+            # required_tags/required_fields (entity_id, domain, state_value)
+            # encode the home_assistant_events schema specifically. Other
+            # measurements (weather_data, room_occupancy, ...) have their own
+            # shape and were being silently dropped here for lacking an
+            # entity_id/domain they were never supposed to carry.
+            if measurement == self.MEASUREMENT_EVENTS:
+                for required_tag in rules["required_tags"]:
+                    if required_tag not in tags:
+                        errors.append(f"Missing required tag: {required_tag}")
 
-            # Check tag patterns
-            tag_patterns = self.get_schema_validation_rules()["tag_patterns"]
-            for tag_key, pattern in tag_patterns.items():
+                for required_field in rules["required_fields"]:
+                    if required_field not in fields:
+                        errors.append(f"Missing required field: {required_field}")
+
+            # Tag patterns apply to whichever of these tags are present,
+            # regardless of measurement.
+            for tag_key, pattern in rules["tag_patterns"].items():
                 if tag_key in tags:
                     tag_value = tags[tag_key]
                     if not re.match(pattern, str(tag_value)):
                         errors.append(f"Invalid tag pattern for {tag_key}: {tag_value}")
-
-            # Check required fields
-            fields = point._fields
-            required_fields = self.get_schema_validation_rules()["required_fields"]
-
-            for required_field in required_fields:
-                if required_field not in fields:
-                    errors.append(f"Missing required field: {required_field}")
 
             return len(errors) == 0, errors
 

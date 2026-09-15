@@ -21,9 +21,19 @@ services:
       - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG:-homeiq}
       - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET:-home_assistant_events}
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN:?required}
+      # TAP-7586 round 2: read by infrastructure/influxdb/init-influxdb.sh
+      # below — same env var names and defaults as websocket-ingestion's
+      # Settings, so the declared retention and the provisioned bucket's
+      # retention can't drift apart.
+      - INFLUXDB_ROOM_OCCUPANCY_BUCKET=${INFLUXDB_ROOM_OCCUPANCY_BUCKET:-room_occupancy}
+      - INFLUXDB_ROOM_OCCUPANCY_RETENTION=${INFLUXDB_ROOM_OCCUPANCY_RETENTION:-90d}
     volumes:
       - influxdb_data:/var/lib/influxdb2
       - influxdb_config:/etc/influxdb2
+      # Runs once, after DOCKER_INFLUXDB_INIT_MODE=setup creates the primary
+      # org/bucket/token — the influxdb:2.x image executes every *.sh file
+      # here automatically (same convention as postgres's initdb.d below).
+      - ../../infrastructure/influxdb/init-influxdb.sh:/docker-entrypoint-initdb.d/init-influxdb.sh:ro
     networks:
       - homeiq-network
     deploy:
@@ -188,6 +198,11 @@ services:
       - INFLUXDB_ORG=${INFLUXDB_ORG:-homeiq}
       - INFLUXDB_BUCKET=home_assistant_events
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:?required}
+      # TAP-7586 round 2: dedicated bucket for room_occupancy so InfluxDB
+      # itself enforces retention. Single source with the influxdb service's
+      # init-influxdb.sh below — same env var names, same defaults.
+      - INFLUXDB_ROOM_OCCUPANCY_BUCKET=${INFLUXDB_ROOM_OCCUPANCY_BUCKET:-room_occupancy}
+      - INFLUXDB_ROOM_OCCUPANCY_RETENTION=${INFLUXDB_ROOM_OCCUPANCY_RETENTION:-90d}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - LOG_FILE_PATH=${LOG_FILE_PATH:-/app/logs}
       - LOG_FORMAT=json

@@ -62,3 +62,33 @@ async def test_drop_new_strategy_rejects_point():
     assert result is False
     assert batch_writer.dropped_points == 1
     assert batch_writer.queue_overflow_events == 1
+
+
+@pytest.mark.asyncio
+async def test_write_room_occupancy_enqueues_via_existing_writer_no_new_client():
+    """TAP-7586 VAL-4: room occupancy points go through the existing batch
+    writer/connection manager, not a new InfluxDB client or connection.
+    """
+    manager = AsyncMock()
+    manager.write_points = AsyncMock(return_value=True)
+
+    # Real InfluxDBSchema (not the stub above) so the Point shape is genuine.
+    batch_writer = InfluxDBBatchWriter(
+        connection_manager=manager,
+        batch_size=100,
+        max_pending_points=10,
+    )
+
+    assert await batch_writer.write_room_occupancy(
+        area_id="office", state="detected", contributing_entity_count=2
+    )
+
+    assert len(batch_writer.current_batch) == 1
+    point = batch_writer.current_batch[0]
+    assert point._name == "room_occupancy"
+    assert point._tags["area_id"] == "office"
+    assert point._fields["state_value"] == "detected"
+    assert point._fields["contributing_entity_count"] == 2
+
+    # The only I/O surface is the connection_manager passed in at construction.
+    assert batch_writer.connection_manager is manager
