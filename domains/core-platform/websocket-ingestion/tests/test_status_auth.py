@@ -67,17 +67,13 @@ def test_house_status_no_header_returns_401() -> None:
 
 def test_house_status_wrong_token_returns_401() -> None:
     client = _build_client()
-    response = client.get(
-        "/api/status/house", headers={"Authorization": f"Bearer {WRONG_TOKEN}"}
-    )
+    response = client.get("/api/status/house", headers={"Authorization": f"Bearer {WRONG_TOKEN}"})
     assert response.status_code == 401
 
 
 def test_house_status_valid_token_is_accepted() -> None:
     client = _build_client(ready=True)
-    response = client.get(
-        "/api/status/house", headers={"Authorization": f"Bearer {VALID_TOKEN}"}
-    )
+    response = client.get("/api/status/house", headers={"Authorization": f"Bearer {VALID_TOKEN}"})
     assert response.status_code == 200
 
 
@@ -94,9 +90,7 @@ def test_ws_status_wrong_token_is_rejected() -> None:
     client = _build_client()
     with (
         pytest.raises(WebSocketDisconnect),
-        client.websocket_connect(
-            "/ws/status", headers={"Authorization": f"Bearer {WRONG_TOKEN}"}
-        ),
+        client.websocket_connect("/ws/status", headers={"Authorization": f"Bearer {WRONG_TOKEN}"}),
     ):
         pass
 
@@ -118,9 +112,7 @@ def test_house_status_unconfigured_key_returns_503(
 ) -> None:
     monkeypatch.setattr(status_router.settings, "api_key", None)
     client = _build_client()
-    response = client.get(
-        "/api/status/house", headers={"Authorization": f"Bearer {VALID_TOKEN}"}
-    )
+    response = client.get("/api/status/house", headers={"Authorization": f"Bearer {VALID_TOKEN}"})
     assert response.status_code == 503
 
 
@@ -129,8 +121,6 @@ def test_ws_status_unconfigured_key_is_rejected(monkeypatch: pytest.MonkeyPatch)
     client = _build_client()
     with (
         pytest.raises(WebSocketDisconnect),
-        client.websocket_connect(
-            "/ws/status", headers={"Authorization": f"Bearer {VALID_TOKEN}"}
-        ),
+        client.websocket_connect("/ws/status", headers={"Authorization": f"Bearer {VALID_TOKEN}"}),
     ):
         pass
