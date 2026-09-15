@@ -53,7 +53,7 @@ export const RoomOccupancyCard: React.FC = () => {
                 </div>
                 {room.contributing_entity_ids.length > 0 && (
                   <p
-                    className="mt-1 truncate text-xs text-muted-foreground"
+                    className="mt-1 break-words text-xs text-muted-foreground"
                     title={room.contributing_entity_ids.join(', ')}
                   >
                     {room.contributing_entity_ids.join(', ')}

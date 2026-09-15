@@ -105,6 +105,11 @@ describe('RoomOccupancyCard', () => {
     for (const id of longIds) {
       expect(list.getAttribute('title')).toContain(id);
     }
+
+    expect(list.className).not.toMatch(/\btruncate\b/);
+    for (const id of longIds) {
+      expect(list.textContent).toContain(id);
+    }
   });
 
   it('shows an error message when the fetch fails', () => {
