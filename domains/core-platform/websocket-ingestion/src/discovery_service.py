@@ -488,6 +488,102 @@ class DiscoveryService:
             logger.error(traceback.format_exc())
             return []
 
+    async def discover_areas(
+        self, websocket: ClientWebSocketResponse | None = None, connection_manager=None
+    ) -> list[dict[str, Any]]:
+        """
+        Discover all areas from Home Assistant's area registry (TAP-7584)
+
+        An area with no entities assigned to it never appears via a
+        ``SELECT DISTINCT`` over entities/devices, so the only way to see it
+        is to read the registry directly.
+
+        Returns:
+            List of area dictionaries (``area_id``, ``name``, ``floor_id``, ...)
+        """
+        try:
+            message_id = await self._get_next_id()
+            logger.info(f"🏷️  Discovering areas via WebSocket (message_id: {message_id})")
+
+            if connection_manager:
+                message = {"id": message_id, "type": "config/area_registry/list"}
+                if not await connection_manager.send_message(message):
+                    logger.error("❌ Failed to send area registry command via connection manager")
+                    return []
+            elif websocket:
+                await websocket.send_json({"id": message_id, "type": "config/area_registry/list"})
+            else:
+                logger.error("❌ No websocket or connection manager provided")
+                return []
+
+            response = await self._wait_for_response(websocket, message_id, timeout=10.0)
+
+            if not response or not response.get("success"):
+                error_msg = (
+                    response.get("error", {}).get("message", "Unknown error")
+                    if response
+                    else "No response"
+                )
+                logger.error(f"❌ Area registry command failed: {error_msg}")
+                return []
+
+            areas = response.get("result", [])
+            logger.info(f"✅ Discovered {len(areas)} areas")
+            return areas
+
+        except Exception as e:
+            logger.error(f"❌ Error discovering areas: {e}")
+            import traceback
+
+            logger.error(traceback.format_exc())
+            return []
+
+    async def discover_floors(
+        self, websocket: ClientWebSocketResponse | None = None, connection_manager=None
+    ) -> list[dict[str, Any]]:
+        """
+        Discover all floors from Home Assistant's floor registry (TAP-7584)
+
+        Returns:
+            List of floor dictionaries (``floor_id``, ``name``, ...)
+        """
+        try:
+            message_id = await self._get_next_id()
+            logger.info(f"🏢 Discovering floors via WebSocket (message_id: {message_id})")
+
+            if connection_manager:
+                message = {"id": message_id, "type": "config/floor_registry/list"}
+                if not await connection_manager.send_message(message):
+                    logger.error("❌ Failed to send floor registry command via connection manager")
+                    return []
+            elif websocket:
+                await websocket.send_json({"id": message_id, "type": "config/floor_registry/list"})
+            else:
+                logger.error("❌ No websocket or connection manager provided")
+                return []
+
+            response = await self._wait_for_response(websocket, message_id, timeout=10.0)
+
+            if not response or not response.get("success"):
+                error_msg = (
+                    response.get("error", {}).get("message", "Unknown error")
+                    if response
+                    else "No response"
+                )
+                logger.error(f"❌ Floor registry command failed: {error_msg}")
+                return []
+
+            floors = response.get("result", [])
+            logger.info(f"✅ Discovered {len(floors)} floors")
+            return floors
+
+        except Exception as e:
+            logger.error(f"❌ Error discovering floors: {e}")
+            import traceback
+
+            logger.error(traceback.format_exc())
+            return []
+
     async def _wait_for_response(
         self, _websocket: ClientWebSocketResponse | None, message_id: int, timeout: float = 10.0
     ) -> dict[str, Any] | None:
@@ -599,7 +695,8 @@ class DiscoveryService:
             store: Whether to store results via data-api (default: True)
 
         Returns:
-            Dictionary with 'devices', 'entities', 'config_entries', and 'services' keys
+            Dictionary with 'devices', 'entities', 'config_entries', 'services',
+            'areas', and 'floors' keys
         """
         logger.info("=" * 80)
         logger.info("🚀 STARTING COMPLETE HOME ASSISTANT DISCOVERY")
@@ -614,6 +711,18 @@ class DiscoveryService:
             if (websocket or connection_manager)
             else []
         )
+        # TAP-7584: areas/floors from HA's own registries, not derived from
+        # entities — an area with zero entities only shows up this way.
+        areas_data = (
+            await self.discover_areas(websocket, connection_manager)
+            if (websocket or connection_manager)
+            else []
+        )
+        floors_data = (
+            await self.discover_floors(websocket, connection_manager)
+            if (websocket or connection_manager)
+            else []
+        )
 
         # Discover services from HA Services API (Epic 2025) - already uses HTTP API
         services_data = await self.discover_services(websocket)
@@ -623,6 +732,8 @@ class DiscoveryService:
         logger.info(f"   Devices: {len(devices_data)}")
         logger.info(f"   Entities: {len(entities_data)}")
         logger.info(f"   Config Entries: {len(config_entries_data)}")
+        logger.info(f"   Areas: {len(areas_data)}")
+        logger.info(f"   Floors: {len(floors_data)}")
         logger.info(f"   Services: {len(services_data)} domains")
         logger.info("=" * 80)
 
@@ -631,10 +742,16 @@ class DiscoveryService:
         if store:
             logger.info("💾 Storing discovered data via data-api...")
             logger.info(
-                f"   Devices: {len(devices_data)}, Entities: {len(entities_data)}, Services: {len(services_data)}"
+                f"   Devices: {len(devices_data)}, Entities: {len(entities_data)}, "
+                f"Areas: {len(areas_data)}, Services: {len(services_data)}"
             )
             await self.store_discovery_results(
-                devices_data, entities_data, config_entries_data, services_data
+                devices_data,
+                entities_data,
+                config_entries_data,
+                services_data,
+                areas_data,
+                floors_data,
             )
         else:
             logger.info("ℹ️  Storage disabled - skipping store_discovery_results")
@@ -644,6 +761,8 @@ class DiscoveryService:
             "entities": entities_data,
             "config_entries": config_entries_data,
             "services": services_data,
+            "areas": areas_data,
+            "floors": floors_data,
         }
 
     async def discover_services(
@@ -742,6 +861,8 @@ class DiscoveryService:
         entities_data: list[dict[str, Any]],
         config_entries_data: list[dict[str, Any]],
         services_data: dict[str, dict[str, Any]] = None,
+        areas_data: list[dict[str, Any]] = None,
+        floors_data: list[dict[str, Any]] = None,
     ) -> bool:
         """
         Store discovery results via data-api and optionally to InfluxDB
@@ -750,6 +871,8 @@ class DiscoveryService:
             devices_data: List of device dictionaries from HA
             entities_data: List of entity dictionaries from HA
             config_entries_data: List of config entry dictionaries from HA
+            areas_data: List of area dictionaries from HA's area registry (TAP-7584)
+            floors_data: List of floor dictionaries from HA's floor registry (TAP-7584)
 
         Returns:
             True if storage successful
@@ -962,6 +1085,63 @@ class DiscoveryService:
                                 )
                     except Exception as e:
                         logger.error(f"❌ Error posting entities to data-api: {e}")
+
+                # Store areas to database (TAP-7584) — sourced from HA's own area
+                # registry, not derived from entities, so a zero-entity area still
+                # gets a row. Merge in the floor registry's name for floor_name;
+                # HA's area registry only carries floor_id.
+                if areas_data:
+                    floor_name_by_id: dict[str, str] = {}
+                    if floors_data:
+                        for floor in floors_data:
+                            floor_id = floor.get("floor_id")
+                            floor_name = floor.get("name")
+                            if floor_id and floor_name:
+                                floor_name_by_id[floor_id] = floor_name
+
+                    areas_payload = []
+                    for area in areas_data:
+                        area_id = area.get("area_id")
+                        if not area_id:
+                            logger.warning("Skipping area without area_id")
+                            continue
+                        floor_id = area.get("floor_id")
+                        areas_payload.append(
+                            {
+                                "area_id": area_id,
+                                "name": area.get("name"),
+                                # box 5: never fabricate a floor — leave null when
+                                # HA supplies none.
+                                "floor_id": floor_id,
+                                "floor_name": floor_name_by_id.get(floor_id) if floor_id else None,
+                            }
+                        )
+
+                    if areas_payload:
+                        try:
+                            headers = {}
+                            if api_key:
+                                headers["Authorization"] = f"Bearer {api_key}"
+                            headers["Content-Type"] = "application/json"
+
+                            async with session.post(
+                                f"{data_api_url}/internal/areas/bulk_upsert",
+                                json=areas_payload,
+                                headers=headers,
+                                timeout=aiohttp.ClientTimeout(total=30),
+                            ) as response:
+                                if response.status == 200:
+                                    result = await response.json()
+                                    logger.info(
+                                        f"✅ Stored {result.get('upserted', 0)} areas to database"
+                                    )
+                                else:
+                                    error_text = await response.text()
+                                    logger.error(
+                                        f"❌ Failed to store areas to database: {response.status} - {error_text}"
+                                    )
+                        except Exception as e:
+                            logger.error(f"❌ Error posting areas to data-api: {e}")
 
                 # Store services to database (Epic 2025) - with graceful degradation
                 if services_data:
