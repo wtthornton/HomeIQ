@@ -39,6 +39,11 @@ class Settings(BaseServiceSettings):
 
     enable_home_assistant: bool = Field(default=True)
 
+    # Shared bearer token required by /api/status/house and /ws/status.
+    # Same value nginx injects as `Authorization: Bearer ${DASHBOARD_API_KEY}`
+    # on the dashboard's /ws proxy (health-dashboard/nginx.conf).
+    api_key: SecretStr | None = Field(default=None)
+
     # High-volume processing
     max_workers: int = Field(default=10)
     processing_rate_limit: int = Field(default=1000)
