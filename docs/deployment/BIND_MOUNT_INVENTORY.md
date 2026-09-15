@@ -35,8 +35,16 @@ The stack is redeployed *from* that path (a plain `git worktree`/checkout of
 `origin/master`, not the developer's working checkout at
 `/home/wtthornton/code/HomeIQ`). Once compose is re-run from there,
 `check-bind-mounts.py /home/wtthornton/code/HomeIQ` should report zero
-repo-internal binds, because nothing running still points at the developer's
-tree.
+repo-internal binds, because no running container *binds* a path inside the
+checkout.
+
+That claim is narrower than full independence from the developer's tree: the
+deploy root's `.env` is a symlink into the live checkout
+(`/home/wtthornton/deploy-roots/homeiq-master/.env` ->
+`/home/wtthornton/code/HomeIQ/.env`), a remaining non-bind coupling. A symlink
+is not a bind mount, so `check-bind-mounts.py` is correctly unaffected and
+"zero repo-internal binds" still means what it says — this note records the
+coupling rather than implying it away.
 
 **Use `origin/master`, never the local `master` ref.** On this host the local
 ref is stale by 30 commits: `git rev-parse master` = `30c55416` (2026-08-26),
@@ -108,7 +116,7 @@ redeploying from there reproduces the content at the new location — no seed
 copy needed. `rag-service` is mechanical for the data; what it needs instead
 is a retirement action, covered below.
 
-## The one row that needs a seed, and the one that was misdiagnosed: `logs` and `rag-service`
+## The one row that needs an empty directory, and the one that was misdiagnosed: `logs` and `rag-service`
 
 ### `logs`
 
@@ -138,9 +146,10 @@ git ls-tree -r --name-only origin/master -- domains/ml-engine/model-server/data/
   = domains/ml-engine/model-server/data/rag_service.db
 ```
 
-`rag-service` is not a service on `origin/master` at all — the four services folded
-into `model-server` are openvino-service, ml-service, rag-service and a
-fourth (`docs/architecture/collapse-map.md:384`), so nothing on `origin/master`
+`rag-service` is not a service on `origin/master` at all — three services fold
+into `model-server`: openvino-service, ml-service and rag-service.
+`ner-service` is dropped outright, not folded — no fold target, no caller
+(`docs/architecture/collapse-map.md:365`). So nothing on `origin/master`
 mounts `domains/ml-engine/rag-service/`. The successor already reads its own
 copy of the same bytes:
 
@@ -165,7 +174,7 @@ so nothing keeps a mount open into the old tree after cutover. Do not copy
 `domains/ml-engine/rag-service/data` anywhere — that would seed a path
 nothing on `origin/master` reads.
 
-This document exists to make the `logs` seed step and the `rag-service`
+This document exists to make the `logs` `mkdir` step and the `rag-service`
 retirement step visible before the move, not to perform them — that is the
 deploying operator's job in the approved window.
 
