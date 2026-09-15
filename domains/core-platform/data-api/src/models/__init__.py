@@ -4,8 +4,10 @@ Story 22.2
 Epic 2025: Added Service model
 Epic 11 Story 11.5: Added TeamPreferences model
 Automation Trace: Added Automation + AutomationExecution models
+TAP-7584: Added Area model
 """
 
+from .area import Area  # TAP-7584
 from .automation import Automation, AutomationExecution
 from .device import Device
 from .entity import Entity
@@ -14,6 +16,7 @@ from .statistics_meta import StatisticsMeta  # Epic 45.1
 from .team_preferences import TeamPreferences  # Epic 11 Story 11.5
 
 __all__ = [
+    "Area",
     "Automation",
     "AutomationExecution",
     "Device",

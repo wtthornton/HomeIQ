@@ -123,3 +123,27 @@ class TestEntityRegistryEntry:
         assert d["disabled"] is True
         assert d["supported_features"] == 131
         assert d["available_services"] == ["turn_on", "turn_off"]
+
+
+class TestAreaModel:
+    """TAP-7584: Area is a first-class SQLAlchemy model, not a SELECT DISTINCT."""
+
+    def test_table_name_and_primary_key(self):
+        from src.models.area import Area
+
+        assert Area.__tablename__ == "areas"
+        pk_columns = [c.name for c in Area.__table__.primary_key.columns]
+        assert pk_columns == ["area_id"]
+
+    def test_required_columns(self):
+        from src.models.area import Area
+
+        columns = Area.__table__.columns
+        for expected in ("area_id", "name", "floor_id", "floor_name", "source"):
+            assert expected in columns, f"Area model is missing column {expected!r}"
+
+    def test_registered_on_models_package(self):
+        from src.models import Area as AreaFromPackage
+        from src.models.area import Area
+
+        assert AreaFromPackage is Area
