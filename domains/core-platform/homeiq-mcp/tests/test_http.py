@@ -40,6 +40,7 @@ def test_health_reports_backings_and_tools(app, registry):
     )
     respx.get("http://patterns.test:8020/health").mock(side_effect=httpx.ConnectError("down"))
     respx.get("http://devint.test:8028/health").mock(return_value=httpx.Response(503))
+    respx.get("http://ws-ingestion.test:8001/health").mock(return_value=httpx.Response(200))
 
     with _client(app) as client:
         response = client.get("/health", headers=_bearer(READ_TOKEN))
@@ -64,6 +65,7 @@ def test_health_is_503_when_data_api_down(app):
     respx.get("http://data-api.test:8006/health").mock(side_effect=httpx.ConnectError("down"))
     respx.get("http://patterns.test:8020/health").mock(return_value=httpx.Response(200))
     respx.get("http://devint.test:8028/health").mock(return_value=httpx.Response(200))
+    respx.get("http://ws-ingestion.test:8001/health").mock(return_value=httpx.Response(200))
     with _client(app) as client:
         response = client.get("/health")
     assert response.status_code == 503
@@ -96,6 +98,7 @@ def test_health_without_a_token_is_liveness_only(app):
     )
     respx.get("http://patterns.test:8020/health").mock(return_value=httpx.Response(200))
     respx.get("http://devint.test:8028/health").mock(return_value=httpx.Response(200))
+    respx.get("http://ws-ingestion.test:8001/health").mock(return_value=httpx.Response(200))
 
     with _client(app) as client:
         response = client.get("/health")
@@ -115,6 +118,7 @@ def test_health_liveness_view_still_reports_degraded(app):
     respx.get("http://data-api.test:8006/health").mock(side_effect=httpx.ConnectError("down"))
     respx.get("http://patterns.test:8020/health").mock(return_value=httpx.Response(200))
     respx.get("http://devint.test:8028/health").mock(return_value=httpx.Response(200))
+    respx.get("http://ws-ingestion.test:8001/health").mock(return_value=httpx.Response(200))
 
     with _client(app) as client:
         response = client.get("/health")

@@ -1,6 +1,6 @@
 {
-  "$comment": "HomeIQ MCP tool contract (TAP-5292). Machine-readable source of truth; docs/mcp/homeiq-mcp-tool-catalogue.md is the human view. TAP-5297 contract tests pin this file against the running server's list_tools output. v1.2.0 (2026-08-17, TAP-5293/5295): tools 14/15 carry status=deferred (energy-correlator has no live output; see TAP-5910/TAP-5301); every list-returning output declares optional `truncated` + `hint` so the server can honour design rule 2 under additionalProperties=false. v1.2.1 (2026-08-18, verifier round on TAP-5293..5297): id inputs that reach an upstream URL path carry a strict pattern; detect_anomalies drops the never-honoured `hours`; search_events `hours` max is 72 (data-api's search times out beyond that today); downsample_minutes is first-observed-per-bucket; error code set drops the unused truncated_upstream; notes on the power/top_consumers pipelines being empty until TAP-5301. v1.2.2 (2026-08-18, verifier round 2): trace_automation.chain maxItems 100 (max_depth bounds levels; upstream emits up to 100 events per level, byte budget bounds size); get_entity_history drops the never-emitted points[].value; list_areas/list_entities use the effective area (entity area, else its device's — HA leaves inherited entity areas null); list_synergies area filter is applied after the upstream limit. v1.2.3 (2026-08-18): trace_automation carries an honesty caveat — websocket-ingestion does not yet write context_parent_id, so chains resolve empty on live data (TAP-6107); list_entities rows carry the effective area. v1.2.4 (2026-08-20, TAP-6107): ingestion now writes context_parent_id; the trace_automation caveat is replaced by a data-age note (pre-2026-08-20 events carry no parent).",
-  "catalogue_version": "1.2.4",
+  "$comment": "HomeIQ MCP tool contract (TAP-5292). Machine-readable source of truth; docs/mcp/homeiq-mcp-tool-catalogue.md is the human view. TAP-5297 contract tests pin this file against the running server's list_tools output. v1.2.0 (2026-08-17, TAP-5293/5295): tools 14/15 carry status=deferred (energy-correlator has no live output; see TAP-5910/TAP-5301); every list-returning output declares optional `truncated` + `hint` so the server can honour design rule 2 under additionalProperties=false. v1.2.1 (2026-08-18, verifier round on TAP-5293..5297): id inputs that reach an upstream URL path carry a strict pattern; detect_anomalies drops the never-honoured `hours`; search_events `hours` max is 72 (data-api's search times out beyond that today); downsample_minutes is first-observed-per-bucket; error code set drops the unused truncated_upstream; notes on the power/top_consumers pipelines being empty until TAP-5301. v1.2.2 (2026-08-18, verifier round 2): trace_automation.chain maxItems 100 (max_depth bounds levels; upstream emits up to 100 events per level, byte budget bounds size); get_entity_history drops the never-emitted points[].value; list_areas/list_entities use the effective area (entity area, else its device's — HA leaves inherited entity areas null); list_synergies area filter is applied after the upstream limit. v1.2.3 (2026-08-18): trace_automation carries an honesty caveat — websocket-ingestion does not yet write context_parent_id, so chains resolve empty on live data (TAP-6107); list_entities rows carry the effective area. v1.2.4 (2026-08-20, TAP-6107): ingestion now writes context_parent_id; the trace_automation caveat is replaced by a data-age note (pre-2026-08-20 events carry no parent). v1.2.5 (2026-09-15, TAP-7588): adds get_room_occupancy, backed by websocket-ingestion's GET /api/status/rooms (TAP-7587). The upstream RoomOccupancy model exposes only state/contributing_entity_ids/last_changed — no confidence, certainty or probability field exists anywhere in that pipeline — so this tool never returns one; a synthesised value would hand the agent a fabricated certainty. state=unknown means the area has no presence-capable sensor at all and must never be read as an empty or clear room.",
+  "catalogue_version": "1.2.5",
   "tools": [
     {
       "name": "get_entity_history",
@@ -1887,6 +1887,73 @@
         },
         "required": [
           "counts",
+          "truncated"
+        ]
+      }
+    },
+    {
+      "name": "get_room_occupancy",
+      "description": "Presence roll-up for one area: state, the presence-capable entities backing it, and when it last changed. No confidence/certainty value is available — the upstream occupancy roll-up does not compute one, and this tool never synthesizes one.",
+      "annotations": {
+        "readOnlyHint": true
+      },
+      "max_response_bytes": 8192,
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "area_id": {
+            "type": "string",
+            "maxLength": 128,
+            "description": "HA area id, e.g. office"
+          }
+        },
+        "required": [
+          "area_id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "area_id": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "detected",
+              "clear",
+              "unknown"
+            ],
+            "description": "'detected' = a presence-capable sensor in the area is currently tripped. 'clear' = every presence-capable sensor in the area reports no presence. 'unknown' = the area has no presence-capable sensor at all — a sensor-coverage gap, never report this as an empty or unoccupied room."
+          },
+          "contributing_entity_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50,
+            "description": "Entity ids behind the state; empty when state is 'unknown'."
+          },
+          "last_changed": {
+            "type": "string",
+            "description": "RFC3339 timestamp of the last state change, or empty when never observed."
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "hint": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Present only when truncated=true: names the input parameter to narrow (e.g. 'hours', 'limit')."
+          }
+        },
+        "required": [
+          "area_id",
+          "state",
+          "contributing_entity_ids",
+          "last_changed",
           "truncated"
         ]
       }
