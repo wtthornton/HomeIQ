@@ -58,13 +58,29 @@ class RoomOccupancy(BaseModel):
 
 
 class HouseStatusResponse(BaseModel):
-    """Full house status snapshot returned by GET /api/status/house."""
+    """Full house status snapshot returned by GET /api/status/house.
+
+    ``room_occupancy`` is unchanged since TAP-7585/7586: areas a presence
+    sensor has reported for, only. ``rooms`` (TAP-7587) is additive — the
+    same roll-up unioned with every area known to data-api, so a
+    zero-sensor area appears as ``unknown`` instead of being omitted. It
+    defaults to the same content as ``room_occupancy`` until a caller with
+    access to the known-area set (see ``house_status.known_areas``)
+    supplies the richer version.
+    """
 
     climate: list[ClimateStatus] = Field(default_factory=list)
     presence: list[PresenceStatus] = Field(default_factory=list)
     lights_by_area: list[AreaLightStatus] = Field(default_factory=list)
     sensors: dict[str, list[SensorStatus]] = Field(default_factory=dict)
     room_occupancy: list[RoomOccupancy] = Field(default_factory=list)
+    rooms: list[RoomOccupancy] = Field(default_factory=list)
     switches_on: list[str] = Field(default_factory=list)
     active_automations: list[str] = Field(default_factory=list)
     timestamp: str = ""
+
+
+class RoomsResponse(BaseModel):
+    """Response body for GET /api/status/rooms (TAP-7587)."""
+
+    rooms: list[RoomOccupancy] = Field(default_factory=list)

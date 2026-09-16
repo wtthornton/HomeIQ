@@ -23,7 +23,12 @@ from fastapi import (
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from ...config import settings
-from ...house_status.models import HouseStatusResponse
+from ...house_status.known_areas import (
+    KnownAreaCache,
+    KnownAreasUnavailable,
+    fetch_known_area_ids,
+)
+from ...house_status.models import HouseStatusResponse, RoomsResponse
 
 logger = logging.getLogger(__name__)
 
@@ -31,12 +36,44 @@ router = APIRouter(tags=["status"])
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
+# Warmed by GET /api/status/rooms; read (never fetched) by the WS rooms
+# section so a data-api outage degrades the live push instead of blocking
+# or failing the WebSocket handshake (TAP-7587).
+_known_area_cache = KnownAreaCache()
+
 
 def _configured_api_key() -> str | None:
     """Return the shared status API key, or None if unset."""
     if settings.api_key is None:
         return None
     return settings.api_key.get_secret_value() or None
+
+
+def _configured_data_api_key() -> str | None:
+    """Return the bearer token used to call data-api's internal routes."""
+    if settings.data_api_key is None:
+        return None
+    return settings.data_api_key.get_secret_value() or None
+
+
+async def _known_area_ids_or_503() -> list[str]:
+    """Return the known-area set, refreshing from data-api on a stale cache.
+
+    Fails closed (503) only when data-api cannot be reached *and* nothing
+    has ever been cached — an area set is never returned incomplete.
+    """
+    if _known_area_cache.is_stale():
+        try:
+            area_ids = await fetch_known_area_ids(settings.data_api_url, _configured_data_api_key())
+            _known_area_cache.update(area_ids)
+        except KnownAreasUnavailable as exc:
+            if not _known_area_cache.get_cached():
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Known area set unavailable from data-api: {exc}",
+                ) from exc
+            logger.warning("Serving stale known-area cache; data-api fetch failed: %s", exc)
+    return _known_area_cache.get_cached()
 
 
 async def require_status_api_key(
@@ -116,6 +153,34 @@ async def get_house_status(request: Request) -> HouseStatusResponse:
     return await aggregator.get_snapshot()
 
 
+@router.get(
+    "/api/status/rooms",
+    response_model=RoomsResponse,
+    dependencies=[Depends(require_status_api_key)],
+)
+async def get_status_rooms(request: Request) -> RoomsResponse:
+    """Return the presence roll-up for every area known to data-api (TAP-7587).
+
+    Unlike ``/api/status/house``, this does not require the aggregator to be
+    ``ready`` — an area with zero presence sensors (or zero events processed
+    at all) must still be reported with state ``"unknown"``, never omitted.
+    Returns 503 only if the aggregator component itself isn't wired, or the
+    known-area set can't be fetched from data-api and no cached value exists.
+    """
+    service = getattr(request.app.state, "service", None)
+    aggregator = getattr(service, "house_status_aggregator", None) if service else None
+
+    if aggregator is None:
+        raise HTTPException(
+            status_code=503,
+            detail="House status aggregator not available",
+        )
+
+    known_area_ids = await _known_area_ids_or_503()
+    rooms = await aggregator.get_rooms(known_area_ids)
+    return RoomsResponse(rooms=rooms)
+
+
 @router.websocket("/ws/status")
 async def ws_status(
     websocket: WebSocket,
@@ -141,7 +206,18 @@ async def ws_status(
     # Send initial snapshot if aggregator is ready.
     if aggregator.ready:
         snapshot = await aggregator.get_snapshot()
-        await publisher.send_full_snapshot(websocket, snapshot.model_dump())
+        payload = snapshot.model_dump()
+
+        # Upgrade "rooms" from sensor-only to the full known-area union, but
+        # only from the cache GET /api/status/rooms warms — never a live
+        # data-api call here, so a data-api outage can never block or fail
+        # this handshake (TAP-7587).
+        cached_area_ids = _known_area_cache.get_cached()
+        if cached_area_ids:
+            rooms = await aggregator.get_rooms(cached_area_ids)
+            payload["rooms"] = [r.model_dump() for r in rooms]
+
+        await publisher.send_full_snapshot(websocket, payload)
 
     try:
         # Keep connection alive — client messages are ignored.

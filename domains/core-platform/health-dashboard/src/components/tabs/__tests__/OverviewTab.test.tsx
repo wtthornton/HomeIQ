@@ -153,6 +153,12 @@ vi.mock('../../skeletons', () => ({
   SkeletonCard: () => <div data-testid="skeleton-card">Loading...</div>,
 }));
 
+// RoomOccupancyCard (TAP-7587) fetches /api/status/rooms itself on mount;
+// mocked here so this suite never makes a real network call.
+vi.mock('../../RoomOccupancyCard', () => ({
+  RoomOccupancyCard: () => <div data-testid="room-occupancy-card">Room Occupancy</div>,
+}));
+
 // Import mocked hooks for manipulation
 import { useHealth } from '../../../hooks/useHealth';
 import { useStatistics } from '../../../hooks/useStatistics';
