@@ -46,11 +46,15 @@ class Settings(BaseSettings):
     data_api_key: SecretStr = Field(default=SecretStr(""), validation_alias="API_KEY")
     pattern_service_url: str = Field(default="", validation_alias="PATTERN_SERVICE_URL")
     device_intelligence_url: str = Field(default="", validation_alias="DEVICE_INTELLIGENCE_URL")
+    house_status_url: str = Field(default="", validation_alias="WEBSOCKET_INGESTION_URL")
+    """websocket-ingestion's house-status API (GET /api/status/rooms), backing get_room_occupancy."""
     backing_timeout_seconds: float = Field(default=10.0, gt=0, le=120)
     catalogue_path: str = ""
     log_level: str = Field(default="INFO", validation_alias="LOG_LEVEL")
 
-    @field_validator("data_api_url", "pattern_service_url", "device_intelligence_url")
+    @field_validator(
+        "data_api_url", "pattern_service_url", "device_intelligence_url", "house_status_url"
+    )
     @classmethod
     def _strip_trailing_slash(cls, value: str) -> str:
         return value.rstrip("/")

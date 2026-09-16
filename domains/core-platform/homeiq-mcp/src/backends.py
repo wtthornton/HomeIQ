@@ -111,14 +111,20 @@ class Backings:
     """The set of upstreams, built once from settings."""
 
     def __init__(
-        self, *, data_api: HttpBacking, patterns: HttpBacking, device_intelligence: HttpBacking
+        self,
+        *,
+        data_api: HttpBacking,
+        patterns: HttpBacking,
+        device_intelligence: HttpBacking,
+        house_status: HttpBacking,
     ) -> None:
         self.data_api = data_api
         self.patterns = patterns
         self.device_intelligence = device_intelligence
+        self.house_status = house_status
 
     def all(self) -> list[HttpBacking]:
-        return [self.data_api, self.patterns, self.device_intelligence]
+        return [self.data_api, self.patterns, self.device_intelligence, self.house_status]
 
     async def probe_all(self) -> list[BackingStatus]:
         return [await b.probe() for b in self.all()]
@@ -144,6 +150,15 @@ def build_backings(settings: Any) -> Backings:
             "device-intelligence-service",
             settings.device_intelligence_url,
             api_key=settings.data_api_key.get_secret_value(),
+            timeout_seconds=timeout,
+        ),
+        # websocket-ingestion's /api/status/rooms requires the same shared bearer
+        # token as data-api (see HttpBacking's "server credential" error message —
+        # this server authenticates to every backing with one credential).
+        house_status=HttpBacking(
+            "websocket-ingestion",
+            settings.house_status_url,
+            bearer_token=settings.data_api_key.get_secret_value(),
             timeout_seconds=timeout,
         ),
     )

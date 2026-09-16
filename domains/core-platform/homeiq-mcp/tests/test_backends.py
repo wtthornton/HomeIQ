@@ -88,8 +88,11 @@ def test_build_backings_uses_settings(settings):
         "data-api",
         "ai-pattern-service",
         "device-intelligence-service",
+        "websocket-ingestion",
     ]
     assert backings.data_api._client.headers["authorization"] == "Bearer data-api-key"
     assert backings.device_intelligence._client.headers["x-api-key"] == "data-api-key"
     assert "authorization" not in backings.device_intelligence._client.headers
     assert "x-api-key" not in backings.patterns._client.headers
+    assert backings.house_status.base_url == "http://ws-ingestion.test:8001"
+    assert backings.house_status._client.headers["authorization"] == "Bearer data-api-key"

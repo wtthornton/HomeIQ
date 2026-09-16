@@ -20,6 +20,7 @@ def settings() -> Settings:
         data_api_key="data-api-key",
         pattern_service_url="http://patterns.test:8020",
         device_intelligence_url="http://devint.test:8028",
+        house_status_url="http://ws-ingestion.test:8001",
     )
 
 
@@ -40,6 +41,9 @@ def backings(settings) -> Backings:
         patterns=HttpBacking("ai-pattern-service", settings.pattern_service_url),
         device_intelligence=HttpBacking(
             "device-intelligence-service", settings.device_intelligence_url
+        ),
+        house_status=HttpBacking(
+            "websocket-ingestion", settings.house_status_url, bearer_token="data-api-key"
         ),
     )
 

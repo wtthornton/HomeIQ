@@ -134,6 +134,7 @@ def test_every_active_tool_has_at_least_one_consumer_or_is_listed_as_orphan(gene
     orphans = sorted(set(ACTIVE) - consumers)
     # Orphans are allowed but must be deliberate: list them here when adding a tool nobody consumes yet.
     # get_automation_stats is reserved for future hiq.diagnosis gene (TAP-5317).
-    assert orphans == ["get_automation_stats"], (
+    # get_room_occupancy (TAP-7588) has no declared AgentForge gene consumer yet.
+    assert orphans == ["get_automation_stats", "get_room_occupancy"], (
         f"unexpected orphan tools (add a gene or record here): {orphans}"
     )

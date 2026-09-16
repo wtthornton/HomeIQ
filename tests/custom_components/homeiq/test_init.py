@@ -130,6 +130,41 @@ async def test_tool_call_reaches_the_mcp_server(
 
 
 @pytest.mark.usefixtures("homeassistant_component")
+async def test_room_occupancy_tool_is_exposed_and_callable(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    aioclient_mock: AiohttpClientMocker,
+) -> None:
+    """get_room_occupancy (TAP-7588) is reachable through the scoped homeiq API."""
+    serve_mcp(
+        aioclient_mock,
+        HANDSHAKE
+        | {
+            "tools/call": call_result(
+                {
+                    "area_id": "office",
+                    "state": "clear",
+                    "contributing_entity_ids": ["binary_sensor.office_motion"],
+                    "last_changed": "2026-09-15T12:00:00+00:00",
+                    "truncated": False,
+                }
+            )
+        },
+    )
+    await setup_entry(hass, config_entry)
+
+    instance = await llm.async_get_api(hass, LLM_API_ID, LLM_CONTEXT)
+    assert "get_room_occupancy" in {tool.name for tool in instance.tools}
+
+    result = await instance.async_call_tool(
+        llm.ToolInput(tool_name="get_room_occupancy", tool_args={"area_id": "office"})
+    )
+
+    assert result["state"] == "clear"
+    assert result["contributing_entity_ids"] == ["binary_sensor.office_motion"]
+
+
+@pytest.mark.usefixtures("homeassistant_component")
 async def test_tool_call_failure_becomes_a_home_assistant_error(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,

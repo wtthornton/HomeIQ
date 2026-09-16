@@ -5,7 +5,15 @@
 integration. Changing a shape here is a contract change: bump `catalogue_version`
 and update the contract tests (TAP-5297) in the same commit.
 
-**catalogue_version:** 1.2.4
+**catalogue_version:** 1.2.5
+
+**v1.2.5 changes (2026-09-15, TAP-7588):** adds tool 18 `get_room_occupancy`,
+backed by websocket-ingestion's `GET /api/status/rooms` (TAP-7587). The
+upstream `RoomOccupancy` model exposes only `state` / `contributing_entity_ids`
+/ `last_changed` — no confidence, certainty or probability field exists
+anywhere in that pipeline, so this tool never returns or synthesizes one.
+`state=unknown` means the area has no presence-capable sensor at all and must
+never be read as an empty or clear room.
 
 **v1.2.4 changes (2026-08-20, TAP-6107):** websocket-ingestion now writes
 `context_parent_id`, so `trace_automation` resolves real chains for events
@@ -78,6 +86,7 @@ tools. On any divergence, the JSON file wins.
 | data-api (`:8006` internal) | HTTP, existing endpoints unchanged | history, events, devices, entities, areas, automations, energy, carbon |
 | ai-pattern-service | HTTP | patterns, synergies |
 | device-intelligence-service | HTTP | health scores, failure predictions |
+| websocket-ingestion | HTTP | room occupancy (TAP-7588) |
 | InfluxDB (via data-api only) | — | the MCP server never queries InfluxDB directly |
 
 Backing paths below are FULL mount paths (data-api mounts its Events, Energy
@@ -95,7 +104,7 @@ without changing these contracts.
 
 ---
 
-## Tool catalogue — 17 tools (15 active, 2 deferred in v1.2.0)
+## Tool catalogue — 18 tools (16 active, 2 deferred in v1.2.0)
 
 ### Group 1 — Entity history & events (data-api)
 
@@ -264,6 +273,22 @@ predicted device failures.
   wiring it is a service change out of this catalogue's scope; if it lands,
   it joins this tool as a third `kind` without a contract break.
 
+### Group 6 — Room presence (websocket-ingestion)
+
+#### 18. `get_room_occupancy`
+Presence roll-up for one area: state, the presence-capable entities backing it, and when it last changed.
+- **Backing:** websocket-ingestion `GET /api/status/rooms` (TAP-7587) — no per-area route exists upstream, so the tool fetches the full roll-up and selects the requested area.
+- **Annotations:** `readOnlyHint: true` · **Budget:** 8 KB
+- **Input:** `{area_id: string (required)}`
+- **Output:** `{area_id, state: enum["detected","clear","unknown"], contributing_entity_ids: [string], last_changed, truncated}`
+- Note: **no confidence field.** The upstream `RoomOccupancy` model exposes
+  only `state`/`contributing_entity_ids`/`last_changed` — nothing in the
+  websocket-ingestion pipeline computes a certainty value, so this tool never
+  fabricates one. `state=unknown` means the area has no presence-capable
+  sensor at all (a coverage gap), never conflated with `clear` (sensors
+  present and all report no presence). An `area_id` absent from the upstream
+  roll-up is `not_found`, never an empty or invented room.
+
 ---
 
 ## Response size budgets (summary table)
@@ -285,6 +310,7 @@ predicted device failures.
 | get_device_energy_impact | 4 KB | — |
 | get_device_health | 32 KB | 100 |
 | detect_anomalies | 32 KB | 100 |
+| get_room_occupancy | 8 KB | 50 entity ids |
 
 Worst-case single response ≤ 64 KB; typical agent turn using 2-3 tools stays
 under ~100 KB of tool output. Enforcement is server-side (truncate + flag),
@@ -299,6 +325,7 @@ tested by TAP-5297 contract tests.
 | Energy correlation | get_energy_correlations, get_energy_summary, get_device_energy_impact |
 | Device health | get_device_health |
 | Anomaly detection | detect_anomalies (+ failure predictions within it) |
+| Room presence | get_room_occupancy |
 
 ## Comparison against the "opencode" inventory — recorded limitation
 
