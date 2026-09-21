@@ -30,7 +30,7 @@ pydantic-settings>=2.12.0,<3.0.0  # Pydantic settings management
 # HTTP Clients (Most Services)
 # ============================================
 httpx>=0.28.1,<0.29.0  # Latest stable 0.28.1 (January 2026) - async HTTP client
-aiohttp>=3.13.3,<4.0.0  # Latest stable 3.13.3 (January 2026) - async HTTP client/server
+aiohttp>=3.14.3,<4.0.0  # Latest stable 3.13.3 (January 2026) - async HTTP client/server
 tenacity>=8.0.0,<9.0.0  # Retry logic for API calls
 
 # ============================================
