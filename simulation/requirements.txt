@@ -8,7 +8,7 @@ pydantic>=2.9.0,<3.0.0  # Stable Pydantic v2 (November 2025)
 pydantic-settings>=2.6.0,<3.0.0  # Compatible with Pydantic v2
 
 # Data processing
-pandas>=2.2.0,<3.0.0  # Stable pandas 2.x (November 2025)
+pandas>=3.0.6,<4.0.0  # Stable pandas 2.x (November 2025)
 numpy>=1.26.0,<3.0.0  # Epic 54: aligned
 pyarrow>=22.0.0,<23.0.0  # For Parquet support (2025 stable - pre-built wheels)
 
