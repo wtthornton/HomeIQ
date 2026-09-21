@@ -50,7 +50,7 @@ opentelemetry-api>=1.24.0,<2.0.0
 opentelemetry-sdk>=1.24.0,<2.0.0
 opentelemetry-instrumentation-fastapi>=0.45b0,<1.0.0
 opentelemetry-exporter-otlp-proto-grpc>=1.24.0,<2.0.0
-opentelemetry-instrumentation-requests>=0.45b0,<1.0.0  # For HTTP clients
+opentelemetry-instrumentation-requests>=0.65b0,<1.0.0  # For HTTP clients
 opentelemetry-instrumentation-sqlalchemy>=0.45b0,<1.0.0  # For database queries
 
 # ============================================
