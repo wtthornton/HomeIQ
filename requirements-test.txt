@@ -10,7 +10,7 @@ pytest-timeout>=2.5.0          # Test timeout protection
 pytest-benchmark>=4.0.0        # Performance regression testing
 
 # Property-Based Testing
-hypothesis>=6.98.0             # Property-based testing for edge cases
+hypothesis>=6.168.0             # Property-based testing for edge cases
 
 # Test Doubles & Mocking
 pytest-mock>=3.12.0            # Advanced mocking
