@@ -15,7 +15,7 @@ pytest-homeassistant-custom-component==0.13.356
 # Requirements of the components this integration depends on, which the
 # homeassistant wheel does not install: conversation needs hassil and the
 # intents package, and ai_task pulls in camera.
-hassil==3.11.0
-home-assistant-intents==2026.7.30
+hassil==3.12.1
+home-assistant-intents==2026.9.17
 PyTurboJPEG
 pillow
