@@ -34,7 +34,7 @@ pytest-sugar>=1.0.0            # Beautiful test output
 pytest-html>=4.1.0             # HTML test reports
 
 # Performance & Profiling
-pytest-profiling>=1.7.0        # Profile slow tests
+pytest-profiling>=1.8.1        # Profile slow tests
 memory-profiler>=0.61.0        # Memory profiling
 
 # Fixtures & Utilities
