@@ -37,7 +37,7 @@ vulture>=2.10
 radon>=6.0.1
 
 # Traditional Python linter (keep as backup, but Ruff is faster)
-pylint>=3.0.0
+pylint>=4.0.8
 
 # Code coverage (if not already installed)
 coverage>=7.3.0
