@@ -33,7 +33,7 @@ jobs:
   contract-coverage:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Contract script is valid bash
         run: bash -n scripts/verify-dashboard-contract.sh
