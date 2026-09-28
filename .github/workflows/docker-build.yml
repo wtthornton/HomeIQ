@@ -56,10 +56,10 @@ jobs:
           - observability-dashboard
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -70,11 +70,11 @@ jobs:
         run: python scripts/validate-dockerfile-lib-order.py --strict
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to GitHub Container Registry
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -95,7 +95,7 @@ jobs:
 
       - name: Build Docker image
         if: steps.check-dockerfile.outputs.exists == 'true'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ${{ steps.check-dockerfile.outputs.dockerfile }}
@@ -120,10 +120,10 @@ jobs:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build all services in parallel
         run: |
@@ -171,10 +171,10 @@ jobs:
           - data-retention
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Check if Dockerfile exists
         id: check-dockerfile-scan
@@ -191,7 +191,7 @@ jobs:
 
       - name: Build image for scanning
         if: steps.check-dockerfile-scan.outputs.exists == 'true'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ${{ steps.check-dockerfile-scan.outputs.dockerfile }}
@@ -221,12 +221,12 @@ jobs:
 
       - name: Upload Trivy filesystem results to GitHub Security
         if: steps.check-dockerfile-scan.outputs.exists == 'true'
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-fs-${{ matrix.service }}.sarif'
 
       - name: Upload Trivy image results to GitHub Security
         if: steps.check-dockerfile-scan.outputs.exists == 'true'
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-image-${{ matrix.service }}.sarif'
