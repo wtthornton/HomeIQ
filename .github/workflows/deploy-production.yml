@@ -30,10 +30,10 @@ jobs:
       config_valid: ${{ steps.config-validation.outputs.valid }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -60,7 +60,7 @@ jobs:
           fi
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Security scan
         id: security-results
@@ -109,10 +109,10 @@ jobs:
       needs.quality-gates.outputs.config_valid == 'true'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -151,7 +151,7 @@ jobs:
       deployment-id: ${{ steps.deployment-id.outputs.id }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Generate deployment ID
         id: deployment-id
@@ -161,7 +161,7 @@ jobs:
           echo "Deployment ID: ${DEPLOYMENT_ID}"
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build all services
         run: |

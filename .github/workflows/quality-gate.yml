@@ -40,7 +40,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: start-stack refresh flags are opt-in only
         run: bash scripts/check-stack-refresh-optin.sh
@@ -92,7 +92,7 @@ jobs:
     name: HA image matches its manifest (TAP-6483)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 

@@ -30,9 +30,9 @@ jobs:
   gate:
     runs-on: ${{ inputs.runner }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -47,7 +47,7 @@ jobs:
           python -c "import json;print('AF version:', json.load(open('/tmp/af_health.json'))['version'])"
 
       - name: Checkout AgentForge (kit source)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: wtthornton/AgentForge
           path: .agentforge-kit
